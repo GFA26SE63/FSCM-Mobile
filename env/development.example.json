@@ -1,0 +1,4 @@
+{
+  "API_BASE_URL": "https://localhost:7027",
+  "GRAPHQL_ENDPOINT": "https://localhost:7027/graphql"
+}
