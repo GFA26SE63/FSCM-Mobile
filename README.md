@@ -4,9 +4,9 @@ Flutter client boundary for FSCM field and warehouse workflows. The product desi
 
 ## Current status
 
-The Sales Representative experience is implemented as an interactive Flutter feature slice backed by in-memory demonstration data. It includes authentication and first-login onboarding, online/offline switching, retailer and product selection, promotion-aware cart totals, order submission, order history and details, a three-state synchronization queue, notifications, QR simulation, KPI/revenue views, rankings, promotions, and potential-retailer declarations.
+The Sales Representative and Retail Store Manager experiences are implemented as interactive Flutter feature slices backed by in-memory demonstration data. Sales includes authentication and onboarding, online/offline ordering, promotion-aware cart totals, synchronization states, notifications, KPI/revenue views, rankings, promotions, and potential-retailer declarations. Retailer includes order and payment history, delivery details, QR ownership checks, batch/quantity receipt reconciliation, receipt confirmation, complaints with evidence, loyalty, and notifications.
 
-The current synchronization flow is a UI/domain simulation. SQLite persistence, background WorkManager execution, authentication/API integration, and authoritative server-side inventory conflict handling remain integration work. Retailer and Warehouse role applications have not been implemented yet.
+The current synchronization, QR scanning, image capture, payment, and receipt flows are UI/domain simulations. SQLite persistence, camera/scanner plugins, background WorkManager execution, authentication/API integration, and authoritative server-side inventory conflict handling remain integration work. The Warehouse role application has not been implemented yet.
 
 Use the repository architecture guidance before building features:
 
@@ -15,7 +15,7 @@ Use the repository architecture guidance before building features:
 ## Role experiences
 
 - **Sales:** interactive component implementation available under `lib/features/sales`; API and durable offline integration remain pending.
-- **Retailer:** order history, batch/quantity receipt reconciliation, photo evidence, complaints, and loyalty history/redemption. Retailers do not create orders or store-level inventory in the current scope.
+- **Retailer:** interactive component implementation available under `lib/features/retailer`; API, camera/scanner, and durable receipt-evidence integration remain pending. Retailers do not create orders or store-level inventory.
 - **Warehouse:** inbound receipt entry, batch/expiry capture, FEFO picking, label scanning/splitting, dispatch evidence, and damaged-stock reporting.
 
 ## Prerequisites
@@ -73,6 +73,7 @@ lib/
 |-- core/theme/      FSCM visual tokens and Material theme
 |-- core/widgets/    Reusable cards, status, search, and metric components
 |-- features/sales/  Sales domain models, demo data, controller, and screens
+|-- features/retailer/ Retailer receipt, complaint, payment, and loyalty flows
 |-- shared/domain/   Cross-role business models
 |-- shared/widgets/  Cross-role composed business widgets
 |-- shared/rbac/     Reserved authorization conventions

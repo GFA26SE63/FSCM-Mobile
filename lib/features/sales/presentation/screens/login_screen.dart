@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:fmcg/core/theme/fscm_theme.dart';
+import 'package:fmcg/core/widgets/fscm_components.dart';
 import 'package:fmcg/features/sales/presentation/sales_scope.dart';
+import 'package:fmcg/shared/widgets/experience_switcher.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -34,21 +36,9 @@ class _LoginScreenState extends State<LoginScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Align(
+                  const Align(
                     alignment: Alignment.centerLeft,
-                    child: Container(
-                      width: 58,
-                      height: 58,
-                      decoration: BoxDecoration(
-                        color: FscmColors.primary,
-                        borderRadius: BorderRadius.circular(17),
-                      ),
-                      child: const Icon(
-                        Icons.inventory_2_outlined,
-                        color: Colors.white,
-                        size: 30,
-                      ),
-                    ),
+                    child: FscmBrandMark(),
                   ),
                   const SizedBox(height: 20),
                   const Text(
@@ -130,6 +120,8 @@ class _LoginScreenState extends State<LoginScreen> {
                       height: 1.5,
                     ),
                   ),
+                  const SizedBox(height: 24),
+                  const ExperienceSwitcher(),
                 ],
               ),
             ),

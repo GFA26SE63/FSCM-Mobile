@@ -69,15 +69,75 @@ class OrderLine {
     required this.product,
     required this.quantity,
     this.discountPercent = 0,
+    this.batches = const [],
   });
 
   final Product product;
   final int quantity;
   final int discountPercent;
+  final List<BatchAllocation> batches;
 
   int get subtotal => product.price * quantity;
   int get discount => (subtotal * discountPercent / 100).round();
   int get total => subtotal - discount;
+}
+
+class BatchAllocation {
+  const BatchAllocation({
+    required this.batchCode,
+    required this.quantity,
+    required this.expiryDate,
+    required this.warehouse,
+    this.labelCode,
+  });
+
+  final String batchCode;
+  final int quantity;
+  final String expiryDate;
+  final String warehouse;
+  final String? labelCode;
+}
+
+enum PaymentMethod { cod, cash, bankTransfer, credit }
+
+class PaymentInfo {
+  const PaymentInfo({
+    this.method = PaymentMethod.cod,
+    this.isPaid = false,
+    this.paidAmount = 0,
+    this.paidAt,
+    this.dueDate,
+  });
+
+  final PaymentMethod method;
+  final bool isPaid;
+  final int paidAmount;
+  final String? paidAt;
+  final String? dueDate;
+
+  PaymentInfo copyWith({bool? isPaid, int? paidAmount, String? paidAt}) {
+    return PaymentInfo(
+      method: method,
+      isPaid: isPaid ?? this.isPaid,
+      paidAmount: paidAmount ?? this.paidAmount,
+      paidAt: paidAt ?? this.paidAt,
+      dueDate: dueDate,
+    );
+  }
+}
+
+class DeliveryInfo {
+  const DeliveryInfo({
+    required this.vehiclePlate,
+    required this.driverName,
+    required this.driverPhone,
+    required this.departedAt,
+  });
+
+  final String vehiclePlate;
+  final String driverName;
+  final String driverPhone;
+  final String departedAt;
 }
 
 class SalesOrder {
@@ -91,6 +151,8 @@ class SalesOrder {
     this.wasOffline = false,
     this.syncedAt,
     this.rejectionReason,
+    this.payment = const PaymentInfo(),
+    this.delivery,
   });
 
   final String id;
@@ -102,13 +164,19 @@ class SalesOrder {
   final bool wasOffline;
   final String? syncedAt;
   final String? rejectionReason;
+  final PaymentInfo payment;
+  final DeliveryInfo? delivery;
 
   int get subtotal => lines.fold(0, (sum, line) => sum + line.subtotal);
   int get discount => lines.fold(0, (sum, line) => sum + line.discount);
   int get total => lines.fold(0, (sum, line) => sum + line.total);
   int get totalQuantity => lines.fold(0, (sum, line) => sum + line.quantity);
 
-  SalesOrder copyWith({SalesOrderStatus? status, String? syncedAt}) {
+  SalesOrder copyWith({
+    SalesOrderStatus? status,
+    String? syncedAt,
+    PaymentInfo? payment,
+  }) {
     return SalesOrder(
       id: id,
       retailer: retailer,
@@ -119,6 +187,8 @@ class SalesOrder {
       wasOffline: wasOffline,
       syncedAt: syncedAt ?? this.syncedAt,
       rejectionReason: rejectionReason,
+      payment: payment ?? this.payment,
+      delivery: delivery,
     );
   }
 }

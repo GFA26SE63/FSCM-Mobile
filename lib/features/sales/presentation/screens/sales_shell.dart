@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:fmcg/core/theme/fscm_theme.dart';
 import 'package:fmcg/core/widgets/fscm_components.dart';
 import 'package:fmcg/features/sales/presentation/sales_scope.dart';
 import 'package:fmcg/features/sales/presentation/screens/account_screen.dart';
@@ -84,32 +83,8 @@ class ScannerScreen extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          Container(
-            height: 270,
-            decoration: BoxDecoration(
-              color: const Color(0xFF222725),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                Container(
-                  width: 190,
-                  height: 190,
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.white, width: 2),
-                    borderRadius: BorderRadius.circular(18),
-                  ),
-                ),
-                const Icon(Icons.qr_code_2, color: Colors.white54, size: 110),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-          const Text(
-            'Đưa mã QR điểm bán hoặc tem đơn hàng vào khung quét.',
-            textAlign: TextAlign.center,
-            style: TextStyle(color: FscmColors.muted),
+          const ScanFrame(
+            message: 'Đưa mã QR điểm bán hoặc tem đơn hàng vào khung quét.',
           ),
           const SizedBox(height: 24),
           ElevatedButton.icon(

@@ -152,3 +152,136 @@ class OrderSummaryCard extends StatelessWidget {
     );
   }
 }
+
+class OrderLineListCard extends StatelessWidget {
+  const OrderLineListCard({
+    super.key,
+    required this.lines,
+    this.showBatches = false,
+  });
+
+  final List<OrderLine> lines;
+  final bool showBatches;
+
+  @override
+  Widget build(BuildContext context) {
+    return FscmCard(
+      child: Column(
+        children: lines.map((line) {
+          return Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            line.product.name,
+                            style: const TextStyle(fontWeight: FontWeight.w700),
+                          ),
+                          Text(
+                            '${line.product.sku} · ${line.quantity} thùng × ${formatVnd(line.product.price)}',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: FscmColors.muted,
+                            ),
+                          ),
+                          if (line.discountPercent > 0)
+                            Text(
+                              'Khuyến mãi −${line.discountPercent}%',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: FscmColors.primary,
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                    Text(
+                      formatVnd(line.total),
+                      style: const TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                  ],
+                ),
+                if (showBatches && line.batches.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  ...line.batches.map(
+                    (batch) => Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Text(
+                        '${batch.batchCode} · ${batch.quantity} thùng · HSD ${batch.expiryDate} · ${batch.warehouse}',
+                        style: const TextStyle(
+                          color: FscmColors.muted,
+                          fontSize: 11.5,
+                          height: 1.35,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+}
+
+class OrderTotalsCard extends StatelessWidget {
+  const OrderTotalsCard({
+    super.key,
+    required this.subtotal,
+    required this.discount,
+    required this.total,
+  });
+
+  final int subtotal;
+  final int discount;
+  final int total;
+
+  @override
+  Widget build(BuildContext context) {
+    return FscmCard(
+      child: Column(
+        children: [
+          _row('Tạm tính', formatVnd(subtotal)),
+          const SizedBox(height: 8),
+          _row(
+            'Khuyến mãi',
+            '−${formatVnd(discount)}',
+            color: FscmColors.primary,
+          ),
+          const Divider(height: 22),
+          _row('Tổng thanh toán', formatVnd(total), bold: true),
+        ],
+      ),
+    );
+  }
+
+  Widget _row(String label, String value, {Color? color, bool bold = false}) {
+    final style = TextStyle(
+      color: color,
+      fontSize: bold ? 16 : 14,
+      fontWeight: bold ? FontWeight.w800 : FontWeight.w500,
+    );
+    return Row(
+      children: [
+        Expanded(child: Text(label, style: style)),
+        Text(value, style: style),
+      ],
+    );
+  }
+}
+
+String paymentMethodLabel(PaymentMethod method) => switch (method) {
+  PaymentMethod.cod => 'Khi nhận hàng (COD)',
+  PaymentMethod.cash => 'Trả trước · tiền mặt',
+  PaymentMethod.bankTransfer => 'Trả trước · chuyển khoản QR',
+  PaymentMethod.credit => 'Công nợ · trả sau',
+};

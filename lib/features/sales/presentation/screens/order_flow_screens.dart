@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:fmcg/core/theme/fscm_theme.dart';
 import 'package:fmcg/core/widgets/fscm_components.dart';
-import 'package:fmcg/features/sales/application/sales_controller.dart';
 import 'package:fmcg/features/sales/presentation/sales_scope.dart';
 import 'package:fmcg/shared/domain/fscm_models.dart';
 import 'package:fmcg/shared/widgets/order_widgets.dart';
@@ -496,7 +495,11 @@ class CartScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 4),
-          _OrderTotals(controller: controller),
+          OrderTotalsCard(
+            subtotal: controller.cartSubtotal,
+            discount: controller.cartDiscount,
+            total: controller.cartTotal,
+          ),
           const SizedBox(height: 90),
         ],
       ),
@@ -614,7 +617,11 @@ class OrderReviewScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 12),
-          _OrderTotals(controller: controller),
+          OrderTotalsCard(
+            subtotal: controller.cartSubtotal,
+            discount: controller.cartDiscount,
+            total: controller.cartTotal,
+          ),
           const SizedBox(height: 18),
           const SectionTitle('Thanh toán'),
           const SizedBox(height: 8),
@@ -655,54 +662,6 @@ class OrderReviewScreen extends StatelessWidget {
           ),
         ),
       ),
-    );
-  }
-}
-
-class _OrderTotals extends StatelessWidget {
-  const _OrderTotals({required this.controller});
-
-  final SalesController controller;
-
-  @override
-  Widget build(BuildContext context) {
-    return FscmCard(
-      child: Column(
-        children: [
-          _totalRow('Tạm tính', formatVnd(controller.cartSubtotal)),
-          const SizedBox(height: 8),
-          _totalRow(
-            'Khuyến mãi',
-            '−${formatVnd(controller.cartDiscount)}',
-            color: FscmColors.primary,
-          ),
-          const Divider(height: 22),
-          _totalRow(
-            'Tổng thanh toán',
-            formatVnd(controller.cartTotal),
-            bold: true,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _totalRow(
-    String label,
-    String value, {
-    Color? color,
-    bool bold = false,
-  }) {
-    final style = TextStyle(
-      color: color,
-      fontWeight: bold ? FontWeight.w800 : FontWeight.w500,
-      fontSize: bold ? 16 : 14,
-    );
-    return Row(
-      children: [
-        Expanded(child: Text(label, style: style)),
-        Text(value, style: style),
-      ],
     );
   }
 }
