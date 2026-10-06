@@ -40,4 +40,22 @@ void main() {
     expect(find.text('Tạp hóa Minh Châu'), findsWidgets);
     expect(find.textContaining('Công nợ còn phải trả'), findsOneWidget);
   });
+
+  testWidgets('Warehouse keeper can select its experience and sign in', (
+    tester,
+  ) async {
+    await tester.pumpWidget(const FscmApp());
+
+    await tester.ensureVisible(find.text('Kho'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Kho'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('FSCM Kho'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('warehouseLoginButton')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Kho Thới An'), findsWidgets);
+    expect(find.text('Picking list cần lấy'), findsOneWidget);
+  });
 }

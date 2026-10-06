@@ -10,6 +10,10 @@ import 'package:fmcg/features/sales/application/sales_controller.dart';
 import 'package:fmcg/features/sales/presentation/sales_scope.dart';
 import 'package:fmcg/features/sales/presentation/screens/login_screen.dart';
 import 'package:fmcg/features/sales/presentation/screens/sales_shell.dart';
+import 'package:fmcg/features/warehouse/application/warehouse_controller.dart';
+import 'package:fmcg/features/warehouse/presentation/screens/warehouse_login_screen.dart';
+import 'package:fmcg/features/warehouse/presentation/screens/warehouse_shell.dart';
+import 'package:fmcg/features/warehouse/presentation/warehouse_scope.dart';
 
 class FscmApp extends StatefulWidget {
   const FscmApp({super.key});
@@ -21,6 +25,7 @@ class FscmApp extends StatefulWidget {
 class _FscmAppState extends State<FscmApp> {
   late final SalesController _salesController;
   late final RetailerController _retailerController;
+  late final WarehouseController _warehouseController;
   late final AppExperienceController _experienceController;
 
   @override
@@ -28,6 +33,7 @@ class _FscmAppState extends State<FscmApp> {
     super.initState();
     _salesController = SalesController();
     _retailerController = RetailerController();
+    _warehouseController = WarehouseController();
     _experienceController = AppExperienceController();
   }
 
@@ -35,6 +41,7 @@ class _FscmAppState extends State<FscmApp> {
   void dispose() {
     _salesController.dispose();
     _retailerController.dispose();
+    _warehouseController.dispose();
     _experienceController.dispose();
     super.dispose();
   }
@@ -47,27 +54,35 @@ class _FscmAppState extends State<FscmApp> {
         controller: _salesController,
         child: RetailerScope(
           controller: _retailerController,
-          child: MaterialApp(
-            title: 'FSCM Mobile',
-            debugShowCheckedModeBanner: false,
-            theme: FscmTheme.light,
-            home: AnimatedBuilder(
-              animation: Listenable.merge([
-                _experienceController,
-                _salesController,
-                _retailerController,
-              ]),
-              builder: (context, _) =>
-                  switch (_experienceController.experience) {
-                    MobileExperience.sales =>
-                      _salesController.isAuthenticated
-                          ? const SalesShell()
-                          : const LoginScreen(),
-                    MobileExperience.retailer =>
-                      _retailerController.isAuthenticated
-                          ? const RetailerShell()
-                          : const RetailerLoginScreen(),
-                  },
+          child: WarehouseScope(
+            controller: _warehouseController,
+            child: MaterialApp(
+              title: 'FSCM Mobile',
+              debugShowCheckedModeBanner: false,
+              theme: FscmTheme.light,
+              home: AnimatedBuilder(
+                animation: Listenable.merge([
+                  _experienceController,
+                  _salesController,
+                  _retailerController,
+                  _warehouseController,
+                ]),
+                builder: (context, _) =>
+                    switch (_experienceController.experience) {
+                      MobileExperience.sales =>
+                        _salesController.isAuthenticated
+                            ? const SalesShell()
+                            : const LoginScreen(),
+                      MobileExperience.retailer =>
+                        _retailerController.isAuthenticated
+                            ? const RetailerShell()
+                            : const RetailerLoginScreen(),
+                      MobileExperience.warehouse =>
+                        _warehouseController.isAuthenticated
+                            ? const WarehouseShell()
+                            : const WarehouseLoginScreen(),
+                    },
+              ),
             ),
           ),
         ),

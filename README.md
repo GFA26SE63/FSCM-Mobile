@@ -4,9 +4,9 @@ Flutter client boundary for FSCM field and warehouse workflows. The product desi
 
 ## Current status
 
-The Sales Representative and Retail Store Manager experiences are implemented as interactive Flutter feature slices backed by in-memory demonstration data. Sales includes authentication and onboarding, online/offline ordering, promotion-aware cart totals, synchronization states, notifications, KPI/revenue views, rankings, promotions, and potential-retailer declarations. Retailer includes order and payment history, delivery details, QR ownership checks, batch/quantity receipt reconciliation, receipt confirmation, complaints with evidence, loyalty, and notifications.
+The Sales Representative, Retail Store Manager, and Warehouse Keeper experiences are implemented as interactive Flutter feature slices backed by in-memory demonstration data. Sales includes authentication and onboarding, online/offline ordering, promotion-aware cart totals, synchronization states, notifications, KPI/revenue views, rankings, promotions, and potential-retailer declarations. Retailer includes order and payment history, delivery details, QR ownership checks, batch/quantity receipt reconciliation, receipt confirmation, complaints with evidence, loyalty, and notifications. Warehouse includes FEFO picking lists, source-label validation, pallet-label splitting, dispatch confirmation, label traceability, expiry visibility, and inbound receipt/label generation.
 
-The current synchronization, QR scanning, image capture, payment, and receipt flows are UI/domain simulations. SQLite persistence, camera/scanner plugins, background WorkManager execution, authentication/API integration, and authoritative server-side inventory conflict handling remain integration work. The Warehouse role application has not been implemented yet.
+The current synchronization, QR scanning, printing, image capture, payment, receipt, picking, and dispatch flows are UI/domain simulations. SQLite persistence, camera/scanner and printer plugins, background WorkManager execution, authentication/API integration, and authoritative server-side inventory conflict handling remain integration work.
 
 Use the repository architecture guidance before building features:
 
@@ -16,7 +16,7 @@ Use the repository architecture guidance before building features:
 
 - **Sales:** interactive component implementation available under `lib/features/sales`; API and durable offline integration remain pending.
 - **Retailer:** interactive component implementation available under `lib/features/retailer`; API, camera/scanner, and durable receipt-evidence integration remain pending. Retailers do not create orders or store-level inventory.
-- **Warehouse:** inbound receipt entry, batch/expiry capture, FEFO picking, label scanning/splitting, dispatch evidence, and damaged-stock reporting.
+- **Warehouse:** interactive component implementation available under `lib/features/warehouse`; inbound receipt entry, batch/expiry capture, FEFO picking, label scanning/splitting, dispatch confirmation, and traceability are implemented with demonstration state. API, scanner, printer, and durable inventory integration remain pending.
 
 ## Prerequisites
 
@@ -74,6 +74,7 @@ lib/
 |-- core/widgets/    Reusable cards, status, search, and metric components
 |-- features/sales/  Sales domain models, demo data, controller, and screens
 |-- features/retailer/ Retailer receipt, complaint, payment, and loyalty flows
+|-- features/warehouse/ Warehouse receiving, picking, labels, and dispatch flows
 |-- shared/domain/   Cross-role business models
 |-- shared/widgets/  Cross-role composed business widgets
 |-- shared/rbac/     Reserved authorization conventions

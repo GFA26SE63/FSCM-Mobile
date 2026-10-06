@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
 
-enum MobileExperience { sales, retailer }
+enum MobileExperience { sales, retailer, warehouse }
 
 class AppExperienceController extends ChangeNotifier {
   MobileExperience _experience = MobileExperience.sales;

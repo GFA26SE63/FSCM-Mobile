@@ -344,3 +344,89 @@ class EvidencePickerCard extends StatelessWidget {
     );
   }
 }
+
+class StatusPill extends StatelessWidget {
+  const StatusPill({
+    super.key,
+    required this.label,
+    required this.color,
+    this.backgroundColor,
+  });
+
+  final String label;
+  final Color color;
+  final Color? backgroundColor;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: backgroundColor ?? color.withValues(alpha: .1),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: color,
+          fontSize: 11.5,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+}
+
+class SuccessPanel extends StatelessWidget {
+  const SuccessPanel({
+    super.key,
+    required this.title,
+    required this.message,
+    required this.actions,
+  });
+
+  final String title;
+  final String message;
+  final List<Widget> actions;
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 78,
+              height: 78,
+              decoration: const BoxDecoration(
+                color: Color(0xFFE1F1EC),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.check,
+                color: FscmColors.primary,
+                size: 42,
+              ),
+            ),
+            const SizedBox(height: 20),
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: FscmColors.muted, height: 1.5),
+            ),
+            const SizedBox(height: 26),
+            ...actions.expand((action) => [action, const SizedBox(height: 10)]),
+          ],
+        ),
+      ),
+    );
+  }
+}

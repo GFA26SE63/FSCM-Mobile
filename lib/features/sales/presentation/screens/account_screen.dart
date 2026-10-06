@@ -4,6 +4,7 @@ import 'package:fmcg/core/widgets/fscm_components.dart';
 import 'package:fmcg/features/sales/presentation/sales_scope.dart';
 import 'package:fmcg/features/sales/presentation/screens/insights_screens.dart';
 import 'package:fmcg/features/sales/presentation/screens/orders_screen.dart';
+import 'package:fmcg/shared/widgets/experience_switcher.dart';
 
 class AccountScreen extends StatelessWidget {
   const AccountScreen({super.key});
@@ -137,6 +138,8 @@ class AccountScreen extends StatelessWidget {
               ],
             ),
           ),
+          const SizedBox(height: 18),
+          const ExperienceSwitcher(),
           const SizedBox(height: 20),
           OutlinedButton.icon(
             onPressed: () => _confirmLogout(context),

@@ -30,6 +30,11 @@ class ExperienceSwitcher extends StatelessWidget {
                 icon: Icon(Icons.storefront_outlined),
                 label: Text('Retailer'),
               ),
+              ButtonSegment(
+                value: MobileExperience.warehouse,
+                icon: Icon(Icons.warehouse_outlined),
+                label: Text('Kho'),
+              ),
             ],
             selected: {controller.experience},
             onSelectionChanged: (value) => controller.select(value.first),

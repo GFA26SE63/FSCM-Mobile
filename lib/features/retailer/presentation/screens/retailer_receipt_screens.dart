@@ -269,56 +269,27 @@ class RetailerReceiptSuccessScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final order = RetailerScope.of(context).orderById(orderId);
     return Scaffold(
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                width: 82,
-                height: 82,
-                decoration: const BoxDecoration(
-                  color: Color(0xFFE1F1EC),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons.check,
-                  color: FscmColors.primary,
-                  size: 44,
-                ),
-              ),
-              const SizedBox(height: 22),
-              const Text(
-                'Đơn hàng đã hoàn thành',
-                style: TextStyle(fontSize: 23, fontWeight: FontWeight.w800),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                '$orderId đã được đối chiếu đủ batch và số lượng.${order?.payment.method == PaymentMethod.cod ? ' Thanh toán COD đã được ghi nhận.' : ''}',
-                textAlign: TextAlign.center,
-                style: const TextStyle(color: FscmColors.muted, height: 1.5),
-              ),
-              const SizedBox(height: 28),
-              ElevatedButton(
-                onPressed: () {
-                  RetailerScope.of(context, listen: false).setTab(0);
-                  Navigator.of(context).popUntil((route) => route.isFirst);
-                },
-                child: const Text('Về danh sách đơn hàng'),
-              ),
-              const SizedBox(height: 10),
-              OutlinedButton(
-                onPressed: () => Navigator.of(context).pushReplacement(
-                  MaterialPageRoute<void>(
-                    builder: (_) => RetailerOrderDetailScreen(orderId: orderId),
-                  ),
-                ),
-                child: const Text('Xem chi tiết đơn'),
-              ),
-            ],
+      body: SuccessPanel(
+        title: 'Đơn hàng đã hoàn thành',
+        message:
+            '$orderId đã được đối chiếu đủ batch và số lượng.${order?.payment.method == PaymentMethod.cod ? ' Thanh toán COD đã được ghi nhận.' : ''}',
+        actions: [
+          ElevatedButton(
+            onPressed: () {
+              RetailerScope.of(context, listen: false).setTab(0);
+              Navigator.of(context).popUntil((route) => route.isFirst);
+            },
+            child: const Text('Về danh sách đơn hàng'),
           ),
-        ),
+          OutlinedButton(
+            onPressed: () => Navigator.of(context).pushReplacement(
+              MaterialPageRoute<void>(
+                builder: (_) => RetailerOrderDetailScreen(orderId: orderId),
+              ),
+            ),
+            child: const Text('Xem chi tiết đơn'),
+          ),
+        ],
       ),
     );
   }
