@@ -1,4 +1,5 @@
 import 'package:fmcg/features/sales/domain/sales_models.dart';
+import 'package:fmcg/shared/domain/fscm_models.dart';
 
 abstract final class DemoSalesData {
   static const products = <Product>[
@@ -203,20 +204,20 @@ abstract final class DemoSalesData {
     ),
   ];
 
-  static List<SalesNotification> notifications() => const [
-    SalesNotification(
+  static List<FscmNotification> notifications() => const [
+    FscmNotification(
       id: 1,
       message: 'Đơn DH-1024 đã được duyệt và chuyển sang chuẩn bị hàng.',
       time: '08:32 27/09',
       orderId: 'DH-1024',
     ),
-    SalesNotification(
+    FscmNotification(
       id: 2,
       message: 'Đơn DH-1021 đang được giao đến Tạp hóa Minh Châu.',
       time: '09:15 27/09',
       orderId: 'DH-1021',
     ),
-    SalesNotification(
+    FscmNotification(
       id: 3,
       message: 'Đơn DH-1018 bị từ chối vì không đủ hàng khả dụng.',
       time: '16:45 23/09',

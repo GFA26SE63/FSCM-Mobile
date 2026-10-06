@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fmcg/features/sales/application/sales_controller.dart';
-import 'package:fmcg/features/sales/domain/sales_models.dart';
+import 'package:fmcg/shared/domain/fscm_models.dart';
 
 void main() {
   group('SalesController', () {

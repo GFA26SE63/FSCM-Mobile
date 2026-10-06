@@ -3,6 +3,7 @@ import 'package:fmcg/core/theme/fscm_theme.dart';
 import 'package:fmcg/core/widgets/fscm_components.dart';
 import 'package:fmcg/features/sales/domain/sales_models.dart';
 import 'package:fmcg/features/sales/presentation/sales_scope.dart';
+import 'package:fmcg/shared/domain/fscm_models.dart';
 
 class PromotionsScreen extends StatelessWidget {
   const PromotionsScreen({super.key});

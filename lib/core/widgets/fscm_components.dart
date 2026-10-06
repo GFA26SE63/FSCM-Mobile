@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:fmcg/core/theme/fscm_theme.dart';
-import 'package:fmcg/features/sales/domain/sales_models.dart';
 
 String formatVnd(num amount) {
   final digits = amount.round().toString();
@@ -128,79 +127,6 @@ class MetricCard extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class StatusPill extends StatelessWidget {
-  const StatusPill({super.key, required this.status});
-
-  final SalesOrderStatus status;
-
-  @override
-  Widget build(BuildContext context) {
-    final (label, foreground, background) = switch (status) {
-      SalesOrderStatus.pendingSync => (
-        'Chờ đồng bộ',
-        const Color(0xFF374151),
-        const Color(0xFFECEEF1),
-      ),
-      SalesOrderStatus.syncing => (
-        'Đang đồng bộ',
-        FscmColors.info,
-        const Color(0xFFE8EEFD),
-      ),
-      SalesOrderStatus.pendingApproval => (
-        'Chờ duyệt',
-        FscmColors.info,
-        const Color(0xFFE8EEFD),
-      ),
-      SalesOrderStatus.approved => (
-        'Đã duyệt',
-        FscmColors.primary,
-        const Color(0xFFE1F1EC),
-      ),
-      SalesOrderStatus.dispatched => (
-        'Đã xuất kho',
-        FscmColors.primary,
-        const Color(0xFFE1F1EC),
-      ),
-      SalesOrderStatus.delivering => (
-        'Đang giao',
-        FscmColors.purple,
-        const Color(0xFFF1EAFE),
-      ),
-      SalesOrderStatus.delivered => (
-        'Đã giao',
-        const Color(0xFF15703A),
-        const Color(0xFFE5F4EA),
-      ),
-      SalesOrderStatus.rejected => (
-        'Bị từ chối',
-        FscmColors.danger,
-        const Color(0xFFFDECEA),
-      ),
-      SalesOrderStatus.cancelled => (
-        'Đã hủy',
-        const Color(0xFF4B5563),
-        const Color(0xFFECEEF1),
-      ),
-    };
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
-      decoration: BoxDecoration(
-        color: background,
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          color: foreground,
-          fontSize: 12,
-          fontWeight: FontWeight.w700,
-        ),
       ),
     );
   }

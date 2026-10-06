@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:fmcg/features/sales/data/demo_sales_data.dart';
 import 'package:fmcg/features/sales/domain/sales_models.dart';
+import 'package:fmcg/shared/domain/fscm_models.dart';
 
 class SalesController extends ChangeNotifier {
   bool isAuthenticated = false;
@@ -17,7 +18,7 @@ class SalesController extends ChangeNotifier {
   final List<Retailer> retailers = DemoSalesData.retailers;
   final List<Promotion> promotions = DemoSalesData.promotions;
   final List<SalesOrder> orders = DemoSalesData.orders().toList();
-  final List<SalesNotification> notifications = DemoSalesData.notifications()
+  final List<FscmNotification> notifications = DemoSalesData.notifications()
       .toList();
   final List<RetailerLead> leads = DemoSalesData.leads().toList();
   final Map<String, int> _cart = {};
@@ -119,7 +120,7 @@ class SalesController extends ChangeNotifier {
     lastCreatedOrder = order;
     notifications.insert(
       0,
-      SalesNotification(
+      FscmNotification(
         id: DateTime.now().microsecondsSinceEpoch,
         message: isOnline
             ? 'Đơn ${order.id} đã gửi và đang chờ duyệt.'

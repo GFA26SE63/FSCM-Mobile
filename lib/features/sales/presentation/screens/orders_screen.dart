@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:fmcg/core/theme/fscm_theme.dart';
 import 'package:fmcg/core/widgets/fscm_components.dart';
-import 'package:fmcg/features/sales/domain/sales_models.dart';
 import 'package:fmcg/features/sales/presentation/sales_scope.dart';
+import 'package:fmcg/shared/domain/fscm_models.dart';
+import 'package:fmcg/shared/widgets/order_widgets.dart';
 
 class OrdersScreen extends StatefulWidget {
   const OrdersScreen({super.key});
@@ -73,89 +74,18 @@ class _OrdersScreenState extends State<OrdersScreen> {
                     padding: const EdgeInsets.fromLTRB(16, 4, 16, 20),
                     itemCount: orders.length,
                     separatorBuilder: (_, _) => const SizedBox(height: 10),
-                    itemBuilder: (context, index) =>
-                        OrderCard(order: orders[index]),
+                    itemBuilder: (context, index) {
+                      final order = orders[index];
+                      return OrderSummaryCard(
+                        order: order,
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => OrderDetailScreen(order: order),
+                          ),
+                        ),
+                      );
+                    },
                   ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class OrderCard extends StatelessWidget {
-  const OrderCard({super.key, required this.order});
-
-  final SalesOrder order;
-
-  @override
-  Widget build(BuildContext context) {
-    return FscmCard(
-      onTap: () => Navigator.of(context).push(
-        MaterialPageRoute<void>(
-          builder: (_) => OrderDetailScreen(order: order),
-        ),
-      ),
-      padding: const EdgeInsets.all(14),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  order.id,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w800,
-                    fontSize: 15,
-                  ),
-                ),
-              ),
-              StatusPill(status: order.status),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            order.retailer.name,
-            style: const TextStyle(fontWeight: FontWeight.w700),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            order.lines
-                .map((line) => '${line.product.name} ×${line.quantity}')
-                .join(' · '),
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              fontSize: 12.5,
-              color: FscmColors.muted,
-              height: 1.4,
-            ),
-          ),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              Icon(
-                order.wasOffline
-                    ? Icons.cloud_off_outlined
-                    : Icons.cloud_done_outlined,
-                size: 16,
-                color: FscmColors.muted,
-              ),
-              const SizedBox(width: 5),
-              Text(
-                order.createdAt,
-                style: const TextStyle(fontSize: 12, color: FscmColors.muted),
-              ),
-              const Spacer(),
-              Text(
-                formatVnd(order.total),
-                style: const TextStyle(
-                  fontWeight: FontWeight.w800,
-                  color: FscmColors.primary,
-                ),
-              ),
-            ],
           ),
         ],
       ),
@@ -198,7 +128,7 @@ class OrderDetailScreen extends StatelessWidget {
                   ],
                 ),
               ),
-              StatusPill(status: order.status),
+              OrderStatusPill(status: order.status),
             ],
           ),
           if (order.rejectionReason case final reason?) ...[

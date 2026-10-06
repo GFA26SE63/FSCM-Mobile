@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:fmcg/core/theme/fscm_theme.dart';
 import 'package:fmcg/core/widgets/fscm_components.dart';
-import 'package:fmcg/features/sales/domain/sales_models.dart';
 import 'package:fmcg/features/sales/presentation/sales_scope.dart';
 import 'package:fmcg/features/sales/presentation/screens/orders_screen.dart';
+import 'package:fmcg/shared/domain/fscm_models.dart';
+import 'package:fmcg/shared/widgets/order_widgets.dart';
 
 class SyncScreen extends StatefulWidget {
   const SyncScreen({super.key});
@@ -128,8 +129,17 @@ class _SyncScreenState extends State<SyncScreen> {
                     padding: const EdgeInsets.fromLTRB(16, 4, 16, 96),
                     itemCount: orders.length,
                     separatorBuilder: (_, _) => const SizedBox(height: 10),
-                    itemBuilder: (context, index) =>
-                        OrderCard(order: orders[index]),
+                    itemBuilder: (context, index) {
+                      final order = orders[index];
+                      return OrderSummaryCard(
+                        order: order,
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => OrderDetailScreen(order: order),
+                          ),
+                        ),
+                      );
+                    },
                   ),
           ),
         ],

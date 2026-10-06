@@ -73,6 +73,8 @@ lib/
 |-- core/theme/      FSCM visual tokens and Material theme
 |-- core/widgets/    Reusable cards, status, search, and metric components
 |-- features/sales/  Sales domain models, demo data, controller, and screens
+|-- shared/domain/   Cross-role business models
+|-- shared/widgets/  Cross-role composed business widgets
 |-- shared/rbac/     Reserved authorization conventions
 `-- main.dart        Current application entry screen
 ```

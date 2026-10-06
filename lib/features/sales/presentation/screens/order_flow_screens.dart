@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:fmcg/core/theme/fscm_theme.dart';
 import 'package:fmcg/core/widgets/fscm_components.dart';
 import 'package:fmcg/features/sales/application/sales_controller.dart';
-import 'package:fmcg/features/sales/domain/sales_models.dart';
 import 'package:fmcg/features/sales/presentation/sales_scope.dart';
+import 'package:fmcg/shared/domain/fscm_models.dart';
+import 'package:fmcg/shared/widgets/order_widgets.dart';
 
 class RetailerSelectionScreen extends StatefulWidget {
   const RetailerSelectionScreen({super.key});
@@ -751,7 +752,7 @@ class OrderSuccessScreen extends StatelessWidget {
                 style: const TextStyle(color: FscmColors.muted, height: 1.5),
               ),
               const SizedBox(height: 18),
-              StatusPill(status: order.status),
+              OrderStatusPill(status: order.status),
               const SizedBox(height: 32),
               ElevatedButton(
                 onPressed: () {

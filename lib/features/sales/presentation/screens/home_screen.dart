@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:fmcg/core/theme/fscm_theme.dart';
 import 'package:fmcg/core/widgets/fscm_components.dart';
-import 'package:fmcg/features/sales/domain/sales_models.dart';
 import 'package:fmcg/features/sales/presentation/sales_scope.dart';
 import 'package:fmcg/features/sales/presentation/screens/insights_screens.dart';
 import 'package:fmcg/features/sales/presentation/screens/order_flow_screens.dart';
 import 'package:fmcg/features/sales/presentation/screens/orders_screen.dart';
+import 'package:fmcg/shared/domain/fscm_models.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -222,7 +222,7 @@ class HomeScreen extends StatelessWidget {
     Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => page));
   }
 
-  void _openNotification(BuildContext context, SalesNotification notification) {
+  void _openNotification(BuildContext context, FscmNotification notification) {
     final controller = SalesScope.of(context, listen: false);
     controller.markNotificationRead(notification.id);
     final order = controller.orderById(notification.orderId);
