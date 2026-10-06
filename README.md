@@ -4,15 +4,17 @@ Flutter client boundary for FSCM field and warehouse workflows. The product desi
 
 ## Current status
 
-The project is an application skeleton and still renders Flutter's starter counter screen. API environment mapping and a Dio client exist, and dependencies needed for routing, state management, local storage, background work, connectivity, secure storage, GraphQL, and image capture are declared. The planned role workflows and offline synchronization engine are not yet implemented.
+The Sales Representative experience is implemented as an interactive Flutter feature slice backed by in-memory demonstration data. It includes authentication and first-login onboarding, online/offline switching, retailer and product selection, promotion-aware cart totals, order submission, order history and details, a three-state synchronization queue, notifications, QR simulation, KPI/revenue views, rankings, promotions, and potential-retailer declarations.
+
+The current synchronization flow is a UI/domain simulation. SQLite persistence, background WorkManager execution, authentication/API integration, and authoritative server-side inventory conflict handling remain integration work. Retailer and Warehouse role applications have not been implemented yet.
 
 Use the repository architecture guidance before building features:
 
 - [Architecture assessment](../.docs/architecture/repository-skeleton.md) for boundaries and conventions
 
-## Planned experiences
+## Role experiences
 
-- **Sales:** cached retailer/catalog availability, offline order queue, detailed synchronization states, order tracking, promotions, retailer assessment, and KPI/revenue views.
+- **Sales:** interactive component implementation available under `lib/features/sales`; API and durable offline integration remain pending.
 - **Retailer:** order history, batch/quantity receipt reconciliation, photo evidence, complaints, and loyalty history/redemption. Retailers do not create orders or store-level inventory in the current scope.
 - **Warehouse:** inbound receipt entry, batch/expiry capture, FEFO picking, label scanning/splitting, dispatch evidence, and damaged-stock reporting.
 
@@ -68,9 +70,11 @@ flutter test
 lib/
 |-- config/          Compile-time environment values
 |-- core/network/    Shared Dio client
-|-- features/        Feature modules (currently a template boundary)
+|-- core/theme/      FSCM visual tokens and Material theme
+|-- core/widgets/    Reusable cards, status, search, and metric components
+|-- features/sales/  Sales domain models, demo data, controller, and screens
 |-- shared/rbac/     Reserved authorization conventions
 `-- main.dart        Current application entry screen
 ```
 
-Offline-first behavior is a business requirement, not a completed capability. Feature implementation must persist the required read models and order queue in SQLite, expose `not synced` / `syncing` / `synced` states, retry safely in background work, and let the server resolve inventory conflicts authoritatively during synchronization.
+The Sales UI exposes `not synced` / `syncing` / `synced` states. Production offline-first behavior must persist the required read models and order queue in SQLite, retry safely in background work, and let the server resolve inventory conflicts authoritatively during synchronization.
