@@ -8,9 +8,12 @@ The Sales Representative, Retail Store Manager, and Warehouse Keeper experiences
 
 The current synchronization, QR scanning, printing, image capture, payment, receipt, picking, and dispatch flows are UI/domain simulations. SQLite persistence, camera/scanner and printer plugins, background WorkManager execution, authentication/API integration, and authoritative server-side inventory conflict handling remain integration work.
 
-Use the repository architecture guidance before building features:
+Cross-system architecture documentation is stored beside the local repositories under `FSCM/.docs` and `FSCM/diagram`.
 
-- [Architecture assessment](../.docs/architecture/repository-skeleton.md) for boundaries and conventions
+## Related repositories
+
+- [FSCM Backend](https://github.com/GFA26SE63/FSCM-Backend)
+- [FSCM Frontend](https://github.com/GFA26SE63/FSCM-Frontend)
 
 ## Role experiences
 
@@ -82,3 +85,7 @@ lib/
 ```
 
 The Sales UI exposes `not synced` / `syncing` / `synced` states. Production offline-first behavior must persist the required read models and order queue in SQLite, retry safely in background work, and let the server resolve inventory conflicts authoritatively during synchronization.
+
+## Continuous integration
+
+GitHub Actions verifies formatting, static analysis, automated tests, and an Android debug build for pushes and pull requests targeting `main` or `develop`. A separate workflow mirrors every GitHub branch to the `FSCM-Mobile` Azure Repo.
