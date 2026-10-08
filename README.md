@@ -1,5 +1,7 @@
 # FSCM Mobile Client
 
+[![Mobile CI](https://github.com/GFA26SE63/FSCM-Mobile/actions/workflows/mobile-ci.yml/badge.svg)](https://github.com/GFA26SE63/FSCM-Mobile/actions/workflows/mobile-ci.yml)
+
 Flutter client boundary for FSCM field and warehouse workflows. The product design includes role-specific experiences for Sales Representatives, Retail Store Managers, and Warehouse Keepers.
 
 ## Current status
