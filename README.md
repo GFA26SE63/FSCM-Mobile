@@ -90,4 +90,4 @@ The Sales UI exposes `not synced` / `syncing` / `synced` states. Production offl
 
 ## Continuous integration
 
-GitHub Actions verifies formatting, static analysis, automated tests, and an Android debug build for pushes and pull requests targeting `main` or `develop`. A separate workflow mirrors every GitHub branch to the `FSCM-Mobile` Azure Repo.
+GitHub Actions verifies formatting, static analysis, and automated tests for pushes and pull requests on every branch. A separate workflow mirrors every GitHub branch to the `FSCM-Mobile` Azure Repo.

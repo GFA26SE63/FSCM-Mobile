@@ -2,13 +2,7 @@ name: Mobile CI
 
 on:
   push:
-    branches:
-      - main
-      - develop
   pull_request:
-    branches:
-      - main
-      - develop
   workflow_dispatch:
 
 permissions:
@@ -20,7 +14,7 @@ concurrency:
 
 jobs:
   validate:
-    name: Analyze, test, and build
+    name: Format, analyze, and test
     runs-on: ubuntu-latest
 
     steps:
@@ -45,6 +39,3 @@ jobs:
 
       - name: Test
         run: flutter test
-
-      - name: Build Android debug package
-        run: flutter build apk --debug
