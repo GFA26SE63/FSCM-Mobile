@@ -1,93 +1,64 @@
-# FSCM Mobile Client
+# FSCM Mobile – Flutter (một app, theo vai trò)
 
-[![Mobile CI](https://github.com/GFA26SE63/FSCM-Mobile/actions/workflows/mobile-ci.yml/badge.svg)](https://github.com/GFA26SE63/FSCM-Mobile/actions/workflows/mobile-ci.yml)
+App cho **Sales**, **Warehouse Keeper** và **Retailer** (FA26SE083 · GFA26SE63). Vai trò lấy theo tài khoản đăng nhập; mỗi vai trò có shell và thanh điều hướng riêng (nút Quét QR ở giữa, chuông thông báo góc phải).
 
-Flutter client boundary for FSCM field and warehouse workflows. The product design includes role-specific experiences for Sales Representatives, Retail Store Managers, and Warehouse Keepers.
+## Chạy lần đầu
 
-## Current status
+Repo chỉ chứa `lib/`, `test/`, `pubspec.yaml`. Thư mục nền tảng sinh bằng Flutter:
 
-The Sales Representative, Retail Store Manager, and Warehouse Keeper experiences are implemented as interactive Flutter feature slices backed by in-memory demonstration data. Sales includes authentication and onboarding, online/offline ordering, promotion-aware cart totals, synchronization states, notifications, KPI/revenue views, rankings, promotions, and potential-retailer declarations. Retailer includes order and payment history, delivery details, QR ownership checks, batch/quantity receipt reconciliation, receipt confirmation, complaints with evidence, loyalty, and notifications. Warehouse includes FEFO picking lists, source-label validation, pallet-label splitting, dispatch confirmation, label traceability, expiry visibility, and inbound receipt/label generation.
-
-The current synchronization, QR scanning, printing, image capture, payment, receipt, picking, and dispatch flows are UI/domain simulations. SQLite persistence, camera/scanner and printer plugins, background WorkManager execution, authentication/API integration, and authoritative server-side inventory conflict handling remain integration work.
-
-Cross-system architecture documentation is stored beside the local repositories under `FSCM/.docs` and `FSCM/diagram`.
-
-## Related repositories
-
-- [FSCM Backend](https://github.com/GFA26SE63/FSCM-Backend)
-- [FSCM Frontend](https://github.com/GFA26SE63/FSCM-Frontend)
-
-## Role experiences
-
-- **Sales:** interactive component implementation available under `lib/features/sales`; API and durable offline integration remain pending.
-- **Retailer:** interactive component implementation available under `lib/features/retailer`; API, camera/scanner, and durable receipt-evidence integration remain pending. Retailers do not create orders or store-level inventory.
-- **Warehouse:** interactive component implementation available under `lib/features/warehouse`; inbound receipt entry, batch/expiry capture, FEFO picking, label scanning/splitting, dispatch confirmation, and traceability are implemented with demonstration state. API, scanner, printer, and durable inventory integration remain pending.
-
-## Prerequisites
-
-- Flutter 3.44 / Dart 3.12 or a compatible newer toolchain
-- A configured Android, iOS, desktop, or web target supported by the project
-
-## Configuration
-
-The client reads compile-time values through `String.fromEnvironment`:
-
-| Define | Default | Purpose |
-| --- | --- | --- |
-| `API_BASE_URL` | `https://localhost:7027` | REST/API base URL |
-| `GRAPHQL_ENDPOINT` | `<API base URL>/graphql` | GraphQL endpoint |
-
-Pass them directly when running:
-
-```powershell
-flutter run --dart-define=API_BASE_URL=https://localhost:7027 --dart-define=GRAPHQL_ENDPOINT=https://localhost:7027/graphql
-```
-
-Alternatively, create an ignored JSON file such as `env/appsettings.json` and run:
-
-```powershell
-flutter run --dart-define-from-file=env/appsettings.json
-```
-
-Example file shape:
-
-```json
-{
-  "API_BASE_URL": "https://localhost:7027",
-  "GRAPHQL_ENDPOINT": "https://localhost:7027/graphql"
-}
-```
-
-`localhost` refers to the device itself. For an emulator or physical device, use an API address reachable from that device; Android Emulator commonly reaches the development host at `10.0.2.2`. Local HTTPS also requires a certificate trusted by the target device.
-
-## Development and validation
-
-```powershell
+```bash
+flutter create . --org vn.edu.fpt.fscm --platforms android,ios --project-name fscm_mobile
 flutter pub get
-flutter run
-flutter analyze
+flutter run                     # mặc định USE_MOCK=true: chạy không cần backend, dữ liệu mẫu prototype
 flutter test
 ```
 
-## Source layout
+Sau `flutter create`, thêm quyền camera cho `mobile_scanner`:
+- Android `android/app/src/main/AndroidManifest.xml`: `<uses-permission android:name="android.permission.CAMERA" />`, và `minSdkVersion 21` trong `android/app/build.gradle`.
+- iOS `ios/Runner/Info.plist`: `NSCameraUsageDescription` = "Quét mã QR tem hàng / nhận hàng".
 
-```text
+Tài khoản mock (mật khẩu `Fscm2026`):
+
+| Vai trò | Số điện thoại | Người dùng |
+|---|---|---|
+| Sales | 0909123456 | Nguyễn Văn An – Quận 12, nhóm Q12-A |
+| Warehouse Keeper | 0912440118 | Đỗ Văn Tâm – Kho Thới An |
+| Retailer | 0909555127 | Tạp hóa Minh Châu (10004127) |
+
+Nối backend thật:
+```bash
+flutter run --dart-define=USE_MOCK=false --dart-define=API_BASE_URL=http://10.0.2.2:5080/api/v1
+```
+(`10.0.2.2` = máy host khi chạy Android emulator.)
+
+## Cấu trúc
+
+```
 lib/
-|-- config/          Compile-time environment values
-|-- core/network/    Shared Dio client
-|-- core/theme/      FSCM visual tokens and Material theme
-|-- core/widgets/    Reusable cards, status, search, and metric components
-|-- features/sales/  Sales domain models, demo data, controller, and screens
-|-- features/retailer/ Retailer receipt, complaint, payment, and loyalty flows
-|-- features/warehouse/ Warehouse receiving, picking, labels, and dispatch flows
-|-- shared/domain/   Cross-role business models
-|-- shared/widgets/  Cross-role composed business widgets
-|-- shared/rbac/     Reserved authorization conventions
-`-- main.dart        Current application entry screen
+├─ main.dart              ProviderScope; USE_MOCK=true thì thay transport bằng MockApi
+├─ app/                   FscmApp, router (go_router, redirect theo vai trò), theme, shell/ (sales, warehouse, retailer)
+├─ core/                  auth (session, role), config (env, device identity → mã OFF-{device}), network (dio client, ApiException từ ProblemDetails, transport, endpoints, network monitor), storage (token), utils (id_format, money, dates, clock)
+├─ data/
+│  ├─ models/             DTO + enum (trạng thái đơn, thanh toán COD / trả trước / công nợ 7-14-30, phiếu điều chuyển Bổ sung / Luân chuyển cận hạn…)
+│  ├─ remote/             *_api.dart – một file mỗi nhóm REST
+│  ├─ local/              sqflite: AppDatabase + DAO (retailer, product, promotion, inventory snapshot, sync state, offline order queue)
+│  ├─ pricing/            tính khuyến mãi tạm trên máy khi offline (server tính lại khi sync)
+│  ├─ repositories/       ghép remote + local cho từng nghiệp vụ
+│  └─ mock/               MockApi trong app (seed = dữ liệu prototype)
+├─ sync/                  SyncService + sync_queue_logic (thứ tự tạo, retry, idempotency clientRequestId UUID)
+├─ shared/                routes, theme màu, widget dùng chung (status chip, QR scan view, timeline, stepper…)
+└─ features/
+   ├─ common/             splash, login, thông báo, hồ sơ
+   ├─ sales/              home, retailer trong vùng (chặn trái vùng), sản phẩm + khuyến mãi, tạo đơn (offline), xác nhận (thanh toán, công nợ nếu retailer được phép), màn Đồng bộ 3 tab Chưa / Đang / Đã, chi tiết đơn, công nợ của tôi (lọc quá hạn), KPI & xếp hạng sau KM + sản phẩm bán chạy, khai báo retailer mới (thông tin tiềm năng → KB)
+   ├─ warehouse/          home, picking list, quét tem để soạn, chia số lượng, tra tem, nhận phiếu điều chuyển (cả loại Luân chuyển cận hạn)
+   └─ retailer/           đơn hàng (đang / lịch sử, tên sản phẩm), chi tiết đơn có xe + người giao, quét QR nhận hàng → xác nhận + cộng điểm, thanh toán & công nợ, thẻ loyalty + sổ điểm, đổi quà (điểm tạm giữ), khiếu nại
 ```
 
-The Sales UI exposes `not synced` / `syncing` / `synced` states. Production offline-first behavior must persist the required read models and order queue in SQLite, retry safely in background work, and let the server resolve inventory conflicts authoritatively during synchronization.
+Luồng offline của Sales: đơn lưu vào bảng `offline_order_queue` (clientRequestId UUID, payload, status, retryCount, error). Khi có mạng, `SyncService` gửi theo thứ tự tạo lên `POST /orders/sync`; kết quả server là cuối cùng (đơn tới sau không còn đủ hàng bị từ chối và báo cho Sales + retailer).
 
-## Continuous integration
+## Lưu ý khi nối API thật
 
-GitHub Actions verifies formatting, static analysis, and automated tests for pushes and pull requests on every branch. A separate workflow mirrors every GitHub branch to the `FSCM-Mobile` Azure Repo.
+- Mock đang có `POST /auth/password` (đăng nhập bằng số điện thoại + mật khẩu). Backend dùng Microsoft Entra ID, nên khi nối thật cần chọn một trong hai: thêm `msal_flutter`/`flutter_appauth` lấy token Entra, hoặc thêm endpoint đăng nhập vào module Identity của backend.
+- Model trong `data/models` khớp với mock; đối chiếu lại với Swagger của backend và sửa một phía cho thống nhất.
+- Thời gian gửi lên server phải là ISO 8601 có `Z` hoặc offset (Npgsql từ chối DateTime không rõ múi giờ).
+- Chưa chạy `flutter analyze` trong môi trường tạo code (không có Flutter SDK); đã rà tĩnh toàn bộ import, constructor, API package. Chạy `flutter analyze` sau `flutter pub get` để chắc chắn.
