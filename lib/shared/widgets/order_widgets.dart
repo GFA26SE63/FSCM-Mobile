@@ -1,277 +1,234 @@
 import 'package:flutter/material.dart';
-import 'package:fmcg/core/theme/fscm_theme.dart';
-import 'package:fmcg/core/widgets/fscm_components.dart';
-import 'package:fmcg/shared/domain/fscm_models.dart';
 
-class OrderStatusPill extends StatelessWidget {
-  const OrderStatusPill({super.key, required this.status});
+import 'package:fscm_mobile/core/utils/dates.dart';
+import 'package:fscm_mobile/core/utils/money.dart';
+import 'package:fscm_mobile/core/utils/status_tone.dart';
+import 'package:fscm_mobile/data/models/enums.dart';
+import 'package:fscm_mobile/data/models/order.dart';
+import 'package:fscm_mobile/data/models/price_quote.dart';
+import 'package:fscm_mobile/shared/theme/app_colors.dart';
+import 'package:fscm_mobile/shared/widgets/app_card.dart';
+import 'package:fscm_mobile/shared/widgets/kv_row.dart';
+import 'package:fscm_mobile/shared/widgets/status_chip.dart';
 
-  final SalesOrderStatus status;
+/// Chip for an order: sync state while the order is only on the device,
+/// otherwise the order status.
+class OrderStatusChip extends StatelessWidget {
+  const OrderStatusChip(this.order, {super.key});
 
-  @override
-  Widget build(BuildContext context) {
-    final (label, foreground, background) = switch (status) {
-      SalesOrderStatus.pendingSync => (
-        'Chờ đồng bộ',
-        const Color(0xFF374151),
-        const Color(0xFFECEEF1),
-      ),
-      SalesOrderStatus.syncing => (
-        'Đang đồng bộ',
-        FscmColors.info,
-        const Color(0xFFE8EEFD),
-      ),
-      SalesOrderStatus.pendingApproval => (
-        'Chờ duyệt',
-        FscmColors.info,
-        const Color(0xFFE8EEFD),
-      ),
-      SalesOrderStatus.approved => (
-        'Đã duyệt',
-        FscmColors.primary,
-        const Color(0xFFE1F1EC),
-      ),
-      SalesOrderStatus.dispatched => (
-        'Đã xuất kho',
-        FscmColors.primary,
-        const Color(0xFFE1F1EC),
-      ),
-      SalesOrderStatus.delivering => (
-        'Đang giao',
-        FscmColors.purple,
-        const Color(0xFFF1EAFE),
-      ),
-      SalesOrderStatus.delivered => (
-        'Đã giao',
-        const Color(0xFF15703A),
-        const Color(0xFFE5F4EA),
-      ),
-      SalesOrderStatus.rejected => (
-        'Bị từ chối',
-        FscmColors.danger,
-        const Color(0xFFFDECEA),
-      ),
-      SalesOrderStatus.cancelled => (
-        'Đã hủy',
-        const Color(0xFF4B5563),
-        const Color(0xFFECEEF1),
-      ),
-    };
-
-    return StatusPill(
-      label: label,
-      color: foreground,
-      backgroundColor: background,
-    );
-  }
-}
-
-class OrderSummaryCard extends StatelessWidget {
-  const OrderSummaryCard({super.key, required this.order, this.onTap});
-
-  final SalesOrder order;
-  final VoidCallback? onTap;
+  final Order order;
 
   @override
   Widget build(BuildContext context) {
-    return FscmCard(
-      onTap: onTap,
-      padding: const EdgeInsets.all(14),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  order.id,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w800,
-                    fontSize: 15,
-                  ),
-                ),
-              ),
-              OrderStatusPill(status: order.status),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            order.retailer.name,
-            style: const TextStyle(fontWeight: FontWeight.w700),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            order.lines
-                .map((line) => '${line.product.name} ×${line.quantity}')
-                .join(' · '),
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              fontSize: 12.5,
-              color: FscmColors.muted,
-              height: 1.4,
-            ),
-          ),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              Icon(
-                order.wasOffline
-                    ? Icons.cloud_off_outlined
-                    : Icons.cloud_done_outlined,
-                size: 16,
-                color: FscmColors.muted,
-              ),
-              const SizedBox(width: 5),
-              Text(
-                order.createdAt,
-                style: const TextStyle(fontSize: 12, color: FscmColors.muted),
-              ),
-              const Spacer(),
-              Text(
-                formatVnd(order.total),
-                style: const TextStyle(
-                  fontWeight: FontWeight.w800,
-                  color: FscmColors.primary,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
+    final sync = order.syncStatus;
+    if (sync == SyncStatus.pending || sync == SyncStatus.syncing) {
+      return StatusChip(label: sync!.label, tone: sync.tone);
+    }
+    return StatusChip(label: order.status.label, tone: order.status.tone);
   }
 }
 
-class OrderLineListCard extends StatelessWidget {
-  const OrderLineListCard({
-    super.key,
-    required this.lines,
-    this.showBatches = false,
-  });
+/// Lines of an order with product names, prices, discounts and (optional)
+/// the batches/labels allocated by the FEFO engine.
+class OrderLinesCard extends StatelessWidget {
+  const OrderLinesCard(this.order, {super.key, this.showBatches = false});
 
-  final List<OrderLine> lines;
+  final Order order;
   final bool showBatches;
 
   @override
   Widget build(BuildContext context) {
-    return FscmCard(
+    return AppCard(
       child: Column(
-        children: lines.map((line) {
-          return Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            line.product.name,
-                            style: const TextStyle(fontWeight: FontWeight.w700),
-                          ),
-                          Text(
-                            '${line.product.sku} · ${line.quantity} thùng × ${formatVnd(line.product.price)}',
-                            style: const TextStyle(
-                              fontSize: 12,
-                              color: FscmColors.muted,
-                            ),
-                          ),
-                          if (line.discountPercent > 0)
-                            Text(
-                              'Khuyến mãi −${line.discountPercent}%',
-                              style: const TextStyle(
-                                fontSize: 12,
-                                color: FscmColors.primary,
-                              ),
-                            ),
-                        ],
-                      ),
-                    ),
-                    Text(
-                      formatVnd(line.total),
-                      style: const TextStyle(fontWeight: FontWeight.w700),
-                    ),
-                  ],
-                ),
-                if (showBatches && line.batches.isNotEmpty) ...[
-                  const SizedBox(height: 8),
-                  ...line.batches.map(
-                    (batch) => Padding(
-                      padding: const EdgeInsets.only(top: 4),
-                      child: Text(
-                        '${batch.batchCode} · ${batch.quantity} thùng · HSD ${batch.expiryDate} · ${batch.warehouse}',
-                        style: const TextStyle(
-                          color: FscmColors.muted,
-                          fontSize: 11.5,
-                          height: 1.35,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          );
-        }).toList(),
-      ),
-    );
-  }
-}
-
-class OrderTotalsCard extends StatelessWidget {
-  const OrderTotalsCard({
-    super.key,
-    required this.subtotal,
-    required this.discount,
-    required this.total,
-  });
-
-  final int subtotal;
-  final int discount;
-  final int total;
-
-  @override
-  Widget build(BuildContext context) {
-    return FscmCard(
-      child: Column(
-        children: [
-          _row('Tạm tính', formatVnd(subtotal)),
-          const SizedBox(height: 8),
-          _row(
-            'Khuyến mãi',
-            '−${formatVnd(discount)}',
-            color: FscmColors.primary,
-          ),
-          const Divider(height: 22),
-          _row('Tổng thanh toán', formatVnd(total), bold: true),
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          for (var i = 0; i < order.lines.length; i++) ...<Widget>[
+            if (i > 0) const Divider(height: 20),
+            _line(order.lines[i]),
+          ],
         ],
       ),
     );
   }
 
-  Widget _row(String label, String value, {Color? color, bool bold = false}) {
-    final style = TextStyle(
-      color: color,
-      fontSize: bold ? 16 : 14,
-      fontWeight: bold ? FontWeight.w800 : FontWeight.w500,
-    );
-    return Row(
-      children: [
-        Expanded(child: Text(label, style: style)),
-        Text(value, style: style),
+  Widget _line(OrderLine l) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Text('${l.sku} · ${l.name}',
+            style: const TextStyle(fontWeight: FontWeight.w700)),
+        const SizedBox(height: 2),
+        Text(
+          '${l.qty} thùng × ${Money.format(l.unitPrice)} = ${Money.format(l.base)}',
+          style: const TextStyle(color: AppColors.textMuted),
+        ),
+        if (l.discount > 0)
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Row(
+              children: <Widget>[
+                StatusChip(
+                  label: '${l.promoId} · giảm ${_pct(l.discountPct)}%',
+                  tone: StatusTone.warning,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  Money.minus(l.discount),
+                  style: const TextStyle(
+                    color: AppColors.success,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        if (showBatches)
+          for (final b in l.batches)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text(
+                '• ${b.batchCode} · ${b.qty} thùng · HSD ${AppDates.date(b.expiry)}'
+                '${b.warehouseName.isEmpty ? '' : ' · ${b.warehouseName}'}'
+                '${b.labelCode.isEmpty ? '' : ' · tem ${b.labelCode}'}',
+                style: const TextStyle(
+                    fontSize: 12.5, color: AppColors.textMuted, height: 1.3),
+              ),
+            ),
       ],
+    );
+  }
+
+  static String _pct(double v) =>
+      v == v.roundToDouble() ? v.round().toString() : v.toString();
+}
+
+/// "Khuyến mãi áp dụng" summary: one row per promotion.
+class AppliedPromoCard extends StatelessWidget {
+  const AppliedPromoCard(this.promos,
+      {super.key, this.emptyText = 'Không có khuyến mãi.'});
+
+  final List<AppliedPromo> promos;
+  final String emptyText;
+
+  @override
+  Widget build(BuildContext context) {
+    return AppCard(
+      child: promos.isEmpty
+          ? Text(emptyText, style: const TextStyle(color: AppColors.textMuted))
+          : Column(
+              children: <Widget>[
+                for (final p in promos)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: <Widget>[
+                              Text(
+                                '${p.id} · ${p.name}',
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.w700),
+                              ),
+                              if (p.typeLabel.isNotEmpty)
+                                Text(
+                                  p.typeLabel,
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    color: AppColors.textMuted,
+                                  ),
+                                ),
+                              Text(
+                                p.detail,
+                                style: const TextStyle(
+                                  fontSize: 12.5,
+                                  color: AppColors.textMuted,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Text(
+                          Money.minus(p.amount),
+                          style: const TextStyle(
+                            color: AppColors.success,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
     );
   }
 }
 
-String paymentMethodLabel(PaymentMethod method) => switch (method) {
-  PaymentMethod.cod => 'Khi nhận hàng (COD)',
-  PaymentMethod.cash => 'Trả trước · tiền mặt',
-  PaymentMethod.bankTransfer => 'Trả trước · chuyển khoản QR',
-  PaymentMethod.credit => 'Công nợ · trả sau',
-};
+/// Tổng tiền hàng / Tổng giảm / Thành tiền.
+class TotalsCard extends StatelessWidget {
+  const TotalsCard({
+    super.key,
+    required this.total,
+    required this.discount,
+    this.finalLabel = 'Thành tiền',
+  });
+
+  final int total;
+  final int discount;
+  final String finalLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    return AppCard(
+      child: Column(
+        children: <Widget>[
+          KvRow('Tổng tiền hàng', Money.format(total)),
+          KvRow('Tổng giảm', Money.minus(discount),
+              valueColor: AppColors.success),
+          const Divider(height: 16),
+          KvRow(finalLabel, Money.format(total - discount), bold: true),
+        ],
+      ),
+    );
+  }
+}
+
+/// Vehicle plate + driver snapshot of a dispatched order.
+class DeliveryInfoCard extends StatelessWidget {
+  const DeliveryInfoCard(this.order, {super.key});
+
+  final Order order;
+
+  @override
+  Widget build(BuildContext context) {
+    return AppCard(
+      color: const Color(0xFFF1EAFE),
+      child: Row(
+        children: <Widget>[
+          const Icon(Icons.local_shipping_outlined, color: Color(0xFF6D28D9)),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                const Text('Đang giao',
+                    style: TextStyle(fontWeight: FontWeight.w700)),
+                const SizedBox(height: 2),
+                Text('Xe ${order.vehiclePlate} · ${order.driverName}'),
+                if (order.driverPhone.isNotEmpty)
+                  Text('SĐT ${order.driverPhone}'),
+                if (order.departedAt != null)
+                  Text(
+                    'Xuất phát ${AppDates.time(order.departedAt)}',
+                    style: const TextStyle(color: AppColors.textMuted),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
