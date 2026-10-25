@@ -67,6 +67,9 @@ class Endpoints {
 
   // ------------------------------------------------------------- loyalty
   static const String loyaltyPrograms = '/loyalty/programs';
+  static const String loyaltyCardMe = '/loyalty/cards/me';
+  static const String loyaltyRewards = '/loyalty/rewards';
+  static const String loyaltyRedemptions = '/loyalty/redemptions';
   static String loyaltyRetailer(String code) => '/loyalty/retailers/$code';
   static const String gifts = '/gifts';
   static const String giftRedemptions = '/gift-redemptions';

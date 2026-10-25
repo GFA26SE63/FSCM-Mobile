@@ -89,6 +89,21 @@ class _Detail extends ConsumerWidget {
                 ? 'Hệ thống từ chối đơn hàng.'
                 : o.rejectReason,
           ),
+        if (o.allocationResult.isNotEmpty)
+          InfoBanner(
+            tone: o.allocationResult.toLowerCase() == 'short'
+                ? StatusTone.warning
+                : StatusTone.success,
+            icon: o.allocationResult.toLowerCase() == 'short'
+                ? Icons.inventory_2_outlined
+                : Icons.check_circle_outline,
+            title: o.allocationResult.toLowerCase() == 'short'
+                ? 'Đợt phân bổ: thiếu hàng'
+                : 'Đợt phân bổ: đủ hàng',
+            text: o.allocationResult.toLowerCase() == 'short'
+                ? 'Đơn thiếu là kết quả lịch sử của đợt này. ${o.changeReason.isNotEmpty ? o.changeReason : 'Xem lý do từng dòng bên dưới; không gửi lại đơn vào đợt sau.'}'
+                : 'Đơn đã có kết quả chính thức từ đợt phân bổ${o.allocationRunId.isNotEmpty ? ' ${o.allocationRunId}' : ''}.',
+          ),
         if (o.syncStatus == SyncStatus.pending ||
             o.syncStatus == SyncStatus.syncing)
           const InfoBanner(

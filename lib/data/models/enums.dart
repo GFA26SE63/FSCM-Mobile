@@ -191,6 +191,8 @@ enum GiftRequestStatus {
 
   static GiftRequestStatus fromCode(String? code) {
     final c = (code ?? '').toLowerCase();
+    if (c == 'pending') return GiftRequestStatus.requested;
+    if (c == 'completed') return GiftRequestStatus.done;
     for (final s in GiftRequestStatus.values) {
       if (s.code.toLowerCase() == c) return s;
     }

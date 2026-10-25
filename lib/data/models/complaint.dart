@@ -21,14 +21,14 @@ class Complaint {
         code: asStr(j['code']),
         orderCode: asStr(j['orderCode']),
         sku: asStr(j['sku']),
-        name: asStr(j['name']),
-        expectedQty: asInt(j['expectedQty']),
-        actualQty: asInt(j['actualQty']),
+        name: asStr(j['productName'], asStr(j['name'])),
+        expectedQty: asInt(j['expectedQuantity'] ?? j['expectedQty']),
+        actualQty: asInt(j['actualQuantity'] ?? j['actualQty']),
         status: ComplaintStatus.fromCode(asStrOrNull(j['status'])),
         labelCode: asStr(j['labelCode']),
         note: asStr(j['note']),
         createdAt: asDate(j['createdAt']),
-        response: asStr(j['response']),
+        response: asStr(j['response'], asStr(j['responseNote'])),
       );
 
   final String code;

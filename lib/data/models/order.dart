@@ -122,6 +122,9 @@ class Order {
     this.pointsPending = false,
     this.labelCodes = const <String>[],
     this.timeline = const <TimelineEntry>[],
+    this.allocationState = '',
+    this.allocationResult = '',
+    this.allocationRunId = '',
   });
 
   factory Order.fromJson(Map<String, dynamic> j) => Order(
@@ -155,6 +158,9 @@ class Order {
         pointsPending: asBool(j['pointsPending']),
         labelCodes: asStrList(j['labelCodes']),
         timeline: mapList(j['timeline'], TimelineEntry.fromJson),
+        allocationState: asStr(j['allocationState']),
+        allocationResult: asStr(j['allocationResult']),
+        allocationRunId: asStr(j['allocationRunId']),
       );
 
   final String code;
@@ -199,6 +205,12 @@ class Order {
   /// Labels (TEM) shipped for this order - the retailer scans them.
   final List<String> labelCodes;
   final List<TimelineEntry> timeline;
+
+  /// Result frozen by the server's allocation run. A short result is history;
+  /// it must not be resent into a later run with the old priority timestamp.
+  final String allocationState;
+  final String allocationResult;
+  final String allocationRunId;
 
   int get finalAmount => total - discount;
   bool get hasDelivery => vehiclePlate.isNotEmpty;
@@ -277,6 +289,9 @@ class Order {
         pointsPending: pointsPending ?? this.pointsPending,
         labelCodes: labelCodes,
         timeline: timeline ?? this.timeline,
+        allocationState: allocationState,
+        allocationResult: allocationResult,
+        allocationRunId: allocationRunId,
       );
 
   Map<String, dynamic> toJson() => <String, dynamic>{
@@ -310,6 +325,9 @@ class Order {
         'pointsPending': pointsPending,
         'labelCodes': labelCodes,
         'timeline': timeline.map((t) => t.toJson()).toList(),
+        'allocationState': allocationState,
+        'allocationResult': allocationResult,
+        'allocationRunId': allocationRunId,
       };
 }
 
