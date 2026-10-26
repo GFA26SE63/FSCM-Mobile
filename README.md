@@ -25,11 +25,38 @@ Tài khoản mock (mật khẩu `Fscm2026`):
 | Warehouse Keeper | 0912440118 | Đỗ Văn Tâm – Kho Thới An |
 | Retailer | 0909555127 | Tạp hóa Minh Châu (10004127) |
 
-Nối backend thật:
+### Nối backend thật
+
+Cấu hình là **hằng số lúc biên dịch**, không phải file đọc lúc chạy. App **không bao giờ tự đọc**
+`env/appsettings.json`; nó chỉ có tác dụng khi được đưa vào lệnh build. Đây là chỗ dễ mất thời gian
+nhất: đặt file vào đúng chỗ rồi chạy `flutter run` thì app vẫn chạy mock, không báo lỗi gì.
+
 ```bash
-flutter run --dart-define=USE_MOCK=false --dart-define=API_BASE_URL=http://10.0.2.2:5080/api/v1
+flutter run --dart-define-from-file=env/appsettings.json
 ```
-(`10.0.2.2` = máy host khi chạy Android emulator.)
+
+`env/` nằm trong `.gitignore`; chép `env/development.example.json` thành `env/appsettings.json` rồi
+sửa cho máy mình. Ba khoá app đọc — và chỉ ba khoá này:
+
+| Khoá | Ý nghĩa |
+|---|---|
+| `API_BASE_URL` | **Phải có đuôi `/api/v1`.** Thiếu là mọi lời gọi 404 |
+| `USE_MOCK` | Mặc định **`true`** — tức là không có khoá này thì app **không hề nối backend** |
+| `FLAVOR` | `dev` / `staging` / `prod` |
+
+Hoặc truyền lẻ từng cái:
+
+```bash
+flutter run --dart-define=USE_MOCK=false --dart-define=API_BASE_URL=https://10.0.2.2:7027/api/v1
+```
+
+Hai thứ hay làm hỏng kết nối dù cấu hình đã đúng:
+
+- **`10.0.2.2` chứ không phải `localhost`.** Trong máy ảo Android, `localhost` là chính máy ảo, nên
+  backend chạy trên máy thật không đến được qua tên đó. Máy thật cắm dây thì dùng IP LAN của máy
+  host.
+- **Chứng chỉ tự ký.** API dev chạy https với cert tự ký; Dio sẽ từ chối bắt tay TLS trên thiết bị.
+  Hoặc chạy backend kèm cổng http và trỏ `API_BASE_URL` vào đó, hoặc cài cert vào máy ảo.
 
 ## Kiến trúc và cấu trúc thư mục
 
