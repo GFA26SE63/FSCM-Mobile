@@ -73,16 +73,37 @@ class _PickLineScreenState extends ConsumerState<PickLineScreen> {
         });
         return;
       }
-      final remaining = gather.remainingQuantity;
+      final takeable = _takeable(gather, label.qty);
+      if (takeable == 0) {
+        setState(() {
+          _label = null;
+          _error = 'Lượt lấy này chỉ còn '
+              '${Qty.cartons(gather.remainingQuantity)} — ít hơn một thùng nguyên, '
+              'không quét tem thêm được. Báo ngoại lệ trên phiếu soạn.';
+        });
+        return;
+      }
       setState(() {
         _label = label;
         _error = '';
         _operationKey = const Uuid().v4();
-        _qty = remaining < label.qty ? remaining.floor() : label.qty;
+        _qty = takeable;
       });
     } on ApiException catch (e) {
       if (mounted) setState(() => _error = e.message);
     }
+  }
+
+  /// Whole cartons this scan may take: the lesser of what the gather still owes and what the label
+  /// holds.
+  ///
+  /// Quantities are decimal on the server, and a gather can be left owing a fraction of a carton.
+  /// The scan screen deals in whole cartons because that is what a person picks off a pallet, so a
+  /// remainder below one is not something this screen can spend - it returns 0 and the caller says
+  /// so, rather than rounding up into a quantity the server will refuse.
+  static int _takeable(RunPickingGather gather, int labelQuantity) {
+    final owed = gather.remainingQuantity.floor();
+    return owed < labelQuantity ? owed : labelQuantity;
   }
 
   Future<void> _confirm(RunPickingSheet sheet, RunPickingGather gather) async {
@@ -190,8 +211,10 @@ class _PickLineScreenState extends ConsumerState<PickLineScreen> {
 
   Widget _quantityView(
       RunPickingSheet sheet, RunPickingGather gather, LabelInfo label) {
-    final remaining = gather.remainingQuantity;
-    final max = (remaining < label.qty ? remaining.floor() : label.qty);
+    // Never offer a carton the gather does not need: the guard that used to raise a zero maximum
+    // to one let the keeper scan a whole carton against a half-carton remainder, which the server
+    // refuses with no way forward on screen.
+    final max = _takeable(gather, label.qty);
     final whole = _qty == label.qty;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -216,7 +239,7 @@ class _PickLineScreenState extends ConsumerState<PickLineScreen> {
             child: QuantityStepper(
                 value: _qty,
                 min: 1,
-                max: max < 1 ? 1 : max,
+                max: max,
                 step: 1,
                 onChanged: (v) => setState(() => _qty = v))),
         const SizedBox(height: 10),
