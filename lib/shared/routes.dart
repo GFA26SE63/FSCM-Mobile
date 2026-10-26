@@ -39,13 +39,24 @@ class AppRoutes {
   static const String wkShipped = '/wk/shipped';
   static const String wkLabelLookup = '/wk/label-lookup';
   static const String wkPickingDetailPattern = '/wk/picking/:code';
-  static const String wkPickLinePattern = '/wk/picking/:code/line/:index';
+  static const String wkPickGatherPattern =
+      '/wk/picking/:code/gather/:gatherId';
+  static const String wkOrderIssuePattern =
+      '/wk/picking/:code/order/:orderCode';
   static const String wkTransferDetailPattern = '/wk/transfer/:code';
   static const String wkLabelPattern = '/wk/label/:code';
 
   static String wkPickingDetail(String code) => '/wk/picking/$code';
-  static String wkPickLine(String code, int index) =>
-      '/wk/picking/$code/line/$index';
+
+  /// The scan screen of one gather (F44). Keyed by the gather, not by a
+  /// position in a list: a sheet is regrouped by the server as it is picked,
+  /// so an index would point at a different batch after a refresh.
+  static String wkPickGather(String code, String gatherId) =>
+      '/wk/picking/$code/gather/$gatherId';
+
+  /// Readiness and issue of one order on a sheet (F93, F96).
+  static String wkOrderIssue(String code, String orderCode) =>
+      '/wk/picking/$code/order/$orderCode';
   static String wkTransferDetail(String code) => '/wk/transfer/$code';
   static String wkLabel(String code) => '/wk/label/$code';
 

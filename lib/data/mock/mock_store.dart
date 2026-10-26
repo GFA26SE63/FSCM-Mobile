@@ -10,7 +10,6 @@ import 'package:fscm_mobile/data/models/label_info.dart';
 import 'package:fscm_mobile/data/models/loyalty.dart';
 import 'package:fscm_mobile/data/models/offline_order.dart';
 import 'package:fscm_mobile/data/models/order.dart';
-import 'package:fscm_mobile/data/models/picking.dart';
 import 'package:fscm_mobile/data/models/product.dart';
 import 'package:fscm_mobile/data/models/promotion.dart';
 import 'package:fscm_mobile/data/models/receivable.dart';
@@ -141,7 +140,19 @@ class MockStore {
   final Map<String, OrderSyncResult> processedSync =
       <String, OrderSyncResult>{};
 
-  final Map<String, PickingList> pickings = <String, PickingList>{};
+  /// Run picking sheets and order shipments are held as the JSON the real API
+  /// would send, keyed by picking code and by shipment id. Holding them as
+  /// parsed models let the mock quietly answer in a shape the server does not
+  /// use; as JSON, every read goes through the same parsing as production.
+  final Map<String, Map<String, dynamic>> pickingSheets =
+      <String, Map<String, dynamic>>{};
+  final Map<String, Map<String, dynamic>> shipments =
+      <String, Map<String, dynamic>>{};
+
+  /// Idempotency keys of pick scans already applied, so a repeat returns the
+  /// sheet unchanged the way the server does.
+  final Set<String> scanKeys = <String>{};
+
   final Map<String, LabelInfo> labels = <String, LabelInfo>{};
   int nextLabelNo = 250;
   final List<Transfer> transfers = <Transfer>[];

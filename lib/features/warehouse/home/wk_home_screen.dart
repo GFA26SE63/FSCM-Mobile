@@ -5,7 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:fscm_mobile/core/utils/dates.dart';
 import 'package:fscm_mobile/core/utils/status_tone.dart';
 import 'package:fscm_mobile/data/models/enums.dart';
-import 'package:fscm_mobile/data/models/picking.dart';
+import 'package:fscm_mobile/data/models/run_picking.dart';
 import 'package:fscm_mobile/data/models/transfer.dart';
 import 'package:fscm_mobile/data/repositories/auth_repository.dart';
 import 'package:fscm_mobile/data/repositories/warehouse_repository.dart';
@@ -24,13 +24,14 @@ class WkHomeScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(currentUserProvider);
-    final pickings =
-        ref.watch(pickingListsProvider).valueOrNull ?? const <PickingList>[];
+    final sheets = ref.watch(pickingListsProvider).valueOrNull ??
+        const <RunPickingSheet>[];
     final transfers =
         ref.watch(transfersProvider).valueOrNull ?? const <Transfer>[];
-    final todo =
-        pickings.where((p) => p.status != PickingStatus.shipped).toList();
-    int count(PickingStatus s) => pickings.where((p) => p.status == s).length;
+    // Still to pick: a closed sheet is done with as far as this warehouse is
+    // concerned, whether or not the orders on it have left yet.
+    final todo = sheets.where((s) => !s.isClosed).toList();
+    int count(SheetStatus s) => sheets.where((item) => item.status == s).length;
     final incoming =
         transfers.where((t) => t.status == TransferStatus.inTransit).toList();
 
@@ -60,16 +61,16 @@ class WkHomeScreen extends ConsumerWidget {
             Row(
               children: <Widget>[
                 Expanded(
-                    child: _Stat('Chờ lấy', count(PickingStatus.pending),
-                        StatusTone.info)),
+                    child: _Stat(
+                        'Chờ lấy', count(SheetStatus.issued), StatusTone.info)),
                 const SizedBox(width: 10),
                 Expanded(
-                    child: _Stat('Đang lấy', count(PickingStatus.picking),
+                    child: _Stat('Đang soạn', count(SheetStatus.picking),
                         StatusTone.purple)),
                 const SizedBox(width: 10),
                 Expanded(
-                    child: _Stat('Đã xuất', count(PickingStatus.shipped),
-                        StatusTone.success)),
+                    child: _Stat('Soạn xong', count(SheetStatus.ready),
+                        StatusTone.primary)),
               ],
             ),
             const SizedBox(height: 10),
@@ -108,17 +109,17 @@ class WkHomeScreen extends ConsumerWidget {
               onTap: () => context.push(AppRoutes.wkShipped),
               child: const Row(
                 children: <Widget>[
-                  Icon(Icons.local_shipping_outlined, color: AppColors.primary),
+                  Icon(Icons.playlist_add_check, color: AppColors.primary),
                   SizedBox(width: 12),
                   Expanded(
-                      child: Text('Danh sách đã xuất kho',
+                      child: Text('Phiếu đã soạn xong',
                           style: TextStyle(fontWeight: FontWeight.w600))),
                   Icon(Icons.chevron_right, color: AppColors.textMuted),
                 ],
               ),
             ),
             SectionTitle(
-              'Picking list cần lấy',
+              'Phiếu soạn cần lấy',
               trailing: TextButton(
                   onPressed: () => context.go(AppRoutes.wkPicking),
                   child: const Text('Xem tất cả')),
@@ -126,12 +127,12 @@ class WkHomeScreen extends ConsumerWidget {
             if (todo.isEmpty)
               const EmptyState(
                 icon: Icons.task_alt,
-                title: 'Không còn picking list cần lấy.',
+                title: 'Không còn phiếu soạn cần lấy.',
                 message:
-                    'Picking list xuất hiện ngay khi Admin / Operator duyệt đơn. Mỗi đơn có một picking list cho mỗi kho (mã đơn + A, B, C...).',
+                    'Phiếu soạn xuất hiện sau khi Admin duyệt phương án của đợt và hệ thống giữ tồn xong. Mỗi kho có một phiếu cho cả đợt, gom theo batch rồi chia về từng đơn.',
               )
             else
-              for (final p in todo.take(3)) PickingListTile(list: p),
+              for (final s in todo.take(3)) PickingListTile(sheet: s),
             const SizedBox(height: 6),
             Text(
               'Cập nhật ${AppDates.timeDay(DateTime.now())}',

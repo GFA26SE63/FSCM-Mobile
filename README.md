@@ -104,6 +104,49 @@ main.dart chỉ thay ApiTransport thật bằng MockApi; các tầng phía trên
 
 Luồng offline của Sales: đơn lưu vào bảng `offline_order_queue` (clientRequestId UUID, payload, status, retryCount, error). Khi có mạng, `SyncService` gửi theo thứ tự tạo và lấy kết quả server làm cuối cùng. Lưu ý contract mock hiện gửi `POST /orders/sync`, nhưng `FSCM-Backend` hiện chưa có endpoint này; khi tích hợp thật phải đổi từng queue item sang `POST /orders` với `clientOrderKey` ổn định, hoặc thống nhất bổ sung batch-sync endpoint ở backend trước khi release.
 
+## Luồng kho: phiếu soạn, sẵn sàng, xuất (F43, F93, F96)
+
+Phiếu soạn **không phải một phiếu cho một đơn**. Một đợt phân bổ duyệt hàng cho
+nhiều đơn cùng lúc, rồi cắt phiếu **theo kho**: mỗi kho một phiếu cho cả đợt,
+trong đó mỗi lượt lấy (`gather`) là một chuyến tới một batch, và lượt đó **chia
+về** (`splits`) từng dòng đơn mà đợt đã gán. Nhìn theo đơn thì không thấy được
+điều này, và đó là lý do model cũ phải bỏ.
+
+| Bước | Endpoint | Việc nó chốt |
+| --- | --- | --- |
+| Phiếu của kho mình | `GET /picking-lists` | Máy chủ tự giới hạn theo kho được gán — **không gửi `warehouseId`** |
+| Chi tiết phiếu | `GET /picking-lists/{pickingCode}` | Gather theo SKU/batch, splits theo đơn, `version` |
+| Quét tem (F44) | `POST /picking-lists/{pickingCode}/scans` | Cần header `Idempotency-Key` |
+| Đóng phiếu | `POST /picking-lists/{pickingCode}/complete` | Xong bước soạn, **chưa xuất gì** |
+| Đơn có được xuất? | `GET /shipments/orders/{orderId}/readiness` | Phán quyết cho **cả đơn** |
+| Xác nhận xuất | `POST /shipments/{shipmentId}/issue` | Tồn và lượng giữ giảm ở đây, không ở đâu khác |
+
+### Ba thứ dễ làm sai
+
+- **Soạn xong không phải là xuất.** `complete` kết thúc việc soạn; không có gì
+  rời kho và tồn không đổi. Việc trừ tồn chỉ xảy ra ở `issue`, và đó cũng không
+  phải bước khách xác nhận đã nhận. Ba bước khác nhau, đừng gộp.
+- **Phán quyết sẵn sàng là của máy chủ, cho cả đơn.** Chỉ `isReady` được phép mở
+  nút xác nhận xuất. `parts` và `blockingReasons` chỉ để *giải thích*, không phải
+  để app tự gộp lại thành một kết luận riêng — đơn lấy hàng từ kho mà Thủ kho này
+  không thấy, và điều kiện thanh toán thì app không biết. Một kho thiếu hoặc hỏng
+  là cả đơn bị giữ: không có giao một phần.
+- **Batch do phương án chốt, không cho chọn.** Phiếu hiện batch để tìm pallet,
+  không phải để đổi. Mỗi split mang theo `allocationPlanPriceId` — bản giá đợt đã
+  duyệt — nên phiếu soạn **không bao giờ tính lại tiền**; đổi batch hoặc gộp hai
+  batch của cùng một SKU là làm đứt liên kết đó.
+
+Lượng là `numeric(18,3)` ở server nên mang bằng `double` và in qua
+`Qty.format` (xem `core/utils/quantity.dart`); đọc vào `int` thì một phiếu còn
+thiếu nửa thùng sẽ hiện là đã đủ. Khi một lượt quét không đủ cho mọi đơn đang
+chờ, `RunPickingGather.apportion` chia **lần lượt từ đầu danh sách** — thứ tự
+server trả về chính là thứ tự ưu tiên của đợt, chia đều sẽ lấy hàng của đơn trước
+đưa cho đơn sau.
+
+`Idempotency-Key` của lượt quét phải **giữ nguyên khi thử lại** cùng một lượt
+quét đó. Sinh key mới mỗi lần bấm sẽ biến một phản hồi bị mất mạng thành lần trừ
+thứ hai, đúng cái mà idempotency có để ngăn.
+
 ## Lưu ý khi nối API thật
 
 - Mock đang đăng nhập bằng số điện thoại + mật khẩu, trong khi backend thật dùng `POST /api/v1/auth/login` với `email/password` và JWT refresh rotation. Khi nối thật phải đổi UI/model đăng nhập sang email hoặc thống nhất bổ sung facade đăng nhập bằng điện thoại; không giả định endpoint mock tồn tại ở backend.

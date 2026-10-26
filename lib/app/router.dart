@@ -36,6 +36,7 @@ import 'package:fscm_mobile/features/sales/sync/sync_queue_screen.dart';
 import 'package:fscm_mobile/features/warehouse/home/wk_home_screen.dart';
 import 'package:fscm_mobile/features/warehouse/labels/label_detail_screen.dart';
 import 'package:fscm_mobile/features/warehouse/picking/pick_line_screen.dart';
+import 'package:fscm_mobile/features/warehouse/picking/order_issue_screen.dart';
 import 'package:fscm_mobile/features/warehouse/picking/picking_detail_screen.dart';
 import 'package:fscm_mobile/features/warehouse/picking/picking_lists_screen.dart';
 import 'package:fscm_mobile/features/warehouse/scan/wk_scan_screen.dart';
@@ -257,8 +258,10 @@ List<RouteBase> _warehouseRoutes() => <RouteBase>[
               path: AppRoutes.wkAccount,
               builder: (c, s) => const ProfileScreen(actions: <ProfileAction>[
                 ProfileAction(
-                    label: 'Phiếu đã xuất kho',
-                    icon: Icons.outbox_outlined,
+                    // Closed sheets, not issued goods: picking finishing and
+                    // stock leaving are two different steps.
+                    label: 'Phiếu đã soạn xong',
+                    icon: Icons.playlist_add_check,
                     route: AppRoutes.wkShipped),
                 ProfileAction(
                     label: 'Tra cứu tem',
@@ -272,7 +275,7 @@ List<RouteBase> _warehouseRoutes() => <RouteBase>[
       GoRoute(path: AppRoutes.wkScan, builder: (c, s) => const WkScanScreen()),
       GoRoute(
         path: AppRoutes.wkShipped,
-        builder: (c, s) => const PickingListsScreen(shippedOnly: true),
+        builder: (c, s) => const PickingListsScreen(closedOnly: true),
       ),
       GoRoute(
         path: AppRoutes.wkLabelLookup,
@@ -284,10 +287,17 @@ List<RouteBase> _warehouseRoutes() => <RouteBase>[
             PickingDetailScreen(code: s.pathParameters['code'] ?? ''),
       ),
       GoRoute(
-        path: AppRoutes.wkPickLinePattern,
+        path: AppRoutes.wkPickGatherPattern,
         builder: (c, s) => PickLineScreen(
           code: s.pathParameters['code'] ?? '',
-          lineIndex: int.tryParse(s.pathParameters['index'] ?? '') ?? 0,
+          gatherId: s.pathParameters['gatherId'] ?? '',
+        ),
+      ),
+      GoRoute(
+        path: AppRoutes.wkOrderIssuePattern,
+        builder: (c, s) => OrderIssueScreen(
+          pickingCode: s.pathParameters['code'] ?? '',
+          orderCode: s.pathParameters['orderCode'] ?? '',
         ),
       ),
       GoRoute(
