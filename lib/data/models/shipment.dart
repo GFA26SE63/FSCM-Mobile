@@ -126,32 +126,40 @@ class Shipment {
 }
 
 /// One warehouse's part as the readiness check reports it.
+///
+/// [shipmentId] and [shipmentCode] are null for a warehouse that is still
+/// picking: a part only exists once that warehouse closes its sheet. Such a
+/// warehouse is reported anyway, because it is the one holding the order, and
+/// leaving it out of the list is what once made a half-picked order look ready.
 class ShipmentReadinessPart {
   const ShipmentReadinessPart({
-    required this.shipmentId,
-    required this.shipmentCode,
     required this.warehouseId,
     required this.warehouseCode,
     required this.status,
+    this.shipmentId,
+    this.shipmentCode,
     this.exceptionReason,
   });
 
   factory ShipmentReadinessPart.fromJson(Map<String, dynamic> j) =>
       ShipmentReadinessPart(
-        shipmentId: asStr(j['shipmentId']),
-        shipmentCode: asStr(j['shipmentCode']),
         warehouseId: asStr(j['warehouseId']),
         warehouseCode: asStr(j['warehouseCode']),
         status: ShipmentPartStatus.fromCode(asStrOrNull(j['status'])),
+        shipmentId: asStrOrNull(j['shipmentId']),
+        shipmentCode: asStrOrNull(j['shipmentCode']),
         exceptionReason: asStrOrNull(j['exceptionReason']),
       );
 
-  final String shipmentId;
-  final String shipmentCode;
+  final String? shipmentId;
+  final String? shipmentCode;
   final String warehouseId;
   final String warehouseCode;
   final ShipmentPartStatus status;
   final String? exceptionReason;
+
+  /// True while this warehouse has not closed its sheet, so no part exists yet.
+  bool get isStillPicking => shipmentId == null;
 
   Map<String, dynamic> toJson() => <String, dynamic>{
         'shipmentId': shipmentId,

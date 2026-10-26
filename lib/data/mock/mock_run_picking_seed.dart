@@ -139,7 +139,13 @@ class MockRunPickingSeed {
     //
     // DH-001024 is the held case: this warehouse's part is on the sheet, but
     // Kho Tân Chánh Hiệp still owes 10 cartons, so nothing may leave either
-    // warehouse. DH-001021 is ready, and is what the issue button is for.
+    // warehouse.
+    //
+    // The mock gives that warehouse a WaitingToPick row for simplicity. The
+    // real server has no row for it at all until it closes its sheet, and
+    // reports it as a part with a null shipment id instead; readiness looks the
+    // same from here either way, which is why the screen reads the status and
+    // never the id.
     _shipment(
       s,
       id: 'b0000000-0000-4000-8000-000000001024',
