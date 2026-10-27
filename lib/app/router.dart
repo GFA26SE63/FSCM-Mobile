@@ -13,6 +13,7 @@ import 'package:fscm_mobile/features/common/notifications/notifications_screen.d
 import 'package:fscm_mobile/features/common/profile/profile_screen.dart';
 import 'package:fscm_mobile/features/retailer/complaints/complaint_form_screen.dart';
 import 'package:fscm_mobile/features/retailer/complaints/complaints_screen.dart';
+import 'package:fscm_mobile/features/retailer/quotes/quotes_screen.dart';
 import 'package:fscm_mobile/features/retailer/loyalty/gifts_screen.dart';
 import 'package:fscm_mobile/features/retailer/loyalty/loyalty_screen.dart';
 import 'package:fscm_mobile/features/retailer/orders/rt_order_detail_screen.dart';
@@ -349,6 +350,7 @@ List<RouteBase> _retailerRoutes() => <RouteBase>[
                     label: 'Khiếu nại',
                     icon: Icons.report_gmailerrorred_outlined,
                     route: AppRoutes.rtComplaints),
+                ProfileAction(label: 'Báo giá cần xác nhận', icon: Icons.request_quote_outlined, route: AppRoutes.rtQuotes),
               ]),
             ),
           ]),
@@ -363,6 +365,7 @@ List<RouteBase> _retailerRoutes() => <RouteBase>[
       GoRoute(
           path: AppRoutes.rtComplaints,
           builder: (c, s) => const ComplaintsScreen()),
+      GoRoute(path: AppRoutes.rtQuotes, builder: (c, s) => const QuotesScreen()),
       GoRoute(
         path: AppRoutes.rtComplaintNew,
         builder: (c, s) =>

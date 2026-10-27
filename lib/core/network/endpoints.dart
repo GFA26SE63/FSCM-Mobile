@@ -53,6 +53,9 @@ class Endpoints {
       '/allocation-runs/orders/$orderId/result';
   static const String ordersSync = '/orders/sync';
   static const String complaints = '/complaints';
+  static String quotesForOrder(String orderId) => '/quotes/orders/$orderId';
+  static String quoteAccept(String quoteId) => '/quotes/$quoteId/accept';
+  static String quoteReject(String quoteId) => '/quotes/$quoteId/reject';
 
   // ------------------------------------------------------- run picking (F43)
   // One sheet per warehouse per allocation run, not one per order: a sheet
