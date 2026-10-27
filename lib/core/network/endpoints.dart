@@ -49,6 +49,8 @@ class Endpoints {
   static String orderCancel(String code) => '/orders/$code/cancel';
   static String orderConfirmReceipt(String code) =>
       '/orders/$code/confirm-receipt';
+  static String allocationRunOrderResult(String orderId) =>
+      '/allocation-runs/orders/$orderId/result';
   static const String ordersSync = '/orders/sync';
   static const String complaints = '/complaints';
 

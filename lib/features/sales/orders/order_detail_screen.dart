@@ -10,6 +10,7 @@ import 'package:fscm_mobile/core/utils/status_tone.dart';
 import 'package:fscm_mobile/data/models/enums.dart';
 import 'package:fscm_mobile/data/models/offline_order.dart';
 import 'package:fscm_mobile/data/models/order.dart';
+import 'package:fscm_mobile/data/models/allocation_result.dart';
 import 'package:fscm_mobile/data/repositories/data_version.dart';
 import 'package:fscm_mobile/data/repositories/order_repository.dart';
 import 'package:fscm_mobile/shared/theme/app_colors.dart';
@@ -61,6 +62,9 @@ class _Detail extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final o = order;
+    final allocation = o.id.isEmpty || o.allocationResult.isEmpty
+        ? null
+        : ref.watch(allocationResultProvider(o.id));
     final online = ref.watch(networkMonitorProvider).online;
     final queued = entry != null && entry!.status == SyncStatus.pending;
     return ListView(
@@ -103,6 +107,16 @@ class _Detail extends ConsumerWidget {
             text: o.allocationResult.toLowerCase() == 'short'
                 ? 'Đơn thiếu là kết quả lịch sử của đợt này. ${o.changeReason.isNotEmpty ? o.changeReason : 'Xem lý do từng dòng bên dưới; không gửi lại đơn vào đợt sau.'}'
                 : 'Đơn đã có kết quả chính thức từ đợt phân bổ${o.allocationRunId.isNotEmpty ? ' ${o.allocationRunId}' : ''}.',
+          ),
+        if (allocation != null)
+          allocation.when(
+            loading: () => const LinearProgressIndicator(),
+            error: (_, __) => const InfoBanner(
+              tone: StatusTone.warning,
+              icon: Icons.info_outline,
+              text: 'Chưa tải được chi tiết kết quả phân bổ.',
+            ),
+            data: (result) => _AllocationResultCard(result),
           ),
         if (o.syncStatus == SyncStatus.pending ||
             o.syncStatus == SyncStatus.syncing)
@@ -197,6 +211,63 @@ class _Detail extends ConsumerWidget {
     } on ApiException catch (e) {
       if (context.mounted) showAppSnack(context, e.message, error: true);
     }
+  }
+}
+
+class _AllocationResultCard extends StatelessWidget {
+  const _AllocationResultCard(this.result);
+
+  final AllocationRunResult result;
+
+  @override
+  Widget build(BuildContext context) {
+    final short = !result.isFulfilled;
+    return AppCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Row(
+            children: <Widget>[
+              Expanded(
+                child: Text(
+                  'Kết quả phân bổ · ${result.runCode}',
+                  style: const TextStyle(fontWeight: FontWeight.w800),
+                ),
+              ),
+              Icon(
+                short ? Icons.warning_amber : Icons.check_circle,
+                color: short ? AppColors.warning : AppColors.success,
+              ),
+            ],
+          ),
+          KvRow('Phương án', '#${result.planVersionNumber}'),
+          KvRow('Giữ tồn', result.hasReservedStock ? 'Có' : 'Không'),
+          if (short && result.shortageReason.isNotEmpty)
+            InfoBanner(
+              tone: StatusTone.warning,
+              icon: Icons.inventory_2_outlined,
+              text: result.shortageReason,
+            ),
+          const SizedBox(height: 6),
+          for (final line in result.lines)
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              dense: true,
+              title: Text('${line.lineNumber}. ${line.sku}'),
+              subtitle: Text(
+                '${line.outcome}: ${line.allocatedQuantity}/${line.orderedQuantity}'
+                '${line.reason.isEmpty ? '' : ' · ${line.reason}'}',
+              ),
+              trailing: Text(Money.format(line.finalAmount.round())),
+            ),
+          if (!result.canResubmitKeepingPriority)
+            const Text(
+              'Nếu thiếu hàng, không thể gửi lại để giữ nguyên thứ tự ưu tiên.',
+              style: TextStyle(fontSize: 12, color: AppColors.textMuted),
+            ),
+        ],
+      ),
+    );
   }
 }
 

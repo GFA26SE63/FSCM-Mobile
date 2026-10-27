@@ -131,6 +131,17 @@ main.dart chỉ thay ApiTransport thật bằng MockApi; các tầng phía trên
 
 Luồng offline của Sales: đơn lưu vào bảng `offline_order_queue` (clientRequestId UUID, payload, status, retryCount, error). Khi có mạng, `SyncService` gửi theo thứ tự tạo và lấy kết quả server làm cuối cùng. Lưu ý contract mock hiện gửi `POST /orders/sync`, nhưng `FSCM-Backend` hiện chưa có endpoint này; khi tích hợp thật phải đổi từng queue item sang `POST /orders` với `clientOrderKey` ổn định, hoặc thống nhất bổ sung batch-sync endpoint ở backend trước khi release.
 
+## Kết quả đợt phân bổ (F90)
+
+Màn chi tiết đơn của Sales tải thêm kết quả chính thức bằng
+`GET /api/v1/allocation-runs/orders/{salesOrderId}/result` sau khi đơn đã có
+kết quả phân bổ. `AllocationRunResult` giữ nguyên kết quả server theo từng
+dòng, gồm `Allocated`, `Short` hoặc `Released`, lượng đặt/đã cấp, lý do và
+thành tiền. App chỉ hiển thị `hasReservedStock` và
+`canResubmitKeepingPriority`; không tự suy diễn hoặc tạo nút gửi lại để giữ
+ưu tiên. Đơn offline chưa có GUID hoặc chưa được phân bổ thì không gọi
+endpoint này.
+
 ## Luồng kho: phiếu soạn, sẵn sàng, xuất (F43, F93, F96)
 
 Phiếu soạn **không phải một phiếu cho một đơn**. Một đợt phân bổ duyệt hàng cho

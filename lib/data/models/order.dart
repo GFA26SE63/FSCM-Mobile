@@ -91,6 +91,7 @@ class OrderLine {
 /// the local queue are mapped to this model too (see `OrderRepository`).
 class Order {
   const Order({
+    this.id = '',
     required this.code,
     required this.retailerCode,
     required this.retailerName,
@@ -128,6 +129,7 @@ class Order {
   });
 
   factory Order.fromJson(Map<String, dynamic> j) => Order(
+        id: asStr(j['id']),
         code: asStr(j['code']),
         retailerCode: asStr(j['retailerCode']),
         retailerName: asStr(j['retailerName']),
@@ -163,6 +165,9 @@ class Order {
         allocationRunId: asStr(j['allocationRunId']),
       );
 
+  /// Server GUID. Required by the allocation-run result endpoint (F90).
+  /// Offline-only orders do not have one until they are synced.
+  final String id;
   final String code;
   final String retailerCode;
   final String retailerName;
@@ -258,6 +263,7 @@ class Order {
     List<TimelineEntry>? timeline,
   }) =>
       Order(
+        id: id,
         code: code,
         retailerCode: retailerCode,
         retailerName: retailerName,
@@ -295,6 +301,7 @@ class Order {
       );
 
   Map<String, dynamic> toJson() => <String, dynamic>{
+        'id': id,
         'code': code,
         'retailerCode': retailerCode,
         'retailerName': retailerName,
