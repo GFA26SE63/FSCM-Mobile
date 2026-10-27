@@ -185,6 +185,12 @@ server trả về chính là thứ tự ưu tiên của đợt, chia đều sẽ
 quét đó. Sinh key mới mỗi lần bấm sẽ biến một phản hồi bị mất mạng thành lần trừ
 thứ hai, đúng cái mà idempotency có để ngăn.
 
+## Khiếu nại theo phần giao (F62)
+
+Form khiếu nại lấy các phần giao của đơn và gửi `shipmentId` của phần chứa SKU được chọn.
+Server vẫn là nguồn xác định batch, allocation price, giá cuối và khoản điều chỉnh; mobile
+không tự tính giá hoặc đánh dấu hoàn tiền.
+
 ## Lưu ý khi nối API thật
 
 - Mock đang đăng nhập bằng số điện thoại + mật khẩu, trong khi backend thật dùng `POST /api/v1/auth/login` với `email/password` và JWT refresh rotation. Khi nối thật phải đổi UI/model đăng nhập sang email hoặc thống nhất bổ sung facade đăng nhập bằng điện thoại; không giả định endpoint mock tồn tại ở backend.

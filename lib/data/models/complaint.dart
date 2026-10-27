@@ -54,6 +54,8 @@ class NewComplaint {
     required this.labelCode,
     required this.actualQty,
     required this.note,
+    this.shipmentId,
+    this.allocationPlanPriceId,
   });
 
   final String orderCode;
@@ -61,6 +63,8 @@ class NewComplaint {
   final String labelCode;
   final int actualQty;
   final String note;
+  final String? shipmentId;
+  final String? allocationPlanPriceId;
 
   Map<String, dynamic> toJson() => <String, dynamic>{
         'orderCode': orderCode,
@@ -68,5 +72,8 @@ class NewComplaint {
         'labelCode': labelCode,
         'actualQty': actualQty,
         'note': note,
+        if (shipmentId != null && shipmentId!.isNotEmpty) 'shipmentId': shipmentId,
+        if (allocationPlanPriceId != null && allocationPlanPriceId!.isNotEmpty)
+          'allocationPlanPriceId': allocationPlanPriceId,
       };
 }
