@@ -2,7 +2,9 @@ name: Mobile CI
 
 on:
   push:
+    branches: [main, staging]
   pull_request:
+    branches: [main, staging]
   workflow_dispatch:
 
 permissions:
@@ -38,4 +40,15 @@ jobs:
         run: flutter analyze
 
       - name: Test
-        run: flutter test
+        run: |
+          mkdir -p artifacts/test-results
+          flutter test --machine > artifacts/test-results/flutter-test.json
+
+      - name: Upload CI artifacts
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: mobile-ci-${{ github.run_id }}
+          path: artifacts/**
+          if-no-files-found: warn
+          retention-days: 14
