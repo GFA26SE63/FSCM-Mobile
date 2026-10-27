@@ -4,7 +4,7 @@ App cho **Sales**, **Warehouse Keeper** và **Retailer** (FA26SE083 · GFA26SE63
 
 ## Chạy lần đầu
 
-Repo chỉ chứa `lib/`, `test/`, `pubspec.yaml`. Thư mục nền tảng sinh bằng Flutter:
+Nếu checkout không có thư mục nền tảng, sinh lại bằng Flutter; repo hiện tại đã có các thư mục này nên thông thường chỉ cần `flutter pub get`:
 
 ```bash
 flutter create . --org vn.edu.fpt.fscm --platforms android,ios --project-name fscm_mobile
@@ -31,34 +31,82 @@ flutter run --dart-define=USE_MOCK=false --dart-define=API_BASE_URL=http://10.0.
 ```
 (`10.0.2.2` = máy host khi chạy Android emulator.)
 
-## Cấu trúc
+## Kiến trúc và cấu trúc thư mục
+
+Ứng dụng dùng kiến trúc phân lớp hướng feature: `features` chỉ lo presentation theo vai trò, `data` sở hữu DTO/remote/local/repository, `core` cung cấp hạ tầng kỹ thuật, và `sync` điều phối offline queue. Riverpod là dependency injection + state management; UI không tự tạo API client/database.
 
 ```
 lib/
-├─ main.dart              ProviderScope; USE_MOCK=true thì thay transport bằng MockApi
-├─ app/                   FscmApp, router (go_router, redirect theo vai trò), theme, shell/ (sales, warehouse, retailer)
-├─ core/                  auth (session, role), config (env, device identity → mã OFF-{device}), network (dio client, ApiException từ ProblemDetails, transport, endpoints, network monitor), storage (token), utils (id_format, money, dates, clock)
+├─ main.dart              bootstrap Flutter/SharedPreferences; mock mode override ApiTransport
+├─ app/
+│  ├─ app.dart            MaterialApp.router và app-level configuration
+│  ├─ router.dart         go_router, auth redirect, route theo vai trò
+│  ├─ theme.dart          Material theme
+│  └─ shell/              navigation shell riêng cho Sales/WK/Retailer
+├─ core/
+│  ├─ auth/               session state và role
+│  ├─ config/             env, timeout, device identity → OFF-{device}
+│  ├─ network/            ApiTransport, Dio ApiClient, endpoint, ProblemDetails, connectivity
+│  ├─ storage/            secure token persistence
+│  └─ utils/              hàm thuần id/money/date/clock/status tone
 ├─ data/
-│  ├─ models/             DTO + enum (trạng thái đơn, thanh toán COD / trả trước / công nợ 7-14-30, phiếu điều chuyển Bổ sung / Luân chuyển cận hạn…)
-│  ├─ remote/             *_api.dart – một file mỗi nhóm REST
-│  ├─ local/              sqflite: AppDatabase + DAO (retailer, product, promotion, inventory snapshot, sync state, offline order queue)
-│  ├─ pricing/            tính khuyến mãi tạm trên máy khi offline (server tính lại khi sync)
-│  ├─ repositories/       ghép remote + local cho từng nghiệp vụ
-│  └─ mock/               MockApi trong app (seed = dữ liệu prototype)
-├─ sync/                  SyncService + sync_queue_logic (thứ tự tạo, retry, idempotency clientRequestId UUID)
-├─ shared/                routes, theme màu, widget dùng chung (status chip, QR scan view, timeline, stepper…)
+│  ├─ models/             DTO/enum + JSON mapping, không gọi network/database
+│  ├─ remote/             API adapter theo resource; chỉ request/response mapping
+│  ├─ local/              AppDatabase, DAO, cache snapshot và offline queue
+│  ├─ pricing/            tính giá tạm offline; server vẫn authoritative
+│  ├─ repositories/       facade nghiệp vụ kết hợp remote/local/mock và expose providers
+│  └─ mock/               ApiTransport in-process có cùng contract với REST
+├─ sync/
+│  ├─ sync_service.dart   lấy queue, gửi tuần tự, ghi kết quả server
+│  └─ sync_queue_logic.dart hàm thuần cho ordering/retry, dễ unit test
+├─ shared/
+│  ├─ routes.dart         hằng số route duy nhất
+│  ├─ theme/              token màu dùng chung
+│  └─ widgets/            widget tái sử dụng, không phụ thuộc một feature cụ thể
 └─ features/
-   ├─ common/             splash, login, thông báo, hồ sơ
-   ├─ sales/              home, retailer trong vùng (chặn trái vùng), sản phẩm + khuyến mãi, tạo đơn (offline), xác nhận (thanh toán, công nợ nếu retailer được phép), màn Đồng bộ 3 tab Chưa / Đang / Đã, chi tiết đơn, công nợ của tôi (lọc quá hạn), KPI & xếp hạng sau KM + sản phẩm bán chạy, khai báo retailer mới (thông tin tiềm năng → KB)
-   ├─ warehouse/          home, picking list, quét tem để soạn, chia số lượng, tra tem, nhận phiếu điều chuyển (cả loại Luân chuyển cận hạn)
-   └─ retailer/           đơn hàng (đang / lịch sử, tên sản phẩm), chi tiết đơn có xe + người giao, quét QR nhận hàng → xác nhận + cộng điểm, thanh toán & công nợ, thẻ loyalty + sổ điểm, đổi quà (điểm tạm giữ), khiếu nại
+   ├─ common/             màn dùng chung: splash, login, notification, profile
+   ├─ sales/              presentation cho Sales, chia tiếp theo luồng nghiệp vụ
+   ├─ warehouse/          presentation cho Warehouse Keeper
+   └─ retailer/           presentation cho Retailer
 ```
 
-Luồng offline của Sales: đơn lưu vào bảng `offline_order_queue` (clientRequestId UUID, payload, status, retryCount, error). Khi có mạng, `SyncService` gửi theo thứ tự tạo lên `POST /orders/sync`; kết quả server là cuối cùng (đơn tới sau không còn đủ hàng bị từ chối và báo cho Sales + retailer).
+Luồng phụ thuộc chuẩn:
+
+```text
+screen/widget → Riverpod repository/provider → remote API → ApiClient → ApiTransport
+                                    ├──────→ local DAO → SQLite
+                                    └──────→ pricing/offline logic
+
+main.dart chỉ thay ApiTransport thật bằng MockApi; các tầng phía trên không đổi
+```
+
+### Quy tắc khi implement thêm
+
+- Screen chỉ render, giữ state giao diện ngắn hạn và gọi provider/repository. Không gọi Dio, SQL hay `MockApi` trực tiếp từ `features`.
+- `data/remote` không chứa state UI hoặc offline policy; repository là nơi quyết định đọc remote, fallback local, merge cache và invalidation.
+- Model parse JSON ở `data/models`; tránh truyền `dynamic` qua repository boundary. Field/date/status phải giữ đúng contract backend.
+- Mọi HTTP thật đi qua `ApiClient`/`ApiTransport` để Bearer token, ProblemDetails và `401` có một cách xử lý thống nhất.
+- Mock phải implement cùng path, body và response với backend. Không thêm endpoint chỉ có trong mock rồi để UI phụ thuộc vào nó.
+- Command offline phải có UUID ổn định, thứ tự tạo, retry count và trạng thái rõ ràng. Retry cùng thao tác phải giữ cùng idempotency key; `409` cần tải lại version, không retry mù.
+- Logic thuần (ordering, pricing tạm, formatter) tách khỏi widget để unit test. Kết quả pricing/allocation cuối cùng luôn lấy từ server sau sync.
+- Route mới được khai báo ở `shared/routes.dart`, ghép vào đúng role branch trong `app/router.dart`; redirect theo role là UX guard, backend vẫn enforce quyền/scope.
+- Widget chỉ đưa vào `shared/widgets` khi không mang ngữ nghĩa riêng của Sales/WK/Retailer; nếu có, đặt cạnh feature sử dụng.
+- Khi thêm GraphQL, đặt client ở `core/network`, adapter ở `data/remote`, repository quyết định cache. GraphQL chỉ đọc; mọi create/update/scan/approve tiếp tục dùng REST theo backend hiện tại.
+
+### Cách thêm một luồng mới
+
+1. Tạo/cập nhật typed model và enum trong `data/models`.
+2. Thêm remote adapter; nếu cần offline, thêm migration/DAO và quy tắc sync tương ứng.
+3. Mở rộng repository/provider để che giấu nguồn dữ liệu khỏi UI.
+4. Tạo screen/widget dưới đúng role/feature và đăng ký route.
+5. Cập nhật MockApi với cùng contract để `USE_MOCK=true` vẫn chạy qua toàn bộ stack.
+6. Viết unit test cho logic thuần/repository quan trọng; chạy `dart format`, `flutter analyze`, `flutter test`.
+
+Luồng offline của Sales: đơn lưu vào bảng `offline_order_queue` (clientRequestId UUID, payload, status, retryCount, error). Khi có mạng, `SyncService` gửi theo thứ tự tạo và lấy kết quả server làm cuối cùng. Lưu ý contract mock hiện gửi `POST /orders/sync`, nhưng `FSCM-Backend` hiện chưa có endpoint này; khi tích hợp thật phải đổi từng queue item sang `POST /orders` với `clientOrderKey` ổn định, hoặc thống nhất bổ sung batch-sync endpoint ở backend trước khi release.
 
 ## Lưu ý khi nối API thật
 
-- Mock đang có `POST /auth/password` (đăng nhập bằng số điện thoại + mật khẩu). Backend dùng Microsoft Entra ID, nên khi nối thật cần chọn một trong hai: thêm `msal_flutter`/`flutter_appauth` lấy token Entra, hoặc thêm endpoint đăng nhập vào module Identity của backend.
+- Mock đang đăng nhập bằng số điện thoại + mật khẩu, trong khi backend thật dùng `POST /api/v1/auth/login` với `email/password` và JWT refresh rotation. Khi nối thật phải đổi UI/model đăng nhập sang email hoặc thống nhất bổ sung facade đăng nhập bằng điện thoại; không giả định endpoint mock tồn tại ở backend.
 - Model trong `data/models` khớp với mock; đối chiếu lại với Swagger của backend và sửa một phía cho thống nhất.
 - Thời gian gửi lên server phải là ISO 8601 có `Z` hoặc offset (Npgsql từ chối DateTime không rõ múi giờ).
-- Chưa chạy `flutter analyze` trong môi trường tạo code (không có Flutter SDK); đã rà tĩnh toàn bộ import, constructor, API package. Chạy `flutter analyze` sau `flutter pub get` để chắc chắn.
+- Trước khi bàn giao thay đổi, chạy `dart format`, `flutter analyze` và `flutter test`; không dựa vào việc mock mode chạy được để kết luận contract backend đã khớp.
