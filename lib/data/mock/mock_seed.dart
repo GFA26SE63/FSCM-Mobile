@@ -42,6 +42,7 @@ class MockSeed {
       MockUser(
         id: 'U-SALES-01',
         fullName: 'Nguyễn Văn An',
+        email: 'an.nv@fscm.vn',
         phone: '0909123456',
         role: UserRole.sales,
         areaCode: 'Q12',
@@ -51,6 +52,7 @@ class MockSeed {
       MockUser(
         id: 'U-WK-01',
         fullName: 'Đỗ Văn Tâm',
+        email: 'tam.dv@fscm.vn',
         phone: '0912440118',
         role: UserRole.warehouseKeeper,
         warehouseCode: 'WH-TA',
@@ -59,11 +61,19 @@ class MockSeed {
       MockUser(
         id: 'U-RT-01',
         fullName: 'Tạp hóa Minh Châu',
+        email: 'minhchau@retailer.fscm.vn',
         phone: '0909555127',
         role: UserRole.retailer,
         retailerCode: '10004127',
         retailerName: 'Tạp hóa Minh Châu',
         retailerAddress: '12 Lê Văn Khương, P. Thới An, Q.12',
+      ),
+      MockUser(
+        id: 'U-ADMIN-01',
+        fullName: 'Phạm Minh Khoa',
+        email: 'khoa.pm@fscm.vn',
+        phone: '0909000111',
+        role: UserRole.admin,
       ),
     ]);
   }

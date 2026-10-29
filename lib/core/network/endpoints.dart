@@ -4,16 +4,21 @@ class Endpoints {
   Endpoints._();
 
   // ---------------------------------------------------------------- auth
-  // Mobile auth facade in front of Microsoft Entra External ID (phone OTP +
-  // password). Not listed in SPEC section 8 yet - agree with backend team.
+  // Auth endpoints per SPRINT_1_FRONTEND_MOBILE_API_GUIDE.md (§3.2, §5.1).
   static const String authLogin = '/auth/login';
+  static const String authEntraExchange = '/auth/entra/exchange';
+  static const String authRefresh = '/auth/refresh';
+  static const String authLogout = '/auth/logout';
+  static const String authMe = '/auth/me';
+  static const String authActivate = '/auth/activate';
+  static const String authPasswordResetRequest = '/auth/password-reset/request';
+  static const String authPasswordResetConfirm = '/auth/password-reset/confirm';
   static const String authOtpRequest = '/auth/otp/request';
   static const String authOtpVerify = '/auth/otp/verify';
   static const String authSetPassword = '/auth/password';
-  static const String authLogout = '/auth/logout';
 
   // ------------------------------------------------------------ identity
-  static const String me = '/me';
+  static const String me = '/auth/me';
   static const String devices = '/devices';
 
   // ------------------------------------------------------------- catalog

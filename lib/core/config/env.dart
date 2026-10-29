@@ -18,13 +18,13 @@ class Env {
   /// `10.0.2.2` is the host machine seen from the Android emulator.
   static const String apiBaseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'http://10.0.2.2:5080/api/v1',
+    defaultValue: 'https://localhost:7027/api/v1',
   );
 
   /// When true (default) the app talks to the in-process [MockApi]
   /// (lib/data/mock) so it runs without the ASP.NET Core backend.
   static const bool useMock =
-      bool.fromEnvironment('USE_MOCK', defaultValue: true);
+      bool.fromEnvironment('USE_MOCK', defaultValue: false);
 
   /// Simulated network latency of the mock backend.
   static const int mockLatencyMs = 350;

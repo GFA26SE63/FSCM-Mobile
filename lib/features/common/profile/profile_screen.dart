@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:fscm_mobile/data/models/enums.dart';
 import 'package:fscm_mobile/data/repositories/auth_repository.dart';
 import 'package:fscm_mobile/data/repositories/order_repository.dart';
+import 'package:fscm_mobile/shared/routes.dart';
 import 'package:fscm_mobile/shared/theme/app_colors.dart';
 import 'package:fscm_mobile/shared/widgets/app_card.dart';
 import 'package:fscm_mobile/shared/widgets/dialogs.dart';
@@ -27,6 +28,11 @@ class ProfileScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(currentUserProvider);
+    final contactText = <String>[
+      if (user != null && user.email.isNotEmpty) user.email,
+      if (user != null && user.phone.isNotEmpty) user.phone,
+    ].join(' · ');
+
     return Scaffold(
       appBar: AppBar(title: const Text('Tài khoản')),
       body: user == null
@@ -65,9 +71,12 @@ class ProfileScreen extends ConsumerWidget {
                               style:
                                   const TextStyle(color: AppColors.textMuted),
                             ),
-                            Text(user.phone,
-                                style: const TextStyle(
-                                    color: AppColors.textMuted)),
+                            if (contactText.isNotEmpty)
+                              Text(
+                                contactText,
+                                style:
+                                    const TextStyle(color: AppColors.textMuted),
+                              ),
                           ],
                         ),
                       ),
@@ -94,6 +103,7 @@ class ProfileScreen extends ConsumerWidget {
                   ),
                 const SizedBox(height: 12),
                 OutlinedButton.icon(
+                  key: const Key('btn_logout'),
                   onPressed: () => _logout(context, ref),
                   icon: const Icon(Icons.logout),
                   label: const Text('Đăng xuất'),
@@ -111,8 +121,12 @@ class ProfileScreen extends ConsumerWidget {
   }
 
   Future<void> _logout(BuildContext context, WidgetRef ref) async {
-    final queue = ref.read(offlineQueueProvider).valueOrNull ?? const [];
-    final unsynced = queue.where((e) => e.status == SyncStatus.pending).length;
+    int unsynced = 0;
+    try {
+      final queue = ref.read(offlineQueueProvider).valueOrNull ?? const [];
+      unsynced = queue.where((e) => e.status == SyncStatus.pending).length;
+    } catch (_) {}
+
     final ok = await confirmDialog(
       context,
       title: 'Đăng xuất?',
@@ -122,6 +136,17 @@ class ProfileScreen extends ConsumerWidget {
       confirmLabel: 'Đăng xuất',
     );
     if (!ok) return;
-    await ref.read(authControllerProvider.notifier).logout();
+
+    try {
+      await ref.read(authControllerProvider.notifier).logout();
+    } catch (e) {
+      debugPrint('Logout error: $e');
+    } finally {
+      if (context.mounted) {
+        try {
+          context.go(AppRoutes.login);
+        } catch (_) {}
+      }
+    }
   }
 }
