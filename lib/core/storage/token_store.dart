@@ -5,8 +5,8 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 final tokenStoreProvider = Provider<TokenStore>((ref) => TokenStore());
 
-/// Keeps the session (access token + user JSON) in the platform keystore
-/// and mirrors it in memory so the API client can read it synchronously.
+/// Keeps the session (access token + refresh token + user JSON) in the platform
+/// keystore and mirrors it in memory so the API client can read it synchronously.
 class TokenStore {
   TokenStore({FlutterSecureStorage? storage})
       : _storage = storage ?? const FlutterSecureStorage();
@@ -17,6 +17,8 @@ class TokenStore {
   Map<String, dynamic>? _cached;
 
   String? get accessToken => _cached?['accessToken'] as String?;
+
+  String? get refreshToken => _cached?['refreshToken'] as String?;
 
   Map<String, dynamic>? get cachedSession => _cached;
 

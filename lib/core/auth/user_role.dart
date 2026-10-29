@@ -1,5 +1,6 @@
-/// Roles from SPEC section 2. Only [sales], [warehouseKeeper] and
-/// [retailer] have a shell in the mobile app; the others use the Portal.
+/// Roles from SPEC section 2 and SPRINT_1_FRONTEND_MOBILE_API_GUIDE.md §3.3.
+/// Only [sales], [warehouseKeeper] and [retailer] have a shell in the mobile
+/// app; [admin], [operator], and [salesManager] use the Portal.
 enum UserRole {
   sales('Sales', 'Sales Representative'),
   warehouseKeeper('WarehouseKeeper', 'Warehouse Keeper'),
@@ -10,7 +11,7 @@ enum UserRole {
 
   const UserRole(this.code, this.label);
 
-  /// Value used by the API (`role` claim / `GET /me`).
+  /// Value used by the API (`role` claim / `GET /auth/me`).
   final String code;
 
   /// Display label.
@@ -20,6 +21,11 @@ enum UserRole {
       this == UserRole.sales ||
       this == UserRole.warehouseKeeper ||
       this == UserRole.retailer;
+
+  bool get isSales => this == UserRole.sales;
+  bool get isWarehouseKeeper => this == UserRole.warehouseKeeper;
+  bool get isRetailer => this == UserRole.retailer;
+  bool get isPortalOnly => !hasMobileShell;
 
   static UserRole fromCode(String? code) {
     final normalized = (code ?? '').replaceAll(' ', '').toLowerCase();

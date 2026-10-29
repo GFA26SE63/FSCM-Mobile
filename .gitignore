@@ -45,3 +45,5 @@ ios/build/
 *.secret.json
 /env/*.json
 !/env/*.example.json
+
+docs/design

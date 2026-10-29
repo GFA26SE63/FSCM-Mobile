@@ -9,7 +9,8 @@ Nếu checkout không có thư mục nền tảng, sinh lại bằng Flutter; re
 ```bash
 flutter create . --org vn.edu.fpt.fscm --platforms android,ios --project-name fscm_mobile
 flutter pub get
-flutter run                     # mặc định USE_MOCK=true: chạy không cần backend, dữ liệu mẫu prototype
+flutter run                             # Mặc định chạy Windows / device hiện tại
+flutter run -d chrome --web-port=5432   # Chạy trên web Chrome cố định port 5432
 flutter test
 ```
 
