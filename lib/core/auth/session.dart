@@ -84,10 +84,7 @@ class UserScope {
     List<String> listOf(String key) {
       final raw = json[key];
       if (raw is List) {
-        return raw
-            .map((e) => e.toString())
-            .where((s) => s.isNotEmpty)
-            .toList();
+        return raw.map((e) => e.toString()).where((s) => s.isNotEmpty).toList();
       }
       return const <String>[];
     }

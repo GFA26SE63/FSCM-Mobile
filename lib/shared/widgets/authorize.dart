@@ -27,4 +27,3 @@ class Authorize extends ConsumerWidget {
     return fallback;
   }
 }
-

@@ -71,7 +71,8 @@ void main() {
         ),
         appDatabaseProvider.overrideWithValue(_FakeAppDatabase()),
         sharedPreferencesProvider.overrideWithValue(prefs),
-        offlineQueueProvider.overrideWith((ref) => Future.value(<OfflineOrder>[])),
+        offlineQueueProvider
+            .overrideWith((ref) => Future.value(<OfflineOrder>[])),
       ],
     );
   }
@@ -431,7 +432,8 @@ void main() {
 
       // Verify confirm dialog appears
       expect(find.text('Đăng xuất?'), findsOneWidget);
-      expect(find.text('Bạn sẽ cần đăng nhập lại để tiếp tục.'), findsOneWidget);
+      expect(
+          find.text('Bạn sẽ cần đăng nhập lại để tiếp tục.'), findsOneWidget);
 
       // Tap confirm "Đăng xuất" button in dialog
       await tester.tap(find.text('Đăng xuất').last);

@@ -67,11 +67,12 @@ class MockAuthHandler extends MockHandler {
     }
     if (r.matches('POST', '/auth/password')) {
       final phone = asStr(r.body['phone']);
-      final matched = (phone.isNotEmpty ? store.userByIdentifier(phone) : null) ??
-          store.users.firstWhere(
-            (u) => u.role == UserRole.retailer,
-            orElse: () => store.users.first,
-          );
+      final matched =
+          (phone.isNotEmpty ? store.userByIdentifier(phone) : null) ??
+              store.users.firstWhere(
+                (u) => u.role == UserRole.retailer,
+                orElse: () => store.users.first,
+              );
       return MockReply.ok(_session(matched));
     }
     if (r.matches('POST', '/auth/logout')) return MockReply.noContent();

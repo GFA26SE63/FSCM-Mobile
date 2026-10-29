@@ -119,9 +119,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     });
 
     final email = _normalizeStaffEmail(rawEmail);
-    final ok = await ref
-        .read(authControllerProvider.notifier)
-        .login(email, password);
+    final ok =
+        await ref.read(authControllerProvider.notifier).login(email, password);
 
     if (!mounted) return;
     setState(() {
@@ -486,7 +485,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         children: <Widget>[
           const Row(
             children: <Widget>[
-              Expanded(child: Divider(color: _divider, height: 1, thickness: 1)),
+              Expanded(
+                  child: Divider(color: _divider, height: 1, thickness: 1)),
               Padding(
                 padding: EdgeInsets.symmetric(horizontal: 10),
                 child: Text(
@@ -494,7 +494,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   style: TextStyle(fontSize: 12.5, color: _textMuted),
                 ),
               ),
-              Expanded(child: Divider(color: _divider, height: 1, thickness: 1)),
+              Expanded(
+                  child: Divider(color: _divider, height: 1, thickness: 1)),
             ],
           ),
           const SizedBox(height: 16),
@@ -609,7 +610,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         Row(
           children: <Widget>[
             IconButton(
-              icon: const Icon(Icons.arrow_back_ios_new, size: 20, color: _textMain),
+              icon: const Icon(Icons.arrow_back_ios_new,
+                  size: 20, color: _textMain),
               padding: EdgeInsets.zero,
               constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
               onPressed: _busy
@@ -722,8 +724,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide:
-                            const BorderSide(color: _primary, width: 2),
+                        borderSide: const BorderSide(color: _primary, width: 2),
                       ),
                     ),
                     onChanged: (value) {
@@ -778,7 +779,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         Row(
           children: <Widget>[
             IconButton(
-              icon: const Icon(Icons.arrow_back_ios_new, size: 20, color: _textMain),
+              icon: const Icon(Icons.arrow_back_ios_new,
+                  size: 20, color: _textMain),
               padding: EdgeInsets.zero,
               constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
               onPressed: _busy
@@ -860,8 +862,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           controller: _newPasswordController,
           obscureText: _obscureNewPw,
           hintText: 'Nhập mật khẩu mới',
-          onToggleObscure: () =>
-              setState(() => _obscureNewPw = !_obscureNewPw),
+          onToggleObscure: () => setState(() => _obscureNewPw = !_obscureNewPw),
           onChanged: (_) => setState(() {}),
         ),
         const SizedBox(height: 16),
@@ -882,8 +883,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           children: <Widget>[
             _buildPasswordRule('Tối thiểu 8 ký tự', _pwHasMinLength),
             const SizedBox(height: 6),
-            _buildPasswordRule(
-                'Có chữ hoa và chữ thường', _pwHasUpperLower),
+            _buildPasswordRule('Có chữ hoa và chữ thường', _pwHasUpperLower),
             const SizedBox(height: 6),
             _buildPasswordRule('Có ít nhất 1 chữ số', _pwHasDigit),
             const SizedBox(height: 6),
