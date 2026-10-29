@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io' show Platform;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:fscm_mobile/core/auth/session.dart';
@@ -234,8 +235,9 @@ class AuthController extends StateNotifier<AuthState> {
         final freshUser = await _authApi.me();
         session = session.copyWith(user: session.user.mergeProfile(freshUser));
         await _tokens.save(session.toJson());
-      } on ApiException {
-        // Keep login response user if /auth/me is temporarily unreachable.
+      } catch (e) {
+        // Keep login response user if /auth/me is temporarily unreachable or throws.
+        debugPrint('Notice: /auth/me profile fetch skipped: $e');
       }
 
       state = AuthState(status: AuthStatus.authenticated, session: session);
@@ -243,6 +245,13 @@ class AuthController extends StateNotifier<AuthState> {
       return true;
     } on ApiException catch (e) {
       state = AuthState(status: AuthStatus.unauthenticated, error: e.message);
+      return false;
+    } catch (e, st) {
+      debugPrint('Unexpected error in login: $e\n$st');
+      state = AuthState(
+        status: AuthStatus.unauthenticated,
+        error: 'Lỗi xác thực hoặc xử lý dữ liệu: $e',
+      );
       return false;
     }
   }
@@ -296,9 +305,19 @@ class AuthController extends StateNotifier<AuthState> {
   Future<void> _registerDevice() async {
     try {
       final identity = _ref.read(deviceIdentityProvider);
+      String platform = 'android';
+      if (!kIsWeb) {
+        if (Platform.isIOS) {
+          platform = 'ios';
+        } else if (Platform.isAndroid) {
+          platform = 'android';
+        }
+      } else {
+        platform = 'web';
+      }
       await _authApi.registerDevice(
         installId: identity.installId,
-        platform: Platform.isIOS ? 'ios' : 'android',
+        platform: platform,
       );
     } on Object {
       // Push registration is best effort.

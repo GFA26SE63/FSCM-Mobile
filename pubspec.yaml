@@ -40,6 +40,8 @@ dependencies:
   cupertino_icons: ^1.0.8
   uuid: ^4.5.1
   intl: ">=0.19.0 <0.21.0"
+  sqflite_common_ffi: ^2.4.5
+  sqflite_common_ffi_web: ^1.2.0
 
 dev_dependencies:
   flutter_test:

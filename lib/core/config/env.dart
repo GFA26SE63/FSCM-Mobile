@@ -15,7 +15,11 @@ class Env {
       String.fromEnvironment('FLAVOR', defaultValue: 'dev');
 
   /// REST base URL including the `/api/v1` prefix (SPEC section 8).
-  /// `10.0.2.2` is the host machine seen from the Android emulator.
+  ///
+  /// Defaults to `https://localhost:7027/api/v1`.
+  /// On a physical Android phone connected via USB, forward the port with:
+  /// `adb reverse tcp:7027 tcp:7027` (handled automatically by `run_android.ps1`
+  /// and the VS Code launch configuration).
   static const String apiBaseUrl = String.fromEnvironment(
     'API_BASE_URL',
     defaultValue: 'https://localhost:7027/api/v1',

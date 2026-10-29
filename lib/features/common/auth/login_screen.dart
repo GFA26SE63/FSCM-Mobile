@@ -118,18 +118,31 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       _error = null;
     });
 
-    final email = _normalizeStaffEmail(rawEmail);
-    final ok =
-        await ref.read(authControllerProvider.notifier).login(email, password);
+    try {
+      final email = _normalizeStaffEmail(rawEmail);
+      final ok = await ref
+          .read(authControllerProvider.notifier)
+          .login(email, password);
 
-    if (!mounted) return;
-    setState(() {
-      _busy = false;
+      if (!mounted) return;
       if (!ok) {
-        _error = ref.read(authControllerProvider).error ??
-            'Email hoặc mật khẩu không đúng.';
+        setState(() {
+          _error = ref.read(authControllerProvider).error ??
+              'Email hoặc mật khẩu không đúng.';
+        });
       }
-    });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = 'Đăng nhập không thành công: $e';
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _busy = false;
+        });
+      }
+    }
   }
 
   Future<void> _submitCustomerLogin() async {
@@ -148,20 +161,32 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       _error = null;
     });
 
-    final ok = await ref.read(authControllerProvider.notifier).login(
-          cleanPhone,
-          password,
-          phone: cleanPhone,
-        );
+    try {
+      final ok = await ref.read(authControllerProvider.notifier).login(
+            cleanPhone,
+            password,
+            phone: cleanPhone,
+          );
 
-    if (!mounted) return;
-    setState(() {
-      _busy = false;
+      if (!mounted) return;
       if (!ok) {
-        _error = ref.read(authControllerProvider).error ??
-            'Số điện thoại hoặc mật khẩu không đúng.';
+        setState(() {
+          _error = ref.read(authControllerProvider).error ??
+              'Số điện thoại hoặc mật khẩu không đúng.';
+        });
       }
-    });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = 'Đăng nhập không thành công: $e';
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _busy = false;
+        });
+      }
+    }
   }
 
   Future<void> _startFirstLoginOtpFlow() async {
@@ -301,17 +326,30 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       _error = null;
     });
 
-    final ok = await ref
-        .read(authControllerProvider.notifier)
-        .login(selectedEmail, 'Fscm2026');
+    try {
+      final ok = await ref
+          .read(authControllerProvider.notifier)
+          .login(selectedEmail, 'Fscm2026');
 
-    if (!mounted) return;
-    setState(() {
-      _busy = false;
+      if (!mounted) return;
       if (!ok) {
-        _error = ref.read(authControllerProvider).error;
+        setState(() {
+          _error = ref.read(authControllerProvider).error ??
+              'Đăng nhập Microsoft không thành công.';
+        });
       }
-    });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = 'Đăng nhập Microsoft không thành công: $e';
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _busy = false;
+        });
+      }
+    }
   }
 
   @override

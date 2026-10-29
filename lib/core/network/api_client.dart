@@ -1,11 +1,13 @@
 import 'dart:async';
 
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:fscm_mobile/core/config/env.dart';
 import 'package:fscm_mobile/core/network/api_exception.dart';
 import 'package:fscm_mobile/core/network/api_transport.dart';
+import 'package:fscm_mobile/core/network/dio_adapter.dart';
 import 'package:fscm_mobile/core/network/endpoints.dart';
 import 'package:fscm_mobile/core/storage/token_store.dart';
 
@@ -42,7 +44,11 @@ class DioTransport implements ApiTransport {
                 responseType: ResponseType.json,
                 validateStatus: (_) => true,
               ),
-            );
+            ) {
+    if (dio == null) {
+      configureDevHttpAdapter(_dio);
+    }
+  }
 
   final Dio _dio;
 
@@ -64,6 +70,16 @@ class DioTransport implements ApiTransport {
         case DioExceptionType.receiveTimeout:
           throw const ApiException.timeout();
         case DioExceptionType.connectionError:
+        case DioExceptionType.badCertificate:
+          // In debug builds, show which server could not be reached so a
+          // wrong API_BASE_URL (e.g. `localhost` on a physical phone) or an
+          // untrusted dev HTTPS certificate is easy to spot.
+          if (kDebugMode) {
+            throw ApiException.network(
+              'Không kết nối được máy chủ ${_dio.options.baseUrl}. '
+              '(${e.type.name}: ${e.error ?? e.message})',
+            );
+          }
           throw const ApiException.network();
         default:
           final res = e.response;
