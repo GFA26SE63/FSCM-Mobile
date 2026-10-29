@@ -39,8 +39,8 @@ class UserScopeLabels {
       final raw = json[key];
       if (raw is List) {
         return raw
-            .map((e) =>
-                ScopeLabel.fromJson((e as Map?)?.cast<String, dynamic>()))
+            .whereType<Map<dynamic, dynamic>>()
+            .map((e) => ScopeLabel.fromJson(e.cast<String, dynamic>()))
             .where((l) =>
                 l.id.isNotEmpty || l.code.isNotEmpty || l.name.isNotEmpty)
             .toList();
@@ -153,14 +153,14 @@ class AppUser {
       mustChangePassword: (json['mustChangePassword'] as bool?) ?? false,
       scope: parsedScope,
       scopeLabels: parsedLabels,
-      areaCode: json['areaCode'] as String?,
-      areaName: json['areaName'] as String?,
-      salesGroup: json['salesGroup'] as String?,
-      warehouseCode: json['warehouseCode'] as String?,
-      warehouseName: json['warehouseName'] as String?,
-      retailerCode: json['retailerCode'] as String?,
-      retailerName: json['retailerName'] as String?,
-      retailerAddress: json['retailerAddress'] as String?,
+      areaCode: json['areaCode']?.toString(),
+      areaName: json['areaName']?.toString(),
+      salesGroup: json['salesGroup']?.toString(),
+      warehouseCode: json['warehouseCode']?.toString(),
+      warehouseName: json['warehouseName']?.toString(),
+      retailerCode: json['retailerCode']?.toString(),
+      retailerName: json['retailerName']?.toString(),
+      retailerAddress: json['retailerAddress']?.toString(),
     );
   }
 
@@ -346,17 +346,25 @@ class Session {
   });
 
   factory Session.fromJson(Map<String, dynamic> json) {
-    final accessExp = json['accessTokenExpiresAt']?.toString() ??
-        json['expiresAt']?.toString() ??
+    final target = json.containsKey('accessToken')
+        ? json
+        : (json['data'] is Map
+            ? (json['data'] as Map).cast<String, dynamic>()
+            : (json['result'] is Map
+                ? (json['result'] as Map).cast<String, dynamic>()
+                : json));
+
+    final accessExp = target['accessTokenExpiresAt']?.toString() ??
+        target['expiresAt']?.toString() ??
         '';
-    final refreshExp = json['refreshTokenExpiresAt']?.toString() ?? '';
+    final refreshExp = target['refreshTokenExpiresAt']?.toString() ?? '';
     return Session(
-      accessToken: json['accessToken']?.toString() ?? '',
+      accessToken: target['accessToken']?.toString() ?? '',
       expiresAt: DateTime.tryParse(accessExp),
-      refreshToken: json['refreshToken']?.toString(),
+      refreshToken: target['refreshToken']?.toString(),
       refreshTokenExpiresAt: DateTime.tryParse(refreshExp),
       user: AppUser.fromJson(
-        (json['user'] as Map?)?.cast<String, dynamic>() ??
+        (target['user'] as Map?)?.cast<String, dynamic>() ??
             const <String, dynamic>{},
       ),
     );

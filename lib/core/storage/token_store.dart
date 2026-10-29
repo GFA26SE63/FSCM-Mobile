@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
@@ -31,7 +32,8 @@ class TokenStore {
         _cached = decoded;
         return decoded;
       }
-    } catch (_) {
+    } catch (e) {
+      debugPrint('TokenStore.load warning: $e');
       // Corrupted entry or keystore reset: start logged out.
       await clear();
     }
@@ -40,11 +42,19 @@ class TokenStore {
 
   Future<void> save(Map<String, dynamic> session) async {
     _cached = session;
-    await _storage.write(key: _sessionKey, value: jsonEncode(session));
+    try {
+      await _storage.write(key: _sessionKey, value: jsonEncode(session));
+    } catch (e) {
+      debugPrint('TokenStore.save warning (persisting to storage failed): $e');
+    }
   }
 
   Future<void> clear() async {
     _cached = null;
-    await _storage.delete(key: _sessionKey);
+    try {
+      await _storage.delete(key: _sessionKey);
+    } catch (e) {
+      debugPrint('TokenStore.clear warning: $e');
+    }
   }
 }
