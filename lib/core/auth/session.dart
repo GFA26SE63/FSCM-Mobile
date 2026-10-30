@@ -9,6 +9,7 @@ class AppUser {
     required this.fullName,
     required this.phone,
     required this.role,
+    this.email = '',
     this.areaCode,
     this.areaName,
     this.salesGroup,
@@ -22,6 +23,7 @@ class AppUser {
   factory AppUser.fromJson(Map<String, dynamic> json) => AppUser(
         id: json['id']?.toString() ?? '',
         fullName: json['fullName']?.toString() ?? '',
+        email: json['email']?.toString() ?? '',
         phone: json['phone']?.toString() ?? json['email']?.toString() ?? '',
         role: UserRole.fromCode(json['role']?.toString()),
         areaCode: json['areaCode'] as String?,
@@ -36,6 +38,7 @@ class AppUser {
 
   final String id;
   final String fullName;
+  final String email;
   final String phone;
   final UserRole role;
   final String? areaCode;
@@ -77,6 +80,7 @@ class AppUser {
   Map<String, dynamic> toJson() => <String, dynamic>{
         'id': id,
         'fullName': fullName,
+        'email': email,
         'phone': phone,
         'role': role.code,
         'areaCode': areaCode,

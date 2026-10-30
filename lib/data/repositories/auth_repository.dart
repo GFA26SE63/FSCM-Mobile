@@ -120,6 +120,23 @@ class AuthController extends StateNotifier<AuthState> {
     }
   }
 
+  /// Refreshes the server-side session and scope when the app resumes or a
+  /// protected request receives 403.
+  Future<void> verifySessionOnResume() async {
+    if (!state.isAuthenticated) return;
+    try {
+      final user = await _ref.read(authApiProvider).me();
+      if (!user.role.hasMobileShell) {
+        await logout(callServer: false);
+      }
+    } on ApiException catch (error) {
+      if (error.kind == ApiErrorKind.unauthorized ||
+          error.kind == ApiErrorKind.forbidden) {
+        await logout(callServer: false);
+      }
+    }
+  }
+
   Future<void> logout({bool callServer = true}) async {
     if (callServer) {
       try {

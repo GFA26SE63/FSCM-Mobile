@@ -85,9 +85,14 @@ class ApiClient {
   final String? Function() _tokenReader;
   final StreamController<void> _unauthorized =
       StreamController<void>.broadcast();
+  final StreamController<ApiException> _forbidden =
+      StreamController<ApiException>.broadcast();
 
   /// Fires when any call returns 401.
   Stream<void> get onUnauthorized => _unauthorized.stream;
+
+  /// Fires when a call returns 403 so the UI can refresh scope and explain it.
+  Stream<ApiException> get onForbidden => _forbidden.stream;
 
   Future<dynamic> get(String path, {Map<String, dynamic>? query}) =>
       _send('GET', path, query: query);
@@ -134,10 +139,14 @@ class ApiClient {
     if (error.kind == ApiErrorKind.unauthorized && !_unauthorized.isClosed) {
       _unauthorized.add(null);
     }
+    if (error.kind == ApiErrorKind.forbidden && !_forbidden.isClosed) {
+      _forbidden.add(error);
+    }
     throw error;
   }
 
   void dispose() {
     unawaited(_unauthorized.close());
+    unawaited(_forbidden.close());
   }
 }
