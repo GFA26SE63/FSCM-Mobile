@@ -34,11 +34,6 @@ class SalesScanScreen extends ConsumerWidget {
               'Mã điểm bán (QR dán tại cửa hàng) mở ngay trang đặt hàng. Tem hàng trên kiện cho xem đơn, batch, HSD.'),
           const SizedBox(height: 14),
           QrScanView(
-            simulated: const <SimulatedScan>[
-              SimulatedScan('Quét mã điểm bán 10004127', '10004127'),
-              SimulatedScan('Quét điểm bán ngoài khu vực 10004256', '10004256'),
-              SimulatedScan('Quét tem TEM-000187', 'TEM-000187'),
-            ],
             onCode: (code) => _handle(context, ref, code),
           ),
         ],

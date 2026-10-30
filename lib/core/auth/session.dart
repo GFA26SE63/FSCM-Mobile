@@ -22,7 +22,7 @@ class AppUser {
   factory AppUser.fromJson(Map<String, dynamic> json) => AppUser(
         id: json['id']?.toString() ?? '',
         fullName: json['fullName']?.toString() ?? '',
-        phone: json['phone']?.toString() ?? '',
+        phone: json['phone']?.toString() ?? json['email']?.toString() ?? '',
         role: UserRole.fromCode(json['role']?.toString()),
         areaCode: json['areaCode'] as String?,
         areaName: json['areaName'] as String?,
@@ -96,7 +96,11 @@ class Session {
 
   factory Session.fromJson(Map<String, dynamic> json) => Session(
         accessToken: json['accessToken']?.toString() ?? '',
-        expiresAt: DateTime.tryParse(json['expiresAt']?.toString() ?? ''),
+        expiresAt: DateTime.tryParse(
+          json['expiresAt']?.toString() ??
+              json['accessTokenExpiresAt']?.toString() ??
+              '',
+        ),
         user: AppUser.fromJson(
           (json['user'] as Map?)?.cast<String, dynamic>() ??
               const <String, dynamic>{},

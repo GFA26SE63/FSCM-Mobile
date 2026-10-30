@@ -8,9 +8,6 @@ import 'package:fscm_mobile/data/models/promotion.dart';
 ///
 /// * offline: the Sales app estimates the discount from the promotions
 ///   cached in LocalPromotion (the server result stays final);
-/// * `MockApi`: the in-process backend prices online orders with the same
-///   rules.
-///
 /// Rules (prototype + SPEC): every line receives at most ONE promotion -
 /// the one with the highest percentage. Type 1 promotions test the line
 /// quantity, type 2 promotions test the combined quantity of the group.

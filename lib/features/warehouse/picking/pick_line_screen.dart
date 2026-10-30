@@ -122,12 +122,6 @@ class _PickLineScreenState extends ConsumerState<PickLineScreen> {
                 if (_label == null) ...<Widget>[
                   QrScanView(
                     hint: 'Quét tem nguồn ${line.suggestedLabel}',
-                    simulated: <SimulatedScan>[
-                      SimulatedScan(
-                          'Quét ${line.suggestedLabel}', line.suggestedLabel),
-                      const SimulatedScan(
-                          'Quét tem sai TEM-000142', 'TEM-000142'),
-                    ],
                     onCode: (c) => _onScan(line, c),
                   ),
                 ] else
@@ -217,14 +211,14 @@ class _PickLineScreenState extends ConsumerState<PickLineScreen> {
               const SizedBox(height: 8),
               OutlinedButton.icon(
                 onPressed: () => showAppSnack(
-                    context, 'Đã gửi lệnh in tem ${r.childLabel} (demo).'),
+                    context, 'Đã gửi lệnh in tem ${r.childLabel}.'),
                 icon: const Icon(Icons.print_outlined),
                 label: const Text('In tem con'),
               ),
               if (r.remainingLabel.isNotEmpty)
                 OutlinedButton.icon(
-                  onPressed: () => showAppSnack(context,
-                      'Đã gửi lệnh in lại tem ${r.remainingLabel} (demo).'),
+                  onPressed: () => showAppSnack(
+                      context, 'Đã gửi lệnh in lại tem ${r.remainingLabel}.'),
                   icon: const Icon(Icons.print_outlined),
                   label: const Text('In lại tem gốc'),
                 ),

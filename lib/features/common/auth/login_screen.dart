@@ -1,37 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:fscm_mobile/core/config/env.dart';
 import 'package:fscm_mobile/core/utils/status_tone.dart';
 import 'package:fscm_mobile/data/repositories/auth_repository.dart';
 import 'package:fscm_mobile/shared/theme/app_colors.dart';
 import 'package:fscm_mobile/shared/widgets/info_banner.dart';
 
-/// Phone + password login. With `Env.useMock` a developer role picker fills
-/// the demo credentials of Sales / Warehouse Keeper / Retailer.
+/// Phone + password or Google login.
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
 
   @override
   ConsumerState<LoginScreen> createState() => _LoginScreenState();
 }
-
-class _DemoAccount {
-  const _DemoAccount(this.label, this.subtitle, this.phone, this.icon);
-  final String label;
-  final String subtitle;
-  final String phone;
-  final IconData icon;
-}
-
-const List<_DemoAccount> _demoAccounts = <_DemoAccount>[
-  _DemoAccount('Sales', 'Nguyễn Văn An · Nhóm Q12-A', '0909123456',
-      Icons.badge_outlined),
-  _DemoAccount('Thủ kho', 'Đỗ Văn Tâm · Kho Thới An', '0912440118',
-      Icons.warehouse_outlined),
-  _DemoAccount('Điểm bán', 'Tạp hóa Minh Châu · 10004127', '0909555127',
-      Icons.storefront_outlined),
-];
 
 class _LoginScreenState extends ConsumerState<LoginScreen> {
   final TextEditingController _phone = TextEditingController();
@@ -64,11 +45,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     });
   }
 
-  void _pick(_DemoAccount a) {
+  Future<void> _submitGoogle() async {
     setState(() {
-      _phone.text = a.phone;
-      _password.text = 'Fscm2026';
+      _busy = true;
       _error = null;
+    });
+    final ok =
+        await ref.read(authControllerProvider.notifier).loginWithGoogle();
+    if (!mounted) return;
+    setState(() {
+      _busy = false;
+      if (!ok) _error = ref.read(authControllerProvider).error;
     });
   }
 
@@ -141,6 +128,23 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       onPressed: _busy ? null : _submit,
                       child: Text(_busy ? 'Đang đăng nhập...' : 'Đăng nhập'),
                     ),
+                    const SizedBox(height: 14),
+                    const Row(
+                      children: <Widget>[
+                        Expanded(child: Divider()),
+                        Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 12),
+                          child: Text('hoặc'),
+                        ),
+                        Expanded(child: Divider()),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+                    OutlinedButton.icon(
+                      onPressed: _busy ? null : _submitGoogle,
+                      icon: const Icon(Icons.login),
+                      label: const Text('Đăng nhập bằng Google'),
+                    ),
                     const SizedBox(height: 10),
                     const Text(
                       'Tài khoản do nhà phân phối / Admin cấp. Vai trò (Sales, Thủ kho, Điểm bán) '
@@ -151,34 +155,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           fontSize: 12.5,
                           height: 1.4),
                     ),
-                    if (Env.useMock) ...<Widget>[
-                      const SizedBox(height: 28),
-                      const Divider(),
-                      const SizedBox(height: 12),
-                      const Text(
-                        'Chọn vai trò demo (chế độ mock)',
-                        style: TextStyle(fontWeight: FontWeight.w700),
-                      ),
-                      const SizedBox(height: 8),
-                      for (final a in _demoAccounts)
-                        Card(
-                          margin: const EdgeInsets.only(bottom: 8),
-                          child: ListTile(
-                            leading: Icon(a.icon, color: AppColors.primary),
-                            title: Text(a.label,
-                                style: const TextStyle(
-                                    fontWeight: FontWeight.w700)),
-                            subtitle: Text(a.subtitle),
-                            trailing: const Icon(Icons.chevron_right),
-                            onTap: () => _pick(a),
-                          ),
-                        ),
-                      const Text(
-                        'Mật khẩu demo: Fscm2026',
-                        style:
-                            TextStyle(color: AppColors.textMuted, fontSize: 12),
-                      ),
-                    ],
                   ],
                 ),
               ),

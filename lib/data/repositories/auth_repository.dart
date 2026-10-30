@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:fscm_mobile/core/auth/session.dart';
 import 'package:fscm_mobile/core/config/device_identity.dart';
+import 'package:fscm_mobile/core/auth/google_auth_service.dart';
 import 'package:fscm_mobile/core/network/api_client.dart';
 import 'package:fscm_mobile/core/network/api_exception.dart';
 import 'package:fscm_mobile/core/storage/token_store.dart';
@@ -87,6 +88,34 @@ class AuthController extends StateNotifier<AuthState> {
       return true;
     } on ApiException catch (e) {
       state = AuthState(status: AuthStatus.unauthenticated, error: e.message);
+      return false;
+    }
+  }
+
+  Future<bool> loginWithGoogle() async {
+    try {
+      final googleIdToken = await GoogleAuthService.instance.acquireIdToken();
+      final session =
+          await _ref.read(authApiProvider).exchangeGoogle(googleIdToken);
+      if (!session.user.role.hasMobileShell) {
+        state = const AuthState(
+          status: AuthStatus.unauthenticated,
+          error: 'Tài khoản này không có quyền sử dụng ứng dụng.',
+        );
+        return false;
+      }
+      await _tokens.save(session.toJson());
+      state = AuthState(status: AuthStatus.authenticated, session: session);
+      unawaited(_registerDevice());
+      return true;
+    } on ApiException catch (e) {
+      state = AuthState(status: AuthStatus.unauthenticated, error: e.message);
+      return false;
+    } on Object catch (e) {
+      state = AuthState(
+        status: AuthStatus.unauthenticated,
+        error: 'Đăng nhập Google thất bại: $e',
+      );
       return false;
     }
   }

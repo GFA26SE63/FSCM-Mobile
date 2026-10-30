@@ -8,8 +8,7 @@ import 'package:fscm_mobile/core/network/api_exception.dart';
 import 'package:fscm_mobile/core/network/api_transport.dart';
 import 'package:fscm_mobile/core/storage/token_store.dart';
 
-/// Default transport = real HTTP. `main.dart` overrides it with `MockApi`
-/// when `Env.useMock` is true.
+/// HTTP transport used by the repositories.
 final apiTransportProvider = Provider<ApiTransport>((ref) {
   return DioTransport(baseUrl: Env.apiBaseUrl);
 });
@@ -94,8 +93,10 @@ class ApiClient {
       _send('GET', path, query: query);
 
   Future<dynamic> post(String path,
-          {Object? body, Map<String, dynamic>? query}) =>
-      _send('POST', path, body: body, query: query);
+          {Object? body,
+          Map<String, dynamic>? query,
+          Map<String, String>? headers}) =>
+      _send('POST', path, body: body, query: query, extraHeaders: headers);
 
   Future<dynamic> put(String path, {Object? body}) =>
       _send('PUT', path, body: body);
@@ -107,12 +108,14 @@ class ApiClient {
     String path, {
     Object? body,
     Map<String, dynamic>? query,
+    Map<String, String>? extraHeaders,
   }) async {
     final headers = <String, String>{'Accept': 'application/json'};
     final token = _tokenReader();
     if (token != null && token.isNotEmpty) {
       headers['Authorization'] = 'Bearer $token';
     }
+    if (extraHeaders != null) headers.addAll(extraHeaders);
     final cleanQuery = query == null
         ? null
         : (Map<String, dynamic>.of(query)..removeWhere((_, v) => v == null));

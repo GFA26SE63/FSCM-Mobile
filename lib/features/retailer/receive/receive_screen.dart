@@ -111,11 +111,6 @@ class _RtReceiveScreenState extends ConsumerState<RtReceiveScreen> {
               ),
               QrScanView(
                 hint: 'Quét tem trên kiện hàng',
-                simulated: <SimulatedScan>[
-                  for (final c in o.labelCodes)
-                    if (!_scanned.contains(c)) SimulatedScan('Quét $c', c),
-                  const SimulatedScan('Quét tem lạ TEM-000999', 'TEM-000999'),
-                ],
                 onCode: (c) => _onScan(o, c),
               ),
               if (_error.isNotEmpty) ...<Widget>[

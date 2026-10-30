@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import 'package:fscm_mobile/core/config/env.dart';
-import 'package:fscm_mobile/core/network/network_monitor.dart';
 import 'package:fscm_mobile/core/utils/clock.dart';
 import 'package:fscm_mobile/core/utils/dates.dart';
 import 'package:fscm_mobile/core/utils/money.dart';
@@ -33,7 +31,6 @@ class SalesHomeScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(currentUserProvider);
     final sync = ref.watch(syncServiceProvider);
-    final network = ref.watch(networkMonitorProvider);
     final orders =
         ref.watch(ordersProvider).valueOrNull?.orders ?? const <Order>[];
     final queue = ref.watch(offlineQueueProvider).valueOrNull ?? const [];
@@ -85,17 +82,6 @@ class SalesHomeScreen extends ConsumerWidget {
                 lastSyncAt: catalog?.lastSyncAt ?? sync.lastSyncAt,
                 summary: sync.lastSummary,
                 error: sync.lastError),
-            if (Env.useMock)
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                title: const Text('Giả lập mất mạng (demo)'),
-                subtitle:
-                    const Text('Bật để tạo đơn offline, tắt để tự đồng bộ'),
-                value: network.simulatedOffline,
-                onChanged: (v) => ref
-                    .read(networkMonitorProvider.notifier)
-                    .setSimulatedOffline(v),
-              ),
             if (overdue.isNotEmpty)
               InkWell(
                 onTap: () => context.push(AppRoutes.salesDebts),

@@ -3,24 +3,12 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
-import 'package:fscm_mobile/core/config/env.dart';
-import 'package:fscm_mobile/shared/theme/app_colors.dart';
-
-/// A code the mock/demo mode can "scan" with one tap (no camera needed).
-class SimulatedScan {
-  const SimulatedScan(this.label, this.code);
-  final String label;
-  final String code;
-}
-
-/// Camera QR scanner with a manual-entry field. In mock mode it also lists
-/// [simulated] one-tap codes like the "Giả lập quét (prototype)" buttons.
+/// Camera QR scanner with a manual-entry field.
 class QrScanView extends StatefulWidget {
   const QrScanView({
     super.key,
     required this.onCode,
     this.hint = 'Đưa mã QR vào khung',
-    this.simulated = const <SimulatedScan>[],
     this.manualLabel = 'Hoặc nhập mã thủ công',
     this.height = 260,
   });
@@ -28,7 +16,6 @@ class QrScanView extends StatefulWidget {
   /// Called with the raw text of each (de-duplicated) scan.
   final ValueChanged<String> onCode;
   final String hint;
-  final List<SimulatedScan> simulated;
   final String manualLabel;
   final double height;
 
@@ -132,29 +119,6 @@ class _QrScanViewState extends State<QrScanView> {
             ),
           ],
         ),
-        if (Env.useMock && widget.simulated.isNotEmpty) ...<Widget>[
-          const SizedBox(height: 14),
-          const Text(
-            'Giả lập quét (demo)',
-            style: TextStyle(
-                color: AppColors.textMuted, fontWeight: FontWeight.w600),
-          ),
-          const SizedBox(height: 6),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: <Widget>[
-              for (final s in widget.simulated)
-                OutlinedButton(
-                  onPressed: () {
-                    _lastCode = null;
-                    _emit(s.code);
-                  },
-                  child: Text(s.label),
-                ),
-            ],
-          ),
-        ],
       ],
     );
   }
