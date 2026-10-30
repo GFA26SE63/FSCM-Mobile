@@ -87,8 +87,10 @@ String? redirectFor({
     case AuthStatus.unauthenticated:
       return location == AppRoutes.login ? null : AppRoutes.login;
     case AuthStatus.authenticated:
-      if (role == null) return AppRoutes.login;
-      if (location == AppRoutes.splash || location == AppRoutes.login) {
+      if (role == null || !role.hasMobileShell) return AppRoutes.login;
+      if (location == '/' ||
+          location == AppRoutes.splash ||
+          location == AppRoutes.login) {
         return homeRouteFor(role);
       }
       final prefix = _prefixFor(role);
