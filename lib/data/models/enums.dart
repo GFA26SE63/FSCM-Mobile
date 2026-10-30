@@ -101,8 +101,8 @@ enum ReceivableStatus {
 }
 
 enum PickingStatus {
-  pending('Pending', 'Chưa pick', StatusTone.info),
-  picking('Picking', 'Đang pick', StatusTone.purple),
+  pending('Pending', 'Chưa soạn', StatusTone.info),
+  picking('Picking', 'Đang soạn', StatusTone.purple),
   shipped('Shipped', 'Đã xuất', StatusTone.success);
 
   const PickingStatus(this.code, this.label, this.tone);
@@ -121,7 +121,7 @@ enum PickingStatus {
 
 enum LabelStatus {
   inStock('InStock', 'Trong kho', StatusTone.primary),
-  picked('Picked', 'Đã pick', StatusTone.purple),
+  picked('Picked', 'Đã soạn', StatusTone.purple),
   inTransit('InTransit', 'Đang vận chuyển', StatusTone.warning),
   delivered('Delivered', 'Đã giao', StatusTone.success),
   expired('Expired', 'Hết hạn', StatusTone.danger),

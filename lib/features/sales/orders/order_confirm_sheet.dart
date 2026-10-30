@@ -6,13 +6,13 @@ import 'package:fscm_mobile/data/models/enums.dart';
 import 'package:fscm_mobile/data/models/price_quote.dart';
 import 'package:fscm_mobile/data/models/retailer.dart';
 import 'package:fscm_mobile/shared/theme/app_colors.dart';
+import 'package:fscm_mobile/shared/widgets/app_card.dart';
 import 'package:fscm_mobile/shared/widgets/info_banner.dart';
 import 'package:fscm_mobile/shared/widgets/kv_row.dart';
-import 'package:fscm_mobile/shared/widgets/section_title.dart';
 
-/// Bottom sheet "Xác nhận đơn hàng": lines, applied promotions, totals and
-/// payment choice. Pops with the chosen [PaymentMethod].
-class OrderConfirmSheet extends StatefulWidget {
+/// Bottom sheet "Xác nhận đơn hàng" matching `FSCM_Prototype_Prod_v1.1.html`
+/// (`DEFS.sales` CONFIRM). Pops with a [PaymentMethod].
+class OrderConfirmSheet extends StatelessWidget {
   const OrderConfirmSheet({
     super.key,
     required this.retailer,
@@ -29,123 +29,255 @@ class OrderConfirmSheet extends StatefulWidget {
   final bool estimated;
 
   @override
-  State<OrderConfirmSheet> createState() => _OrderConfirmSheetState();
-}
-
-class _OrderConfirmSheetState extends State<OrderConfirmSheet> {
-  PaymentMethod _payment = PaymentMethod.cod;
-
-  bool _enabled(PaymentMethod m) {
-    switch (m) {
-      case PaymentMethod.cod:
-        return true;
-      case PaymentMethod.prepaid:
-        return widget.online;
-      case PaymentMethod.credit:
-        return widget.retailer.creditAllowed;
-    }
-  }
-
-  String _hint(PaymentMethod m) {
-    switch (m) {
-      case PaymentMethod.cod:
-        return 'Retailer trả tiền khi nhận hàng';
-      case PaymentMethod.prepaid:
-        return widget.online
-            ? 'Chuyển khoản QR hoặc tiền mặt trước khi giao'
-            : 'Cần có mạng để trả trước';
-      case PaymentMethod.credit:
-        return widget.retailer.creditAllowed
-            ? 'Trả một lần đủ trong ${widget.retailer.creditTerm} ngày kể từ ngày giao'
-            : 'Điểm bán chưa được phép mua công nợ';
-    }
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final q = widget.quote;
+    final q = quote;
+    final loyaltyPoints = (q.finalAmount / 100000).floor();
+
     return SafeArea(
       child: DraggableScrollableSheet(
         expand: false,
-        initialChildSize: 0.85,
+        initialChildSize: 0.88,
         minChildSize: 0.5,
         maxChildSize: 0.95,
         builder: (context, controller) => ListView(
           controller: controller,
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
           children: <Widget>[
-            const Text('Xác nhận đơn hàng',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
-            Text('Giao đến ${widget.retailer.name} · ${widget.retailer.code}',
-                style: const TextStyle(color: AppColors.textMuted)),
-            const SizedBox(height: 10),
-            if (widget.estimated)
+            const Text(
+              'Xác nhận đơn hàng',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+            ),
+            const Text(
+              'Bước 3 / 3 · Kiểm tra & gửi đơn',
+              style: TextStyle(fontSize: 12, color: AppColors.textMuted),
+            ),
+            const SizedBox(height: 12),
+            if (estimated)
               InfoBanner(
                 tone: StatusTone.warning,
-                text: widget.online
+                text: online
                     ? 'Không lấy được giá từ hệ thống - đang hiển thị khuyến mãi tạm tính trên máy.'
-                    : 'Khuyến mãi tạm tính trên máy (offline). Hệ thống sẽ tính lại khi đồng bộ.',
+                    : 'Đang ngoại tuyến: khuyến mãi đang tính tạm theo bảng giá lưu trên máy. Khi gửi lên hệ thống, giá & khuyến mãi sẽ được tính lại.',
               ),
-            const SectionTitle('Sản phẩm'),
-            for (final l in q.lines)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 4),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: <Widget>[
-                          Text('${l.name} ×${l.qty}',
-                              style:
-                                  const TextStyle(fontWeight: FontWeight.w600)),
-                          if (l.hasDiscount)
-                            Text('${l.promoId} · −${l.pct.round()}%',
-                                style: const TextStyle(
-                                    color: AppColors.success, fontSize: 12.5)),
-                        ],
-                      ),
+            AppCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  const Text(
+                    'Điểm bán',
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      color: AppColors.textMuted,
                     ),
-                    Text(Money.format(l.base - l.discount)),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    retailer.name,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  Text(
+                    'Mã ${retailer.code} · ${retailer.address}',
+                    style: const TextStyle(
+                      fontSize: 12.5,
+                      color: AppColors.textMuted,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            AppCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text(
+                    'Danh sách mặt hàng (${q.lines.length})',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  for (int i = 0; i < q.lines.length; i++) ...<Widget>[
+                    if (i > 0)
+                      const Divider(height: 14, color: Color(0xFFEEF0EC)),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: <Widget>[
+                              Text(
+                                q.lines[i].name,
+                                style: const TextStyle(
+                                  fontSize: 13.5,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              Text(
+                                '${q.lines[i].sku} · × ${q.lines[i].qty}',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: AppColors.textMuted,
+                                ),
+                              ),
+                              if (q.lines[i].hasDiscount)
+                                Text(
+                                  '${q.lines[i].promoId} (−${q.lines[i].pct.round()}%): ${Money.minus(q.lines[i].discount)}',
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    color: AppColors.success,
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: <Widget>[
+                            if (q.lines[i].hasDiscount)
+                              Text(
+                                Money.format(q.lines[i].base),
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: AppColors.textMuted,
+                                  decoration: TextDecoration.lineThrough,
+                                ),
+                              ),
+                            Text(
+                              Money.format(
+                                  q.lines[i].base - q.lines[i].discount),
+                              style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
                   ],
+                ],
+              ),
+            ),
+            AppCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  const Text(
+                    'Khuyến mãi áp dụng (dự kiến)',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  if (q.applied.isEmpty)
+                    const Text(
+                      'Không có khuyến mãi áp dụng.',
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        color: AppColors.textMuted,
+                      ),
+                    )
+                  else
+                    for (final a in q.applied)
+                      KvRow(
+                        '${a.id} · ${a.name}',
+                        Money.minus(a.amount),
+                        valueColor: AppColors.success,
+                      ),
+                ],
+              ),
+            ),
+            const AppCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text(
+                    'Thanh toán',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  SizedBox(height: 4),
+                  Text(
+                    'Retailer chọn Trả trước hoặc Công nợ sau khi nhận báo giá từ nhà phân phối.',
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      color: AppColors.textMuted,
+                      height: 1.4,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            AppCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  KvRow('Giá niêm yết', Money.format(q.total)),
+                  KvRow(
+                    'KM thường',
+                    Money.minus(q.discount),
+                    valueColor: AppColors.success,
+                  ),
+                  const Divider(height: 16),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: <Widget>[
+                      const Text(
+                        'Thành tiền (dự kiến)',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      Text(
+                        Money.format(q.finalAmount),
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Điểm loyalty dự kiến: +$loyaltyPoints điểm (tính trên Thành tiền sau khi xuất kho)',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: AppColors.textMuted,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 6),
+            FilledButton.icon(
+              style: FilledButton.styleFrom(
+                minimumSize: const Size.fromHeight(54),
+                textStyle: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
-            const SectionTitle('Khuyến mãi áp dụng'),
-            if (q.applied.isEmpty)
-              const Text('Đơn chưa đạt điều kiện khuyến mãi nào.',
-                  style: TextStyle(color: AppColors.textMuted))
-            else
-              for (final a in q.applied)
-                KvRow('${a.id} · ${a.name}', Money.minus(a.amount),
-                    valueColor: AppColors.success),
-            const SectionTitle('Thanh toán'),
-            for (final m in PaymentMethod.values)
-              RadioListTile<PaymentMethod>(
-                contentPadding: EdgeInsets.zero,
-                value: m,
-                groupValue: _payment,
-                onChanged: _enabled(m)
-                    ? (v) => setState(() => _payment = v ?? _payment)
-                    : null,
-                title: Text(m.labelWithTerm(widget.retailer.creditTerm)),
-                subtitle: Text(_hint(m)),
+              onPressed: () => Navigator.of(context).pop(PaymentMethod.prepaid),
+              icon: Icon(online ? Icons.send : Icons.save_outlined, size: 18),
+              label: Text(
+                online ? 'Gửi đơn lên hệ thống' : 'Lưu đơn nháp trên máy',
               ),
-            const Divider(height: 24),
-            KvRow('Tổng tiền hàng', Money.format(q.total)),
-            KvRow('Tổng giảm', Money.minus(q.discount),
-                valueColor: AppColors.success),
-            KvRow('Thành tiền', Money.format(q.finalAmount), bold: true),
-            const SizedBox(height: 14),
-            FilledButton(
-              onPressed: () => Navigator.of(context).pop(_payment),
-              child: Text(
-                  widget.online ? 'Xác nhận đặt hàng' : 'Lưu đơn trên máy'),
             ),
             const SizedBox(height: 6),
             TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: const Text('Quay lại giỏ hàng')),
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Quay lại giỏ hàng'),
+            ),
           ],
         ),
       ),

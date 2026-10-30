@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:fscm_mobile/core/config/device_identity.dart';
+import 'package:fscm_mobile/core/config/env.dart';
 import 'package:fscm_mobile/core/network/api_exception.dart';
 import 'package:fscm_mobile/data/remote/auth_api.dart';
 import 'package:fscm_mobile/data/repositories/auth_repository.dart';
@@ -243,28 +245,25 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   bool get _pwHasMinLength => _newPasswordController.text.length >= 8;
-  bool get _pwHasUpperLower =>
-      RegExp(r'[A-Z]').hasMatch(_newPasswordController.text) &&
-      RegExp(r'[a-z]').hasMatch(_newPasswordController.text);
-  bool get _pwHasDigit => RegExp(r'\d').hasMatch(_newPasswordController.text);
-  bool get _pwHasSpecial =>
-      RegExp(r'[!@#$%^&*(),.?":{}|<>_\-+=/\\[\]~`]').hasMatch(
-        _newPasswordController.text,
-      );
+  bool get _pwHasAlphaNum =>
+      RegExp(r'[A-Za-z]').hasMatch(_newPasswordController.text) &&
+      RegExp(r'\d').hasMatch(_newPasswordController.text);
+  bool get _pwDiffersDefault =>
+      _newPasswordController.text.isNotEmpty &&
+      _newPasswordController.text != '12345678';
+  bool get _pwMatchesConfirm =>
+      _newPasswordController.text.isNotEmpty &&
+      _newPasswordController.text == _confirmPasswordController.text;
 
   Future<void> _completeNewPasswordStep() async {
     final newPw = _newPasswordController.text;
-    final confirmPw = _confirmPasswordController.text;
-    if (!_pwHasMinLength ||
-        !_pwHasUpperLower ||
-        !_pwHasDigit ||
-        !_pwHasSpecial) {
+    if (!_pwHasMinLength || !_pwHasAlphaNum || !_pwDiffersDefault) {
       setState(() {
         _error = 'Mật khẩu mới chưa đáp ứng đủ các điều kiện bảo mật.';
       });
       return;
     }
-    if (newPw != confirmPw) {
+    if (!_pwMatchesConfirm) {
       setState(() {
         _error = 'Xác nhận mật khẩu mới không khớp.';
       });
@@ -389,33 +388,33 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         const Align(
           alignment: Alignment.centerLeft,
           child: FscmLogo(
-            size: 52,
-            iconSize: 28,
-            borderRadius: 14,
+            size: 56,
+            iconSize: 30,
+            borderRadius: 16,
           ),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 18),
         const Text(
           'FSCM',
           style: TextStyle(
-            fontSize: 26,
+            fontSize: 28,
             fontWeight: FontWeight.w700,
             color: _textMain,
             height: 1.2,
           ),
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: 6),
         const Text(
           'Đặt hàng, soạn hàng và nhận hàng hạn sử dụng ngắn.',
           style: TextStyle(
-            fontSize: 14.5,
+            fontSize: 15,
             color: _textMuted,
-            height: 1.45,
+            height: 1.5,
           ),
         ),
-        const SizedBox(height: 18),
+        const SizedBox(height: 22),
         _buildSegmentedToggle(),
-        const SizedBox(height: 18),
+        const SizedBox(height: 22),
         if (_isStaff) _buildStaffForm() else _buildCustomerForm(),
       ],
     );
@@ -487,7 +486,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           hintText: 'name@fscm.vn',
           onSubmitted: (_) => _submitStaffLogin(),
         ),
-        const SizedBox(height: 14),
+        const SizedBox(height: 16),
         _buildFieldLabel('Mật khẩu'),
         const SizedBox(height: 6),
         _buildTextField(
@@ -503,7 +502,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           const SizedBox(height: 14),
           _buildErrorBanner(_error!),
         ],
-        const SizedBox(height: 18),
+        const SizedBox(height: 22),
         _buildPrimaryButton(
           key: const Key('btn_staff_login'),
           label: _busy ? 'Đang đăng nhập...' : 'Đăng nhập',
@@ -580,7 +579,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
-        _buildFieldLabel('Số điện thoại hoặc Email'),
+        _buildFieldLabel('Số điện thoại'),
         const SizedBox(height: 6),
         _buildTextField(
           key: const Key('input_customer_phone'),
@@ -589,7 +588,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           hintText: '0909 555 127',
           onSubmitted: (_) => _submitCustomerLogin(),
         ),
-        const SizedBox(height: 14),
+        const SizedBox(height: 16),
         _buildFieldLabel('Mật khẩu'),
         const SizedBox(height: 6),
         _buildTextField(
@@ -605,7 +604,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           const SizedBox(height: 14),
           _buildErrorBanner(_error!),
         ],
-        const SizedBox(height: 18),
+        const SizedBox(height: 22),
         _buildPrimaryButton(
           key: const Key('btn_customer_login'),
           label: _busy ? 'Đang đăng nhập...' : 'Đăng nhập',
@@ -731,11 +730,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         const SizedBox(height: 18),
         Row(
           children: List<Widget>.generate(6, (index) {
+            final hasVal = _otpControllers[index].text.isNotEmpty;
             return Expanded(
               child: Padding(
                 padding: EdgeInsets.only(right: index < 5 ? 8 : 0),
                 child: SizedBox(
-                  height: 52,
+                  height: 56,
                   child: TextField(
                     controller: _otpControllers[index],
                     focusNode: _otpFocusNodes[index],
@@ -746,7 +746,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       FilteringTextInputFormatter.digitsOnly,
                     ],
                     style: const TextStyle(
-                      fontSize: 20,
+                      fontSize: 24,
                       fontWeight: FontWeight.w700,
                       color: _textMain,
                     ),
@@ -757,8 +757,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       fillColor: Colors.white,
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide:
-                            const BorderSide(color: _primary, width: 1.5),
+                        borderSide: BorderSide(
+                          color: hasVal ? _primary : _border,
+                          width: 1.5,
+                        ),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
@@ -766,6 +768,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       ),
                     ),
                     onChanged: (value) {
+                      setState(() {});
                       if (value.isNotEmpty && index < 5) {
                         _otpFocusNodes[index + 1].requestFocus();
                       } else if (value.isEmpty && index > 0) {
@@ -778,29 +781,27 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             );
           }),
         ),
-        const SizedBox(height: 14),
-        const Center(
-          child: Text.rich(
-            TextSpan(
-              style: TextStyle(fontSize: 13, color: _textMuted),
-              children: <InlineSpan>[
-                TextSpan(text: 'Chưa nhận được mã? '),
-                TextSpan(
-                  text: 'Gửi lại sau 00:45',
-                  style: TextStyle(
-                    color: _primary,
-                    fontWeight: FontWeight.w600,
-                  ),
+        const SizedBox(height: 16),
+        const Text.rich(
+          TextSpan(
+            style: TextStyle(fontSize: 13, color: _textMuted),
+            children: <InlineSpan>[
+              TextSpan(text: 'Chưa nhận được mã? '),
+              TextSpan(
+                text: 'Gửi lại sau 00:45',
+                style: TextStyle(
+                  color: _primary,
+                  fontWeight: FontWeight.w600,
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
         if (_error != null && _error!.isNotEmpty) ...<Widget>[
           const SizedBox(height: 14),
           _buildErrorBanner(_error!),
         ],
-        const SizedBox(height: 18),
+        const SizedBox(height: 22),
         _buildPrimaryButton(
           key: const Key('btn_otp_verify'),
           label: _busy ? 'Đang xác nhận...' : 'Xác nhận',
@@ -921,21 +922,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           children: <Widget>[
             _buildPasswordRule('Tối thiểu 8 ký tự', _pwHasMinLength),
             const SizedBox(height: 6),
-            _buildPasswordRule('Có chữ hoa và chữ thường', _pwHasUpperLower),
+            _buildPasswordRule('Có cả chữ và số', _pwHasAlphaNum),
             const SizedBox(height: 6),
-            _buildPasswordRule('Có ít nhất 1 chữ số', _pwHasDigit),
+            _buildPasswordRule('Khác mật khẩu được cấp', _pwDiffersDefault),
             const SizedBox(height: 6),
-            _buildPasswordRule(
-              'Có ít nhất 1 ký tự đặc biệt (!@#\$%^&*)',
-              _pwHasSpecial,
-            ),
+            _buildPasswordRule('Hai lần nhập trùng khớp', _pwMatchesConfirm),
           ],
         ),
         if (_error != null && _error!.isNotEmpty) ...<Widget>[
           const SizedBox(height: 16),
           _buildErrorBanner(_error!),
         ],
-        const SizedBox(height: 18),
+        const SizedBox(height: 22),
         _buildPrimaryButton(
           key: const Key('btn_complete_new_password'),
           label: _busy ? 'Đang xử lý...' : 'Đổi mật khẩu và đăng nhập',
@@ -949,12 +947,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     return Row(
       children: <Widget>[
         Container(
-          width: 8,
-          height: 8,
+          width: 18,
+          height: 18,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: met ? _primary : const Color(0xFFC9D0CB),
+            color: met ? const Color(0xFF15703A) : Colors.white,
+            border: met
+                ? null
+                : Border.all(color: const Color(0xFFA7B0AB), width: 2),
           ),
+          alignment: Alignment.center,
+          child: met
+              ? const Icon(Icons.check, size: 12, color: Colors.white)
+              : null,
         ),
         const SizedBox(width: 8),
         Text(
@@ -962,7 +967,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           style: TextStyle(
             fontSize: 13.5,
             color: met ? _textMain : _textMuted,
-            fontWeight: met ? FontWeight.w600 : FontWeight.w400,
           ),
         ),
       ],
@@ -1042,6 +1046,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   Widget _buildErrorBanner(String message) {
+    final isConnError = message.contains('Không kết nối được') ||
+        message.contains('Không có kết nối mạng');
     return Container(
       key: const Key('login_error_banner'),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -1049,15 +1055,135 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         color: _dangerBg,
         borderRadius: BorderRadius.circular(12),
       ),
-      child: Text(
-        message,
-        style: const TextStyle(
-          fontSize: 13.5,
-          color: _dangerText,
-          height: 1.4,
-        ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Text(
+            message,
+            style: const TextStyle(
+              fontSize: 13.5,
+              color: _dangerText,
+              height: 1.4,
+            ),
+          ),
+          if (isConnError) ...<Widget>[
+            const SizedBox(height: 6),
+            InkWell(
+              onTap: _openServerConfigDialog,
+              child: const Text(
+                'Cấu hình địa chỉ máy chủ (IP / Wi-Fi) →',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: _primary,
+                  decoration: TextDecoration.underline,
+                ),
+              ),
+            ),
+          ],
+        ],
       ),
     );
+  }
+
+  Future<void> _openServerConfigDialog() async {
+    final controller = TextEditingController(text: Env.effectiveApiBaseUrl);
+    final result = await showDialog<String>(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          title: const Text(
+            'Địa chỉ máy chủ (Backend)',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              const Text(
+                'Nhập IP Wi-Fi của máy tính đang chạy Backend (VD: 10.87.16.166) hoặc URL đầy đủ:',
+                style: TextStyle(fontSize: 13, color: _textMuted),
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: controller,
+                decoration: InputDecoration(
+                  hintText: 'https://${Env.lanHost}:7027/api/v1',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  isDense: true,
+                ),
+              ),
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: <Widget>[
+                  ActionChip(
+                    label: const Text(
+                      'Wi-Fi (${Env.lanHost})',
+                      style: TextStyle(fontSize: 12),
+                    ),
+                    onPressed: () {
+                      controller.text = 'https://${Env.lanHost}:7027/api/v1';
+                    },
+                  ),
+                  ActionChip(
+                    label: const Text(
+                      'USB (localhost)',
+                      style: TextStyle(fontSize: 12),
+                    ),
+                    onPressed: () {
+                      controller.text = 'https://localhost:7027/api/v1';
+                    },
+                  ),
+                  ActionChip(
+                    label: const Text(
+                      'Máy ảo (10.0.2.2)',
+                      style: TextStyle(fontSize: 12),
+                    ),
+                    onPressed: () {
+                      controller.text = 'https://10.0.2.2:7027/api/v1';
+                    },
+                  ),
+                ],
+              ),
+            ],
+          ),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('Hủy'),
+            ),
+            FilledButton(
+              style: FilledButton.styleFrom(backgroundColor: _primary),
+              onPressed: () => Navigator.of(ctx).pop(controller.text.trim()),
+              child: const Text('Lưu'),
+            ),
+          ],
+        );
+      },
+    );
+    if (result == null || !mounted) return;
+    Env.setRuntimeApiBaseUrl(result);
+    try {
+      final prefs = ref.read(sharedPreferencesProvider);
+      if (result.isEmpty) {
+        await prefs.remove(Env.customApiBaseUrlPrefKey);
+      } else {
+        await prefs.setString(
+          Env.customApiBaseUrlPrefKey,
+          Env.effectiveApiBaseUrl,
+        );
+      }
+    } catch (_) {
+      // Ignore if SharedPreferences is not overridden in unit tests.
+    }
+    if (!mounted) return;
+    setState(() {
+      _error = null;
+    });
   }
 
   Widget _buildPrimaryButton({
@@ -1127,47 +1253,35 @@ class _MicrosoftLogo extends StatelessWidget {
 
 class _MsAccountOption {
   const _MsAccountOption({
-    required this.initials,
     required this.name,
     required this.email,
-    required this.avatarColor,
     required this.allowedOnMobile,
   });
 
-  final String initials;
   final String name;
   final String email;
-  final Color avatarColor;
   final bool allowedOnMobile;
 }
 
 const List<_MsAccountOption> _msAccounts = <_MsAccountOption>[
   _MsAccountOption(
-    initials: 'NA',
     name: 'Nguyễn Văn An',
     email: 'an.nv@fscm.vn',
-    avatarColor: Color(0xFF14655B),
     allowedOnMobile: true,
   ),
   _MsAccountOption(
-    initials: 'ĐT',
     name: 'Đỗ Văn Tâm',
     email: 'tam.dv@fscm.vn',
-    avatarColor: Color(0xFF0F5E55),
     allowedOnMobile: true,
   ),
   _MsAccountOption(
-    initials: 'PK',
     name: 'Phạm Minh Khoa',
     email: 'khoa.pm@fscm.vn',
-    avatarColor: Color(0xFF475467),
     allowedOnMobile: false,
   ),
   _MsAccountOption(
-    initials: 'TT',
     name: 'Thực tập 01',
     email: 'thuctap01@fscm.vn',
-    avatarColor: Color(0xFF667085),
     allowedOnMobile: false,
   ),
 ];
@@ -1217,36 +1331,62 @@ class _MicrosoftSignInDialogState extends State<_MicrosoftSignInDialog> {
     return Dialog(
       backgroundColor: Colors.white,
       surfaceTintColor: Colors.white,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+      clipBehavior: Clip.antiAlias,
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 340),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 22),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: <Widget>[
-              const Row(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: <Widget>[
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              decoration: const BoxDecoration(
+                border: Border(bottom: BorderSide(color: Color(0xFFE2E5E0))),
+              ),
+              child: Row(
                 children: <Widget>[
-                  _MicrosoftLogo(size: 20),
-                  SizedBox(width: 8),
-                  Text(
-                    'Microsoft',
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF1B1F1D),
+                  const _MicrosoftLogo(size: 16),
+                  const SizedBox(width: 8),
+                  const Expanded(
+                    child: Text(
+                      'Microsoft',
+                      style: TextStyle(
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF1B1F1D),
+                      ),
+                    ),
+                  ),
+                  InkWell(
+                    onTap: () => Navigator.of(context).pop(),
+                    borderRadius: BorderRadius.circular(8),
+                    child: const Padding(
+                      padding: EdgeInsets.all(4),
+                      child: Icon(
+                        Icons.close,
+                        size: 18,
+                        color: Color(0xFF5B625E),
+                      ),
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 14),
-              if (_state == _MsModalState.pick) _buildPickView(),
-              if (_state == _MsModalState.loading) _buildLoadingView(),
-              if (_state == _MsModalState.denied) _buildDeniedView(),
-            ],
-          ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: <Widget>[
+                  if (_state == _MsModalState.pick) _buildPickView(),
+                  if (_state == _MsModalState.loading) _buildLoadingView(),
+                  if (_state == _MsModalState.denied) _buildDeniedView(),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -1259,140 +1399,79 @@ class _MicrosoftSignInDialogState extends State<_MicrosoftSignInDialog> {
         const Text(
           'Chọn tài khoản',
           style: TextStyle(
-            fontSize: 18,
+            fontSize: 20,
             fontWeight: FontWeight.w700,
             color: Color(0xFF1B1F1D),
           ),
         ),
-        const SizedBox(height: 2),
+        const SizedBox(height: 4),
         const Text(
-          'để tiếp tục tới FSCM Mobile',
-          style: TextStyle(fontSize: 12.5, color: Color(0xFF5B625E)),
+          'để tiếp tục tới FSCM',
+          style: TextStyle(fontSize: 14, color: Color(0xFF5B625E)),
         ),
-        const SizedBox(height: 12),
-        Container(
-          decoration: BoxDecoration(
-            border: Border.all(color: const Color(0xFFE2E5E0)),
-            borderRadius: BorderRadius.circular(10),
-          ),
-          clipBehavior: Clip.antiAlias,
-          child: Column(
-            children: <Widget>[
-              for (int i = 0; i < _msAccounts.length; i++) ...<Widget>[
-                if (i > 0)
-                  const Divider(
-                    height: 1,
-                    thickness: 1,
-                    color: Color(0xFFE2E5E0),
+        const SizedBox(height: 16),
+        for (int i = 0; i < _msAccounts.length; i++) ...<Widget>[
+          if (i > 0) const SizedBox(height: 8),
+          OutlinedButton(
+            key: Key('ms_account_${_msAccounts[i].email}'),
+            onPressed: () => _pickAccount(_msAccounts[i]),
+            style: OutlinedButton.styleFrom(
+              minimumSize: const Size.fromHeight(60),
+              alignment: Alignment.centerLeft,
+              backgroundColor: Colors.white,
+              foregroundColor: const Color(0xFF14655B),
+              side: const BorderSide(color: Color(0xFF14655B), width: 1.5),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Text(
+                  _msAccounts[i].name,
+                  style: const TextStyle(
+                    fontSize: 14.5,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF14655B),
                   ),
-                InkWell(
-                  key: Key('ms_account_${_msAccounts[i].email}'),
-                  onTap: () => _pickAccount(_msAccounts[i]),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 11,
-                    ),
-                    child: Row(
-                      children: <Widget>[
-                        CircleAvatar(
-                          radius: 17,
-                          backgroundColor: _msAccounts[i].avatarColor,
-                          child: Text(
-                            _msAccounts[i].initials,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 12.5,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: <Widget>[
-                              Text(
-                                _msAccounts[i].name,
-                                style: const TextStyle(
-                                  fontSize: 13.5,
-                                  fontWeight: FontWeight.w600,
-                                  color: Color(0xFF1B1F1D),
-                                ),
-                              ),
-                              Text(
-                                _msAccounts[i].email,
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  color: Color(0xFF5B625E),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  _msAccounts[i].email,
+                  style: const TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w400,
+                    color: Color(0xFF5B625E),
                   ),
                 ),
               ],
-            ],
-          ),
-        ),
-        const SizedBox(height: 12),
-        OutlinedButton(
-          onPressed: () => Navigator.of(context).pop(),
-          style: OutlinedButton.styleFrom(
-            minimumSize: const Size.fromHeight(42),
-            backgroundColor: const Color(0xFFF4F6F3),
-            foregroundColor: const Color(0xFF1B1F1D),
-            side: const BorderSide(color: Color(0xFFC9D0CB)),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
             ),
           ),
-          child: const Text(
-            'Hủy',
-            style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600),
-          ),
-        ),
+        ],
       ],
     );
   }
 
   Widget _buildLoadingView() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 20),
-      child: Column(
-        children: <Widget>[
-          const SizedBox(
-            width: 36,
-            height: 36,
-            child: CircularProgressIndicator(
-              strokeWidth: 3,
-              color: Color(0xFF14655B),
-            ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        const Text(
+          'Đang đăng nhập…',
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.w700,
+            color: Color(0xFF1B1F1D),
           ),
-          const SizedBox(height: 12),
-          const Text(
-            'Đang đăng nhập…',
-            style: TextStyle(
-              fontSize: 14.5,
-              fontWeight: FontWeight.w600,
-              color: Color(0xFF1B1F1D),
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            _selectedEmail,
-            style: const TextStyle(fontSize: 12.5, color: Color(0xFF5B625E)),
-          ),
-          const SizedBox(height: 6),
-          const Text(
-            'Đang xác thực với Microsoft Entra ID',
-            style: TextStyle(fontSize: 11.5, color: Color(0xFF5B625E)),
-          ),
-        ],
-      ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          _selectedEmail,
+          style: const TextStyle(fontSize: 14, color: Color(0xFF5B625E)),
+        ),
+      ],
     );
   }
 
@@ -1400,86 +1479,51 @@ class _MicrosoftSignInDialogState extends State<_MicrosoftSignInDialog> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
-        Center(
-          child: Container(
-            width: 40,
-            height: 40,
-            decoration: const BoxDecoration(
-              color: Color(0xFFFDECEA),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(
-              Icons.error_outline,
-              color: Color(0xFFB42318),
-              size: 22,
-            ),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          decoration: BoxDecoration(
+            color: const Color(0xFFFDECEA),
+            borderRadius: BorderRadius.circular(12),
           ),
-        ),
-        const SizedBox(height: 8),
-        const Text(
-          'Không có quyền truy cập',
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            fontSize: 15.5,
-            fontWeight: FontWeight.w700,
-            color: Color(0xFFB42318),
-          ),
-        ),
-        const SizedBox(height: 8),
-        Text.rich(
-          TextSpan(
+          child: Text(
+            'Không có quyền truy cập. Tài khoản $_selectedEmail chưa được gán vai trò Sales hoặc Warehouse Keeper trên FSCM. Liên hệ Admin để được cấp quyền.',
             style: const TextStyle(
-              fontSize: 12.5,
-              color: Color(0xFF5B625E),
-              height: 1.5,
+              fontSize: 14,
+              color: Color(0xFFB42318),
+              height: 1.45,
             ),
-            children: <InlineSpan>[
-              const TextSpan(text: 'Tài khoản '),
-              TextSpan(
-                text: _selectedEmail,
-                style: const TextStyle(
-                  fontWeight: FontWeight.w700,
-                  color: Color(0xFF1B1F1D),
-                ),
-              ),
-              const TextSpan(
-                text:
-                    ' chưa được gán vai trò Sales hoặc Warehouse Keeper trên FSCM. Liên hệ Admin để được cấp quyền.',
-              ),
-            ],
           ),
-          textAlign: TextAlign.center,
         ),
         const SizedBox(height: 14),
         FilledButton(
           onPressed: () => setState(() => _state = _MsModalState.pick),
           style: FilledButton.styleFrom(
-            minimumSize: const Size.fromHeight(42),
+            minimumSize: const Size.fromHeight(48),
             backgroundColor: const Color(0xFF14655B),
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(12),
             ),
           ),
           child: const Text(
             'Chọn tài khoản khác',
-            style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600),
+            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
           ),
         ),
         const SizedBox(height: 8),
         OutlinedButton(
           onPressed: () => Navigator.of(context).pop(),
           style: OutlinedButton.styleFrom(
-            minimumSize: const Size.fromHeight(40),
-            backgroundColor: const Color(0xFFF4F6F3),
-            foregroundColor: const Color(0xFF1B1F1D),
-            side: const BorderSide(color: Color(0xFFC9D0CB)),
+            minimumSize: const Size.fromHeight(48),
+            backgroundColor: Colors.white,
+            foregroundColor: const Color(0xFF14655B),
+            side: const BorderSide(color: Color(0xFF14655B), width: 1.5),
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(12),
             ),
           ),
           child: const Text(
             'Đóng',
-            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
           ),
         ),
       ],

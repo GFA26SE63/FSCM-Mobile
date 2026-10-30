@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import 'package:fscm_mobile/core/utils/dates.dart';
-import 'package:fscm_mobile/core/utils/status_tone.dart';
 import 'package:fscm_mobile/data/models/enums.dart';
 import 'package:fscm_mobile/data/models/picking.dart';
 import 'package:fscm_mobile/data/models/transfer.dart';
@@ -13,11 +11,11 @@ import 'package:fscm_mobile/features/common/notifications/notification_bell_butt
 import 'package:fscm_mobile/features/warehouse/picking/picking_list_tile.dart';
 import 'package:fscm_mobile/shared/routes.dart';
 import 'package:fscm_mobile/shared/theme/app_colors.dart';
-import 'package:fscm_mobile/shared/widgets/app_card.dart';
 import 'package:fscm_mobile/shared/widgets/empty_state.dart';
 import 'package:fscm_mobile/shared/widgets/section_title.dart';
 
-/// Warehouse Keeper home: picking workload and incoming transfers.
+/// Warehouse Keeper home screen matching `FSCM_Prototype_Prod_v1.1.html`
+/// (`DEFS.warehouse` HOME).
 class WkHomeScreen extends ConsumerWidget {
   const WkHomeScreen({super.key});
 
@@ -36,11 +34,32 @@ class WkHomeScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(user?.warehouseName ?? 'Kho'),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Text(
+              user?.warehouseName ?? 'Kho Thới An',
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: AppColors.text,
+              ),
+            ),
+            Text(
+              '${user?.fullName ?? 'Đỗ Văn Tâm'} · Warehouse Keeper',
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w400,
+                color: AppColors.textMuted,
+              ),
+            ),
+          ],
+        ),
         actions: const <Widget>[
           Padding(
-              padding: EdgeInsets.only(right: 4),
-              child: NotificationBellButton())
+            padding: EdgeInsets.only(right: 4),
+            child: NotificationBellButton(),
+          ),
         ],
       ),
       body: RefreshIndicator(
@@ -49,95 +68,84 @@ class WkHomeScreen extends ConsumerWidget {
           ref.invalidate(transfersProvider);
         },
         child: ListView(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
           children: <Widget>[
-            Text('Xin chào, ${user?.fullName ?? ''}',
-                style:
-                    const TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
-            Text('${user?.role.label ?? ''} · ${user?.scopeText ?? ''}',
-                style: const TextStyle(color: AppColors.textMuted)),
-            const SizedBox(height: 14),
             Row(
               children: <Widget>[
                 Expanded(
-                    child: _Stat('Chờ lấy', count(PickingStatus.pending),
-                        StatusTone.info)),
-                const SizedBox(width: 10),
+                  child: _WkStatCard(
+                    label: 'Chờ soạn',
+                    value: '${count(PickingStatus.pending)}',
+                    valueColor: const Color(0xFF1D4ED8),
+                  ),
+                ),
+                const SizedBox(width: 8),
                 Expanded(
-                    child: _Stat('Đang lấy', count(PickingStatus.picking),
-                        StatusTone.purple)),
-                const SizedBox(width: 10),
+                  child: _WkStatCard(
+                    label: 'Đang soạn',
+                    value: '${count(PickingStatus.picking)}',
+                    valueColor: const Color(0xFF6D28D9),
+                  ),
+                ),
+                const SizedBox(width: 8),
                 Expanded(
-                    child: _Stat('Đã xuất', count(PickingStatus.shipped),
-                        StatusTone.success)),
+                  child: _WkStatCard(
+                    label: 'Đã xuất',
+                    value: '${count(PickingStatus.shipped)}',
+                    valueColor: AppColors.success,
+                  ),
+                ),
               ],
             ),
             const SizedBox(height: 10),
-            AppCard(
-              onTap: () => context.go(AppRoutes.wkTransfers),
-              child: Row(
-                children: <Widget>[
-                  const Icon(Icons.swap_horiz, color: AppColors.primary),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      incoming.isEmpty
-                          ? 'Không có phiếu chuyển kho đang tới'
-                          : '${incoming.length} phiếu chuyển kho đang tới - quét tem để nhận',
-                      style: const TextStyle(fontWeight: FontWeight.w600),
-                    ),
+            Row(
+              children: <Widget>[
+                Expanded(
+                  child: _WkShortcutCard(
+                    icon: Icons.local_shipping_outlined,
+                    iconColor: AppColors.primary,
+                    label: incoming.isEmpty
+                        ? 'Nhập kho'
+                        : 'Nhập kho (${incoming.length})',
+                    onTap: () => context.go(AppRoutes.wkTransfers),
                   ),
-                  const Icon(Icons.chevron_right, color: AppColors.textMuted),
-                ],
-              ),
-            ),
-            AppCard(
-              onTap: () => context.push(AppRoutes.wkLabelLookup),
-              child: const Row(
-                children: <Widget>[
-                  Icon(Icons.qr_code_2, color: AppColors.primary),
-                  SizedBox(width: 12),
-                  Expanded(
-                      child: Text('Tra cứu tem',
-                          style: TextStyle(fontWeight: FontWeight.w600))),
-                  Icon(Icons.chevron_right, color: AppColors.textMuted),
-                ],
-              ),
-            ),
-            AppCard(
-              onTap: () => context.push(AppRoutes.wkShipped),
-              child: const Row(
-                children: <Widget>[
-                  Icon(Icons.local_shipping_outlined, color: AppColors.primary),
-                  SizedBox(width: 12),
-                  Expanded(
-                      child: Text('Danh sách đã xuất kho',
-                          style: TextStyle(fontWeight: FontWeight.w600))),
-                  Icon(Icons.chevron_right, color: AppColors.textMuted),
-                ],
-              ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _WkShortcutCard(
+                    icon: Icons.search,
+                    iconColor: AppColors.primary,
+                    label: 'Tra cứu tem',
+                    onTap: () => context.push(AppRoutes.wkLabelLookup),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _WkShortcutCard(
+                    icon: Icons.warning_amber_rounded,
+                    iconColor: AppColors.danger,
+                    label: 'Hết hạn (1)',
+                    onTap: () => context.push(AppRoutes.wkLabelLookup),
+                  ),
+                ),
+              ],
             ),
             SectionTitle(
-              'Picking list cần lấy',
+              'Phần giao cần soạn',
               trailing: TextButton(
-                  onPressed: () => context.go(AppRoutes.wkPicking),
-                  child: const Text('Xem tất cả')),
+                onPressed: () => context.go(AppRoutes.wkPicking),
+                child: const Text('Xem tất cả'),
+              ),
             ),
             if (todo.isEmpty)
               const EmptyState(
                 icon: Icons.task_alt,
-                title: 'Không còn picking list cần lấy.',
+                title: 'Không còn phần giao cần soạn.',
                 message:
-                    'Picking list xuất hiện ngay khi Admin / Operator duyệt đơn. Mỗi đơn có một picking list cho mỗi kho (mã đơn + A, B, C...).',
+                    'Phần giao xuất hiện ngay khi Admin / Operator duyệt đơn.',
               )
             else
-              for (final p in todo.take(3)) PickingListTile(list: p),
-            const SizedBox(height: 6),
-            Text(
-              'Cập nhật ${AppDates.timeDay(DateTime.now())}',
-              textAlign: TextAlign.center,
-              style: const TextStyle(color: AppColors.textMuted, fontSize: 12),
-            ),
+              for (final p in todo) PickingListTile(list: p),
           ],
         ),
       ),
@@ -145,30 +153,90 @@ class WkHomeScreen extends ConsumerWidget {
   }
 }
 
-class _Stat extends StatelessWidget {
-  const _Stat(this.label, this.value, this.tone);
+class _WkStatCard extends StatelessWidget {
+  const _WkStatCard({
+    required this.label,
+    required this.value,
+    required this.valueColor,
+  });
 
   final String label;
-  final int value;
-  final StatusTone tone;
+  final String value;
+  final Color valueColor;
 
   @override
   Widget build(BuildContext context) {
-    final c = AppColors.tone(tone);
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-          color: c.background, borderRadius: BorderRadius.circular(14)),
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.divider),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Text('$value',
-              style: TextStyle(
-                  fontSize: 26,
-                  fontWeight: FontWeight.w800,
-                  color: c.foreground)),
-          Text(label, style: TextStyle(color: c.foreground, fontSize: 12.5)),
+          Text(
+            label,
+            style: const TextStyle(fontSize: 12, color: AppColors.textMuted),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.w700,
+              color: valueColor,
+            ),
+          ),
         ],
+      ),
+    );
+  }
+}
+
+class _WkShortcutCard extends StatelessWidget {
+  const _WkShortcutCard({
+    required this.icon,
+    required this.iconColor,
+    required this.label,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final Color iconColor;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        constraints: const BoxConstraints(minHeight: 84),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: AppColors.divider),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: <Widget>[
+            Icon(icon, color: iconColor, size: 22),
+            const SizedBox(height: 6),
+            Text(
+              label,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 12.5,
+                fontWeight: FontWeight.w700,
+                color: AppColors.text,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
