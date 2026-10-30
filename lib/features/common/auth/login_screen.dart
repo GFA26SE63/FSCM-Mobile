@@ -86,6 +86,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   void _switchTab(bool staff) {
     if (_isStaff == staff) return;
+    ref.read(authControllerProvider.notifier).clearError();
     setState(() {
       _isStaff = staff;
       _error = null;
@@ -475,6 +476,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   Widget _buildStaffForm() {
+    final error = _error ?? ref.watch(authControllerProvider).error;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
@@ -499,9 +501,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               setState(() => _obscureStaffPw = !_obscureStaffPw),
           onSubmitted: (_) => _submitStaffLogin(),
         ),
-        if (_error != null && _error!.isNotEmpty) ...<Widget>[
+        if (error != null && error.isNotEmpty) ...<Widget>[
           const SizedBox(height: 14),
-          _buildErrorBanner(_error!),
+          _buildErrorBanner(error),
         ],
         const SizedBox(height: 18),
         _buildPrimaryButton(
@@ -577,6 +579,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   Widget _buildCustomerForm() {
+    final error = _error ?? ref.watch(authControllerProvider).error;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
@@ -601,9 +604,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               setState(() => _obscureCustPw = !_obscureCustPw),
           onSubmitted: (_) => _submitCustomerLogin(),
         ),
-        if (_error != null && _error!.isNotEmpty) ...<Widget>[
+        if (error != null && error.isNotEmpty) ...<Widget>[
           const SizedBox(height: 14),
-          _buildErrorBanner(_error!),
+          _buildErrorBanner(error),
         ],
         const SizedBox(height: 18),
         _buildPrimaryButton(

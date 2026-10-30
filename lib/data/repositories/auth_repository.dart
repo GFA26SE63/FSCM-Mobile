@@ -75,6 +75,53 @@ class AuthController extends StateNotifier<AuthState> {
   TokenStore get _tokens => _ref.read(tokenStoreProvider);
   AuthApi get _authApi => _ref.read(authApiProvider);
 
+  void clearError() {
+    if (state.error == null) return;
+    state = AuthState(status: state.status, session: state.session);
+  }
+
+  String _unsupportedRoleMessage(AppUser user, {String? identifier}) {
+    if (user.role == UserRole.unsupported) {
+      return 'Không có quyền truy cập FSCM Mobile. Vai trò tài khoản chưa được ứng dụng hỗ trợ.';
+    }
+    final account = user.email.isNotEmpty ? user.email : identifier;
+    final accountText = account == null || account.isEmpty ? '' : ' $account';
+    return 'Không có quyền truy cập FSCM Mobile. Tài khoản$accountText có vai trò ${user.role.label} và chỉ sử dụng trên Portal.';
+  }
+
+  /// Rejects Portal-only and unknown roles from every authentication entry
+  /// point. The backend issues refresh tokens to every valid FSCM role, so a
+  /// rejected mobile session is revoked as well as removed locally.
+  Future<bool> _rejectUnsupportedSession(
+    Session session, {
+    String? identifier,
+  }) async {
+    if (session.user.role.hasMobileShell) return false;
+
+    final refreshToken = session.refreshToken;
+    if (refreshToken != null && refreshToken.isNotEmpty) {
+      try {
+        await _authApi.logout(refreshToken: refreshToken);
+      } catch (_) {
+        // Local rejection must still complete when the server is unavailable.
+      }
+    }
+    await _tokens.clear();
+    try {
+      await _ref.read(appDatabaseProvider).clearCache();
+    } catch (_) {
+      // A cache failure must not leave an unsupported user authenticated.
+    }
+    state = AuthState(
+      status: AuthStatus.unauthenticated,
+      error: _unsupportedRoleMessage(
+        session.user,
+        identifier: identifier,
+      ),
+    );
+    return true;
+  }
+
   /// Called once from the splash screen (`POST /api/v1/auth/refresh` +
   /// `GET /api/v1/auth/me`, with offline fallback when local token is valid).
   Future<void> restore() async {
@@ -96,6 +143,7 @@ class AuthController extends StateNotifier<AuthState> {
         session = refreshed.copyWith(
           user: session.user.mergeProfile(refreshed.user),
         );
+        if (await _rejectUnsupportedSession(session)) return;
         await _tokens.save(session.toJson());
       } on ApiException catch (e) {
         if (e.kind == ApiErrorKind.unauthorized ||
@@ -117,6 +165,7 @@ class AuthController extends StateNotifier<AuthState> {
     try {
       final meUser = await _authApi.me();
       session = session.copyWith(user: session.user.mergeProfile(meUser));
+      if (await _rejectUnsupportedSession(session)) return;
       await _tokens.save(session.toJson());
     } on ApiException catch (e) {
       if (e.kind == ApiErrorKind.unauthorized ||
@@ -128,11 +177,16 @@ class AuthController extends StateNotifier<AuthState> {
       // Offline fallback uses cached session user.
     }
 
-    if (!session.user.isActive || !session.user.role.hasMobileShell) {
+    if (!session.user.isActive) {
       await _tokens.clear();
-      state = const AuthState(status: AuthStatus.unauthenticated);
+      state = const AuthState(
+        status: AuthStatus.unauthenticated,
+        error: 'Tài khoản đã bị vô hiệu hóa. Vui lòng liên hệ Admin.',
+      );
       return;
     }
+
+    if (await _rejectUnsupportedSession(session)) return;
 
     state = AuthState(status: AuthStatus.authenticated, session: session);
     unawaited(_registerDevice());
@@ -155,23 +209,13 @@ class AuthController extends StateNotifier<AuthState> {
         return;
       }
 
-      // Check if user role was changed to Portal-only role
-      if (!freshUser.role.hasMobileShell) {
-        await logout(callServer: false);
-        state = AuthState(
-          status: AuthStatus.unauthenticated,
-          error:
-              'Vai trò tài khoản đã được chuyển sang ${freshUser.role.label} (chỉ dùng Portal).',
-        );
-        return;
-      }
-
       // Update session with fresh role and scope
       final currentSession = state.session;
       if (currentSession != null) {
         final updatedSession = currentSession.copyWith(
           user: currentSession.user.mergeProfile(freshUser),
         );
+        if (await _rejectUnsupportedSession(updatedSession)) return;
         await _tokens.save(updatedSession.toJson());
         state = AuthState(
           status: AuthStatus.authenticated,
@@ -198,6 +242,7 @@ class AuthController extends StateNotifier<AuthState> {
     String password, {
     String? phone,
   }) async {
+    clearError();
     try {
       final cleanId = identifier.trim();
       final cleanPhone =
@@ -219,12 +264,7 @@ class AuthController extends StateNotifier<AuthState> {
         return false;
       }
 
-      if (!session.user.role.hasMobileShell) {
-        state = AuthState(
-          status: AuthStatus.unauthenticated,
-          error:
-              'Không có quyền truy cập. Tài khoản ${session.user.email.isNotEmpty ? session.user.email : cleanId} thuộc vai trò ${session.user.role.label} (dùng Portal), chưa được gán vai trò trên FSCM Mobile.',
-        );
+      if (await _rejectUnsupportedSession(session, identifier: cleanId)) {
         return false;
       }
 
@@ -234,6 +274,9 @@ class AuthController extends StateNotifier<AuthState> {
       try {
         final freshUser = await _authApi.me();
         session = session.copyWith(user: session.user.mergeProfile(freshUser));
+        if (await _rejectUnsupportedSession(session, identifier: cleanId)) {
+          return false;
+        }
         await _tokens.save(session.toJson());
       } catch (e) {
         // Keep login response user if /auth/me is temporarily unreachable or throws.
@@ -259,12 +302,8 @@ class AuthController extends StateNotifier<AuthState> {
   /// Completes authentication from an already-issued [Session] (e.g. after
   /// first-login OTP + password change or account activation).
   Future<bool> completeSession(Session session) async {
-    if (!session.user.role.hasMobileShell) {
-      state = const AuthState(
-        status: AuthStatus.unauthenticated,
-        error:
-            'Tài khoản này dùng Portal, không đăng nhập được trên app di động.',
-      );
+    clearError();
+    if (await _rejectUnsupportedSession(session)) {
       return false;
     }
     await _tokens.save(session.toJson());

@@ -60,12 +60,15 @@ void main() {
     prefs = await SharedPreferences.getInstance();
   });
 
-  ProviderContainer createContainer({MockStore? store}) {
-    final tokenStore = _InMemoryTokenStore();
+  ProviderContainer createContainer({
+    MockStore? store,
+    _InMemoryTokenStore? tokenStore,
+  }) {
+    final resolvedTokenStore = tokenStore ?? _InMemoryTokenStore();
     final mockStore = store ?? MockStore();
     return ProviderContainer(
       overrides: <Override>[
-        tokenStoreProvider.overrideWithValue(tokenStore),
+        tokenStoreProvider.overrideWithValue(resolvedTokenStore),
         apiTransportProvider.overrideWith(
           (_) => MockApi(store: mockStore, latencyMs: 0),
         ),
@@ -186,12 +189,176 @@ void main() {
   });
 
   group('Role-Based Authorization & Route Guards (F10-MB)', () {
+    test(
+        'UserRole parses backend roles strictly and preserves unsupported roles',
+        () {
+      expect(UserRole.fromCode('Sales'), UserRole.sales);
+      expect(UserRole.fromCode('WarehouseKeeper'), UserRole.warehouseKeeper);
+      expect(UserRole.fromCode('Retailer'), UserRole.retailer);
+      expect(UserRole.fromCode('Admin'), UserRole.admin);
+      expect(UserRole.fromCode('Operator'), UserRole.operator);
+      expect(UserRole.fromCode('SalesManager'), UserRole.salesManager);
+      expect(UserRole.fromCode('FutureMobileRole'), UserRole.unsupported);
+      expect(UserRole.fromCode(null), UserRole.unsupported);
+    });
+
     test('homeRouteFor maps role to designated shell', () {
       expect(homeRouteFor(UserRole.sales), AppRoutes.salesHome);
       expect(homeRouteFor(UserRole.warehouseKeeper), AppRoutes.wkHome);
       expect(homeRouteFor(UserRole.retailer), AppRoutes.rtOrders);
       expect(homeRouteFor(UserRole.admin), AppRoutes.login);
       expect(homeRouteFor(UserRole.operator), AppRoutes.login);
+      expect(homeRouteFor(UserRole.salesManager), AppRoutes.login);
+      expect(homeRouteFor(UserRole.unsupported), AppRoutes.login);
+    });
+
+    test('login accepts each backend role supported by the mobile app',
+        () async {
+      final cases = <(String, UserRole)>[
+        ('an.nv@fscm.vn', UserRole.sales),
+        ('tam.dv@fscm.vn', UserRole.warehouseKeeper),
+        ('minhchau@retailer.fscm.vn', UserRole.retailer),
+      ];
+
+      for (final testCase in cases) {
+        final container = createContainer();
+        final ok = await container
+            .read(authControllerProvider.notifier)
+            .login(testCase.$1, 'Fscm2026');
+        expect(ok, isTrue, reason: testCase.$1);
+        expect(container.read(currentUserProvider)?.role, testCase.$2);
+        container.dispose();
+      }
+    });
+
+    test('all Portal-only and unknown roles are rejected with a clear message',
+        () async {
+      final roles = <UserRole>[
+        UserRole.admin,
+        UserRole.operator,
+        UserRole.salesManager,
+        UserRole.unsupported,
+      ];
+
+      for (final role in roles) {
+        final tokens = _InMemoryTokenStore();
+        final container = createContainer(tokenStore: tokens);
+        final ok = await container
+            .read(authControllerProvider.notifier)
+            .completeSession(
+              Session(
+                accessToken: 'mock.${role.code}.U-PORTAL',
+                refreshToken: 'refresh.${role.code}.U-PORTAL',
+                user: AppUser(
+                  id: 'U-PORTAL',
+                  fullName: 'Portal User',
+                  email: 'portal@fscm.vn',
+                  role: role,
+                ),
+              ),
+            );
+
+        final state = container.read(authControllerProvider);
+        expect(ok, isFalse, reason: role.code);
+        expect(state.isAuthenticated, isFalse, reason: role.code);
+        expect(state.error, contains('Không có quyền truy cập FSCM Mobile'));
+        expect(tokens.cachedSession, isNull);
+        container.dispose();
+      }
+    });
+
+    test('restore keeps every role supported by the mobile app', () async {
+      final cases = <(String, String, String, UserRole)>[
+        ('U-SALES-01', 'Nguyễn Văn An', 'an.nv@fscm.vn', UserRole.sales),
+        ('U-WK-01', 'Đỗ Văn Tâm', 'tam.dv@fscm.vn', UserRole.warehouseKeeper),
+        (
+          'U-RT-01',
+          'Tạp hóa Minh Châu',
+          'minhchau@retailer.fscm.vn',
+          UserRole.retailer,
+        ),
+      ];
+
+      for (final testCase in cases) {
+        final tokens = _InMemoryTokenStore();
+        await tokens.save(
+          Session(
+            accessToken: 'mock.${testCase.$4.code}.${testCase.$1}',
+            refreshToken: 'refresh.${testCase.$4.code}.${testCase.$1}',
+            expiresAt: DateTime.now().add(const Duration(hours: 1)),
+            refreshTokenExpiresAt: DateTime.now().add(const Duration(days: 1)),
+            user: AppUser(
+              id: testCase.$1,
+              fullName: testCase.$2,
+              email: testCase.$3,
+              role: testCase.$4,
+            ),
+          ).toJson(),
+        );
+        final container = createContainer(tokenStore: tokens);
+        await container.read(authControllerProvider.notifier).restore();
+        expect(container.read(authControllerProvider).isAuthenticated, isTrue);
+        expect(container.read(currentUserProvider)?.role, testCase.$4);
+        container.dispose();
+      }
+    });
+
+    test('restore rejects a Portal-only role and removes its session',
+        () async {
+      final adminTokens = _InMemoryTokenStore();
+      await adminTokens.save(
+        Session(
+          accessToken: 'mock.Admin.U-ADMIN-01',
+          refreshToken: 'refresh.Admin.U-ADMIN-01',
+          expiresAt: DateTime.now().add(const Duration(hours: 1)),
+          refreshTokenExpiresAt: DateTime.now().add(const Duration(days: 1)),
+          user: const AppUser(
+            id: 'U-ADMIN-01',
+            fullName: 'Phạm Minh Khoa',
+            email: 'khoa.pm@fscm.vn',
+            role: UserRole.admin,
+          ),
+        ).toJson(),
+      );
+      final adminContainer = createContainer(tokenStore: adminTokens);
+      await adminContainer.read(authControllerProvider.notifier).restore();
+      final adminState = adminContainer.read(authControllerProvider);
+      expect(adminState.isAuthenticated, isFalse);
+      expect(adminState.error, contains('chỉ sử dụng trên Portal'));
+      expect(adminTokens.cachedSession, isNull);
+      adminContainer.dispose();
+    });
+
+    testWidgets('restored unsupported-role message is visible on login',
+        (WidgetTester tester) async {
+      final tokens = _InMemoryTokenStore();
+      await tokens.save(
+        Session(
+          accessToken: 'mock.Admin.U-ADMIN-01',
+          refreshToken: 'refresh.Admin.U-ADMIN-01',
+          expiresAt: DateTime.now().add(const Duration(hours: 1)),
+          refreshTokenExpiresAt: DateTime.now().add(const Duration(days: 1)),
+          user: const AppUser(
+            id: 'U-ADMIN-01',
+            fullName: 'Phạm Minh Khoa',
+            email: 'khoa.pm@fscm.vn',
+            role: UserRole.admin,
+          ),
+        ).toJson(),
+      );
+      final container = createContainer(tokenStore: tokens);
+      await container.read(authControllerProvider.notifier).restore();
+      addTearDown(container.dispose);
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: const MaterialApp(home: LoginScreen()),
+        ),
+      );
+
+      expect(find.byKey(const Key('login_error_banner')), findsOneWidget);
+      expect(find.textContaining('chỉ sử dụng trên Portal'), findsOneWidget);
     });
 
     test('redirectFor redirects unauthenticated users to login', () {
