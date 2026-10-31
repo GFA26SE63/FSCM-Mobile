@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 
-import 'package:fscm_mobile/shared/theme/app_colors.dart';
-
 class SectionTitle extends StatelessWidget {
   const SectionTitle(this.text, {super.key, this.trailing});
 
@@ -11,16 +9,17 @@ class SectionTitle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(2, 14, 2, 8),
+      padding: const EdgeInsets.fromLTRB(2, 16, 2, 8),
       child: Row(
         children: <Widget>[
           Expanded(
             child: Text(
-              text,
+              text.toUpperCase(),
               style: const TextStyle(
-                fontSize: 15,
+                fontSize: 12,
                 fontWeight: FontWeight.w700,
-                color: AppColors.text,
+                color: Color(0xFF4A524E),
+                letterSpacing: 0.6,
               ),
             ),
           ),

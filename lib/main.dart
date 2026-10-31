@@ -16,6 +16,10 @@ Future<void> main() async {
   await SystemChrome.setPreferredOrientations(
       <DeviceOrientation>[DeviceOrientation.portraitUp]);
   final prefs = await SharedPreferences.getInstance();
+  final savedApiUrl = prefs.getString(Env.customApiBaseUrlPrefKey);
+  if (savedApiUrl != null && savedApiUrl.isNotEmpty) {
+    Env.setRuntimeApiBaseUrl(savedApiUrl);
+  }
 
   runApp(
     ProviderScope(

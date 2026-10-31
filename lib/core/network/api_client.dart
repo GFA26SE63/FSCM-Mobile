@@ -14,7 +14,7 @@ import 'package:fscm_mobile/core/storage/token_store.dart';
 /// Default transport = real HTTP. `main.dart` overrides it with `MockApi`
 /// when `Env.useMock` is true.
 final apiTransportProvider = Provider<ApiTransport>((ref) {
-  return DioTransport(baseUrl: Env.apiBaseUrl);
+  return DioTransport(baseUrl: Env.effectiveApiBaseUrl);
 });
 
 final apiClientProvider = Provider<ApiClient>((ref) {
@@ -54,6 +54,11 @@ class DioTransport implements ApiTransport {
 
   @override
   Future<ApiResponse> send(ApiRequest request) async {
+    final overrideUrl = Env.runtimeApiBaseUrl;
+    if (overrideUrl != null && _dio.options.baseUrl != overrideUrl) {
+      _dio.options.baseUrl = overrideUrl;
+    }
+
     try {
       final response = await _dio.request<Object?>(
         request.path,
@@ -64,6 +69,13 @@ class DioTransport implements ApiTransport {
       return ApiResponse(
           statusCode: response.statusCode ?? 0, data: response.data);
     } on DioException catch (e) {
+      if (!kIsWeb &&
+          (e.type == DioExceptionType.connectionError ||
+              e.type == DioExceptionType.connectionTimeout)) {
+        final fallbackResponse = await _tryFallbackUrls(request);
+        if (fallbackResponse != null) return fallbackResponse;
+      }
+
       switch (e.type) {
         case DioExceptionType.connectionTimeout:
         case DioExceptionType.sendTimeout:
@@ -89,6 +101,38 @@ class DioTransport implements ApiTransport {
           throw ApiException.network(e.message);
       }
     }
+  }
+
+  /// When `localhost` refuses connection on a phone (no `adb reverse`, Wi-Fi
+  /// LAN, or Android emulator), probes [Env.fallbackApiBaseUrls] and locks in
+  /// the first reachable server.
+  Future<ApiResponse?> _tryFallbackUrls(ApiRequest request) async {
+    final failedBase = _dio.options.baseUrl;
+    for (final candidate in Env.fallbackApiBaseUrls) {
+      if (candidate == failedBase) continue;
+      try {
+        final response = await _dio.request<Object?>(
+          '$candidate${request.path}',
+          data: request.body,
+          queryParameters: request.query,
+          options: Options(
+            method: request.method,
+            headers: request.headers,
+            sendTimeout: const Duration(seconds: 3),
+            receiveTimeout: const Duration(seconds: 8),
+          ),
+        );
+        final code = response.statusCode ?? 0;
+        if (code > 0 && code != 307 && code != 308) {
+          _dio.options.baseUrl = candidate;
+          Env.setRuntimeApiBaseUrl(candidate);
+          return ApiResponse(statusCode: code, data: response.data);
+        }
+      } on DioException {
+        // Try next candidate URL.
+      }
+    }
+    return null;
   }
 }
 

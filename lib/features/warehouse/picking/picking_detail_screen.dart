@@ -4,9 +4,8 @@ import 'package:go_router/go_router.dart';
 
 import 'package:fscm_mobile/core/network/api_exception.dart';
 import 'package:fscm_mobile/core/utils/dates.dart';
-import 'package:fscm_mobile/core/utils/quantity.dart';
 import 'package:fscm_mobile/core/utils/status_tone.dart';
-import 'package:fscm_mobile/data/models/run_picking.dart';
+import 'package:fscm_mobile/data/models/picking.dart';
 import 'package:fscm_mobile/data/repositories/data_version.dart';
 import 'package:fscm_mobile/data/repositories/warehouse_repository.dart';
 import 'package:fscm_mobile/shared/routes.dart';
@@ -15,21 +14,12 @@ import 'package:fscm_mobile/shared/widgets/app_card.dart';
 import 'package:fscm_mobile/shared/widgets/async_body.dart';
 import 'package:fscm_mobile/shared/widgets/dialogs.dart';
 import 'package:fscm_mobile/shared/widgets/info_banner.dart';
+import 'package:fscm_mobile/shared/widgets/kv_row.dart';
 import 'package:fscm_mobile/shared/widgets/section_title.dart';
 import 'package:fscm_mobile/shared/widgets/status_chip.dart';
 
-/// F43: one warehouse's picking sheet for a run.
-///
-/// Gather first, split second, because that is the order the work happens in:
-/// one trip to a batch collects everything the run needs from it, and the split
-/// rows underneath say which order each carton belongs to.
-///
-/// Two things this screen does not do. It never merges two batches of one SKU
-/// into a single row - the batch is what the allocation and its price were
-/// decided on, and a keeper picking off a different pallet would quietly break
-/// the trace. And it never shows or computes money: each split carries the id
-/// of the price record the run approved, and that reference is all a picking
-/// sheet needs. Changing the price here is not a thing the screen can do.
+/// Picking detail screen matching `FSCM_Prototype_Prod_v1.1.html`
+/// (`DEFS.warehouse` PICKING DETAIL).
 class PickingDetailScreen extends ConsumerWidget {
   const PickingDetailScreen({super.key, required this.code});
 
@@ -38,25 +28,95 @@ class PickingDetailScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final value = ref.watch(pickingDetailProvider(code));
-    return Scaffold(
-      appBar: AppBar(title: Text(code)),
-      body: AsyncBody<RunPickingSheet>(
-        value: value,
-        onRetry: () => ref.invalidate(pickingDetailProvider(code)),
-        builder: (sheet) => RefreshIndicator(
-          onRefresh: () async => ref.invalidate(pickingDetailProvider(code)),
-          child: ListView(
-            padding: const EdgeInsets.all(16),
+    return AsyncBody<PickingList>(
+      value: value,
+      onRetry: () => ref.invalidate(pickingDetailProvider(code)),
+      builder: (p) => Scaffold(
+        appBar: AppBar(
+          title: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
-              _Header(sheet: sheet),
-              const SectionTitle('Lấy gom theo batch'),
-              for (final gather in sheet.gathers)
-                _GatherCard(sheet: sheet, gather: gather),
-              const SectionTitle('Xuất kho theo đơn'),
-              const InfoBanner(
-                icon: Icons.info_outline,
+              Text(
+                'Phần giao ${p.code}',
+                style:
+                    const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+              ),
+              Text(
+                'Thuộc đơn ${p.orderCode} · ${p.retailerName}',
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w400,
+                  color: AppColors.textMuted,
+                ),
+              ),
+            ],
+          ),
+        ),
+        body: ListView(
+          padding: const EdgeInsets.all(16),
+          children: <Widget>[
+            AppCard(
+              child: Column(
+                children: <Widget>[
+                  KvRow(
+                    'Điểm bán nhận',
+                    '${p.retailerName} (${p.retailerCode})',
+                  ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: <Widget>[
+                      const Text(
+                        'Trạng thái',
+                        style: TextStyle(
+                          fontSize: 13.5,
+                          color: AppColors.textMuted,
+                        ),
+                      ),
+                      StatusChip(label: p.status.label, tone: p.status.tone),
+                    ],
+                  ),
+                  if (p.siblingText.isNotEmpty)
+                    KvRow('Cùng đơn ${p.orderCode}', p.siblingText),
+                  KvRow(
+                      'Tiến độ soạn', '${p.doneLines}/${p.lines.length} dòng'),
+                ],
+              ),
+            ),
+            const SectionTitle('Danh sách dòng cần soạn (ưu tiên FEFO)'),
+            for (final l in p.lines) _LineCard(list: p, line: l),
+            if (!p.isShipped) ...<Widget>[
+              OutlinedButton.icon(
+                onPressed: () => _showExceptionSheet(context, p),
+                icon: const Icon(Icons.error_outline, size: 18),
+                label: const Text('Báo ngoại lệ (thiếu / hư hỏng / sai tem)'),
+              ),
+              const SizedBox(height: 10),
+            ],
+            if (p.isShipped)
+              InfoBanner(
+                icon: Icons.check_circle_outline,
                 text:
-                    'Soạn xong chưa phải là xuất. Mỗi đơn chỉ được xuất khi mọi phần hàng theo kho của nó đã soạn đủ và đạt điều kiện thanh toán — máy chủ quyết định, không phải phiếu này.',
+                    'Đã xuất kho lúc ${AppDates.timeDay(p.shippedAt)}. Tồn kho đã trừ, các tem mang đi chuyển trạng thái Đang vận chuyển.',
+              )
+            else ...<Widget>[
+              FilledButton.icon(
+                style: FilledButton.styleFrom(
+                  minimumSize: const Size.fromHeight(54),
+                ),
+                onPressed: p.allDone ? () => _ship(context, ref, p) : null,
+                icon: const Icon(Icons.local_shipping_outlined),
+                label: const Text('Xác nhận xuất phần giao'),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                p.allDone
+                    ? 'Tồn thực tế sẽ bị trừ, tem chuyển Đang vận chuyển.'
+                    : 'Quét đủ tất cả dòng để xác nhận xuất.',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: AppColors.textMuted,
+                  fontSize: 12.5,
+                ),
               ),
               for (final orderCode in sheet.orderCodes)
                 _OrderRow(sheet: sheet, orderCode: orderCode),
@@ -70,54 +130,134 @@ class PickingDetailScreen extends ConsumerWidget {
   }
 }
 
-class _Header extends StatelessWidget {
-  const _Header({required this.sheet});
+  Future<void> _showExceptionSheet(BuildContext context, PickingList p) async {
+    const reasons = <String>[
+      'Không tìm thấy tem nguồn tại vị trí kệ',
+      'Hàng tại vị trí bị rách / móp / ẩm',
+      'Số lượng thực tế trên tem ít hơn hệ thống',
+      'Tem bị mờ không quét được QR',
+    ];
+    String selected = reasons.first;
+    final noteCtrl = TextEditingController();
 
-  final RunPickingSheet sheet;
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setSheetState) {
+            return Padding(
+              padding: EdgeInsets.fromLTRB(
+                18,
+                16,
+                18,
+                MediaQuery.of(ctx).viewInsets.bottom + 22,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: <Widget>[
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      margin: const EdgeInsets.only(bottom: 12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFD0D5D1),
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  Text(
+                    'Báo ngoại lệ · Phần giao ${p.code}',
+                    style: const TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  const Text(
+                    'Gửi thông báo tới Operator điều phối để cấp lại lô / vị trí thay thế.',
+                    style:
+                        TextStyle(fontSize: 12.5, color: AppColors.textMuted),
+                  ),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'Loại ngoại lệ',
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: <Widget>[
+                      for (final r in reasons)
+                        ChoiceChip(
+                          label: Text(r, style: const TextStyle(fontSize: 12)),
+                          selected: selected == r,
+                          onSelected: (_) => setSheetState(() => selected = r),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'Ghi chú chi tiết',
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: 6),
+                  TextField(
+                    controller: noteCtrl,
+                    decoration: const InputDecoration(
+                      hintText: 'Vị trí kệ, mã tem, tình trạng thực tế...',
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  Row(
+                    children: <Widget>[
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () => Navigator.of(ctx).pop(),
+                          child: const Text('Hủy'),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: FilledButton(
+                          style: FilledButton.styleFrom(
+                            backgroundColor: AppColors.danger,
+                          ),
+                          onPressed: () {
+                            Navigator.of(ctx).pop();
+                            showAppSnack(
+                              context,
+                              'Đã gửi báo cáo ngoại lệ cho Operator.',
+                            );
+                          },
+                          child: const Text('Gửi báo cáo'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
 
-  @override
-  Widget build(BuildContext context) {
-    final s = sheet;
-    final progress =
-        s.totalRequired == 0 ? 0.0 : s.totalPicked / s.totalRequired;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: <Widget>[
-        Row(
-          children: <Widget>[
-            Expanded(
-                child: Text('${s.gathers.length} lượt lấy · '
-                    '${s.orderCodes.length} đơn')),
-            StatusChip(label: s.status.label, tone: s.status.tone),
-          ],
-        ),
-        Text('Phát hành ${AppDates.timeDay(s.issuedAt)}',
-            style: const TextStyle(color: AppColors.textMuted)),
-        if (s.completedAt != null)
-          Text('Soạn xong ${AppDates.timeDay(s.completedAt)}',
-              style: const TextStyle(color: AppColors.textMuted)),
-        const SizedBox(height: 10),
-        Text(
-            'Tiến độ: ${s.doneGathers}/${s.gathers.length} lượt · '
-            '${Qty.format(s.totalPicked)}/${Qty.cartons(s.totalRequired)}',
-            style: const TextStyle(fontWeight: FontWeight.w600)),
-        const SizedBox(height: 6),
-        LinearProgressIndicator(
-          value: progress.clamp(0.0, 1.0),
-          minHeight: 8,
-          borderRadius: BorderRadius.circular(4),
-        ),
-        if (s.hasException) ...<Widget>[
-          const SizedBox(height: 10),
-          InfoBanner(
-            tone: StatusTone.danger,
-            icon: Icons.error_outline,
-            title: 'Ngoại lệ: ${s.exceptionType}',
-            text:
-                '${s.exceptionNote ?? 'Chưa có ghi chú.'} Một kho có ngoại lệ thì cả đơn phải được xử lý trước khi bất kỳ phần nào được xuất.',
-          ),
-        ],
-      ],
+  Future<void> _ship(BuildContext context, WidgetRef ref, PickingList p) async {
+    final ok = await confirmDialog(
+      context,
+      title: 'Xác nhận xuất phần giao ${p.code}?',
+      message:
+          'Tồn thực tế đã trừ, hàng Reserved được giải phóng. Các tem chuyển Đang vận chuyển.',
+      confirmLabel: 'Xuất kho',
     );
   }
 }
@@ -138,49 +278,79 @@ class _GatherCard extends StatelessWidget {
           Row(
             children: <Widget>[
               Expanded(
-                  child: Text(g.sku,
-                      style: const TextStyle(fontWeight: FontWeight.w800))),
-              StatusChip(label: g.status.label, tone: g.status.tone),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(
+                      '${l.index + 1}. ${l.name}',
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    Text(
+                      '${l.sku} · Đã lấy ${l.picked}/${l.need}',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: AppColors.textMuted,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              StatusChip(
+                label: l.isDone ? 'Đã soạn' : 'Cần lấy ${l.need} thùng',
+                tone: l.isDone ? StatusTone.success : StatusTone.info,
+              ),
             ],
           ),
-          // The batch stays on screen and is not selectable: it is what the
-          // allocation and its approved price were decided on.
-          Text('Batch ${g.batchCode}',
-              style: const TextStyle(color: AppColors.textMuted)),
-          Text(
-              'Cần lấy ${Qty.cartons(g.requiredQuantity)} · '
-              'đã lấy ${Qty.format(g.pickedQuantity)} · '
-              'còn ${Qty.format(g.remainingQuantity)}',
-              style: const TextStyle(fontWeight: FontWeight.w700)),
           const SizedBox(height: 8),
-          const Text('Chia về đơn',
-              style: TextStyle(fontSize: 12.5, color: AppColors.textMuted)),
-          for (final split in g.splits)
-            Padding(
-              padding: const EdgeInsets.only(top: 2),
-              child: Row(
-                children: <Widget>[
-                  Expanded(
-                      child: Text(split.orderCode,
-                          style: const TextStyle(fontWeight: FontWeight.w600))),
-                  Text(
-                      '${Qty.format(split.pickedQuantity)}/${Qty.cartons(split.requiredQuantity)}'),
-                  if (split.isDone)
-                    const Padding(
-                      padding: EdgeInsets.only(left: 6),
-                      child: Icon(Icons.check_circle,
-                          size: 16, color: AppColors.success),
-                    ),
-                ],
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF4F6F3),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Text(
+                  'Gợi ý FEFO: Lô ${l.batchCode} · HSD ${AppDates.date(l.expiry)}',
+                  style: const TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Vị trí ${l.location} · Tem nguồn ${l.suggestedLabel}',
+                  style: const TextStyle(
+                    fontSize: 12.5,
+                    color: AppColors.textMuted,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (l.outLabel.isNotEmpty) ...<Widget>[
+            const SizedBox(height: 6),
+            Text(
+              'Tem mang đi: ${l.outLabel}',
+              style: const TextStyle(
+                fontSize: 12.5,
+                fontWeight: FontWeight.w600,
+                color: AppColors.success,
               ),
             ),
-          if (!sheet.isClosed && !g.isDone) ...<Widget>[
-            const SizedBox(height: 8),
-            OutlinedButton.icon(
+          ],
+          if (!list.isShipped && !l.isDone) ...<Widget>[
+            const SizedBox(height: 10),
+            FilledButton.icon(
               onPressed: () =>
-                  context.push(AppRoutes.wkPickGather(sheet.pickingCode, g.id)),
-              icon: const Icon(Icons.qr_code_scanner),
-              label: const Text('Quét tem nguồn'),
+                  context.push(AppRoutes.wkPickLine(list.code, l.index)),
+              icon: const Icon(Icons.qr_code_scanner, size: 18),
+              label: const Text('Quét soạn dòng này'),
             ),
           ],
         ],
