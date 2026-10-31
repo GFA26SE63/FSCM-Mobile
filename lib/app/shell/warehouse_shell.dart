@@ -1,16 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import 'package:fscm_mobile/data/models/enums.dart';
-import 'package:fscm_mobile/data/models/picking.dart';
-import 'package:fscm_mobile/data/repositories/warehouse_repository.dart';
 import 'package:fscm_mobile/shared/routes.dart';
 import 'package:fscm_mobile/shared/theme/app_colors.dart';
 
-/// Warehouse Keeper navigation matching FSCM_Prototype_Prod_v1.1:
-/// Trang chủ, Soạn hàng (with badge), [Quét QR], Nhập kho, Tài khoản.
-class WarehouseShell extends ConsumerWidget {
+/// Warehouse Keeper navigation: Trang chủ, Picking, [Quét QR], Nhận hàng,
+/// Tài khoản. The scan button sits in the middle (docked FAB). There is no
+/// notifications tab: every page of this role shows the bell top-right.
+class WarehouseShell extends StatelessWidget {
   const WarehouseShell({super.key, required this.navigationShell});
 
   final StatefulNavigationShell navigationShell;
@@ -19,21 +16,24 @@ class WarehouseShell extends ConsumerWidget {
       initialLocation: index == navigationShell.currentIndex);
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final current = navigationShell.currentIndex;
-    final lists =
-        ref.watch(pickingListsProvider).valueOrNull ?? const <PickingList>[];
-    final todoCount =
-        lists.where((p) => p.status == PickingStatus.pending).length;
-
     return Scaffold(
       body: navigationShell,
-      bottomNavigationBar: Container(
-        height: 68,
-        decoration: const BoxDecoration(
-          color: AppColors.surface,
-          border: Border(top: BorderSide(color: AppColors.divider)),
-        ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+      floatingActionButton: FloatingActionButton(
+        tooltip: 'Quét QR',
+        backgroundColor: AppColors.primary,
+        foregroundColor: Colors.white,
+        shape: const CircleBorder(),
+        onPressed: () => context.push(AppRoutes.wkScan),
+        child: const Icon(Icons.qr_code_scanner, size: 30),
+      ),
+      bottomNavigationBar: BottomAppBar(
+        shape: const CircularNotchedRectangle(),
+        notchMargin: 6,
+        height: 66,
+        padding: EdgeInsets.zero,
         child: Row(
           children: <Widget>[
             Expanded(
@@ -47,67 +47,34 @@ class WarehouseShell extends ConsumerWidget {
             ),
             Expanded(
               child: _NavItem(
-                icon: Icons.assignment_outlined,
-                activeIcon: Icons.assignment,
-                label: 'Soạn hàng',
-                badgeCount: todoCount,
+                icon: Icons.fact_check_outlined,
+                activeIcon: Icons.fact_check,
+                label: 'Picking',
                 selected: current == 1,
                 onTap: () => _go(1),
               ),
             ),
-            Expanded(
-              child: GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTap: () => context.push(AppRoutes.wkScan),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: <Widget>[
-                    Transform.translate(
-                      offset: const Offset(0, -10),
-                      child: Container(
-                        width: 54,
-                        height: 54,
-                        decoration: BoxDecoration(
-                          color: AppColors.primary,
-                          shape: BoxShape.circle,
-                          border:
-                              Border.all(color: AppColors.surface, width: 4),
-                          boxShadow: const <BoxShadow>[
-                            BoxShadow(
-                              color: Color(0x5214655B),
-                              blurRadius: 14,
-                              offset: Offset(0, 6),
-                            ),
-                          ],
-                        ),
-                        alignment: Alignment.center,
-                        child: const Icon(
-                          Icons.qr_code_scanner,
-                          color: Colors.white,
-                          size: 26,
-                        ),
-                      ),
+            const Expanded(
+              child: Align(
+                alignment: Alignment.bottomCenter,
+                child: Padding(
+                  padding: EdgeInsets.only(bottom: 6),
+                  child: Text(
+                    'Quét QR',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.primary,
                     ),
-                    const Padding(
-                      padding: EdgeInsets.only(bottom: 4),
-                      child: Text(
-                        'Quét QR',
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.textMuted,
-                        ),
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
               ),
             ),
             Expanded(
               child: _NavItem(
-                icon: Icons.local_shipping_outlined,
-                activeIcon: Icons.local_shipping,
-                label: 'Nhập kho',
+                icon: Icons.move_to_inbox_outlined,
+                activeIcon: Icons.move_to_inbox,
+                label: 'Nhận hàng',
                 selected: current == 2,
                 onTap: () => _go(2),
               ),
@@ -135,7 +102,6 @@ class _NavItem extends StatelessWidget {
     required this.label,
     required this.selected,
     required this.onTap,
-    this.badgeCount = 0,
   });
 
   final IconData icon;
@@ -143,55 +109,27 @@ class _NavItem extends StatelessWidget {
   final String label;
   final bool selected;
   final VoidCallback onTap;
-  final int badgeCount;
 
   @override
   Widget build(BuildContext context) {
     final color = selected ? AppColors.primary : AppColors.textMuted;
     return InkWell(
       onTap: onTap,
-      child: Stack(
-        alignment: Alignment.center,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: <Widget>[
-          Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: <Widget>[
-              Icon(selected ? activeIcon : icon, size: 22, color: color),
-              const SizedBox(height: 3),
-              Text(
-                label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
-                  color: color,
-                ),
-              ),
-            ],
-          ),
-          if (badgeCount > 0)
-            Positioned(
-              top: 6,
-              right: 16,
-              child: Container(
-                constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
-                padding: const EdgeInsets.symmetric(horizontal: 5),
-                decoration: BoxDecoration(
-                  color: AppColors.danger,
-                  borderRadius: BorderRadius.circular(9),
-                ),
-                alignment: Alignment.center,
-                child: Text(
-                  '$badgeCount',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 10.5,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
+          Icon(selected ? activeIcon : icon, color: color),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+              color: color,
             ),
+          ),
         ],
       ),
     );

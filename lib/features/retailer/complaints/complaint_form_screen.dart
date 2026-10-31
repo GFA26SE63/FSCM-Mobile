@@ -7,7 +7,6 @@ import 'package:fscm_mobile/data/models/complaint.dart';
 import 'package:fscm_mobile/data/models/order.dart';
 import 'package:fscm_mobile/data/repositories/loyalty_repository.dart';
 import 'package:fscm_mobile/data/repositories/order_repository.dart';
-import 'package:fscm_mobile/data/repositories/warehouse_repository.dart';
 import 'package:fscm_mobile/shared/widgets/async_body.dart';
 import 'package:fscm_mobile/shared/widgets/dialogs.dart';
 import 'package:fscm_mobile/shared/widgets/section_title.dart';
@@ -65,13 +64,6 @@ class _ComplaintFormScreenState extends ConsumerState<ComplaintFormScreen> {
     setState(() => _busy = true);
     try {
       final label = line.batches.isNotEmpty ? line.batches.first.labelCode : '';
-      final issue = ref.read(orderIssueProvider(order.id)).valueOrNull;
-      final matchingShipments = issue?.shipments
-          .where((s) => s.lines.any((item) => item.sku == sku))
-          .toList();
-      final shipmentId = matchingShipments == null || matchingShipments.isEmpty
-          ? null
-          : matchingShipments.first.id;
       final c = await ref.read(loyaltyRepositoryProvider).complain(
             NewComplaint(
               orderCode: order.code,
@@ -79,7 +71,6 @@ class _ComplaintFormScreenState extends ConsumerState<ComplaintFormScreen> {
               labelCode: label,
               actualQty: actual,
               note: _note.text.trim(),
-              shipmentId: shipmentId,
             ),
           );
       ref.invalidate(complaintsProvider);
@@ -108,7 +99,6 @@ class _ComplaintFormScreenState extends ConsumerState<ComplaintFormScreen> {
               .toList();
           final selected = eligible.where((o) => o.code == _orderCode).toList();
           final order = selected.isEmpty ? null : selected.first;
-          final issue = order == null ? null : ref.watch(orderIssueProvider(order.id));
           return ListView(
             padding: const EdgeInsets.all(16),
             children: <Widget>[
@@ -156,7 +146,7 @@ class _ComplaintFormScreenState extends ConsumerState<ComplaintFormScreen> {
                 ),
                 const SizedBox(height: 16),
                 FilledButton(
-                  onPressed: _busy || issue?.isLoading == true ? null : () => _submit(order),
+                  onPressed: _busy ? null : () => _submit(order),
                   child: Text(_busy ? 'Đang gửi...' : 'Gửi khiếu nại'),
                 ),
               ] else if (eligible.isEmpty)

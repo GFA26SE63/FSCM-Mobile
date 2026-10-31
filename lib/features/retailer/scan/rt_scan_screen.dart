@@ -89,10 +89,6 @@ class _RtScanScreenState extends ConsumerState<RtScanScreen> {
           ),
           QrScanView(
             onCode: _onScan,
-            simulated: const <SimulatedScan>[
-              SimulatedScan('Tem TEM-000187', 'TEM-000187'),
-              SimulatedScan('Tem lạ TEM-000999', 'TEM-000999'),
-            ],
           ),
           if (_error.isNotEmpty) ...<Widget>[
             const SizedBox(height: 12),

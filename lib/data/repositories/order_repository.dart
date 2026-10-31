@@ -13,7 +13,6 @@ import 'package:fscm_mobile/data/local/local_providers.dart';
 import 'package:fscm_mobile/data/models/enums.dart';
 import 'package:fscm_mobile/data/models/offline_order.dart';
 import 'package:fscm_mobile/data/models/order.dart';
-import 'package:fscm_mobile/data/models/allocation_result.dart';
 import 'package:fscm_mobile/data/models/receipt_confirmation.dart';
 import 'package:fscm_mobile/data/models/retailer.dart';
 import 'package:fscm_mobile/data/remote/orders_api.dart';
@@ -58,13 +57,6 @@ final orderDetailProvider =
     FutureProvider.autoDispose.family<Order, String>((ref, code) async {
   ref.watch(dataVersionProvider);
   return ref.watch(orderRepositoryProvider).getOrder(code);
-});
-
-/// F90 result is separate from the order read because it is published only
-/// after plan approval and carries the immutable per-line outcome.
-final allocationResultProvider = FutureProvider.autoDispose
-    .family<AllocationRunResult, String>((ref, orderId) async {
-  return ref.watch(orderRepositoryProvider).allocationResult(orderId);
 });
 
 /// Entire offline queue (newest first) for the sync screen and badges.
@@ -137,9 +129,6 @@ class OrderRepository {
     }
     return _api.get(code);
   }
-
-  Future<AllocationRunResult> allocationResult(String orderId) =>
-      _api.allocationResult(orderId);
 
   Order _toOrder(OfflineOrder entry, CatalogData catalog) {
     final quote =

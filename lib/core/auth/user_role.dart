@@ -7,8 +7,7 @@ enum UserRole {
   retailer('Retailer', 'Điểm bán'),
   admin('Admin', 'Admin'),
   operator('Operator', 'Operator'),
-  salesManager('SalesManager', 'Sales Manager'),
-  unsupported('Unsupported', 'Vai trò chưa được hỗ trợ');
+  salesManager('SalesManager', 'Sales Manager');
 
   const UserRole(this.code, this.label);
 
@@ -36,6 +35,6 @@ enum UserRole {
     if (normalized == 'wk' || normalized == 'warehouse') {
       return UserRole.warehouseKeeper;
     }
-    return UserRole.unsupported;
+    return UserRole.operator;
   }
 }

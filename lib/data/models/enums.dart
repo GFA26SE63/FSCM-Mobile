@@ -101,8 +101,8 @@ enum ReceivableStatus {
 }
 
 enum PickingStatus {
-  pending('Pending', 'Chưa soạn', StatusTone.info),
-  picking('Picking', 'Đang soạn', StatusTone.purple),
+  pending('Pending', 'Chưa pick', StatusTone.info),
+  picking('Picking', 'Đang pick', StatusTone.purple),
   shipped('Shipped', 'Đã xuất', StatusTone.success);
 
   const PickingStatus(this.code, this.label, this.tone);
@@ -121,7 +121,7 @@ enum PickingStatus {
 
 enum LabelStatus {
   inStock('InStock', 'Trong kho', StatusTone.primary),
-  picked('Picked', 'Đã soạn', StatusTone.purple),
+  picked('Picked', 'Đã pick', StatusTone.purple),
   inTransit('InTransit', 'Đang vận chuyển', StatusTone.warning),
   delivered('Delivered', 'Đã giao', StatusTone.success),
   expired('Expired', 'Hết hạn', StatusTone.danger),
@@ -191,8 +191,6 @@ enum GiftRequestStatus {
 
   static GiftRequestStatus fromCode(String? code) {
     final c = (code ?? '').toLowerCase();
-    if (c == 'pending') return GiftRequestStatus.requested;
-    if (c == 'completed') return GiftRequestStatus.done;
     for (final s in GiftRequestStatus.values) {
       if (s.code.toLowerCase() == c) return s;
     }
@@ -257,79 +255,5 @@ enum RegistrationStatus {
       if (s.code.toLowerCase() == c) return s;
     }
     return RegistrationStatus.waiting;
-  }
-}
-
-/// Status of one warehouse's picking sheet for a run (F43).
-///
-/// `Ready` is the end of picking, not the end of the order: the cartons are on
-/// the dock but nothing has left and no stock has moved. `NeedsHandling` is a
-/// sheet someone closed with an exception, which holds the whole order.
-enum SheetStatus {
-  issued('Issued', 'Mới phát hành', StatusTone.info),
-  picking('Picking', 'Đang soạn', StatusTone.purple),
-  ready('Ready', 'Soạn xong', StatusTone.primary),
-  needsHandling('NeedsHandling', 'Cần xử lý', StatusTone.danger);
-
-  const SheetStatus(this.code, this.label, this.tone);
-  final String code;
-  final String label;
-  final StatusTone tone;
-
-  static SheetStatus fromCode(String? code) {
-    final c = (code ?? '').toLowerCase();
-    for (final s in SheetStatus.values) {
-      if (s.code.toLowerCase() == c) return s;
-    }
-    return SheetStatus.issued;
-  }
-}
-
-/// Status of one gather on a sheet. There are only two: the approved quantity
-/// has been taken off the batch, or it has not.
-enum GatherStatus {
-  pending('Pending', 'Chưa lấy', StatusTone.neutral),
-  picked('Picked', 'Đã lấy', StatusTone.success);
-
-  const GatherStatus(this.code, this.label, this.tone);
-  final String code;
-  final String label;
-  final StatusTone tone;
-
-  static GatherStatus fromCode(String? code) {
-    final c = (code ?? '').toLowerCase();
-    for (final s in GatherStatus.values) {
-      if (s.code.toLowerCase() == c) return s;
-    }
-    return GatherStatus.pending;
-  }
-}
-
-/// Status of one warehouse's part of an order (F93, F96). `Issued` is the only
-/// one that means stock has actually moved.
-enum ShipmentPartStatus {
-  waitingToPick('WaitingToPick', 'Chờ soạn', StatusTone.info),
-  ready('Ready', 'Sẵn sàng', StatusTone.primary),
-  issued('Issued', 'Đã xuất', StatusTone.success),
-  delivering('Delivering', 'Đang giao', StatusTone.purple),
-  received('Received', 'Đã nhận', StatusTone.success),
-  exception('Exception', 'Ngoại lệ', StatusTone.danger);
-
-  const ShipmentPartStatus(this.code, this.label, this.tone);
-  final String code;
-  final String label;
-  final StatusTone tone;
-
-  bool get hasLeft =>
-      this == ShipmentPartStatus.issued ||
-      this == ShipmentPartStatus.delivering ||
-      this == ShipmentPartStatus.received;
-
-  static ShipmentPartStatus fromCode(String? code) {
-    final c = (code ?? '').toLowerCase();
-    for (final s in ShipmentPartStatus.values) {
-      if (s.code.toLowerCase() == c) return s;
-    }
-    return ShipmentPartStatus.waitingToPick;
   }
 }

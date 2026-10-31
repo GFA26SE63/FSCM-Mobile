@@ -8,14 +8,14 @@ import 'package:fscm_mobile/data/models/loyalty.dart';
 final loyaltyApiProvider =
     Provider<LoyaltyApi>((ref) => LoyaltyApi(ref.watch(apiClientProvider)));
 
-  /// `/loyalty/*`.
+/// `/loyalty/*`, `/gifts`, `/gift-redemptions`.
 class LoyaltyApi {
   LoyaltyApi(this._client);
 
   final ApiClient _client;
 
-  Future<LoyaltyAccount> account(String _retailerCode) async {
-    final data = await _client.get(Endpoints.loyaltyCardMe);
+  Future<LoyaltyAccount> account(String retailerCode) async {
+    final data = await _client.get(Endpoints.loyaltyRetailer(retailerCode));
     return LoyaltyAccount.fromJson(asMap(data));
   }
 
@@ -25,24 +25,21 @@ class LoyaltyApi {
   }
 
   Future<List<Gift>> gifts() async {
-    final data = await _client.get(Endpoints.loyaltyRewards);
+    final data = await _client.get(Endpoints.gifts);
     return unwrapItems(data).map(Gift.fromJson).toList();
   }
 
   Future<List<GiftRedemption>> redemptions() async {
-    final data = await _client.get(Endpoints.loyaltyRedemptions);
+    final data = await _client.get(Endpoints.giftRedemptions);
     return unwrapItems(data).map(GiftRedemption.fromJson).toList();
   }
 
   /// Points are held immediately and refunded if the request is rejected.
-  Future<GiftRedemption> redeem(String giftCode, {int quantity = 1}) async {
+  Future<GiftRedemption> redeem(String giftCode) async {
     final data = await _client.post(
-      Endpoints.loyaltyRedemptions,
-      headers: <String, String>{'Idempotency-Key': _operationKey()},
-      body: <String, dynamic>{'rewardId': giftCode, 'quantity': quantity},
+      Endpoints.giftRedemptions,
+      body: <String, dynamic>{'giftCode': giftCode},
     );
     return GiftRedemption.fromJson(asMap(data));
   }
-
-  String _operationKey() => 'mobile-${DateTime.now().microsecondsSinceEpoch}';
 }

@@ -5,7 +5,6 @@ import 'package:fscm_mobile/core/network/endpoints.dart';
 import 'package:fscm_mobile/data/models/json_utils.dart';
 import 'package:fscm_mobile/data/models/offline_order.dart';
 import 'package:fscm_mobile/data/models/order.dart';
-import 'package:fscm_mobile/data/models/allocation_result.dart';
 import 'package:fscm_mobile/data/models/receipt_confirmation.dart';
 
 final ordersApiProvider =
@@ -49,12 +48,6 @@ class OrdersApi {
   Future<Order> cancel(String code) async {
     final data = await _client.post(Endpoints.orderCancel(code));
     return Order.fromJson(asMap(data));
-  }
-
-  /// F90: the approved allocation decision, including Released/Short lines.
-  Future<AllocationRunResult> allocationResult(String orderId) async {
-    final data = await _client.get(Endpoints.allocationRunOrderResult(orderId));
-    return AllocationRunResult.fromJson(asMap(data));
   }
 
   /// `POST /orders/sync`: the server processes the batch in the order given

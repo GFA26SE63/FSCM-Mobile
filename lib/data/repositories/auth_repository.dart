@@ -1,12 +1,11 @@
 import 'dart:async';
 import 'dart:io' show Platform;
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:fscm_mobile/core/auth/session.dart';
-import 'package:fscm_mobile/core/auth/user_role.dart';
 import 'package:fscm_mobile/core/config/device_identity.dart';
+import 'package:fscm_mobile/core/auth/google_auth_service.dart';
 import 'package:fscm_mobile/core/network/api_client.dart';
 import 'package:fscm_mobile/core/network/api_exception.dart';
 import 'package:fscm_mobile/core/storage/token_store.dart';
@@ -37,21 +36,8 @@ final authControllerProvider = StateNotifierProvider<AuthController, AuthState>(
 final currentUserProvider =
     Provider<AppUser?>((ref) => ref.watch(authControllerProvider).user);
 
-/// Role convenience providers for UI authorization
-final isSalesProvider = Provider<bool>(
-  (ref) => ref.watch(currentUserProvider)?.role == UserRole.sales,
-);
-
-final isWarehouseKeeperProvider = Provider<bool>(
-  (ref) => ref.watch(currentUserProvider)?.role == UserRole.warehouseKeeper,
-);
-
-final isRetailerProvider = Provider<bool>(
-  (ref) => ref.watch(currentUserProvider)?.role == UserRole.retailer,
-);
-
-/// Login / logout + session restore + RBAC session verification per
-/// `SPRINT_1_FRONTEND_MOBILE_API_GUIDE.md` (§2.3, §3.2, §3.3, §5.1).
+/// Login / logout + session restore. The API client reads the bearer token
+/// from [TokenStore]; a 401 anywhere logs the user out.
 class AuthController extends StateNotifier<AuthState> {
   AuthController(this._ref) : super(const AuthState.unknown()) {
     _unauthorizedSub = _ref.read(apiClientProvider).onUnauthorized.listen((_) {
@@ -59,305 +45,142 @@ class AuthController extends StateNotifier<AuthState> {
         unawaited(logout(callServer: false));
       }
     });
-
-    _forbiddenSub = _ref.read(apiClientProvider).onForbidden.listen((_) {
-      if (state.isAuthenticated) {
-        // §3.3: Re-verify session and scope on 403
-        unawaited(verifySessionOnResume());
-      }
-    });
   }
 
   final Ref _ref;
   StreamSubscription<void>? _unauthorizedSub;
-  StreamSubscription<ApiException>? _forbiddenSub;
 
   TokenStore get _tokens => _ref.read(tokenStoreProvider);
-  AuthApi get _authApi => _ref.read(authApiProvider);
 
-  void clearError() {
-    if (state.error == null) return;
-    state = AuthState(status: state.status, session: state.session);
-  }
-
-  String _unsupportedRoleMessage(AppUser user, {String? identifier}) {
-    if (user.role == UserRole.unsupported) {
-      return 'Không có quyền truy cập FSCM Mobile. Vai trò tài khoản chưa được ứng dụng hỗ trợ.';
-    }
-    final account = user.email.isNotEmpty ? user.email : identifier;
-    final accountText = account == null || account.isEmpty ? '' : ' $account';
-    return 'Không có quyền truy cập FSCM Mobile. Tài khoản$accountText có vai trò ${user.role.label} và chỉ sử dụng trên Portal.';
-  }
-
-  /// Rejects Portal-only and unknown roles from every authentication entry
-  /// point. The backend issues refresh tokens to every valid FSCM role, so a
-  /// rejected mobile session is revoked as well as removed locally.
-  Future<bool> _rejectUnsupportedSession(
-    Session session, {
-    String? identifier,
-  }) async {
-    if (session.user.role.hasMobileShell) return false;
-
-    final refreshToken = session.refreshToken;
-    if (refreshToken != null && refreshToken.isNotEmpty) {
-      try {
-        await _authApi.logout(refreshToken: refreshToken);
-      } catch (_) {
-        // Local rejection must still complete when the server is unavailable.
-      }
-    }
-    await _tokens.clear();
-    try {
-      await _ref.read(appDatabaseProvider).clearCache();
-    } catch (_) {
-      // A cache failure must not leave an unsupported user authenticated.
-    }
-    state = AuthState(
-      status: AuthStatus.unauthenticated,
-      error: _unsupportedRoleMessage(
-        session.user,
-        identifier: identifier,
-      ),
-    );
-    return true;
-  }
-
-  /// Called once from the splash screen (`POST /api/v1/auth/refresh` +
-  /// `GET /api/v1/auth/me`, with offline fallback when local token is valid).
+  /// Called once from the splash screen.
   Future<void> restore() async {
     final json = await _tokens.load();
     if (json == null) {
       state = const AuthState(status: AuthStatus.unauthenticated);
       return;
     }
-
-    Session session = Session.fromJson(json);
-
-    // Try refreshing session if refreshToken is present.
-    final refreshToken = session.refreshToken;
-    if (refreshToken != null &&
-        refreshToken.isNotEmpty &&
-        !session.isRefreshExpired) {
-      try {
-        final refreshed = await _authApi.refresh(refreshToken);
-        session = refreshed.copyWith(
-          user: session.user.mergeProfile(refreshed.user),
-        );
-        if (await _rejectUnsupportedSession(session)) return;
-        await _tokens.save(session.toJson());
-      } on ApiException catch (e) {
-        if (e.kind == ApiErrorKind.unauthorized ||
-            e.kind == ApiErrorKind.forbidden ||
-            session.isExpired) {
-          await _tokens.clear();
-          state = const AuthState(status: AuthStatus.unauthenticated);
-          return;
-        }
-        // Network/timeout while accessToken is still valid: allow offline restore.
-      }
-    } else if (session.isExpired) {
+    final session = Session.fromJson(json);
+    if (session.isExpired || !session.user.role.hasMobileShell) {
       await _tokens.clear();
       state = const AuthState(status: AuthStatus.unauthenticated);
       return;
     }
-
-    // Verify user status, role and scope via GET /api/v1/auth/me.
-    try {
-      final meUser = await _authApi.me();
-      session = session.copyWith(user: session.user.mergeProfile(meUser));
-      if (await _rejectUnsupportedSession(session)) return;
-      await _tokens.save(session.toJson());
-    } on ApiException catch (e) {
-      if (e.kind == ApiErrorKind.unauthorized ||
-          e.kind == ApiErrorKind.forbidden) {
-        await _tokens.clear();
-        state = const AuthState(status: AuthStatus.unauthenticated);
-        return;
-      }
-      // Offline fallback uses cached session user.
-    }
-
-    if (!session.user.isActive) {
-      await _tokens.clear();
-      state = const AuthState(
-        status: AuthStatus.unauthenticated,
-        error: 'Tài khoản đã bị vô hiệu hóa. Vui lòng liên hệ Admin.',
-      );
-      return;
-    }
-
-    if (await _rejectUnsupportedSession(session)) return;
-
     state = AuthState(status: AuthStatus.authenticated, session: session);
     unawaited(_registerDevice());
   }
 
-  /// Re-verifies user active status, role and scope on app resume or 403
-  /// (§3.3: "Khi app resume hoặc nhận 401/403, phải tái kiểm tra phiên/scope").
-  Future<void> verifySessionOnResume() async {
-    if (!state.isAuthenticated) return;
+  Future<bool> login(String phone, String password) async {
     try {
-      final freshUser = await _authApi.me();
-
-      // Check if user account was deactivated by Admin
-      if (!freshUser.isActive) {
-        await logout(callServer: false);
+      final session = await _ref
+          .read(authApiProvider)
+          .login(phone: phone.trim(), password: password);
+      if (!session.user.role.hasMobileShell) {
         state = const AuthState(
           status: AuthStatus.unauthenticated,
-          error: 'Tài khoản đã bị vô hiệu hóa bởi Quản trị viên.',
-        );
-        return;
-      }
-
-      // Update session with fresh role and scope
-      final currentSession = state.session;
-      if (currentSession != null) {
-        final updatedSession = currentSession.copyWith(
-          user: currentSession.user.mergeProfile(freshUser),
-        );
-        if (await _rejectUnsupportedSession(updatedSession)) return;
-        await _tokens.save(updatedSession.toJson());
-        state = AuthState(
-          status: AuthStatus.authenticated,
-          session: updatedSession,
-        );
-      }
-    } on ApiException catch (e) {
-      if (e.kind == ApiErrorKind.unauthorized ||
-          e.kind == ApiErrorKind.forbidden) {
-        await logout(callServer: false);
-        state = AuthState(
-          status: AuthStatus.unauthenticated,
-          error: e.message,
-        );
-      }
-      // Offline/timeout on resume keeps current session
-    }
-  }
-
-  /// Signs in via `POST /api/v1/auth/login` using email (or phone for Customer tab)
-  /// and password, then verifies role & scope.
-  Future<bool> login(
-    String identifier,
-    String password, {
-    String? phone,
-  }) async {
-    clearError();
-    try {
-      final cleanId = identifier.trim();
-      final cleanPhone =
-          (phone ?? (!cleanId.contains('@') ? cleanId : '')).replaceAll(
-        RegExp(r'\s+'),
-        '',
-      );
-      Session session = await _authApi.login(
-        email: cleanId,
-        password: password,
-        phone: cleanPhone.isNotEmpty ? cleanPhone : null,
-      );
-
-      if (!session.user.isActive) {
-        state = const AuthState(
-          status: AuthStatus.unauthenticated,
-          error: 'Tài khoản đã bị vô hiệu hóa. Vui lòng liên hệ Admin.',
+          error:
+              'Tài khoản này dùng Portal, không đăng nhập được trên app di động.',
         );
         return false;
       }
-
-      if (await _rejectUnsupportedSession(session, identifier: cleanId)) {
-        return false;
-      }
-
       await _tokens.save(session.toJson());
-
-      // Fetch /api/v1/auth/me to ensure latest role, active status & scope.
-      try {
-        final freshUser = await _authApi.me();
-        session = session.copyWith(user: session.user.mergeProfile(freshUser));
-        if (await _rejectUnsupportedSession(session, identifier: cleanId)) {
-          return false;
-        }
-        await _tokens.save(session.toJson());
-      } catch (e) {
-        // Keep login response user if /auth/me is temporarily unreachable or throws.
-        debugPrint('Notice: /auth/me profile fetch skipped: $e');
-      }
-
       state = AuthState(status: AuthStatus.authenticated, session: session);
       unawaited(_registerDevice());
       return true;
     } on ApiException catch (e) {
       state = AuthState(status: AuthStatus.unauthenticated, error: e.message);
       return false;
-    } catch (e, st) {
-      debugPrint('Unexpected error in login: $e\n$st');
+    }
+  }
+
+  Future<void> requestActivationOtp(String phone) =>
+      _ref.read(authApiProvider).requestOtp(phone.trim());
+
+  Future<String> verifyActivationOtp(String phone, String code) => _ref
+      .read(authApiProvider)
+      .verifyOtp(phone: phone.trim(), code: code.trim());
+
+  Future<bool> completeActivation(String setupToken, String password) async {
+    try {
+      final session = await _ref
+          .read(authApiProvider)
+          .setPassword(setupToken: setupToken, password: password);
+      await _tokens.save(session.toJson());
+      state = AuthState(status: AuthStatus.authenticated, session: session);
+      unawaited(_registerDevice());
+      return true;
+    } on ApiException catch (error) {
+      state =
+          AuthState(status: AuthStatus.unauthenticated, error: error.message);
+      return false;
+    }
+  }
+
+  Future<bool> loginWithGoogle() async {
+    try {
+      final googleIdToken = await GoogleAuthService.instance.acquireIdToken();
+      final session =
+          await _ref.read(authApiProvider).exchangeGoogle(googleIdToken);
+      if (!session.user.role.hasMobileShell) {
+        state = const AuthState(
+          status: AuthStatus.unauthenticated,
+          error: 'Tài khoản này không có quyền sử dụng ứng dụng.',
+        );
+        return false;
+      }
+      await _tokens.save(session.toJson());
+      state = AuthState(status: AuthStatus.authenticated, session: session);
+      unawaited(_registerDevice());
+      return true;
+    } on ApiException catch (e) {
+      state = AuthState(status: AuthStatus.unauthenticated, error: e.message);
+      return false;
+    } on Object catch (e) {
       state = AuthState(
         status: AuthStatus.unauthenticated,
-        error: 'Lỗi xác thực hoặc xử lý dữ liệu: $e',
+        error: 'Đăng nhập Google thất bại: $e',
       );
       return false;
     }
   }
 
-  /// Completes authentication from an already-issued [Session] (e.g. after
-  /// first-login OTP + password change or account activation).
-  Future<bool> completeSession(Session session) async {
-    clearError();
-    if (await _rejectUnsupportedSession(session)) {
-      return false;
-    }
-    await _tokens.save(session.toJson());
-    state = AuthState(status: AuthStatus.authenticated, session: session);
-    unawaited(_registerDevice());
-    return true;
-  }
-
-  /// Logs the user out: calls `POST /api/v1/auth/logout` with refreshToken,
-  /// clears access and refresh tokens from secure storage, and wipes cache.
-  /// Every sub-step is guarded so logout is completely resilient.
-  Future<void> logout({bool callServer = true}) async {
-    final refreshToken = _tokens.refreshToken ?? state.session?.refreshToken;
-    if (callServer && refreshToken != null && refreshToken.isNotEmpty) {
-      try {
-        await _authApi.logout(refreshToken: refreshToken);
-      } catch (_) {
-        // Logging out must succeed even if server is offline or returns error.
+  /// Refreshes the server-side session and scope when the app resumes or a
+  /// protected request receives 403.
+  Future<void> verifySessionOnResume() async {
+    if (!state.isAuthenticated) return;
+    try {
+      final user = await _ref.read(authApiProvider).me();
+      if (!user.role.hasMobileShell) {
+        await logout(callServer: false);
+      }
+    } on ApiException catch (error) {
+      if (error.kind == ApiErrorKind.unauthorized ||
+          error.kind == ApiErrorKind.forbidden) {
+        await logout(callServer: false);
       }
     }
+  }
 
-    try {
-      await _tokens.clear();
-    } catch (_) {
-      // Keystore clear issue must not prevent logout.
+  Future<void> logout({bool callServer = true}) async {
+    if (callServer) {
+      try {
+        await _ref.read(authApiProvider).logout(_tokens.refreshToken ?? '');
+      } on ApiException {
+        // Logging out must work offline.
+      }
     }
-
-    try {
-      // Cached business data goes away; unsynced offline orders are kept.
-      await _ref.read(appDatabaseProvider).clearCache();
-    } catch (_) {
-      // Local database clear failure should not prevent logout.
-    }
-
+    await _tokens.clear();
+    // Cached business data goes away; unsynced offline orders are kept.
+    await _ref.read(appDatabaseProvider).clearCache();
     state = const AuthState(status: AuthStatus.unauthenticated);
   }
 
   Future<void> _registerDevice() async {
     try {
       final identity = _ref.read(deviceIdentityProvider);
-      String platform = 'android';
-      if (!kIsWeb) {
-        if (Platform.isIOS) {
-          platform = 'ios';
-        } else if (Platform.isAndroid) {
-          platform = 'android';
-        }
-      } else {
-        platform = 'web';
-      }
-      await _authApi.registerDevice(
-        installId: identity.installId,
-        platform: platform,
-      );
+      await _ref.read(authApiProvider).registerDevice(
+            installId: identity.installId,
+            platform: Platform.isIOS ? 'ios' : 'android',
+          );
     } on Object {
       // Push registration is best effort.
     }
@@ -366,7 +189,6 @@ class AuthController extends StateNotifier<AuthState> {
   @override
   void dispose() {
     unawaited(_unauthorizedSub?.cancel());
-    unawaited(_forbiddenSub?.cancel());
     super.dispose();
   }
 }

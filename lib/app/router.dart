@@ -8,12 +8,12 @@ import 'package:fscm_mobile/app/shell/warehouse_shell.dart';
 import 'package:fscm_mobile/core/auth/user_role.dart';
 import 'package:fscm_mobile/data/repositories/auth_repository.dart';
 import 'package:fscm_mobile/features/common/auth/login_screen.dart';
+import 'package:fscm_mobile/features/common/auth/retailer_activation_screen.dart';
 import 'package:fscm_mobile/features/common/auth/splash_screen.dart';
 import 'package:fscm_mobile/features/common/notifications/notifications_screen.dart';
 import 'package:fscm_mobile/features/common/profile/profile_screen.dart';
 import 'package:fscm_mobile/features/retailer/complaints/complaint_form_screen.dart';
 import 'package:fscm_mobile/features/retailer/complaints/complaints_screen.dart';
-import 'package:fscm_mobile/features/retailer/quotes/quotes_screen.dart';
 import 'package:fscm_mobile/features/retailer/loyalty/gifts_screen.dart';
 import 'package:fscm_mobile/features/retailer/loyalty/loyalty_screen.dart';
 import 'package:fscm_mobile/features/retailer/orders/rt_order_detail_screen.dart';
@@ -37,7 +37,6 @@ import 'package:fscm_mobile/features/sales/sync/sync_queue_screen.dart';
 import 'package:fscm_mobile/features/warehouse/home/wk_home_screen.dart';
 import 'package:fscm_mobile/features/warehouse/labels/label_detail_screen.dart';
 import 'package:fscm_mobile/features/warehouse/picking/pick_line_screen.dart';
-import 'package:fscm_mobile/features/warehouse/picking/order_issue_screen.dart';
 import 'package:fscm_mobile/features/warehouse/picking/picking_detail_screen.dart';
 import 'package:fscm_mobile/features/warehouse/picking/picking_lists_screen.dart';
 import 'package:fscm_mobile/features/warehouse/scan/wk_scan_screen.dart';
@@ -87,7 +86,10 @@ String? redirectFor({
     case AuthStatus.unknown:
       return location == AppRoutes.splash ? null : AppRoutes.splash;
     case AuthStatus.unauthenticated:
-      return location == AppRoutes.login ? null : AppRoutes.login;
+      return location == AppRoutes.login ||
+              location == AppRoutes.retailerActivation
+          ? null
+          : AppRoutes.login;
     case AuthStatus.authenticated:
       if (role == null || !role.hasMobileShell) return AppRoutes.login;
       if (location == '/' ||
@@ -129,6 +131,9 @@ final routerProvider = Provider<GoRouter>((ref) {
     routes: <RouteBase>[
       GoRoute(path: AppRoutes.splash, builder: (c, s) => const SplashScreen()),
       GoRoute(path: AppRoutes.login, builder: (c, s) => const LoginScreen()),
+      GoRoute(
+          path: AppRoutes.retailerActivation,
+          builder: (c, s) => const RetailerActivationScreen()),
       GoRoute(
           path: AppRoutes.notifications,
           builder: (c, s) => const NotificationsScreen()),
@@ -261,10 +266,8 @@ List<RouteBase> _warehouseRoutes() => <RouteBase>[
               path: AppRoutes.wkAccount,
               builder: (c, s) => const ProfileScreen(actions: <ProfileAction>[
                 ProfileAction(
-                    // Closed sheets, not issued goods: picking finishing and
-                    // stock leaving are two different steps.
-                    label: 'Phiếu đã soạn xong',
-                    icon: Icons.playlist_add_check,
+                    label: 'Phiếu đã xuất kho',
+                    icon: Icons.outbox_outlined,
                     route: AppRoutes.wkShipped),
                 ProfileAction(
                     label: 'Tra cứu tem',
@@ -278,7 +281,7 @@ List<RouteBase> _warehouseRoutes() => <RouteBase>[
       GoRoute(path: AppRoutes.wkScan, builder: (c, s) => const WkScanScreen()),
       GoRoute(
         path: AppRoutes.wkShipped,
-        builder: (c, s) => const PickingListsScreen(closedOnly: true),
+        builder: (c, s) => const PickingListsScreen(shippedOnly: true),
       ),
       GoRoute(
         path: AppRoutes.wkLabelLookup,
@@ -290,17 +293,10 @@ List<RouteBase> _warehouseRoutes() => <RouteBase>[
             PickingDetailScreen(code: s.pathParameters['code'] ?? ''),
       ),
       GoRoute(
-        path: AppRoutes.wkPickGatherPattern,
+        path: AppRoutes.wkPickLinePattern,
         builder: (c, s) => PickLineScreen(
           code: s.pathParameters['code'] ?? '',
-          gatherId: s.pathParameters['gatherId'] ?? '',
-        ),
-      ),
-      GoRoute(
-        path: AppRoutes.wkOrderIssuePattern,
-        builder: (c, s) => OrderIssueScreen(
-          pickingCode: s.pathParameters['code'] ?? '',
-          orderCode: s.pathParameters['orderCode'] ?? '',
+          lineIndex: int.tryParse(s.pathParameters['index'] ?? '') ?? 0,
         ),
       ),
       GoRoute(
@@ -352,7 +348,6 @@ List<RouteBase> _retailerRoutes() => <RouteBase>[
                     label: 'Khiếu nại',
                     icon: Icons.report_gmailerrorred_outlined,
                     route: AppRoutes.rtComplaints),
-                ProfileAction(label: 'Báo giá cần xác nhận', icon: Icons.request_quote_outlined, route: AppRoutes.rtQuotes),
               ]),
             ),
           ]),
@@ -367,7 +362,6 @@ List<RouteBase> _retailerRoutes() => <RouteBase>[
       GoRoute(
           path: AppRoutes.rtComplaints,
           builder: (c, s) => const ComplaintsScreen()),
-      GoRoute(path: AppRoutes.rtQuotes, builder: (c, s) => const QuotesScreen()),
       GoRoute(
         path: AppRoutes.rtComplaintNew,
         builder: (c, s) =>

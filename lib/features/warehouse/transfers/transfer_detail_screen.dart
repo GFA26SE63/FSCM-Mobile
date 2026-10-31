@@ -155,12 +155,6 @@ class _TransferDetailScreenState extends ConsumerState<TransferDetailScreen> {
             const SectionTitle('Quét tem từng kiện'),
             QrScanView(
               hint: 'Quét tem trên kiện hàng',
-              simulated: <SimulatedScan>[
-                for (final l in t.lines)
-                  if (!_scanned.contains(l.labelCode))
-                    SimulatedScan('Quét ${l.labelCode}', l.labelCode),
-                const SimulatedScan('Quét tem lạ TEM-000999', 'TEM-000999'),
-              ],
               onCode: (c) => _onScan(t, c),
             ),
             const SizedBox(height: 12),
