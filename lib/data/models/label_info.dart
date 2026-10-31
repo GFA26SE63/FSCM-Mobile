@@ -12,6 +12,7 @@ class LabelInfo {
     required this.batchCode,
     required this.qty,
     required this.status,
+    this.version = 0,
     this.expiry,
     this.location = '',
     this.warehouseName = '',
@@ -23,12 +24,16 @@ class LabelInfo {
   });
 
   factory LabelInfo.fromJson(Map<String, dynamic> j) => LabelInfo(
-        code: asStr(j['code']),
+        // The API calls these `qrCode` and `quantity`; the mock and the local
+        // cache were written against `code`/`qty`. Both are read so one shape
+        // does not silently parse as an empty label.
+        code: asStr(j['code'] ?? j['qrCode']),
         sku: asStr(j['sku']),
-        name: asStr(j['name']),
+        name: asStr(j['name'] ?? j['productName']),
         batchCode: asStr(j['batchCode']),
-        qty: asInt(j['qty']),
+        qty: asInt(j['qty'] ?? j['quantity']),
         status: LabelStatus.fromCode(asStrOrNull(j['status'])),
+        version: asInt(j['version']),
         expiry: asDate(j['expiry']),
         location: asStr(j['location']),
         warehouseName: asStr(j['warehouseName']),
@@ -45,6 +50,10 @@ class LabelInfo {
   final String batchCode;
   final int qty;
   final LabelStatus status;
+
+  /// Optimistic-concurrency token. A pick scan has to send back the version it
+  /// read, so two keepers cannot both take the last carton off one label.
+  final int version;
   final DateTime? expiry;
   final String location;
   final String warehouseName;
@@ -70,6 +79,7 @@ class LabelInfo {
         batchCode: batchCode,
         qty: qty ?? this.qty,
         status: status ?? this.status,
+        version: version,
         expiry: expiry,
         location: location ?? this.location,
         warehouseName: warehouseName ?? this.warehouseName,
@@ -87,6 +97,7 @@ class LabelInfo {
         'batchCode': batchCode,
         'qty': qty,
         'status': status.code,
+        'version': version,
         'expiry': isoOrNull(expiry),
         'location': location,
         'warehouseName': warehouseName,

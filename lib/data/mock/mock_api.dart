@@ -64,6 +64,7 @@ class MockApi implements ApiTransport {
           ? body.cast<String, dynamic>()
           : const <String, dynamic>{},
       user: user,
+      headers: request.headers,
     );
     for (final h in _handlers) {
       final res = h.handle(mockRequest);

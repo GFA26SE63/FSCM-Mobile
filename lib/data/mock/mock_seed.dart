@@ -1,11 +1,11 @@
 import 'package:fscm_mobile/core/auth/user_role.dart';
+import 'package:fscm_mobile/data/mock/mock_run_picking_seed.dart';
 import 'package:fscm_mobile/data/mock/mock_store.dart';
 import 'package:fscm_mobile/data/models/app_notification.dart';
 import 'package:fscm_mobile/data/models/enums.dart';
 import 'package:fscm_mobile/data/models/label_info.dart';
 import 'package:fscm_mobile/data/models/loyalty.dart';
 import 'package:fscm_mobile/data/models/order.dart';
-import 'package:fscm_mobile/data/models/picking.dart';
 import 'package:fscm_mobile/data/models/product.dart';
 import 'package:fscm_mobile/data/models/promotion.dart';
 import 'package:fscm_mobile/data/models/receivable.dart';
@@ -657,21 +657,6 @@ class MockSeed {
         history: history,
       );
 
-  static PickingLine _line(int i, String sku, String name, String batch,
-          DateTime exp, String loc, int need, String suggest,
-          {int picked = 0, String out = ''}) =>
-      PickingLine(
-          index: i,
-          sku: sku,
-          name: name,
-          batchCode: batch,
-          expiry: exp,
-          location: loc,
-          need: need,
-          suggestedLabel: suggest,
-          picked: picked,
-          outLabel: out);
-
   static void _warehouse(MockStore s) {
     final pm = s.productMap;
     final exp1 = DateTime(2026, 10, 18);
@@ -790,63 +775,13 @@ class MockSeed {
         DateTime(2026, 11, 5), 40, LabelStatus.inTransit, '-',
         wh: 'Kho Tân Chánh Hiệp', products: pm));
 
+    // F43: one sheet per warehouse per run, with gathers that split back
+    // to several orders. Kept in its own file because it is also where the
+    // readiness and issue demo data lives.
+    MockRunPickingSeed.apply(s, _d);
+
     final n1 = pm['SKU001']!.name;
     final n3 = pm['SKU003']!.name;
-    s.pickings['DH-001024A'] = PickingList(
-      code: 'DH-001024A',
-      orderCode: 'DH-001024',
-      retailerCode: '10004182',
-      retailerName: 'Cửa hàng tiện lợi An Phú',
-      status: PickingStatus.pending,
-      warehouseName: 'Kho Thới An',
-      approvedAt: _d(27, 8, 32),
-      siblingText:
-          'DH-001024B · Kho Tân Chánh Hiệp · 10 thùng SKU001 · Chưa pick',
-      lines: <PickingLine>[
-        _line(0, 'SKU001', n1, 'WH-TA-SKU001-18102026', exp1, 'A-03', 40,
-            'TEM-000118'),
-        _line(1, 'SKU003', n3, 'WH-TA-SKU003-24102026', exp3, 'B-01', 20,
-            'TEM-000131'),
-      ],
-    );
-    s.pickings['DH-001021A'] = PickingList(
-      code: 'DH-001021A',
-      orderCode: 'DH-001021',
-      retailerCode: '10004127',
-      retailerName: 'Tạp hóa Minh Châu',
-      status: PickingStatus.shipped,
-      warehouseName: 'Kho Thới An',
-      approvedAt: _d(26, 16, 5),
-      shippedAt: _d(27, 8, 40),
-      siblingText:
-          'DH-001021B (Kho Thủ Đức), DH-001021C (Kho Gò Vấp) · Đã xuất',
-      lines: <PickingLine>[
-        _line(0, 'SKU001', n1, 'WH-TA-SKU001-18102026', exp1, 'A-03', 40,
-            'TEM-000118',
-            picked: 40, out: 'TEM-000187'),
-        _line(1, 'SKU003', n3, 'WH-TA-SKU003-24102026', exp3, 'B-01', 10,
-            'TEM-000131',
-            picked: 10, out: 'TEM-000188'),
-      ],
-    );
-    s.pickings['DH-001019B'] = PickingList(
-      code: 'DH-001019B',
-      orderCode: 'DH-001019',
-      retailerCode: '10004135',
-      retailerName: 'Siêu thị mini Hòa Bình',
-      status: PickingStatus.shipped,
-      warehouseName: 'Kho Thới An',
-      approvedAt: _d(24, 11, 2),
-      shippedAt: _d(24, 14, 10),
-      siblingText:
-          'DH-001019A (Kho Gò Vấp), DH-001019C (Kho Tân Chánh Hiệp) · Đã xuất',
-      lines: <PickingLine>[
-        _line(0, 'SKU003', n3, 'WH-TA-SKU003-24102026', exp3, 'B-01', 10,
-            'TEM-000131',
-            picked: 10, out: 'TEM-000176'),
-      ],
-    );
-
     s.transfers.addAll(<Transfer>[
       Transfer(
         code: 'DC-260926-01',

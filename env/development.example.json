@@ -1,4 +1,5 @@
 {
-  "API_BASE_URL": "https://localhost:7027",
-  "GRAPHQL_ENDPOINT": "https://localhost:7027/graphql"
+  "API_BASE_URL": "https://10.0.2.2:7027/api/v1",
+  "USE_MOCK": false,
+  "FLAVOR": "dev"
 }

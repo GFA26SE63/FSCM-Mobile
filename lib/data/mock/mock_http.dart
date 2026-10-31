@@ -10,6 +10,7 @@ class MockRequest {
     required this.query,
     required this.body,
     required this.user,
+    this.headers = const <String, String>{},
   });
 
   final String method;
@@ -19,6 +20,16 @@ class MockRequest {
   final Map<String, dynamic> query;
   final Map<String, dynamic> body;
   final MockUser? user;
+  final Map<String, String> headers;
+
+  /// `Idempotency-Key`, for the endpoints whose whole contract is that sending
+  /// the same key twice has the effect of sending it once.
+  String get idempotencyKey {
+    for (final entry in headers.entries) {
+      if (entry.key.toLowerCase() == 'idempotency-key') return entry.value;
+    }
+    return '';
+  }
 
   bool get isGet => method == 'GET';
   bool get isPost => method == 'POST';

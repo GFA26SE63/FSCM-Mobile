@@ -55,7 +55,8 @@ class LoyaltyRepository {
   Future<List<GiftRedemption>> redemptions() => _loyalty.redemptions();
 
   /// Points are held right away; refunded if the request is rejected.
-  Future<GiftRedemption> redeem(String giftCode) => _loyalty.redeem(giftCode);
+  Future<GiftRedemption> redeem(String giftCode, {int quantity = 1}) =>
+      _loyalty.redeem(giftCode, quantity: quantity);
 
   Future<List<Complaint>> complaints() => _complaints.list();
 

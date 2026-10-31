@@ -126,8 +126,10 @@ class ApiClient {
       _send('GET', path, query: query);
 
   Future<dynamic> post(String path,
-          {Object? body, Map<String, dynamic>? query}) =>
-      _send('POST', path, body: body, query: query);
+          {Object? body,
+          Map<String, dynamic>? query,
+          Map<String, String>? headers}) =>
+      _send('POST', path, body: body, query: query, requestHeaders: headers);
 
   Future<dynamic> put(String path, {Object? body}) =>
       _send('PUT', path, body: body);
@@ -145,6 +147,7 @@ class ApiClient {
     String path, {
     Object? body,
     Map<String, dynamic>? query,
+    Map<String, String>? requestHeaders,
   }) async {
     final cleanQuery = query == null
         ? null
@@ -191,6 +194,7 @@ class ApiClient {
 
   Map<String, String> _buildHeaders() {
     final headers = <String, String>{'Accept': 'application/json'};
+    if (requestHeaders != null) headers.addAll(requestHeaders);
     final token = _tokenReader();
     if (token != null && token.isNotEmpty) {
       headers['Authorization'] = 'Bearer $token';
