@@ -21,7 +21,7 @@ class AuthApi {
       {required String phone, required String password}) async {
     final data = await _client.post(
       Endpoints.authLogin,
-      body: <String, dynamic>{'phone': phone, 'password': password},
+      body: <String, dynamic>{'identifier': phone, 'password': password},
     );
     return Session.fromJson(asMap(data));
   }
@@ -80,7 +80,8 @@ class AuthApi {
     );
   }
 
-  Future<void> logout() async {
-    await _client.post(Endpoints.authLogout);
+  Future<void> logout(String refreshToken) async {
+    await _client.post(Endpoints.authLogout,
+        body: <String, dynamic>{'refreshToken': refreshToken});
   }
 }

@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import 'package:fscm_mobile/core/utils/status_tone.dart';
 import 'package:fscm_mobile/data/repositories/auth_repository.dart';
 import 'package:fscm_mobile/shared/theme/app_colors.dart';
 import 'package:fscm_mobile/shared/widgets/info_banner.dart';
+import 'package:fscm_mobile/shared/routes.dart';
 
 /// Phone + password or Google login.
 class LoginScreen extends ConsumerStatefulWidget {
@@ -127,6 +129,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     FilledButton(
                       onPressed: _busy ? null : _submit,
                       child: Text(_busy ? 'Đang đăng nhập...' : 'Đăng nhập'),
+                    ),
+                    TextButton(
+                      onPressed: _busy
+                          ? null
+                          : () => context.push(AppRoutes.retailerActivation),
+                      child: const Text('Kích hoạt tài khoản Retailer lần đầu'),
                     ),
                     const SizedBox(height: 14),
                     const Row(

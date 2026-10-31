@@ -92,6 +92,29 @@ class AuthController extends StateNotifier<AuthState> {
     }
   }
 
+  Future<void> requestActivationOtp(String phone) =>
+      _ref.read(authApiProvider).requestOtp(phone.trim());
+
+  Future<String> verifyActivationOtp(String phone, String code) => _ref
+      .read(authApiProvider)
+      .verifyOtp(phone: phone.trim(), code: code.trim());
+
+  Future<bool> completeActivation(String setupToken, String password) async {
+    try {
+      final session = await _ref
+          .read(authApiProvider)
+          .setPassword(setupToken: setupToken, password: password);
+      await _tokens.save(session.toJson());
+      state = AuthState(status: AuthStatus.authenticated, session: session);
+      unawaited(_registerDevice());
+      return true;
+    } on ApiException catch (error) {
+      state =
+          AuthState(status: AuthStatus.unauthenticated, error: error.message);
+      return false;
+    }
+  }
+
   Future<bool> loginWithGoogle() async {
     try {
       final googleIdToken = await GoogleAuthService.instance.acquireIdToken();
@@ -140,7 +163,7 @@ class AuthController extends StateNotifier<AuthState> {
   Future<void> logout({bool callServer = true}) async {
     if (callServer) {
       try {
-        await _ref.read(authApiProvider).logout();
+        await _ref.read(authApiProvider).logout(_tokens.refreshToken ?? '');
       } on ApiException {
         // Logging out must work offline.
       }

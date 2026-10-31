@@ -96,15 +96,22 @@ class AppUser {
 
 class Session {
   const Session(
-      {required this.accessToken, required this.user, this.expiresAt});
+      {required this.accessToken,
+      required this.user,
+      this.refreshToken = '',
+      this.expiresAt,
+      this.refreshTokenExpiresAt});
 
   factory Session.fromJson(Map<String, dynamic> json) => Session(
         accessToken: json['accessToken']?.toString() ?? '',
+        refreshToken: json['refreshToken']?.toString() ?? '',
         expiresAt: DateTime.tryParse(
           json['expiresAt']?.toString() ??
               json['accessTokenExpiresAt']?.toString() ??
               '',
         ),
+        refreshTokenExpiresAt:
+            DateTime.tryParse(json['refreshTokenExpiresAt']?.toString() ?? ''),
         user: AppUser.fromJson(
           (json['user'] as Map?)?.cast<String, dynamic>() ??
               const <String, dynamic>{},
@@ -112,7 +119,9 @@ class Session {
       );
 
   final String accessToken;
+  final String refreshToken;
   final DateTime? expiresAt;
+  final DateTime? refreshTokenExpiresAt;
   final AppUser user;
 
   bool get isExpired =>
@@ -120,7 +129,9 @@ class Session {
 
   Map<String, dynamic> toJson() => <String, dynamic>{
         'accessToken': accessToken,
+        'refreshToken': refreshToken,
         'expiresAt': expiresAt?.toIso8601String(),
+        'refreshTokenExpiresAt': refreshTokenExpiresAt?.toIso8601String(),
         'user': user.toJson(),
       };
 }

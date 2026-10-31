@@ -8,6 +8,7 @@ import 'package:fscm_mobile/app/shell/warehouse_shell.dart';
 import 'package:fscm_mobile/core/auth/user_role.dart';
 import 'package:fscm_mobile/data/repositories/auth_repository.dart';
 import 'package:fscm_mobile/features/common/auth/login_screen.dart';
+import 'package:fscm_mobile/features/common/auth/retailer_activation_screen.dart';
 import 'package:fscm_mobile/features/common/auth/splash_screen.dart';
 import 'package:fscm_mobile/features/common/notifications/notifications_screen.dart';
 import 'package:fscm_mobile/features/common/profile/profile_screen.dart';
@@ -85,7 +86,10 @@ String? redirectFor({
     case AuthStatus.unknown:
       return location == AppRoutes.splash ? null : AppRoutes.splash;
     case AuthStatus.unauthenticated:
-      return location == AppRoutes.login ? null : AppRoutes.login;
+      return location == AppRoutes.login ||
+              location == AppRoutes.retailerActivation
+          ? null
+          : AppRoutes.login;
     case AuthStatus.authenticated:
       if (role == null || !role.hasMobileShell) return AppRoutes.login;
       if (location == '/' ||
@@ -127,6 +131,9 @@ final routerProvider = Provider<GoRouter>((ref) {
     routes: <RouteBase>[
       GoRoute(path: AppRoutes.splash, builder: (c, s) => const SplashScreen()),
       GoRoute(path: AppRoutes.login, builder: (c, s) => const LoginScreen()),
+      GoRoute(
+          path: AppRoutes.retailerActivation,
+          builder: (c, s) => const RetailerActivationScreen()),
       GoRoute(
           path: AppRoutes.notifications,
           builder: (c, s) => const NotificationsScreen()),
