@@ -1,11 +1,14 @@
 import 'dart:async';
 
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:fscm_mobile/core/config/env.dart';
 import 'package:fscm_mobile/core/network/api_exception.dart';
 import 'package:fscm_mobile/core/network/api_transport.dart';
+import 'package:fscm_mobile/core/network/dio_adapter.dart';
+import 'package:fscm_mobile/core/network/endpoints.dart';
 import 'package:fscm_mobile/core/storage/token_store.dart';
 
 /// Default transport = real HTTP. `main.dart` overrides it with `MockApi`
@@ -19,6 +22,8 @@ final apiClientProvider = Provider<ApiClient>((ref) {
   final client = ApiClient(
     transport: ref.watch(apiTransportProvider),
     tokenReader: () => tokens.accessToken,
+    refreshTokenReader: () => tokens.refreshToken,
+    onTokenRefreshed: (sessionJson) => tokens.save(sessionJson),
   );
   ref.onDispose(client.dispose);
   return client;
@@ -39,7 +44,11 @@ class DioTransport implements ApiTransport {
                 responseType: ResponseType.json,
                 validateStatus: (_) => true,
               ),
-            );
+            ) {
+    if (dio == null) {
+      configureDevHttpAdapter(_dio);
+    }
+  }
 
   final Dio _dio;
 
@@ -61,6 +70,16 @@ class DioTransport implements ApiTransport {
         case DioExceptionType.receiveTimeout:
           throw const ApiException.timeout();
         case DioExceptionType.connectionError:
+        case DioExceptionType.badCertificate:
+          // In debug builds, show which server could not be reached so a
+          // wrong API_BASE_URL (e.g. `localhost` on a physical phone) or an
+          // untrusted dev HTTPS certificate is easy to spot.
+          if (kDebugMode) {
+            throw ApiException.network(
+              'Không kết nối được máy chủ ${_dio.options.baseUrl}. '
+              '(${e.type.name}: ${e.error ?? e.message})',
+            );
+          }
           throw const ApiException.network();
         default:
           final res = e.response;
@@ -73,22 +92,35 @@ class DioTransport implements ApiTransport {
   }
 }
 
-/// Thin JSON client: adds the bearer token, maps ProblemDetails to
-/// [ApiException] and broadcasts 401s so the auth layer can log out.
+/// Thin JSON client: adds the bearer token, attempts a single token refresh on
+/// 401 (`POST /api/v1/auth/refresh`), maps ProblemDetails to [ApiException],
+/// broadcasts unrecoverable 401s (logout) and 403s (Forbidden/Scope Denied).
 class ApiClient {
-  ApiClient(
-      {required ApiTransport transport,
-      required String? Function() tokenReader})
-      : _transport = transport,
-        _tokenReader = tokenReader;
+  ApiClient({
+    required ApiTransport transport,
+    required String? Function() tokenReader,
+    String? Function()? refreshTokenReader,
+    Future<void> Function(Map<String, dynamic> session)? onTokenRefreshed,
+  })  : _transport = transport,
+        _tokenReader = tokenReader,
+        _refreshTokenReader = refreshTokenReader,
+        _onTokenRefreshed = onTokenRefreshed;
 
   final ApiTransport _transport;
   final String? Function() _tokenReader;
+  final String? Function()? _refreshTokenReader;
+  final Future<void> Function(Map<String, dynamic> session)? _onTokenRefreshed;
   final StreamController<void> _unauthorized =
       StreamController<void>.broadcast();
+  final StreamController<ApiException> _forbidden =
+      StreamController<ApiException>.broadcast();
+  Future<bool>? _refreshInFlight;
 
-  /// Fires when any call returns 401.
+  /// Fires when a call returns 401 and token refresh is unavailable or fails.
   Stream<void> get onUnauthorized => _unauthorized.stream;
+
+  /// Fires when a call returns 403 (Insufficient permissions or scope).
+  Stream<ApiException> get onForbidden => _forbidden.stream;
 
   Future<dynamic> get(String path, {Map<String, dynamic>? query}) =>
       _send('GET', path, query: query);
@@ -104,6 +136,12 @@ class ApiClient {
 
   Future<dynamic> delete(String path) => _send('DELETE', path);
 
+  static bool _isAuthEndpoint(String path) =>
+      path == Endpoints.authLogin ||
+      path == Endpoints.authRefresh ||
+      path == Endpoints.authLogout ||
+      path == Endpoints.authEntraExchange;
+
   Future<dynamic> _send(
     String method,
     String path, {
@@ -111,34 +149,95 @@ class ApiClient {
     Map<String, dynamic>? query,
     Map<String, String>? requestHeaders,
   }) async {
+    final cleanQuery = query == null
+        ? null
+        : (Map<String, dynamic>.of(query)..removeWhere((_, v) => v == null));
+
+    ApiResponse response = await _transport.send(
+      ApiRequest(
+        method: method,
+        path: path,
+        query: cleanQuery,
+        body: body,
+        headers: _buildHeaders(),
+      ),
+    );
+
+    if (response.statusCode == 401 && !_isAuthEndpoint(path)) {
+      final refreshed = await _tryRefreshOnce();
+      if (refreshed) {
+        response = await _transport.send(
+          ApiRequest(
+            method: method,
+            path: path,
+            query: cleanQuery,
+            body: body,
+            headers: _buildHeaders(),
+          ),
+        );
+      }
+    }
+
+    if (response.isSuccess) return response.data;
+
+    final error = ApiException.fromProblem(response.statusCode, response.data);
+    if (error.kind == ApiErrorKind.unauthorized &&
+        !_isAuthEndpoint(path) &&
+        !_unauthorized.isClosed) {
+      _unauthorized.add(null);
+    }
+    if (error.kind == ApiErrorKind.forbidden && !_forbidden.isClosed) {
+      _forbidden.add(error);
+    }
+    throw error;
+  }
+
+  Map<String, String> _buildHeaders() {
     final headers = <String, String>{'Accept': 'application/json'};
     if (requestHeaders != null) headers.addAll(requestHeaders);
     final token = _tokenReader();
     if (token != null && token.isNotEmpty) {
       headers['Authorization'] = 'Bearer $token';
     }
-    final cleanQuery = query == null
-        ? null
-        : (Map<String, dynamic>.of(query)..removeWhere((_, v) => v == null));
+    return headers;
+  }
 
-    final response = await _transport.send(
-      ApiRequest(
-          method: method,
-          path: path,
-          query: cleanQuery,
-          body: body,
-          headers: headers),
-    );
-    if (response.isSuccess) return response.data;
+  Future<bool> _tryRefreshOnce() {
+    final inflight = _refreshInFlight;
+    if (inflight != null) return inflight;
+    final future = _performRefresh();
+    _refreshInFlight = future;
+    return future.whenComplete(() => _refreshInFlight = null);
+  }
 
-    final error = ApiException.fromProblem(response.statusCode, response.data);
-    if (error.kind == ApiErrorKind.unauthorized && !_unauthorized.isClosed) {
-      _unauthorized.add(null);
+  Future<bool> _performRefresh() async {
+    final refreshToken = _refreshTokenReader?.call();
+    if (refreshToken == null || refreshToken.isEmpty) return false;
+    try {
+      final response = await _transport.send(
+        ApiRequest(
+          method: 'POST',
+          path: Endpoints.authRefresh,
+          body: <String, dynamic>{'refreshToken': refreshToken},
+          headers: const <String, String>{'Accept': 'application/json'},
+        ),
+      );
+      if (!response.isSuccess || response.data is! Map) return false;
+      final map = (response.data as Map).cast<String, dynamic>();
+      final accessToken = map['accessToken']?.toString() ?? '';
+      if (accessToken.isEmpty) return false;
+      final onRefreshed = _onTokenRefreshed;
+      if (onRefreshed != null) {
+        await onRefreshed(map);
+      }
+      return true;
+    } on Object {
+      return false;
     }
-    throw error;
   }
 
   void dispose() {
     unawaited(_unauthorized.close());
+    unawaited(_forbidden.close());
   }
 }

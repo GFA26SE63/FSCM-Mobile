@@ -15,7 +15,8 @@ import 'package:fscm_mobile/data/mock/mock_warehouse_handler.dart';
 /// answers the same REST paths and JSON shapes as the real backend, so
 /// repositories, parsing and the offline sync behave identically.
 class MockApi implements ApiTransport {
-  MockApi({MockStore? store}) : store = store ?? MockStore() {
+  MockApi({MockStore? store, this.latencyMs = Env.mockLatencyMs})
+      : store = store ?? MockStore() {
     _handlers = <MockHandler>[
       MockAuthHandler(this.store),
       MockCatalogHandler(this.store),
@@ -26,6 +27,7 @@ class MockApi implements ApiTransport {
   }
 
   final MockStore store;
+  final int latencyMs;
   late final List<MockHandler> _handlers;
 
   /// Set to true to make every call fail like a dead network (tests).
@@ -33,7 +35,9 @@ class MockApi implements ApiTransport {
 
   @override
   Future<ApiResponse> send(ApiRequest request) async {
-    await Future<void>.delayed(const Duration(milliseconds: Env.mockLatencyMs));
+    if (latencyMs > 0) {
+      await Future<void>.delayed(Duration(milliseconds: latencyMs));
+    }
     if (forceOffline) throw const ApiException.network();
 
     final path = request.path.split('?').first;
@@ -41,7 +45,10 @@ class MockApi implements ApiTransport {
     final token = _bearer(request.headers['Authorization']);
     final user = store.userByToken(token);
 
-    final isPublic = segments.isNotEmpty && segments.first == 'auth';
+    final isAuthMe =
+        segments.length == 2 && segments[0] == 'auth' && segments[1] == 'me';
+    final isPublic =
+        segments.isNotEmpty && segments.first == 'auth' && !isAuthMe;
     if (!isPublic && user == null) {
       return MockReply.problem(
           401, 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.',

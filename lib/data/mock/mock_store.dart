@@ -24,7 +24,10 @@ class MockUser {
     required this.fullName,
     required this.phone,
     required this.role,
+    this.email = '',
     this.password = 'Fscm2026',
+    this.isActive = true,
+    this.mustChangePassword = false,
     this.areaCode,
     this.areaName,
     this.salesGroup,
@@ -37,9 +40,12 @@ class MockUser {
 
   final String id;
   final String fullName;
+  final String email;
   final String phone;
   final UserRole role;
   final String password;
+  final bool isActive;
+  final bool mustChangePassword;
   final String? areaCode;
   final String? areaName;
   final String? salesGroup;
@@ -49,11 +55,65 @@ class MockUser {
   final String? retailerName;
   final String? retailerAddress;
 
+  UserScope get scope => UserScope(
+        warehouseIds:
+            warehouseCode != null ? <String>[warehouseCode!] : const <String>[],
+        salesGroupIds:
+            salesGroup != null ? <String>[salesGroup!] : const <String>[],
+        regionIds: areaCode != null ? <String>[areaCode!] : const <String>[],
+        retailerIds:
+            retailerCode != null ? <String>[retailerCode!] : const <String>[],
+      );
+
+  UserScopeLabels get scopeLabels => UserScopeLabels(
+        warehouses: warehouseCode != null
+            ? <ScopeLabel>[
+                ScopeLabel(
+                  id: 'wh-$warehouseCode',
+                  code: warehouseCode!,
+                  name: warehouseName ?? 'Kho $warehouseCode',
+                )
+              ]
+            : const <ScopeLabel>[],
+        salesGroups: salesGroup != null
+            ? <ScopeLabel>[
+                ScopeLabel(
+                  id: 'grp-$salesGroup',
+                  code: salesGroup!,
+                  name: 'Nhóm $salesGroup',
+                )
+              ]
+            : const <ScopeLabel>[],
+        regions: areaCode != null
+            ? <ScopeLabel>[
+                ScopeLabel(
+                  id: 'reg-$areaCode',
+                  code: areaCode!,
+                  name: areaName ?? 'Khu vực $areaCode',
+                )
+              ]
+            : const <ScopeLabel>[],
+        retailers: retailerCode != null
+            ? <ScopeLabel>[
+                ScopeLabel(
+                  id: 'rt-$retailerCode',
+                  code: retailerCode!,
+                  name: retailerName ?? 'Điểm bán $retailerCode',
+                )
+              ]
+            : const <ScopeLabel>[],
+      );
+
   AppUser toAppUser() => AppUser(
         id: id,
         fullName: fullName,
+        email: email,
         phone: phone,
         role: role,
+        isActive: isActive,
+        mustChangePassword: mustChangePassword,
+        scope: scope,
+        scopeLabels: scopeLabels,
         areaCode: areaCode,
         areaName: areaName,
         salesGroup: salesGroup,
@@ -65,6 +125,7 @@ class MockUser {
       );
 
   String get token => 'mock.${role.code}.$id';
+  String get refreshToken => 'refresh.${role.code}.$id';
 }
 
 /// Points state of one retailer in the mock Loyalty module. Pending and
@@ -188,11 +249,42 @@ class MockStore {
     return null;
   }
 
-  MockUser? userByLogin(String phone, String password) {
-    final p = phone.replaceAll(RegExp(r'\s+'), '');
+  MockUser? userByRefreshToken(String? refreshToken) {
+    if (refreshToken == null || refreshToken.isEmpty) return null;
     for (final u in users) {
-      if (u.phone == p && u.password == password) return u;
+      if (u.refreshToken == refreshToken) return u;
     }
+    return null;
+  }
+
+  MockUser? userByIdentifier(String identifier) {
+    final trimmed = identifier.trim().toLowerCase();
+    final compact = identifier.replaceAll(RegExp(r'\s+'), '');
+    if (trimmed.isEmpty) return null;
+    for (final u in users) {
+      if (u.email.isNotEmpty && u.email.toLowerCase() == trimmed) return u;
+      if (u.phone.isNotEmpty && u.phone == compact) return u;
+    }
+    return null;
+  }
+
+  MockUser? userByLogin(
+    String identifier,
+    String password, {
+    String? fallbackPhone,
+  }) {
+    final u = userByIdentifier(identifier) ??
+        (fallbackPhone != null && fallbackPhone.isNotEmpty
+            ? userByIdentifier(fallbackPhone)
+            : null);
+    if (u == null) return null;
+    final acceptedPasswords = <String>{
+      u.password,
+      'Fscm2026',
+      'Fscm@2026',
+      '12345678',
+    };
+    if (acceptedPasswords.contains(password)) return u;
     return null;
   }
 

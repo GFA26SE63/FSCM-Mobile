@@ -27,20 +27,21 @@ class Env {
   static const String flavorName =
       String.fromEnvironment('FLAVOR', defaultValue: 'dev');
 
-  /// REST base URL **including** the `/api/v1` prefix (SPEC section 8).
+  /// REST base URL including the `/api/v1` prefix (SPEC section 8).
   ///
-  /// `10.0.2.2` is the host machine as the Android emulator sees it; inside the emulator
-  /// `localhost` is the emulator itself, so a local backend is unreachable under that name. The
-  /// port is the one the API's https launch profile listens on.
+  /// Defaults to `https://localhost:7027/api/v1`.
+  /// On a physical Android phone connected via USB, forward the port with:
+  /// `adb reverse tcp:7027 tcp:7027` (handled automatically by `run_android.ps1`
+  /// and the VS Code launch configuration).
   static const String apiBaseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'https://10.0.2.2:7027/api/v1',
+    defaultValue: 'https://localhost:7027/api/v1',
   );
 
   /// When true (default) the app talks to the in-process [MockApi]
   /// (lib/data/mock) so it runs without the ASP.NET Core backend.
   static const bool useMock =
-      bool.fromEnvironment('USE_MOCK', defaultValue: true);
+      bool.fromEnvironment('USE_MOCK', defaultValue: false);
 
   /// Simulated network latency of the mock backend.
   static const int mockLatencyMs = 350;
