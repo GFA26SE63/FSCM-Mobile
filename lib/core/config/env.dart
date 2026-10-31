@@ -1,9 +1,22 @@
-/// Build-time configuration, passed with `--dart-define` (see README).
+/// Build-time configuration.
+///
+/// These are compile-time constants: they come from `--dart-define`, or from a JSON file given to
+/// `--dart-define-from-file`. Nothing here is read from disk at runtime, so a configuration file
+/// the app was not built with has no effect at all - which is worth knowing, because `env/` looks
+/// exactly like a file that would be.
+///
+/// The usual way to run against a backend is therefore:
+///
+/// ```
+/// flutter run --dart-define-from-file=env/appsettings.json
+/// ```
+///
+/// with `env/appsettings.json` holding `API_BASE_URL` and `USE_MOCK` (see
+/// `env/development.example.json`). One flag at a time also works:
 ///
 /// ```
 /// flutter run --dart-define=USE_MOCK=false \
-///   --dart-define=API_BASE_URL=https://fscm-api.azurewebsites.net/api/v1 \
-///   --dart-define=FLAVOR=staging
+///   --dart-define=API_BASE_URL=https://10.0.2.2:7027/api/v1
 /// ```
 enum AppFlavor { dev, staging, prod }
 

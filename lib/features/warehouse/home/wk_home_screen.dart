@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:fscm_mobile/data/models/enums.dart';
-import 'package:fscm_mobile/data/models/picking.dart';
+import 'package:fscm_mobile/data/models/run_picking.dart';
 import 'package:fscm_mobile/data/models/transfer.dart';
 import 'package:fscm_mobile/data/repositories/auth_repository.dart';
 import 'package:fscm_mobile/data/repositories/warehouse_repository.dart';
@@ -22,13 +22,14 @@ class WkHomeScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(currentUserProvider);
-    final pickings =
-        ref.watch(pickingListsProvider).valueOrNull ?? const <PickingList>[];
+    final sheets = ref.watch(pickingListsProvider).valueOrNull ??
+        const <RunPickingSheet>[];
     final transfers =
         ref.watch(transfersProvider).valueOrNull ?? const <Transfer>[];
-    final todo =
-        pickings.where((p) => p.status != PickingStatus.shipped).toList();
-    int count(PickingStatus s) => pickings.where((p) => p.status == s).length;
+    // Still to pick: a closed sheet is done with as far as this warehouse is
+    // concerned, whether or not the orders on it have left yet.
+    final todo = sheets.where((s) => !s.isClosed).toList();
+    int count(SheetStatus s) => sheets.where((item) => item.status == s).length;
     final incoming =
         transfers.where((t) => t.status == TransferStatus.inTransit).toList();
 

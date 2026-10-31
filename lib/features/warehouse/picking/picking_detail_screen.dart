@@ -118,12 +118,17 @@ class PickingDetailScreen extends ConsumerWidget {
                   fontSize: 12.5,
                 ),
               ),
+              for (final orderCode in sheet.orderCodes)
+                _OrderRow(sheet: sheet, orderCode: orderCode),
+              const SizedBox(height: 10),
+              _CloseSection(sheet: sheet),
             ],
-          ],
+          ),
         ),
       ),
     );
   }
+}
 
   Future<void> _showExceptionSheet(BuildContext context, PickingList p) async {
     const reasons = <String>[
@@ -254,27 +259,18 @@ class PickingDetailScreen extends ConsumerWidget {
           'Tồn thực tế đã trừ, hàng Reserved được giải phóng. Các tem chuyển Đang vận chuyển.',
       confirmLabel: 'Xuất kho',
     );
-    if (!ok) return;
-    try {
-      await ref.read(warehouseRepositoryProvider).ship(p.code);
-      ref.invalidate(pickingDetailProvider(p.code));
-      ref.read(dataVersionProvider.notifier).state++;
-      if (context.mounted) showAppSnack(context, 'Đã xuất kho ${p.code}.');
-    } on ApiException catch (e) {
-      if (context.mounted) showAppSnack(context, e.message, error: true);
-    }
   }
 }
 
-class _LineCard extends StatelessWidget {
-  const _LineCard({required this.list, required this.line});
+class _GatherCard extends StatelessWidget {
+  const _GatherCard({required this.sheet, required this.gather});
 
-  final PickingList list;
-  final PickingLine line;
+  final RunPickingSheet sheet;
+  final RunPickingGather gather;
 
   @override
   Widget build(BuildContext context) {
-    final l = line;
+    final g = gather;
     return AppCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -357,6 +353,213 @@ class _LineCard extends StatelessWidget {
               label: const Text('Quét soạn dòng này'),
             ),
           ],
+        ],
+      ),
+    );
+  }
+}
+
+/// One order on this sheet, as a door into the readiness and issue screen.
+///
+/// Deliberately says nothing about whether the order may leave. That verdict
+/// covers warehouses this sheet knows nothing about, so guessing it from the
+/// splits here would be wrong about half the time; it is fetched where it is
+/// shown.
+class _OrderRow extends StatelessWidget {
+  const _OrderRow({required this.sheet, required this.orderCode});
+
+  final RunPickingSheet sheet;
+  final String orderCode;
+
+  @override
+  Widget build(BuildContext context) {
+    final parts = sheet.partsOf(orderCode);
+    final required =
+        parts.fold<double>(0, (s, p) => s + p.split.requiredQuantity);
+    final picked = parts.fold<double>(0, (s, p) => s + p.split.pickedQuantity);
+    final batches = parts.map((p) => p.gather.batchCode).toSet();
+    return AppCard(
+      onTap: () =>
+          context.push(AppRoutes.wkOrderIssue(sheet.pickingCode, orderCode)),
+      child: Row(
+        children: <Widget>[
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Text(orderCode,
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w800, fontSize: 15)),
+                Text(
+                    'Phần kho này: ${Qty.format(picked)}/${Qty.cartons(required)} · '
+                    '${batches.length} batch',
+                    style: const TextStyle(color: AppColors.textMuted)),
+              ],
+            ),
+          ),
+          const Icon(Icons.chevron_right, color: AppColors.textMuted),
+        ],
+      ),
+    );
+  }
+}
+
+class _CloseSection extends ConsumerWidget {
+  const _CloseSection({required this.sheet});
+
+  final RunPickingSheet sheet;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final s = sheet;
+    if (s.isClosed) {
+      return InfoBanner(
+        tone: s.hasException ? StatusTone.danger : StatusTone.primary,
+        icon:
+            s.hasException ? Icons.report_outlined : Icons.inventory_2_outlined,
+        text: s.hasException
+            ? 'Phiếu đã đóng với ngoại lệ. Người có quyền phải xử lý trước khi đơn được xuất.'
+            : 'Phiếu đã soạn xong lúc ${AppDates.timeDay(s.completedAt)}. Hàng chưa rời kho và tồn chưa thay đổi — mở từng đơn ở trên để xác nhận xuất.',
+      );
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        FilledButton.icon(
+          onPressed: s.allPicked ? () => _complete(context, ref, s) : null,
+          icon: const Icon(Icons.playlist_add_check),
+          label: const Text('Đóng phiếu soạn'),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          s.allPicked
+              ? 'Đóng phiếu là xong bước soạn. Tồn chưa bị trừ, hàng chưa rời kho.'
+              : 'Quét đủ mọi lượt lấy để đóng phiếu.',
+          textAlign: TextAlign.center,
+          style: const TextStyle(color: AppColors.textMuted, fontSize: 12.5),
+        ),
+        const SizedBox(height: 6),
+        OutlinedButton.icon(
+          onPressed: () => _flagException(context, ref, s),
+          icon: const Icon(Icons.report_outlined),
+          label: const Text('Báo ngoại lệ (thiếu/hỏng)'),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _complete(
+      BuildContext context, WidgetRef ref, RunPickingSheet s) async {
+    final ok = await confirmDialog(
+      context,
+      title: 'Đóng phiếu ${s.pickingCode}?',
+      message:
+          'Xác nhận đã lấy đủ mọi lượt. Đây là xong bước soạn — tồn chưa bị trừ và hàng chưa rời kho.',
+      confirmLabel: 'Đóng phiếu',
+    );
+    if (!ok) return;
+    if (!context.mounted) return;
+    await _send(context, ref, s, null, null);
+  }
+
+  Future<void> _flagException(
+      BuildContext context, WidgetRef ref, RunPickingSheet s) async {
+    final choice = await showModalBottomSheet<({String type, String note})>(
+      context: context,
+      builder: (ctx) => const _ExceptionSheet(),
+    );
+    if (choice == null) return;
+    if (!context.mounted) return;
+    final ok = await confirmDialog(
+      context,
+      title: 'Báo ngoại lệ cho ${s.pickingCode}?',
+      message:
+          'Cả đơn sẽ chuyển Cần xử lý và mọi phần chưa xuất bị chặn, kể cả phần ở kho khác. Không có chuyện giao một phần.',
+      confirmLabel: 'Báo ngoại lệ',
+    );
+    if (!ok) return;
+    if (!context.mounted) return;
+    await _send(context, ref, s, choice.type, choice.note);
+  }
+
+  Future<void> _send(BuildContext context, WidgetRef ref, RunPickingSheet s,
+      String? exceptionType, String? note) async {
+    try {
+      await ref.read(warehouseRepositoryProvider).completeSheet(
+            s.pickingCode,
+            expectedPickingVersion: s.version,
+            exceptionType: exceptionType,
+            note: note,
+          );
+      ref.invalidate(pickingDetailProvider(s.pickingCode));
+      ref.read(dataVersionProvider.notifier).state++;
+      if (context.mounted) {
+        showAppSnack(
+            context,
+            exceptionType == null
+                ? 'Đã đóng phiếu ${s.pickingCode}.'
+                : 'Đã báo ngoại lệ cho ${s.pickingCode}.');
+      }
+    } on ApiException catch (e) {
+      if (context.mounted) showAppSnack(context, e.message, error: true);
+    }
+  }
+}
+
+class _ExceptionSheet extends StatefulWidget {
+  const _ExceptionSheet();
+
+  @override
+  State<_ExceptionSheet> createState() => _ExceptionSheetState();
+}
+
+class _ExceptionSheetState extends State<_ExceptionSheet> {
+  String _type = 'Shortage';
+  final TextEditingController _note = TextEditingController();
+
+  @override
+  void dispose() {
+    _note.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+          16, 16, 16, 16 + MediaQuery.of(context).viewInsets.bottom),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          const Text('Loại ngoại lệ',
+              style: TextStyle(fontWeight: FontWeight.w800)),
+          RadioListTile<String>(
+            value: 'Shortage',
+            groupValue: _type,
+            onChanged: (v) => setState(() => _type = v ?? _type),
+            title: const Text('Thiếu hàng trên kệ'),
+            contentPadding: EdgeInsets.zero,
+          ),
+          RadioListTile<String>(
+            value: 'Damaged',
+            groupValue: _type,
+            onChanged: (v) => setState(() => _type = v ?? _type),
+            title: const Text('Hàng hỏng'),
+            contentPadding: EdgeInsets.zero,
+          ),
+          TextField(
+            controller: _note,
+            decoration: const InputDecoration(
+                labelText: 'Ghi chú', hintText: 'Mô tả ngắn cho người xử lý'),
+            maxLines: 2,
+          ),
+          const SizedBox(height: 12),
+          FilledButton(
+            onPressed: () => Navigator.of(context)
+                .pop((type: _type, note: _note.text.trim())),
+            child: const Text('Tiếp tục'),
+          ),
         ],
       ),
     );

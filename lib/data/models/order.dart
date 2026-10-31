@@ -91,6 +91,7 @@ class OrderLine {
 /// the local queue are mapped to this model too (see `OrderRepository`).
 class Order {
   const Order({
+    this.id = '',
     required this.code,
     required this.retailerCode,
     required this.retailerName,
@@ -122,9 +123,13 @@ class Order {
     this.pointsPending = false,
     this.labelCodes = const <String>[],
     this.timeline = const <TimelineEntry>[],
+    this.allocationState = '',
+    this.allocationResult = '',
+    this.allocationRunId = '',
   });
 
   factory Order.fromJson(Map<String, dynamic> j) => Order(
+        id: asStr(j['id']),
         code: asStr(j['code']),
         retailerCode: asStr(j['retailerCode']),
         retailerName: asStr(j['retailerName']),
@@ -155,8 +160,14 @@ class Order {
         pointsPending: asBool(j['pointsPending']),
         labelCodes: asStrList(j['labelCodes']),
         timeline: mapList(j['timeline'], TimelineEntry.fromJson),
+        allocationState: asStr(j['allocationState']),
+        allocationResult: asStr(j['allocationResult']),
+        allocationRunId: asStr(j['allocationRunId']),
       );
 
+  /// Server GUID. Required by the allocation-run result endpoint (F90).
+  /// Offline-only orders do not have one until they are synced.
+  final String id;
   final String code;
   final String retailerCode;
   final String retailerName;
@@ -199,6 +210,12 @@ class Order {
   /// Labels (TEM) shipped for this order - the retailer scans them.
   final List<String> labelCodes;
   final List<TimelineEntry> timeline;
+
+  /// Result frozen by the server's allocation run. A short result is history;
+  /// it must not be resent into a later run with the old priority timestamp.
+  final String allocationState;
+  final String allocationResult;
+  final String allocationRunId;
 
   int get finalAmount => total - discount;
   bool get hasDelivery => vehiclePlate.isNotEmpty;
@@ -246,6 +263,7 @@ class Order {
     List<TimelineEntry>? timeline,
   }) =>
       Order(
+        id: id,
         code: code,
         retailerCode: retailerCode,
         retailerName: retailerName,
@@ -277,9 +295,13 @@ class Order {
         pointsPending: pointsPending ?? this.pointsPending,
         labelCodes: labelCodes,
         timeline: timeline ?? this.timeline,
+        allocationState: allocationState,
+        allocationResult: allocationResult,
+        allocationRunId: allocationRunId,
       );
 
   Map<String, dynamic> toJson() => <String, dynamic>{
+        'id': id,
         'code': code,
         'retailerCode': retailerCode,
         'retailerName': retailerName,
@@ -310,6 +332,9 @@ class Order {
         'pointsPending': pointsPending,
         'labelCodes': labelCodes,
         'timeline': timeline.map((t) => t.toJson()).toList(),
+        'allocationState': allocationState,
+        'allocationResult': allocationResult,
+        'allocationRunId': allocationRunId,
       };
 }
 

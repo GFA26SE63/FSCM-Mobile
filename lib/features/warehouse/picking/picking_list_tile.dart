@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:fscm_mobile/core/utils/dates.dart';
-import 'package:fscm_mobile/data/models/enums.dart';
-import 'package:fscm_mobile/data/models/picking.dart';
+import 'package:fscm_mobile/core/utils/quantity.dart';
+import 'package:fscm_mobile/data/models/run_picking.dart';
 import 'package:fscm_mobile/shared/routes.dart';
 import 'package:fscm_mobile/shared/theme/app_colors.dart';
 import 'package:fscm_mobile/shared/widgets/status_chip.dart';
@@ -11,9 +11,9 @@ import 'package:fscm_mobile/shared/widgets/status_chip.dart';
 /// Row of a picking list matching `FSCM_Prototype_Prod_v1.1.html`
 /// (`DEFS.warehouse`).
 class PickingListTile extends StatelessWidget {
-  const PickingListTile({super.key, required this.list});
+  const PickingListTile({super.key, required this.sheet});
 
-  final PickingList list;
+  final RunPickingSheet sheet;
 
   @override
   Widget build(BuildContext context) {

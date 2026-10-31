@@ -21,14 +21,14 @@ class Complaint {
         code: asStr(j['code']),
         orderCode: asStr(j['orderCode']),
         sku: asStr(j['sku']),
-        name: asStr(j['name']),
-        expectedQty: asInt(j['expectedQty']),
-        actualQty: asInt(j['actualQty']),
+        name: asStr(j['productName'], asStr(j['name'])),
+        expectedQty: asInt(j['expectedQuantity'] ?? j['expectedQty']),
+        actualQty: asInt(j['actualQuantity'] ?? j['actualQty']),
         status: ComplaintStatus.fromCode(asStrOrNull(j['status'])),
         labelCode: asStr(j['labelCode']),
         note: asStr(j['note']),
         createdAt: asDate(j['createdAt']),
-        response: asStr(j['response']),
+        response: asStr(j['response'], asStr(j['responseNote'])),
       );
 
   final String code;
@@ -54,6 +54,8 @@ class NewComplaint {
     required this.labelCode,
     required this.actualQty,
     required this.note,
+    this.shipmentId,
+    this.allocationPlanPriceId,
   });
 
   final String orderCode;
@@ -61,6 +63,8 @@ class NewComplaint {
   final String labelCode;
   final int actualQty;
   final String note;
+  final String? shipmentId;
+  final String? allocationPlanPriceId;
 
   Map<String, dynamic> toJson() => <String, dynamic>{
         'orderCode': orderCode,
@@ -68,5 +72,8 @@ class NewComplaint {
         'labelCode': labelCode,
         'actualQty': actualQty,
         'note': note,
+        if (shipmentId != null && shipmentId!.isNotEmpty) 'shipmentId': shipmentId,
+        if (allocationPlanPriceId != null && allocationPlanPriceId!.isNotEmpty)
+          'allocationPlanPriceId': allocationPlanPriceId,
       };
 }

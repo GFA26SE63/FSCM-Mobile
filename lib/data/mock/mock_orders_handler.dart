@@ -23,6 +23,9 @@ class MockOrdersHandler extends MockHandler {
     if (user == null) return null;
 
     if (r.matches('GET', '/orders')) return _list(user, r);
+    if (r.matches('GET', '/allocation-runs/orders/*/result')) {
+      return _allocationResult(r.segments[2]);
+    }
     if (r.matches('POST', '/orders/sync')) return _sync(user, r);
     if (r.matches('POST', '/orders')) return _create(user, r);
     if (r.matches('GET', '/orders/*')) {
@@ -39,6 +42,45 @@ class MockOrdersHandler extends MockHandler {
       return _confirmReceipt(user, r.segments[1], r.body);
     }
     return null;
+  }
+
+  ApiResponse _allocationResult(String orderId) {
+    final matches = store.orders.where((o) => o.id == orderId).toList();
+    if (matches.isEmpty) {
+      return MockReply.notFound('kết quả phân bổ $orderId');
+    }
+    final order = matches.first;
+    final lines = <Map<String, dynamic>>[];
+    for (var i = 0; i < order.lines.length; i++) {
+      final line = order.lines[i];
+      lines.add(<String, dynamic>{
+        'salesOrderLineId': 'mock-line-${order.code}-$i',
+        'sku': line.sku,
+        'lineNumber': i + 1,
+        'orderedQuantity': line.qty,
+        'allocatedQuantity': line.qty,
+        'shortageQuantity': 0,
+        'outcome': 'Allocated',
+        'reason': '',
+        'finalAmount': line.net,
+      });
+    }
+    return MockReply.ok(<String, dynamic>{
+      'salesOrderId': order.id,
+      'orderCode': order.code,
+      'allocationRunId': 'mock-run-01',
+      'runCode': 'DOT-MOCK-01',
+      'businessDate': '2026-10-27',
+      'cutoffAt': '2026-10-27T00:00:00Z',
+      'approvedAt': '2026-10-27T00:30:00Z',
+      'planVersionNumber': 1,
+      'isFulfilled': true,
+      'shortageReason': null,
+      'hasReservedStock': true,
+      'canResubmitKeepingPriority': false,
+      'finalAmount': order.finalAmount,
+      'lines': lines,
+    });
   }
 
   // ------------------------------------------------------------------ list
@@ -123,6 +165,7 @@ class MockOrdersHandler extends MockHandler {
       );
     }).toList();
     return Order(
+      id: 'mock-order-$code',
       code: code,
       retailerCode: retailer.code,
       retailerName: retailer.name,

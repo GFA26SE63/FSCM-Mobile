@@ -43,7 +43,7 @@ class Endpoints {
   // ----------------------------------------------------------- inventory
   static const String warehouses = '/warehouses';
   static const String batches = '/batches';
-  static String label(String code) => '/labels/$code';
+  static String label(String code) => '/qr-labels/$code';
   static const String transfers = '/transfers';
   static String transfer(String code) => '/transfers/$code';
   static String transferReceive(String code) => '/transfers/$code/receive';
@@ -54,12 +54,41 @@ class Endpoints {
   static String orderCancel(String code) => '/orders/$code/cancel';
   static String orderConfirmReceipt(String code) =>
       '/orders/$code/confirm-receipt';
+  static String allocationRunOrderResult(String orderId) =>
+      '/allocation-runs/orders/$orderId/result';
   static const String ordersSync = '/orders/sync';
+  static const String complaints = '/complaints';
+  static String quotesForOrder(String orderId) => '/quotes/orders/$orderId';
+  static String quoteAccept(String quoteId) => '/quotes/$quoteId/accept';
+  static String quoteReject(String quoteId) => '/quotes/$quoteId/reject';
+
+  // ------------------------------------------------------- run picking (F43)
+  // One sheet per warehouse per allocation run, not one per order: a sheet
+  // gathers by SKU/batch and then splits each gather back to the order lines
+  // the run allocated it to.
   static const String pickingLists = '/picking-lists';
   static String pickingList(String code) => '/picking-lists/$code';
-  static String pickingListScan(String code) => '/picking-lists/$code/scan';
-  static String pickingListShip(String code) => '/picking-lists/$code/ship';
-  static const String complaints = '/complaints';
+
+  /// F44. Needs an `Idempotency-Key` header; a repeat of the same key returns
+  /// the sheet unchanged rather than picking the cartons twice.
+  static String pickingListScans(String code) => '/picking-lists/$code/scans';
+
+  /// Closes this warehouse's portion, or records an exception on it. The server
+  /// refuses while any approved gather or split is still short.
+  static String pickingListComplete(String code) =>
+      '/picking-lists/$code/complete';
+
+  // ------------------------------------------------- shipments (F93, F96)
+  static const String shipments = '/shipments';
+  static String shipment(String id) => '/shipments/$id';
+
+  /// F93. Whether the whole order may leave, and which part is holding it.
+  static String orderShipmentReadiness(String orderId) =>
+      '/shipments/orders/$orderId/readiness';
+
+  /// F96. Confirms this warehouse's part physically left. OnHand and Reserved
+  /// fall together here and nowhere else; calling twice does not deduct twice.
+  static String shipmentIssue(String id) => '/shipments/$id/issue';
 
   // ------------------------------------------------------------- pricing
   static const String promotions = '/promotions';
@@ -72,6 +101,9 @@ class Endpoints {
 
   // ------------------------------------------------------------- loyalty
   static const String loyaltyPrograms = '/loyalty/programs';
+  static const String loyaltyCardMe = '/loyalty/cards/me';
+  static const String loyaltyRewards = '/loyalty/rewards';
+  static const String loyaltyRedemptions = '/loyalty/redemptions';
   static String loyaltyRetailer(String code) => '/loyalty/retailers/$code';
   static const String gifts = '/gifts';
   static const String giftRedemptions = '/gift-redemptions';

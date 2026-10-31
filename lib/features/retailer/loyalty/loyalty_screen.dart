@@ -75,8 +75,17 @@ class LoyaltyScreen extends ConsumerWidget {
                   style: const TextStyle(height: 1.4),
                 ),
               ),
+              if (a.balance < 0) ...<Widget>[
+                const SizedBox(height: 12),
+                const AppCard(
+                  child: Text(
+                    'Điểm khả dụng đang âm do có giao dịch điều chỉnh. Bạn chưa thể đổi quà mới cho đến khi số dư được xử lý.',
+                    style: TextStyle(color: AppColors.danger, height: 1.4),
+                  ),
+                ),
+              ],
               FilledButton.icon(
-                onPressed: () => context.push(AppRoutes.rtGifts),
+                onPressed: a.balance > 0 ? () => context.push(AppRoutes.rtGifts) : null,
                 icon: const Icon(Icons.card_giftcard),
                 label: const Text('Đổi quà'),
               ),
@@ -133,7 +142,8 @@ class _LedgerTile extends StatelessWidget {
                 Text(e.description,
                     style: const TextStyle(fontWeight: FontWeight.w600)),
                 Text(
-                  '${AppDates.timeDay(e.date)} · ${e.kind.label}',
+                  '${AppDates.timeDay(e.date)} · ${e.kind.label}'
+                  '${e.source.isEmpty ? '' : ' · Nguồn: ${e.source}'}',
                   style:
                       const TextStyle(color: AppColors.textMuted, fontSize: 12),
                 ),

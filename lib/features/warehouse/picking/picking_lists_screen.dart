@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:fscm_mobile/data/models/enums.dart';
-import 'package:fscm_mobile/data/models/picking.dart';
+import 'package:fscm_mobile/data/models/run_picking.dart';
 import 'package:fscm_mobile/data/repositories/warehouse_repository.dart';
 import 'package:fscm_mobile/features/common/notifications/notification_bell_button.dart';
 import 'package:fscm_mobile/features/warehouse/picking/picking_list_tile.dart';
@@ -14,9 +14,9 @@ import 'package:fscm_mobile/shared/widgets/empty_state.dart';
 /// Picking lists screen matching `FSCM_Prototype_Prod_v1.1.html`
 /// (`DEFS.warehouse` PICKING).
 class PickingListsScreen extends ConsumerStatefulWidget {
-  const PickingListsScreen({super.key, this.shippedOnly = false});
+  const PickingListsScreen({super.key, this.closedOnly = false});
 
-  final bool shippedOnly;
+  final bool closedOnly;
 
   @override
   ConsumerState<PickingListsScreen> createState() => _PickingListsScreenState();
@@ -84,7 +84,7 @@ class _PickingListsScreenState extends ConsumerState<PickingListsScreen> {
             ),
           ],
           Expanded(
-            child: AsyncBody<List<PickingList>>(
+            child: AsyncBody<List<RunPickingSheet>>(
               value: value,
               onRetry: () => ref.invalidate(pickingListsProvider),
               builder: (all) {
