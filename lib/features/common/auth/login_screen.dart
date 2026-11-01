@@ -41,7 +41,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final identifier = _identifier.text.trim();
     bool ok;
     try {
-      ok = await ref.read(authControllerProvider.notifier).login(identifier, _password.text);
+      ok = await ref
+          .read(authControllerProvider.notifier)
+          .login(identifier, _password.text);
     } on ApiException catch (error) {
       if (error.code == 'retailer_activation_required' && mounted) {
         await context.push(AppRoutes.retailerActivation);
@@ -105,13 +107,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     TextFormField(
                       controller: _identifier,
                       keyboardType: TextInputType.emailAddress,
-                      decoration:
-                          const InputDecoration(labelText: 'Email hoặc số điện thoại'),
+                      decoration: const InputDecoration(
+                          labelText: 'Email hoặc Số điện thoại'),
                       validator: (v) {
                         final value = v?.trim() ?? '';
-                        final isEmail = RegExp(r'^\S+@\S+\.\S+$').hasMatch(value);
-                        final isPhone = RegExp(r'^0\d{9}$').hasMatch(value.replaceAll(' ', ''));
-                        return isEmail || isPhone ? null : 'Nhập email hoặc số điện thoại hợp lệ';
+                        final isEmail =
+                            RegExp(r'^\S+@\S+\.\S+$').hasMatch(value);
+                        final isPhone = RegExp(r'^0\d{9}$')
+                            .hasMatch(value.replaceAll(' ', ''));
+                        return isEmail || isPhone
+                            ? null
+                            : 'Nhập email hoặc số điện thoại hợp lệ';
                       },
                     ),
                     const SizedBox(height: 12),
