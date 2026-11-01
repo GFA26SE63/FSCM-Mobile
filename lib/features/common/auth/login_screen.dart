@@ -18,7 +18,7 @@ class LoginScreen extends ConsumerStatefulWidget {
 }
 
 class _LoginScreenState extends ConsumerState<LoginScreen> {
-  final TextEditingController _phone = TextEditingController();
+  final TextEditingController _identifier = TextEditingController();
   final TextEditingController _password = TextEditingController();
   final GlobalKey<FormState> _form = GlobalKey<FormState>();
   bool _busy = false;
@@ -27,7 +27,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   @override
   void dispose() {
-    _phone.dispose();
+    _identifier.dispose();
     _password.dispose();
     super.dispose();
   }
@@ -38,10 +38,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       _busy = true;
       _error = null;
     });
-    final phone = _phone.text.replaceAll(' ', '');
+    final identifier = _identifier.text.trim();
     bool ok;
     try {
-      ok = await ref.read(authControllerProvider.notifier).login(phone, _password.text);
+      ok = await ref.read(authControllerProvider.notifier).login(identifier, _password.text);
     } on ApiException catch (error) {
       if (error.code == 'retailer_activation_required' && mounted) {
         await context.push(AppRoutes.retailerActivation);
@@ -103,14 +103,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     ),
                     const SizedBox(height: 24),
                     TextFormField(
-                      controller: _phone,
-                      keyboardType: TextInputType.phone,
+                      controller: _identifier,
+                      keyboardType: TextInputType.emailAddress,
                       decoration:
-                          const InputDecoration(labelText: 'Số điện thoại'),
-                      validator: (v) =>
-                          (v == null || v.replaceAll(' ', '').length < 9)
-                              ? 'Nhập số điện thoại'
-                              : null,
+                          const InputDecoration(labelText: 'Email hoặc số điện thoại'),
+                      validator: (v) {
+                        final value = v?.trim() ?? '';
+                        final isEmail = RegExp(r'^\S+@\S+\.\S+$').hasMatch(value);
+                        final isPhone = RegExp(r'^0\d{9}$').hasMatch(value.replaceAll(' ', ''));
+                        return isEmail || isPhone ? null : 'Nhập email hoặc số điện thoại hợp lệ';
+                      },
                     ),
                     const SizedBox(height: 12),
                     TextFormField(
