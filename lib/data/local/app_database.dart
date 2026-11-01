@@ -1,5 +1,8 @@
+import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 import 'package:sqflite/sqflite.dart';
+
+import 'package:fscm_mobile/data/local/database_factory.dart';
 
 /// Names of the SQLite tables (SPEC section 11, "Offline").
 class Tables {
@@ -94,9 +97,11 @@ CREATE TABLE ${Tables.offlineOrderQueue} (
   Future<Database> get database async => _db ??= await _open();
 
   Future<Database> _open() async {
-    final dir = await getDatabasesPath();
+    initDatabaseFactory();
+    final path =
+        kIsWeb ? databaseName : p.join(await getDatabasesPath(), databaseName);
     return openDatabase(
-      p.join(dir, databaseName),
+      path,
       version: version,
       onCreate: (db, v) => _runMigrations(db, 0, v),
       onUpgrade: _runMigrations,

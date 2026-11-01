@@ -1,9 +1,6 @@
 /// Transport abstraction under [ApiClient].
 ///
-/// * `DioTransport` (api_client.dart) talks HTTP to the ASP.NET Core API.
-/// * `MockApi` (lib/data/mock) answers the same endpoints in-process, so
-///   repositories, JSON parsing and the offline sync run identically with
-///   and without a backend.
+/// `DioTransport` (api_client.dart) talks HTTP to the ASP.NET Core API.
 class ApiRequest {
   const ApiRequest({
     required this.method,

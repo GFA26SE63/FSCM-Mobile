@@ -109,7 +109,7 @@ class ApiException implements Exception {
       case ApiErrorKind.unauthorized:
         return 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.';
       case ApiErrorKind.forbidden:
-        return 'Bạn không có quyền thực hiện thao tác này.';
+        return 'Không đủ quyền/phạm vi truy cập.';
       case ApiErrorKind.notFound:
         return 'Không tìm thấy dữ liệu.';
       case ApiErrorKind.conflict:

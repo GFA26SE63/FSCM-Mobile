@@ -1,14 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
-import 'package:fscm_mobile/core/config/env.dart';
 import 'package:fscm_mobile/core/utils/status_tone.dart';
+import 'package:fscm_mobile/core/network/api_exception.dart';
 import 'package:fscm_mobile/data/repositories/auth_repository.dart';
 import 'package:fscm_mobile/shared/theme/app_colors.dart';
 import 'package:fscm_mobile/shared/widgets/info_banner.dart';
+import 'package:fscm_mobile/shared/routes.dart';
 
-/// Phone + password login. With `Env.useMock` a developer role picker fills
-/// the demo credentials of Sales / Warehouse Keeper / Retailer.
+/// Phone + password or Google login.
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
 
@@ -16,25 +17,8 @@ class LoginScreen extends ConsumerStatefulWidget {
   ConsumerState<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _DemoAccount {
-  const _DemoAccount(this.label, this.subtitle, this.phone, this.icon);
-  final String label;
-  final String subtitle;
-  final String phone;
-  final IconData icon;
-}
-
-const List<_DemoAccount> _demoAccounts = <_DemoAccount>[
-  _DemoAccount('Sales', 'Nguyễn Văn An · Nhóm Q12-A', '0909123456',
-      Icons.badge_outlined),
-  _DemoAccount('Thủ kho', 'Đỗ Văn Tâm · Kho Thới An', '0912440118',
-      Icons.warehouse_outlined),
-  _DemoAccount('Điểm bán', 'Tạp hóa Minh Châu · 10004127', '0909555127',
-      Icons.storefront_outlined),
-];
-
 class _LoginScreenState extends ConsumerState<LoginScreen> {
-  final TextEditingController _phone = TextEditingController();
+  final TextEditingController _identifier = TextEditingController();
   final TextEditingController _password = TextEditingController();
   final GlobalKey<FormState> _form = GlobalKey<FormState>();
   bool _busy = false;
@@ -43,7 +27,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   @override
   void dispose() {
-    _phone.dispose();
+    _identifier.dispose();
     _password.dispose();
     super.dispose();
   }
@@ -54,9 +38,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       _busy = true;
       _error = null;
     });
-    final ok = await ref
-        .read(authControllerProvider.notifier)
-        .login(_phone.text.replaceAll(' ', ''), _password.text);
+    final identifier = _identifier.text.trim();
+    bool ok;
+    try {
+      ok = await ref
+          .read(authControllerProvider.notifier)
+          .login(identifier, _password.text);
+    } on ApiException catch (error) {
+      if (error.code == 'retailer_activation_required' && mounted) {
+        await context.push(AppRoutes.retailerActivation);
+        return;
+      }
+      rethrow;
+    }
     if (!mounted) return;
     setState(() {
       _busy = false;
@@ -64,11 +58,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     });
   }
 
-  void _pick(_DemoAccount a) {
+  Future<void> _submitGoogle() async {
     setState(() {
-      _phone.text = a.phone;
-      _password.text = 'Fscm2026';
+      _busy = true;
       _error = null;
+    });
+    final ok =
+        await ref.read(authControllerProvider.notifier).loginWithGoogle();
+    if (!mounted) return;
+    setState(() {
+      _busy = false;
+      if (!ok) _error = ref.read(authControllerProvider).error;
     });
   }
 
@@ -105,14 +105,20 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     ),
                     const SizedBox(height: 24),
                     TextFormField(
-                      controller: _phone,
-                      keyboardType: TextInputType.phone,
-                      decoration:
-                          const InputDecoration(labelText: 'Số điện thoại'),
-                      validator: (v) =>
-                          (v == null || v.replaceAll(' ', '').length < 9)
-                              ? 'Nhập số điện thoại'
-                              : null,
+                      controller: _identifier,
+                      keyboardType: TextInputType.emailAddress,
+                      decoration: const InputDecoration(
+                          labelText: 'Email hoặc Số điện thoại'),
+                      validator: (v) {
+                        final value = v?.trim() ?? '';
+                        final isEmail =
+                            RegExp(r'^\S+@\S+\.\S+$').hasMatch(value);
+                        final isPhone = RegExp(r'^0\d{9}$')
+                            .hasMatch(value.replaceAll(' ', ''));
+                        return isEmail || isPhone
+                            ? null
+                            : 'Nhập email hoặc số điện thoại hợp lệ';
+                      },
                     ),
                     const SizedBox(height: 12),
                     TextFormField(
@@ -127,9 +133,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               : Icons.visibility),
                         ),
                       ),
-                      validator: (v) =>
-                          (v == null || v.isEmpty) ? 'Nhập mật khẩu' : null,
                       onFieldSubmitted: (_) => _submit(),
+                    ),
+                    const Padding(
+                      padding: EdgeInsets.only(top: 6, left: 4),
+                      child: Text(
+                        'Để trống nếu đăng nhập lần đầu.',
+                        style: TextStyle(
+                          color: AppColors.textMuted,
+                          fontSize: 12,
+                        ),
+                      ),
                     ),
                     const SizedBox(height: 12),
                     if (_error != null)
@@ -141,44 +155,27 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       onPressed: _busy ? null : _submit,
                       child: Text(_busy ? 'Đang đăng nhập...' : 'Đăng nhập'),
                     ),
-                    const SizedBox(height: 10),
-                    const Text(
-                      'Tài khoản do nhà phân phối / Admin cấp. Vai trò (Sales, Thủ kho, Điểm bán) '
-                      'được xác định theo tài khoản.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                          color: AppColors.textMuted,
-                          fontSize: 12.5,
-                          height: 1.4),
-                    ),
-                    if (Env.useMock) ...<Widget>[
-                      const SizedBox(height: 28),
-                      const Divider(),
-                      const SizedBox(height: 12),
-                      const Text(
-                        'Chọn vai trò demo (chế độ mock)',
-                        style: TextStyle(fontWeight: FontWeight.w700),
-                      ),
-                      const SizedBox(height: 8),
-                      for (final a in _demoAccounts)
-                        Card(
-                          margin: const EdgeInsets.only(bottom: 8),
-                          child: ListTile(
-                            leading: Icon(a.icon, color: AppColors.primary),
-                            title: Text(a.label,
-                                style: const TextStyle(
-                                    fontWeight: FontWeight.w700)),
-                            subtitle: Text(a.subtitle),
-                            trailing: const Icon(Icons.chevron_right),
-                            onTap: () => _pick(a),
-                          ),
+                    const SizedBox(height: 14),
+                    const Row(
+                      children: <Widget>[
+                        Expanded(child: Divider()),
+                        Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 12),
+                          child: Text('hoặc'),
                         ),
-                      const Text(
-                        'Mật khẩu demo: Fscm2026',
-                        style:
-                            TextStyle(color: AppColors.textMuted, fontSize: 12),
+                        Expanded(child: Divider()),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+                    OutlinedButton.icon(
+                      onPressed: _busy ? null : _submitGoogle,
+                      icon: Image.asset(
+                        'assets/images/google_g_logo.png',
+                        width: 20,
+                        height: 20,
                       ),
-                    ],
+                      label: const Text('Đăng nhập bằng Google'),
+                    ),
                   ],
                 ),
               ),

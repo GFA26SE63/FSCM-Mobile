@@ -4,13 +4,14 @@ class Endpoints {
   Endpoints._();
 
   // ---------------------------------------------------------------- auth
-  // Mobile auth facade in front of Microsoft Entra External ID (phone OTP +
-  // password). Not listed in SPEC section 8 yet - agree with backend team.
+  // Local credentials remain available; Google exchanges a verified ID token
+  // for the same internal FSCM session contract.
   static const String authLogin = '/auth/login';
   static const String authOtpRequest = '/auth/otp/request';
   static const String authOtpVerify = '/auth/otp/verify';
   static const String authSetPassword = '/auth/password';
   static const String authLogout = '/auth/logout';
+  static const String authGoogleExchange = '/auth/google/exchange';
 
   // ------------------------------------------------------------ identity
   static const String me = '/me';
