@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:fscm_mobile/core/utils/status_tone.dart';
+import 'package:fscm_mobile/core/network/api_exception.dart';
 import 'package:fscm_mobile/data/repositories/auth_repository.dart';
 import 'package:fscm_mobile/shared/theme/app_colors.dart';
 import 'package:fscm_mobile/shared/widgets/info_banner.dart';
@@ -17,7 +18,7 @@ class LoginScreen extends ConsumerStatefulWidget {
 }
 
 class _LoginScreenState extends ConsumerState<LoginScreen> {
-  final TextEditingController _phone = TextEditingController();
+  final TextEditingController _identifier = TextEditingController();
   final TextEditingController _password = TextEditingController();
   final GlobalKey<FormState> _form = GlobalKey<FormState>();
   bool _busy = false;
@@ -26,7 +27,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   @override
   void dispose() {
-    _phone.dispose();
+    _identifier.dispose();
     _password.dispose();
     super.dispose();
   }
@@ -37,9 +38,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       _busy = true;
       _error = null;
     });
-    final ok = await ref
-        .read(authControllerProvider.notifier)
-        .login(_phone.text.replaceAll(' ', ''), _password.text);
+    final identifier = _identifier.text.trim();
+    bool ok;
+    try {
+      ok = await ref
+          .read(authControllerProvider.notifier)
+          .login(identifier, _password.text);
+    } on ApiException catch (error) {
+      if (error.code == 'retailer_activation_required' && mounted) {
+        await context.push(AppRoutes.retailerActivation);
+        return;
+      }
+      rethrow;
+    }
     if (!mounted) return;
     setState(() {
       _busy = false;
@@ -94,14 +105,20 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     ),
                     const SizedBox(height: 24),
                     TextFormField(
-                      controller: _phone,
-                      keyboardType: TextInputType.phone,
-                      decoration:
-                          const InputDecoration(labelText: 'Số điện thoại'),
-                      validator: (v) =>
-                          (v == null || v.replaceAll(' ', '').length < 9)
-                              ? 'Nhập số điện thoại'
-                              : null,
+                      controller: _identifier,
+                      keyboardType: TextInputType.emailAddress,
+                      decoration: const InputDecoration(
+                          labelText: 'Email hoặc Số điện thoại'),
+                      validator: (v) {
+                        final value = v?.trim() ?? '';
+                        final isEmail =
+                            RegExp(r'^\S+@\S+\.\S+$').hasMatch(value);
+                        final isPhone = RegExp(r'^0\d{9}$')
+                            .hasMatch(value.replaceAll(' ', ''));
+                        return isEmail || isPhone
+                            ? null
+                            : 'Nhập email hoặc số điện thoại hợp lệ';
+                      },
                     ),
                     const SizedBox(height: 12),
                     TextFormField(
@@ -116,9 +133,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               : Icons.visibility),
                         ),
                       ),
-                      validator: (v) =>
-                          (v == null || v.isEmpty) ? 'Nhập mật khẩu' : null,
                       onFieldSubmitted: (_) => _submit(),
+                    ),
+                    const Padding(
+                      padding: EdgeInsets.only(top: 6, left: 4),
+                      child: Text(
+                        'Để trống nếu đăng nhập lần đầu.',
+                        style: TextStyle(
+                          color: AppColors.textMuted,
+                          fontSize: 12,
+                        ),
+                      ),
                     ),
                     const SizedBox(height: 12),
                     if (_error != null)
@@ -129,12 +154,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     FilledButton(
                       onPressed: _busy ? null : _submit,
                       child: Text(_busy ? 'Đang đăng nhập...' : 'Đăng nhập'),
-                    ),
-                    TextButton(
-                      onPressed: _busy
-                          ? null
-                          : () => context.push(AppRoutes.retailerActivation),
-                      child: const Text('Kích hoạt tài khoản Retailer lần đầu'),
                     ),
                     const SizedBox(height: 14),
                     const Row(
@@ -150,18 +169,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     const SizedBox(height: 14),
                     OutlinedButton.icon(
                       onPressed: _busy ? null : _submitGoogle,
-                      icon: const Icon(Icons.login),
+                      icon: Image.asset(
+                        'assets/images/google_g_logo.png',
+                        width: 20,
+                        height: 20,
+                      ),
                       label: const Text('Đăng nhập bằng Google'),
-                    ),
-                    const SizedBox(height: 10),
-                    const Text(
-                      'Tài khoản do nhà phân phối / Admin cấp. Vai trò (Sales, Thủ kho, Điểm bán) '
-                      'được xác định theo tài khoản.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                          color: AppColors.textMuted,
-                          fontSize: 12.5,
-                          height: 1.4),
                     ),
                   ],
                 ),

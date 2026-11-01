@@ -87,6 +87,7 @@ class AuthController extends StateNotifier<AuthState> {
       unawaited(_registerDevice());
       return true;
     } on ApiException catch (e) {
+      if (e.code == 'retailer_activation_required') rethrow;
       state = AuthState(status: AuthStatus.unauthenticated, error: e.message);
       return false;
     }
