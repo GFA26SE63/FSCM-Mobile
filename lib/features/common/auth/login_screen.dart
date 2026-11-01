@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:fscm_mobile/core/utils/status_tone.dart';
+import 'package:fscm_mobile/core/network/api_exception.dart';
 import 'package:fscm_mobile/data/repositories/auth_repository.dart';
 import 'package:fscm_mobile/shared/theme/app_colors.dart';
 import 'package:fscm_mobile/shared/widgets/info_banner.dart';
@@ -37,9 +38,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       _busy = true;
       _error = null;
     });
-    final ok = await ref
-        .read(authControllerProvider.notifier)
-        .login(_phone.text.replaceAll(' ', ''), _password.text);
+    final phone = _phone.text.replaceAll(' ', '');
+    bool ok;
+    try {
+      ok = await ref.read(authControllerProvider.notifier).login(phone, _password.text);
+    } on ApiException catch (error) {
+      if (error.code == 'retailer_activation_required' && mounted) {
+        await context.push(AppRoutes.retailerActivation);
+        return;
+      }
+      rethrow;
+    }
     if (!mounted) return;
     setState(() {
       _busy = false;
@@ -108,7 +117,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       controller: _password,
                       obscureText: _obscure,
                       decoration: InputDecoration(
-                        labelText: 'Mật khẩu',
+                        hintText: 'Mật khẩu (Để trống nếu đăng nhập lần đầu)',
                         suffixIcon: IconButton(
                           onPressed: () => setState(() => _obscure = !_obscure),
                           icon: Icon(_obscure
@@ -116,8 +125,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               : Icons.visibility),
                         ),
                       ),
-                      validator: (v) =>
-                          (v == null || v.isEmpty) ? 'Nhập mật khẩu' : null,
                       onFieldSubmitted: (_) => _submit(),
                     ),
                     const SizedBox(height: 12),
@@ -150,18 +157,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     const SizedBox(height: 14),
                     OutlinedButton.icon(
                       onPressed: _busy ? null : _submitGoogle,
-                      icon: const Icon(Icons.login),
+                      icon: const _GoogleMark(),
                       label: const Text('Đăng nhập bằng Google'),
-                    ),
-                    const SizedBox(height: 10),
-                    const Text(
-                      'Tài khoản do nhà phân phối / Admin cấp. Vai trò (Sales, Thủ kho, Điểm bán) '
-                      'được xác định theo tài khoản.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                          color: AppColors.textMuted,
-                          fontSize: 12.5,
-                          height: 1.4),
                     ),
                   ],
                 ),
@@ -172,4 +169,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       ),
     );
   }
+}
+
+class _GoogleMark extends StatelessWidget {
+  const _GoogleMark();
+
+  @override
+  Widget build(BuildContext context) => const Text(
+        'G',
+        style: TextStyle(
+          color: Color(0xFF4285F4),
+          fontSize: 20,
+          fontWeight: FontWeight.w800,
+        ),
+      );
 }
