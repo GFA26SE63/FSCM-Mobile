@@ -117,7 +117,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       controller: _password,
                       obscureText: _obscure,
                       decoration: InputDecoration(
-                        hintText: 'Mật khẩu (Để trống nếu đăng nhập lần đầu)',
+                        labelText: 'Mật khẩu',
                         suffixIcon: IconButton(
                           onPressed: () => setState(() => _obscure = !_obscure),
                           icon: Icon(_obscure
@@ -126,6 +126,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         ),
                       ),
                       onFieldSubmitted: (_) => _submit(),
+                    ),
+                    const Padding(
+                      padding: EdgeInsets.only(top: 6, left: 4),
+                      child: Text(
+                        'Để trống nếu đăng nhập lần đầu.',
+                        style: TextStyle(
+                          color: AppColors.textMuted,
+                          fontSize: 12,
+                        ),
+                      ),
                     ),
                     const SizedBox(height: 12),
                     if (_error != null)
@@ -136,12 +146,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     FilledButton(
                       onPressed: _busy ? null : _submit,
                       child: Text(_busy ? 'Đang đăng nhập...' : 'Đăng nhập'),
-                    ),
-                    TextButton(
-                      onPressed: _busy
-                          ? null
-                          : () => context.push(AppRoutes.retailerActivation),
-                      child: const Text('Kích hoạt tài khoản Retailer lần đầu'),
                     ),
                     const SizedBox(height: 14),
                     const Row(
@@ -157,7 +161,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     const SizedBox(height: 14),
                     OutlinedButton.icon(
                       onPressed: _busy ? null : _submitGoogle,
-                      icon: const _GoogleMark(),
+                      icon: Image.asset(
+                        'assets/images/google_g_logo.png',
+                        width: 20,
+                        height: 20,
+                      ),
                       label: const Text('Đăng nhập bằng Google'),
                     ),
                   ],
@@ -169,18 +177,4 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       ),
     );
   }
-}
-
-class _GoogleMark extends StatelessWidget {
-  const _GoogleMark();
-
-  @override
-  Widget build(BuildContext context) => const Text(
-        'G',
-        style: TextStyle(
-          color: Color(0xFF4285F4),
-          fontSize: 20,
-          fontWeight: FontWeight.w800,
-        ),
-      );
 }
