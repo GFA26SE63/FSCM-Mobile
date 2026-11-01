@@ -8,22 +8,15 @@ final networkMonitorProvider =
         (ref) => NetworkMonitor());
 
 class NetworkState {
-  const NetworkState(
-      {required this.deviceOnline, this.simulatedOffline = false});
+  const NetworkState({required this.deviceOnline});
 
   /// What connectivity_plus reports (wifi / mobile / ethernet).
   final bool deviceOnline;
 
-  /// Demo switch on the Sales home ("Đang online / offline (giả lập)"),
-  /// mirrors the prototype's network chip.
-  final bool simulatedOffline;
+  bool get online => deviceOnline;
 
-  bool get online => deviceOnline && !simulatedOffline;
-
-  NetworkState copyWith({bool? deviceOnline, bool? simulatedOffline}) =>
-      NetworkState(
+  NetworkState copyWith({bool? deviceOnline}) => NetworkState(
         deviceOnline: deviceOnline ?? this.deviceOnline,
-        simulatedOffline: simulatedOffline ?? this.simulatedOffline,
       );
 }
 
@@ -53,12 +46,6 @@ class NetworkMonitor extends StateNotifier<NetworkState> {
   }
 
   bool get isOnline => state.online;
-
-  void setSimulatedOffline(bool value) {
-    state = state.copyWith(simulatedOffline: value);
-  }
-
-  void toggleSimulated() => setSimulatedOffline(!state.simulatedOffline);
 
   @override
   void dispose() {

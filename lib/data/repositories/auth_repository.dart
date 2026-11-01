@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:fscm_mobile/core/auth/session.dart';
 import 'package:fscm_mobile/core/config/device_identity.dart';
+import 'package:fscm_mobile/core/auth/google_auth_service.dart';
 import 'package:fscm_mobile/core/network/api_client.dart';
 import 'package:fscm_mobile/core/network/api_exception.dart';
 import 'package:fscm_mobile/core/storage/token_store.dart';
@@ -86,15 +87,84 @@ class AuthController extends StateNotifier<AuthState> {
       unawaited(_registerDevice());
       return true;
     } on ApiException catch (e) {
+      if (e.code == 'retailer_activation_required') rethrow;
       state = AuthState(status: AuthStatus.unauthenticated, error: e.message);
       return false;
+    }
+  }
+
+  Future<void> requestActivationOtp(String phone) =>
+      _ref.read(authApiProvider).requestOtp(phone.trim());
+
+  Future<String> verifyActivationOtp(String phone, String code) => _ref
+      .read(authApiProvider)
+      .verifyOtp(phone: phone.trim(), code: code.trim());
+
+  Future<bool> completeActivation(String setupToken, String password) async {
+    try {
+      final session = await _ref
+          .read(authApiProvider)
+          .setPassword(setupToken: setupToken, password: password);
+      await _tokens.save(session.toJson());
+      state = AuthState(status: AuthStatus.authenticated, session: session);
+      unawaited(_registerDevice());
+      return true;
+    } on ApiException catch (error) {
+      state =
+          AuthState(status: AuthStatus.unauthenticated, error: error.message);
+      return false;
+    }
+  }
+
+  Future<bool> loginWithGoogle() async {
+    try {
+      final googleIdToken = await GoogleAuthService.instance.acquireIdToken();
+      final session =
+          await _ref.read(authApiProvider).exchangeGoogle(googleIdToken);
+      if (!session.user.role.hasMobileShell) {
+        state = const AuthState(
+          status: AuthStatus.unauthenticated,
+          error: 'Tài khoản này không có quyền sử dụng ứng dụng.',
+        );
+        return false;
+      }
+      await _tokens.save(session.toJson());
+      state = AuthState(status: AuthStatus.authenticated, session: session);
+      unawaited(_registerDevice());
+      return true;
+    } on ApiException catch (e) {
+      state = AuthState(status: AuthStatus.unauthenticated, error: e.message);
+      return false;
+    } on Object catch (e) {
+      state = AuthState(
+        status: AuthStatus.unauthenticated,
+        error: 'Đăng nhập Google thất bại: $e',
+      );
+      return false;
+    }
+  }
+
+  /// Refreshes the server-side session and scope when the app resumes or a
+  /// protected request receives 403.
+  Future<void> verifySessionOnResume() async {
+    if (!state.isAuthenticated) return;
+    try {
+      final user = await _ref.read(authApiProvider).me();
+      if (!user.role.hasMobileShell) {
+        await logout(callServer: false);
+      }
+    } on ApiException catch (error) {
+      if (error.kind == ApiErrorKind.unauthorized ||
+          error.kind == ApiErrorKind.forbidden) {
+        await logout(callServer: false);
+      }
     }
   }
 
   Future<void> logout({bool callServer = true}) async {
     if (callServer) {
       try {
-        await _ref.read(authApiProvider).logout();
+        await _ref.read(authApiProvider).logout(_tokens.refreshToken ?? '');
       } on ApiException {
         // Logging out must work offline.
       }

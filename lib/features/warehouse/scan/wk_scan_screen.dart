@@ -84,16 +84,6 @@ class _WkScanScreenState extends ConsumerState<WkScanScreen> {
           ),
           QrScanView(
             onCode: _onCode,
-            simulated: widget.labelsOnly
-                ? const <SimulatedScan>[
-                    SimulatedScan('Tem TEM-000210', 'TEM-000210'),
-                    SimulatedScan('Tem TEM-000142', 'TEM-000142'),
-                  ]
-                : const <SimulatedScan>[
-                    SimulatedScan('Tem TEM-000210', 'TEM-000210'),
-                    SimulatedScan('Phiếu DH-001024A', 'DH-001024A'),
-                    SimulatedScan('Phiếu DC-260926-01', 'DC-260926-01'),
-                  ],
           ),
           if (_error.isNotEmpty) ...<Widget>[
             const SizedBox(height: 12),

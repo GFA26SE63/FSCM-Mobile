@@ -7,6 +7,7 @@ class AppRoutes {
   // ---------------------------------------------------------------- common
   static const String splash = '/splash';
   static const String login = '/login';
+  static const String retailerActivation = '/activate-retailer';
   static const String notifications = '/notifications';
 
   // ----------------------------------------------------------------- sales

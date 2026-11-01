@@ -1,9 +1,7 @@
 /// Build-time configuration, passed with `--dart-define` (see README).
 ///
 /// ```
-/// flutter run --dart-define=USE_MOCK=false \
-///   --dart-define=API_BASE_URL=https://fscm-api.azurewebsites.net/api/v1 \
-///   --dart-define=FLAVOR=staging
+/// flutter run --dart-define-from-file=env/appsettings.json
 /// ```
 enum AppFlavor { dev, staging, prod }
 
@@ -21,13 +19,33 @@ class Env {
     defaultValue: 'http://10.0.2.2:5080/api/v1',
   );
 
-  /// When true (default) the app talks to the in-process [MockApi]
-  /// (lib/data/mock) so it runs without the ASP.NET Core backend.
-  static const bool useMock =
-      bool.fromEnvironment('USE_MOCK', defaultValue: true);
+  /// Web-type OAuth client used as the server client ID on Android and iOS.
+  static const String googleServerClientId = String.fromEnvironment(
+    'GOOGLE_SERVER_CLIENT_ID',
+    defaultValue: '',
+  );
 
-  /// Simulated network latency of the mock backend.
-  static const int mockLatencyMs = 350;
+  /// iOS-type OAuth client ID. Android discovers its client from package name
+  /// and signing certificate, so it does not need an Android client ID here.
+  static const String googleIosClientId = String.fromEnvironment(
+    'GOOGLE_IOS_CLIENT_ID',
+    defaultValue: '',
+  );
+
+  /// Desktop OAuth credentials used only by the Windows system-browser flow.
+  /// A desktop client secret is public by design and must not grant server access.
+  static const String googleWindowsClientId = String.fromEnvironment(
+    'GOOGLE_WINDOWS_CLIENT_ID',
+    defaultValue: '',
+  );
+  static const String googleWindowsClientSecret = String.fromEnvironment(
+    'GOOGLE_WINDOWS_CLIENT_SECRET',
+    defaultValue: '',
+  );
+  static const int googleWindowsRedirectPort = int.fromEnvironment(
+    'GOOGLE_WINDOWS_REDIRECT_PORT',
+    defaultValue: 8000,
+  );
 
   static const Duration connectTimeout = Duration(seconds: 15);
   static const Duration receiveTimeout = Duration(seconds: 30);

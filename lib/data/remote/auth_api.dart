@@ -8,7 +8,7 @@ import 'package:fscm_mobile/data/models/json_utils.dart';
 final authApiProvider =
     Provider<AuthApi>((ref) => AuthApi(ref.watch(apiClientProvider)));
 
-/// Mobile auth facade in front of Entra External ID + `GET /me`,
+/// Mobile auth facade in front of FSCM identity + `GET /me`,
 /// `POST /devices` (push registration).
 class AuthApi {
   AuthApi(this._client);
@@ -21,7 +21,17 @@ class AuthApi {
       {required String phone, required String password}) async {
     final data = await _client.post(
       Endpoints.authLogin,
-      body: <String, dynamic>{'phone': phone, 'password': password},
+      body: <String, dynamic>{'identifier': phone, 'password': password},
+    );
+    return Session.fromJson(asMap(data));
+  }
+
+  Future<Session> exchangeGoogle(String googleIdToken) async {
+    final data = await _client.post(
+      Endpoints.authGoogleExchange,
+      headers: <String, String>{
+        'Authorization': 'Bearer $googleIdToken',
+      },
     );
     return Session.fromJson(asMap(data));
   }
@@ -70,7 +80,8 @@ class AuthApi {
     );
   }
 
-  Future<void> logout() async {
-    await _client.post(Endpoints.authLogout);
+  Future<void> logout(String refreshToken) async {
+    await _client.post(Endpoints.authLogout,
+        body: <String, dynamic>{'refreshToken': refreshToken});
   }
 }
