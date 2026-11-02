@@ -6,6 +6,7 @@ import 'package:fscm_mobile/app/shell/retailer_shell.dart';
 import 'package:fscm_mobile/app/shell/sales_shell.dart';
 import 'package:fscm_mobile/app/shell/warehouse_shell.dart';
 import 'package:fscm_mobile/core/auth/user_role.dart';
+import 'package:fscm_mobile/data/models/retailer_declaration.dart';
 import 'package:fscm_mobile/data/repositories/auth_repository.dart';
 import 'package:fscm_mobile/features/common/auth/login_screen.dart';
 import 'package:fscm_mobile/features/common/auth/retailer_activation_screen.dart';
@@ -223,7 +224,11 @@ List<RouteBase> _salesRoutes() => <RouteBase>[
       GoRoute(path: AppRoutes.salesKpi, builder: (c, s) => const KpiScreen()),
       GoRoute(
           path: AppRoutes.salesDeclare,
-          builder: (c, s) => const DeclareRetailerScreen()),
+          // `extra` carries the Draft / Rejected declaration being edited.
+          builder: (c, s) => DeclareRetailerScreen(
+              initial: s.extra is RetailerDeclaration
+                  ? s.extra! as RetailerDeclaration
+                  : null)),
       GoRoute(
           path: AppRoutes.salesDeclarations,
           builder: (c, s) => const DeclarationsScreen()),

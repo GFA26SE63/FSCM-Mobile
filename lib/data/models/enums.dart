@@ -237,23 +237,5 @@ enum ComplaintStatus {
     return ComplaintStatus.open;
   }
 }
-
-/// Retailer registration request (KB-0000) state.
-enum RegistrationStatus {
-  waiting('Pending', 'Chờ duyệt', StatusTone.info),
-  approved('Approved', 'Đã duyệt', StatusTone.success),
-  rejected('Rejected', 'Bị từ chối', StatusTone.danger);
-
-  const RegistrationStatus(this.code, this.label, this.tone);
-  final String code;
-  final String label;
-  final StatusTone tone;
-
-  static RegistrationStatus fromCode(String? code) {
-    final c = (code ?? '').toLowerCase();
-    for (final s in RegistrationStatus.values) {
-      if (s.code.toLowerCase() == c) return s;
-    }
-    return RegistrationStatus.waiting;
-  }
-}
+// Retailer declaration status lives in retailer_declaration.dart
+// (DeclarationStatus, matching backend RetailerStatuses).

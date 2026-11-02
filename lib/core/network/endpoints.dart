@@ -14,7 +14,7 @@ class Endpoints {
   static const String authGoogleExchange = '/auth/google/exchange';
 
   // ------------------------------------------------------------ identity
-  static const String me = '/me';
+  static const String me = '/auth/me';
   static const String devices = '/devices';
 
   // ------------------------------------------------------------- catalog
@@ -27,9 +27,14 @@ class Endpoints {
   static const String retailers = '/retailers';
   static String retailer(String code) => '/retailers/$code';
   static String retailerMlor(String code) => '/retailers/$code/mlor';
-  static const String retailerRegistrations = '/retailer-registrations';
-  static String retailerRegistration(String code) =>
-      '/retailer-registrations/$code';
+  static String salesGroup(String id) => '/sales-groups/$id';
+
+  /// Retailer declaration (Sales): `POST /retailers` creates, `PUT
+  /// /retailers/{id}/declaration` updates a Draft/Rejected one, `POST
+  /// /retailers/{id}/submit-review` sends it to Admin / Operator.
+  static String retailerDeclaration(String id) => '/retailers/$id/declaration';
+  static String retailerSubmitReview(String id) =>
+      '/retailers/$id/submit-review';
 
   // ----------------------------------------------------------- logistics
   static const String transitQuote = '/transit/quote';
