@@ -18,23 +18,47 @@ class AppUser {
     this.retailerCode,
     this.retailerName,
     this.retailerAddress,
+    this.regionIds = const <String>[],
+    this.salesGroupIds = const <String>[],
+    this.regionLabels = const <ScopeLabel>[],
+    this.salesGroupLabels = const <ScopeLabel>[],
   });
 
-  factory AppUser.fromJson(Map<String, dynamic> json) => AppUser(
-        id: json['id']?.toString() ?? '',
-        fullName: json['fullName']?.toString() ?? '',
-        email: json['email']?.toString() ?? '',
-        phone: json['phone']?.toString() ?? json['email']?.toString() ?? '',
-        role: UserRole.fromCode(json['role']?.toString()),
-        areaCode: json['areaCode'] as String?,
-        areaName: json['areaName'] as String?,
-        salesGroup: json['salesGroup'] as String?,
-        warehouseCode: json['warehouseCode'] as String?,
-        warehouseName: json['warehouseName'] as String?,
-        retailerCode: json['retailerCode'] as String?,
-        retailerName: json['retailerName'] as String?,
-        retailerAddress: json['retailerAddress'] as String?,
-      );
+  factory AppUser.fromJson(Map<String, dynamic> json) {
+    // Backend `AuthenticatedUser`: { scope: {regionIds, salesGroupIds, ...},
+    // scopeLabels: {regions: [{id, code, name}], salesGroups: [...]} }.
+    final scope = _map(json['scope']);
+    final labels = _map(json['scopeLabels']);
+    final regions = ScopeLabel.listFrom(labels['regions']);
+    final groups = ScopeLabel.listFrom(labels['salesGroups']);
+    return AppUser(
+      id: json['id']?.toString() ?? '',
+      fullName: json['fullName']?.toString() ?? '',
+      email: json['email']?.toString() ?? '',
+      phone: json['phone']?.toString() ?? json['email']?.toString() ?? '',
+      role: UserRole.fromCode(json['role']?.toString()),
+      areaCode: json['areaCode'] as String? ??
+          (regions.isEmpty ? null : regions.first.code),
+      areaName: json['areaName'] as String? ??
+          (regions.isEmpty ? null : regions.first.name),
+      salesGroup: json['salesGroup'] as String? ??
+          (groups.isEmpty ? null : groups.first.code),
+      warehouseCode: json['warehouseCode'] as String?,
+      warehouseName: json['warehouseName'] as String?,
+      retailerCode: json['retailerCode'] as String?,
+      retailerName: json['retailerName'] as String?,
+      retailerAddress: json['retailerAddress'] as String?,
+      regionIds: _strings(scope['regionIds']),
+      salesGroupIds: _strings(scope['salesGroupIds']),
+      regionLabels: regions,
+      salesGroupLabels: groups,
+    );
+  }
+
+  static Map<String, dynamic> _map(Object? v) =>
+      v is Map ? v.cast<String, dynamic>() : <String, dynamic>{};
+  static List<String> _strings(Object? v) =>
+      v is List ? v.map((e) => e.toString()).toList() : const <String>[];
 
   final String id;
   final String fullName;
@@ -49,6 +73,12 @@ class AppUser {
   final String? retailerCode;
   final String? retailerName;
   final String? retailerAddress;
+
+  /// Territory scope from the backend (Guid strings).
+  final List<String> regionIds;
+  final List<String> salesGroupIds;
+  final List<ScopeLabel> regionLabels;
+  final List<ScopeLabel> salesGroupLabels;
 
   String get initials {
     final parts = fullName
@@ -91,7 +121,41 @@ class AppUser {
         'retailerCode': retailerCode,
         'retailerName': retailerName,
         'retailerAddress': retailerAddress,
+        // Persisted in the backend shape so [AppUser.fromJson] reads it back.
+        'scope': <String, dynamic>{
+          'regionIds': regionIds,
+          'salesGroupIds': salesGroupIds,
+        },
+        'scopeLabels': <String, dynamic>{
+          'regions': regionLabels.map((e) => e.toJson()).toList(),
+          'salesGroups': salesGroupLabels.map((e) => e.toJson()).toList(),
+        },
       };
+}
+
+/// `{id, code, name}` entry of `scopeLabels`.
+class ScopeLabel {
+  const ScopeLabel({required this.id, required this.code, required this.name});
+
+  factory ScopeLabel.fromJson(Map<String, dynamic> json) => ScopeLabel(
+        id: json['id']?.toString() ?? '',
+        code: json['code']?.toString() ?? '',
+        name: json['name']?.toString() ?? '',
+      );
+
+  static List<ScopeLabel> listFrom(Object? v) => v is List
+      ? v
+          .whereType<Map<dynamic, dynamic>>()
+          .map((e) => ScopeLabel.fromJson(e.cast<String, dynamic>()))
+          .toList()
+      : const <ScopeLabel>[];
+
+  final String id;
+  final String code;
+  final String name;
+
+  Map<String, dynamic> toJson() =>
+      <String, dynamic>{'id': id, 'code': code, 'name': name};
 }
 
 class Session {
