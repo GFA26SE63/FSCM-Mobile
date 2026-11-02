@@ -80,7 +80,7 @@ class _Detail extends ConsumerWidget {
         Text('${o.retailerName} · ${o.retailerCode}',
             style: const TextStyle(color: AppColors.textMuted)),
         const SizedBox(height: 10),
-        if (o.status == OrderStatus.rejected)
+        if (o.status.isRejectedOrCancelled)
           InfoBanner(
             tone: StatusTone.danger,
             icon: Icons.block,
@@ -99,7 +99,7 @@ class _Detail extends ConsumerWidget {
         if (o.promoChanged) _PromoComparison(order: o),
         if (o.hasDelivery) DeliveryInfoCard(o),
         const SectionTitle('Sản phẩm'),
-        OrderLinesCard(o, showBatches: o.status != OrderStatus.rejected),
+        OrderLinesCard(o, showBatches: !o.status.isRejectedOrCancelled),
         const SectionTitle('Khuyến mãi áp dụng'),
         AppliedPromoCard(o.appliedPromos, emptyText: 'Không có khuyến mãi.'),
         const SizedBox(height: 10),
@@ -141,7 +141,7 @@ class _Detail extends ConsumerWidget {
             label: const Text('Xóa khỏi hàng đợi đồng bộ'),
           ),
         ],
-        if (o.syncStatus == null && o.status == OrderStatus.pending)
+        if (o.syncStatus == null && o.status == OrderStatus.allocating)
           OutlinedButton.icon(
             onPressed: () => _cancel(context, ref),
             icon: const Icon(Icons.cancel_outlined),
@@ -177,7 +177,7 @@ class _Detail extends ConsumerWidget {
     );
     if (!ok) return;
     try {
-      await ref.read(orderRepositoryProvider).cancel(order.code);
+      await ref.read(orderRepositoryProvider).cancel(order.id, order.version);
       ref.read(dataVersionProvider.notifier).state++;
     } on ApiException catch (e) {
       if (context.mounted) showAppSnack(context, e.message, error: true);

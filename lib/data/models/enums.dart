@@ -4,15 +4,21 @@ import 'package:fscm_mobile/core/utils/status_tone.dart';
 /// `label` the Vietnamese UI text.
 
 enum OrderStatus {
-  pending('Pending', 'Chờ duyệt', StatusTone.info),
-  approved('Approved', 'Đã duyệt', StatusTone.primary),
+  allocating('Allocating', 'Đang phân bổ', StatusTone.info),
+  quoted('Quoted', 'Chờ xác nhận báo giá', StatusTone.primary),
+  allocationFailed('AllocationFailed', 'Phân bổ lỗi', StatusTone.danger),
+  outOfStock('OutOfStock', 'Thiếu hàng', StatusTone.danger),
+  allocationConflict('AllocationConflict', 'Xung đột tồn', StatusTone.warning),
+  paymentPending('PaymentPending', 'Chờ thanh toán', StatusTone.warning),
+  convertedToPo('ConvertedToPo', 'Đã tạo PO', StatusTone.primary),
   picking('Picking', 'Đang soạn hàng', StatusTone.purple),
-  shipped('Shipped', 'Đã xuất kho', StatusTone.primary),
+  issued('Issued', 'Đã xuất kho', StatusTone.primary),
   delivering('Delivering', 'Đang giao', StatusTone.purple),
   delivered('Delivered', 'Đã giao', StatusTone.success),
   completed('Completed', 'Hoàn tất', StatusTone.success),
-  rejected('Rejected', 'Bị từ chối', StatusTone.danger),
-  cancelled('Cancelled', 'Đã hủy', StatusTone.neutral);
+  quoteRejected('QuoteRejected', 'Báo giá bị từ chối', StatusTone.danger),
+  quoteExpired('QuoteExpired', 'Báo giá hết hạn', StatusTone.neutral),
+  withdrawn('Withdrawn', 'Đã hủy', StatusTone.neutral);
 
   const OrderStatus(this.code, this.label, this.tone);
   final String code;
@@ -21,26 +27,32 @@ enum OrderStatus {
 
   /// Not yet delivered / closed (retailer "đang xử lý" tab).
   bool get isActive =>
-      this == pending ||
-      this == approved ||
+      this == allocating ||
+      this == quoted ||
+      this == paymentPending ||
+      this == convertedToPo ||
       this == picking ||
-      this == shipped ||
+      this == issued ||
       this == delivering;
 
   /// Retailer may still scan the QR to confirm receipt.
-  bool get canConfirmReceipt => this == delivering || this == shipped;
+  bool get canConfirmReceipt => this == delivering;
+
+  bool get isRejectedOrCancelled =>
+      this == quoteRejected || this == quoteExpired || this == withdrawn ||
+      this == allocationFailed || this == outOfStock || this == allocationConflict;
 
   static OrderStatus fromCode(String? code) {
     final c = (code ?? '').toLowerCase();
     for (final s in OrderStatus.values) {
       if (s.code.toLowerCase() == c) return s;
     }
-    return OrderStatus.pending;
+    return OrderStatus.allocating;
   }
 }
 
 enum PaymentMethod {
-  cod('COD', 'Khi nhận hàng (COD)'),
+  unselected('', 'Chưa chọn phương thức'),
   prepaid('Prepaid', 'Trả trước (QR / tiền mặt)'),
   credit('Credit', 'Công nợ - trả sau');
 
@@ -53,7 +65,7 @@ enum PaymentMethod {
     for (final p in PaymentMethod.values) {
       if (p.code.toLowerCase() == c) return p;
     }
-    return PaymentMethod.cod;
+    return PaymentMethod.unselected;
   }
 
   String labelWithTerm(int creditTerm) => this == credit && creditTerm > 0

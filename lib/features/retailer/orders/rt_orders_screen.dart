@@ -143,7 +143,7 @@ class RtOrderTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final o = order;
     return AppCard(
-      onTap: () => context.push(AppRoutes.rtOrderDetail(o.code)),
+      onTap: () => context.push(AppRoutes.rtOrderDetail(o.id)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[

@@ -51,6 +51,9 @@ class Endpoints {
   static String orderConfirmReceipt(String code) =>
       '/orders/$code/confirm-receipt';
   static const String ordersSync = '/orders/sync';
+  static String quotesForOrder(String orderId) => '/quotes/orders/$orderId';
+  static String quoteAccept(String quoteId) => '/quotes/$quoteId/accept';
+  static String quoteReject(String quoteId) => '/quotes/$quoteId/reject';
   static const String pickingLists = '/picking-lists';
   static String pickingList(String code) => '/picking-lists/$code';
   static String pickingListScan(String code) => '/picking-lists/$code/scan';
@@ -63,6 +66,8 @@ class Endpoints {
 
   // ------------------------------------------------------------- finance
   static const String receivables = '/receivables';
+  static String paymentForOrder(String orderId) => '/payments/orders/$orderId';
+  static String payOsCheckout(String orderId) => '/payments/orders/$orderId/payos-checkout';
   static String receivableCollect(String orderCode) =>
       '/receivables/$orderCode/collect';
 

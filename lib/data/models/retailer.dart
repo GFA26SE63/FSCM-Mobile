@@ -3,6 +3,7 @@ import 'package:fscm_mobile/data/models/json_utils.dart';
 /// Retailer (điểm bán). `code` is the 8-digit customer code.
 class Retailer {
   const Retailer({
+    this.id = '',
     required this.code,
     required this.name,
     required this.address,
@@ -17,19 +18,21 @@ class Retailer {
   });
 
   factory Retailer.fromJson(Map<String, dynamic> j) => Retailer(
+        id: asStr(j['id']),
         code: asStr(j['code']),
         name: asStr(j['name']),
         address: asStr(j['address']),
-        areaCode: asStr(j['areaCode']),
-        areaName: asStr(j['areaName']),
+        areaCode: asStr(j['areaCode'] ?? j['regionCode']),
+        areaName: asStr(j['areaName'] ?? j['regionName']),
         region: asStr(j['region']),
-        creditTerm: asInt(j['creditTerm']),
+        creditTerm: asInt(j['creditTerm'] ?? j['creditTermDays']),
         tier: asStr(j['tier'], 'Thành viên'),
         points: asInt(j['points']),
         phone: asStr(j['phone']),
         contactName: asStr(j['contactName']),
       );
 
+  final String id;
   final String code;
   final String name;
   final String address;
@@ -47,6 +50,7 @@ class Retailer {
   bool get creditAllowed => creditTerm > 0;
 
   Map<String, dynamic> toJson() => <String, dynamic>{
+        'id': id,
         'code': code,
         'name': name,
         'address': address,

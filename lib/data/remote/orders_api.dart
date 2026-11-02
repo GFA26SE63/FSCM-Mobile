@@ -45,22 +45,37 @@ class OrdersApi {
     return Order.fromJson(asMap(data));
   }
 
-  Future<Order> cancel(String code) async {
-    final data = await _client.post(Endpoints.orderCancel(code));
+  Future<Order> cancel(String orderId, int expectedVersion) async {
+    final data = await _client.post(
+      Endpoints.orderCancel(orderId),
+      body: <String, dynamic>{
+        'expectedVersion': expectedVersion,
+        'reason': 'Sales withdrew the SO before allocation completed.',
+      },
+    );
     return Order.fromJson(asMap(data));
   }
 
-  /// `POST /orders/sync`: the server processes the batch in the order given
-  /// (arrival order), re-prices every order and answers one result each.
+  /// The current API accepts one idempotent offline SO per request. Process
+  /// the local queue in creation order so server priority remains deterministic.
   Future<List<OrderSyncResult>> syncOffline(
       List<OfflineOrderPayload> orders) async {
-    final data = await _client.post(
-      Endpoints.ordersSync,
-      body: <String, dynamic>{'orders': orders.map((o) => o.toJson()).toList()},
-    );
-    return asMapList(asMap(data)['results'])
-        .map(OrderSyncResult.fromJson)
-        .toList();
+    final results = <OrderSyncResult>[];
+    for (final payload in orders) {
+      final data = await _client.post(Endpoints.ordersSync, body: payload.toJson());
+      final order = Order.fromJson(asMap(data));
+      results.add(OrderSyncResult(
+        clientRequestId: payload.clientRequestId,
+        accepted: true,
+        orderCode: order.code,
+        finalAmount: order.finalAmount,
+        promoChanged: order.finalAmount != payload.localFinal,
+        changeReason: order.finalAmount == payload.localFinal
+            ? ''
+            : 'Giá/khuyến mãi được tính lại khi đồng bộ.',
+      ));
+    }
+    return results;
   }
 
   /// Retailer scans the QR on the shipment: confirms delivery + earns points.

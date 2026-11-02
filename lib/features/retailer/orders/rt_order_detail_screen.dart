@@ -3,14 +3,20 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:fscm_mobile/core/utils/dates.dart';
+import 'package:fscm_mobile/core/utils/money.dart';
 import 'package:fscm_mobile/core/utils/status_tone.dart';
+import 'package:fscm_mobile/core/network/api_exception.dart';
 import 'package:fscm_mobile/data/models/enums.dart';
 import 'package:fscm_mobile/data/models/order.dart';
+import 'package:fscm_mobile/data/models/sales_order_quote.dart';
 import 'package:fscm_mobile/data/repositories/order_repository.dart';
+import 'package:fscm_mobile/data/repositories/data_version.dart';
+import 'package:fscm_mobile/data/remote/quotes_api.dart';
 import 'package:fscm_mobile/shared/routes.dart';
 import 'package:fscm_mobile/shared/theme/app_colors.dart';
 import 'package:fscm_mobile/shared/widgets/app_card.dart';
 import 'package:fscm_mobile/shared/widgets/async_body.dart';
+import 'package:fscm_mobile/shared/widgets/dialogs.dart';
 import 'package:fscm_mobile/shared/widgets/info_banner.dart';
 import 'package:fscm_mobile/shared/widgets/kv_row.dart';
 import 'package:fscm_mobile/shared/widgets/order_widgets.dart';
@@ -48,7 +54,7 @@ class RtOrderDetailScreen extends ConsumerWidget {
             Text('Đặt lúc ${AppDates.timeDay(o.createdAt)}',
                 style: const TextStyle(color: AppColors.textMuted)),
             const SizedBox(height: 10),
-            if (o.status == OrderStatus.rejected)
+            if (o.status.isRejectedOrCancelled)
               InfoBanner(
                 tone: StatusTone.danger,
                 icon: Icons.block,
@@ -57,6 +63,7 @@ class RtOrderDetailScreen extends ConsumerWidget {
                     ? 'Hệ thống từ chối đơn hàng.'
                     : o.rejectReason,
               ),
+            if (o.status == OrderStatus.quoted) _QuoteDecision(order: o),
             if (o.hasDelivery) DeliveryInfoCard(o),
             if (o.status.canConfirmReceipt)
               Padding(
@@ -71,7 +78,7 @@ class RtOrderDetailScreen extends ConsumerWidget {
                 o.status == OrderStatus.completed)
               _receiptBanner(o),
             const SectionTitle('Sản phẩm'),
-            OrderLinesCard(o, showBatches: o.status != OrderStatus.rejected),
+            OrderLinesCard(o, showBatches: !o.status.isRejectedOrCancelled),
             const SectionTitle('Khuyến mãi áp dụng'),
             AppliedPromoCard(o.appliedPromos,
                 emptyText: 'Không có khuyến mãi.'),
@@ -122,5 +129,161 @@ class RtOrderDetailScreen extends ConsumerWidget {
           ? 'Đơn công nợ: điểm được cộng khi bạn thanh toán đủ.'
           : 'Điểm tích lũy từ đơn hàng này đã vào tài khoản.',
     );
+  }
+}
+
+class _QuoteDecision extends ConsumerWidget {
+  const _QuoteDecision({required this.order});
+
+  final Order order;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final quotes = ref.watch(orderQuotesProvider(order.id));
+    return AsyncBody(
+      value: quotes,
+      onRetry: () => ref.invalidate(orderQuotesProvider(order.id)),
+      builder: (rows) {
+        final pending = rows.where((quote) => quote.canDecide).toList();
+        if (pending.isEmpty) {
+          return const InfoBanner(
+            tone: StatusTone.warning,
+            text: 'Báo giá chưa sẵn sàng hoặc đã hết hạn. Hãy tải lại đơn hàng.',
+          );
+        }
+        final quote = pending.first;
+        return AppCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              const Text('Báo giá chính thức',
+                  style: TextStyle(fontWeight: FontWeight.w800)),
+              Text(Money.format(quote.totalAmount),
+                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
+              Text('Hết hạn ${AppDates.timeDay(quote.expiresAt)}',
+                  style: const TextStyle(color: AppColors.textMuted)),
+              const SizedBox(height: 10),
+              FilledButton(
+                onPressed: () => _choosePayment(context, ref, quote),
+                child: const Text('Chấp nhận và chọn thanh toán'),
+              ),
+              TextButton(
+                onPressed: () => _reject(context, ref, quote),
+                child: const Text('Từ chối báo giá'),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _choosePayment(
+      BuildContext context, WidgetRef ref, SalesOrderQuote quote) async {
+    final payment = await showModalBottomSheet<PaymentMethod>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              const Text('Chọn phương thức thanh toán',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+              const Text('Không áp dụng COD.'),
+              ListTile(
+                leading: const Icon(Icons.qr_code),
+                title: const Text('Trả trước'),
+                subtitle: const Text('Thanh toán xong hệ thống mới sinh PO và phiếu soạn.'),
+                onTap: () => Navigator.pop(context, PaymentMethod.prepaid),
+              ),
+              ListTile(
+                leading: const Icon(Icons.receipt_long),
+                title: const Text('Công nợ'),
+                subtitle: const Text('Chỉ áp dụng khi Retailer có kỳ hạn được duyệt.'),
+                onTap: () => Navigator.pop(context, PaymentMethod.credit),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (payment == null || !context.mounted) return;
+    try {
+      final api = ref.read(quotesApiProvider);
+      await api.accept(quote, payment);
+      final checkout = payment == PaymentMethod.prepaid
+          ? await api.createPayOsCheckout(order.id)
+          : null;
+      ref.invalidate(orderQuotesProvider(order.id));
+      ref.invalidate(orderDetailProvider(order.id));
+      ref.read(dataVersionProvider.notifier).state++;
+      if (context.mounted) {
+        if (checkout != null) {
+          await showDialog<void>(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: const Text('Thanh toán trả trước'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  const Text('Thanh toán theo thông tin PayOS bên dưới. PO chỉ được tạo sau khi PayOS xác nhận đã thu đủ.'),
+                  const SizedBox(height: 12),
+                  const Text('Checkout URL', style: TextStyle(fontWeight: FontWeight.w700)),
+                  SelectableText(checkout.checkoutUrl),
+                  const SizedBox(height: 8),
+                  const Text('QR payload', style: TextStyle(fontWeight: FontWeight.w700)),
+                  SelectableText(checkout.qrCode),
+                ],
+              ),
+              actions: <Widget>[
+                FilledButton(onPressed: () => Navigator.pop(context), child: const Text('Đã hiểu')),
+              ],
+            ),
+          );
+        } else {
+          showAppSnack(context,
+              'Đã xác nhận công nợ. Hệ thống đã chuyển SO đủ điều kiện thành PO.');
+        }
+      }
+    } on ApiException catch (error) {
+      if (context.mounted) showAppSnack(context, error.message, error: true);
+    }
+  }
+
+  Future<void> _reject(
+      BuildContext context, WidgetRef ref, SalesOrderQuote quote) async {
+    final controller = TextEditingController();
+    final reason = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Từ chối báo giá'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          decoration: const InputDecoration(labelText: 'Lý do'),
+        ),
+        actions: <Widget>[
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Quay lại')),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, controller.text.trim()),
+            child: const Text('Từ chối'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (reason == null || reason.isEmpty || !context.mounted) return;
+    try {
+      await ref.read(quotesApiProvider).reject(quote, reason);
+      ref.invalidate(orderQuotesProvider(order.id));
+      ref.invalidate(orderDetailProvider(order.id));
+      ref.read(dataVersionProvider.notifier).state++;
+    } on ApiException catch (error) {
+      if (context.mounted) showAppSnack(context, error.message, error: true);
+    }
   }
 }
