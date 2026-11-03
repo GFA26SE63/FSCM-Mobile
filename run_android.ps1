@@ -10,4 +10,4 @@ if (-not (Test-Path $adb)) {
 
 & $adb wait-for-device
 & $adb reverse "tcp:$port" "tcp:$port"
-flutter run --dart-define-from-file=config/dev.json
+flutter run --dart-define-from-file=env/appsettings.json
