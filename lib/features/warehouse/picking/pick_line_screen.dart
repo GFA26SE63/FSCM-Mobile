@@ -73,9 +73,12 @@ class _PickLineScreenState extends ConsumerState<PickLineScreen> {
     try {
       final result = await ref.read(warehouseRepositoryProvider).pick(
             widget.code,
-            lineIndex: line.index,
+            allocationId: line.allocationId,
             labelCode: label.code,
             qty: _qty,
+            sourceLabelQty: label.qty,
+            pickingVersion: ref.read(pickingDetailProvider(widget.code)).valueOrNull?.version ?? 0,
+            labelVersion: label.version,
           );
       ref.invalidate(pickingDetailProvider(widget.code));
       ref.read(dataVersionProvider.notifier).state++;

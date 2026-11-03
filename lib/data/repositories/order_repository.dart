@@ -13,7 +13,6 @@ import 'package:fscm_mobile/data/local/local_providers.dart';
 import 'package:fscm_mobile/data/models/enums.dart';
 import 'package:fscm_mobile/data/models/offline_order.dart';
 import 'package:fscm_mobile/data/models/order.dart';
-import 'package:fscm_mobile/data/models/receipt_confirmation.dart';
 import 'package:fscm_mobile/data/models/retailer.dart';
 import 'package:fscm_mobile/data/remote/orders_api.dart';
 import 'package:fscm_mobile/data/repositories/auth_repository.dart';
@@ -191,10 +190,9 @@ class OrderRepository {
   Future<void> removeFromQueue(String clientRequestId) =>
       _queue.delete(clientRequestId);
 
-  Future<ReceiptConfirmation> confirmReceipt(
-    String code, {
+  Future<Order> confirmReceipt(
+    String orderId, {
     required List<String> labelCodes,
   }) =>
-      _api.confirmReceipt(code,
-          qrToken: labelCodes.first, labelCodes: labelCodes);
+      _api.confirmReceipt(orderId, labelCodes: labelCodes);
 }

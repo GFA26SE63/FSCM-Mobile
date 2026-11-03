@@ -29,7 +29,7 @@ class WkHomeScreen extends ConsumerWidget {
     final transfers =
         ref.watch(transfersProvider).valueOrNull ?? const <Transfer>[];
     final todo =
-        pickings.where((p) => p.status != PickingStatus.shipped).toList();
+        pickings.where((p) => p.status != PickingStatus.completed).toList();
     int count(PickingStatus s) => pickings.where((p) => p.status == s).length;
     final incoming =
         transfers.where((t) => t.status == TransferStatus.inTransit).toList();
@@ -68,7 +68,7 @@ class WkHomeScreen extends ConsumerWidget {
                         StatusTone.purple)),
                 const SizedBox(width: 10),
                 Expanded(
-                    child: _Stat('Đã xuất', count(PickingStatus.shipped),
+                    child: _Stat('Đã soạn', count(PickingStatus.completed),
                         StatusTone.success)),
               ],
             ),

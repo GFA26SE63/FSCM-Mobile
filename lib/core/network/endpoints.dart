@@ -39,14 +39,15 @@ class Endpoints {
   // ----------------------------------------------------------- inventory
   static const String warehouses = '/warehouses';
   static const String batches = '/batches';
-  static String label(String code) => '/labels/$code';
+  static String label(String code) => '/qr-labels/$code';
   static const String transfers = '/transfers';
   static String transfer(String code) => '/transfers/$code';
   static String transferReceive(String code) => '/transfers/$code/receive';
 
   // ------------------------------------------------------------ ordering
   static const String orders = '/orders';
-  static String order(String code) => '/orders/$code';
+  static String order(String id) => '/orders/$id';
+  static String orderByCode(String code) => '/orders/by-code/$code';
   static String orderCancel(String code) => '/orders/$code/cancel';
   static String orderConfirmReceipt(String code) =>
       '/orders/$code/confirm-receipt';
@@ -56,13 +57,18 @@ class Endpoints {
   static String quoteReject(String quoteId) => '/quotes/$quoteId/reject';
   static const String pickingLists = '/picking-lists';
   static String pickingList(String code) => '/picking-lists/$code';
-  static String pickingListScan(String code) => '/picking-lists/$code/scan';
-  static String pickingListShip(String code) => '/picking-lists/$code/ship';
+  static String pickingListScan(String code) => '/picking-lists/$code/scans';
+  static String pickingListComplete(String code) => '/picking-lists/$code/complete';
+  static String shipmentDeliveryView(String orderId) =>
+      '/shipments/orders/$orderId/delivery-view';
+  static String shipmentReceipt(String shipmentId) =>
+      '/shipments/$shipmentId/receipt';
   static const String complaints = '/complaints';
 
   // ------------------------------------------------------------- pricing
   static const String promotions = '/promotions';
-  static const String pricingQuote = '/pricing/quote';
+  static const String pricingQuote = '/pricing/snapshot';
+  static const String cartPricingQuote = '/pricing/cart-snapshot';
 
   // ------------------------------------------------------------- finance
   static const String receivables = '/receivables';
@@ -89,5 +95,5 @@ class Endpoints {
   // ---------------------------------------------------------- mobile sync
   /// `GET /sync/snapshot?since=` - retailers in area, products, prices,
   /// promotions, available stock summary.
-  static const String syncSnapshot = '/sync/snapshot';
+  static const String syncSnapshot = '/mobile/snapshot';
 }

@@ -114,8 +114,9 @@ enum ReceivableStatus {
 
 enum PickingStatus {
   pending('Pending', 'Chưa pick', StatusTone.info),
-  picking('Picking', 'Đang pick', StatusTone.purple),
-  shipped('Shipped', 'Đã xuất', StatusTone.success);
+  picking('InProgress', 'Đang pick', StatusTone.purple),
+  completed('Completed', 'Đã soạn xong', StatusTone.success),
+  exception('Exception', 'Có ngoại lệ', StatusTone.danger);
 
   const PickingStatus(this.code, this.label, this.tone);
   final String code;
@@ -124,6 +125,8 @@ enum PickingStatus {
 
   static PickingStatus fromCode(String? code) {
     final c = (code ?? '').toLowerCase();
+    if (c == 'picking') return PickingStatus.picking;
+    if (c == 'shipped') return PickingStatus.completed;
     for (final s in PickingStatus.values) {
       if (s.code.toLowerCase() == c) return s;
     }

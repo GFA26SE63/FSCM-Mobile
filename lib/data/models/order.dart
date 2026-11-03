@@ -15,7 +15,7 @@ class BatchAllocation {
 
   factory BatchAllocation.fromJson(Map<String, dynamic> j) => BatchAllocation(
         batchCode: asStr(j['batchCode']),
-        qty: asInt(j['qty'] ?? j['quantity']),
+        qty: asInt(j['qty'] ?? j['quantity'] ?? j['allocatedQuantity']),
         expiry: asDate(j['expiry'] ?? j['batchExpirationDate']),
         warehouseName: asStr(j['warehouseName'] ?? j['warehouseCode']),
         labelCode: asStr(j['labelCode']),
@@ -52,7 +52,7 @@ class OrderLine {
   factory OrderLine.fromJson(Map<String, dynamic> j) => OrderLine(
         sku: asStr(j['sku']),
         name: asStr(j['name'] ?? j['productName']),
-        qty: asInt(j['qty'] ?? j['quantity']),
+        qty: asInt(j['qty'] ?? j['quantity'] ?? j['orderedQuantity']),
         unitPrice: asInt(j['unitPrice']),
         discount: asInt(j['discount'] ?? j['discountAmount']),
         discountPct: asDouble(j['discountPct'] ?? j['discountPercent']),
@@ -158,7 +158,7 @@ class Order {
         pointsEarned: asInt(j['pointsEarned']),
         pointsPending: asBool(j['pointsPending']),
         labelCodes: asStrList(j['labelCodes']),
-        timeline: mapList(j['timeline'], TimelineEntry.fromJson),
+        timeline: mapList(j['timeline'] ?? j['history'], TimelineEntry.fromJson),
       );
 
   final String id;

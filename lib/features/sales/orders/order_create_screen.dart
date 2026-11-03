@@ -263,7 +263,7 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
       try {
         quote = await ref
             .read(productsApiProvider)
-            .quote(retailerCode: retailer.code, lines: lines);
+            .quote(retailerId: retailer.id, lines: lines);
         estimated = false;
       } on ApiException {
         // Keep the local estimate.

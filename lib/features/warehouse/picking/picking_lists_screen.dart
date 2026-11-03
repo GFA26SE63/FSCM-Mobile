@@ -46,7 +46,8 @@ class _PickingListsScreenState extends ConsumerState<PickingListsScreen> {
                 ChipOption<PickingStatus?>(null, 'Tất cả'),
                 ChipOption<PickingStatus?>(PickingStatus.pending, 'Chưa pick'),
                 ChipOption<PickingStatus?>(PickingStatus.picking, 'Đang pick'),
-                ChipOption<PickingStatus?>(PickingStatus.shipped, 'Đã xuất'),
+                ChipOption<PickingStatus?>(PickingStatus.completed, 'Đã soạn xong'),
+                ChipOption<PickingStatus?>(PickingStatus.exception, 'Ngoại lệ'),
               ],
               selected: _filter,
               onSelected: (v) => setState(() => _filter = v),
@@ -59,7 +60,7 @@ class _PickingListsScreenState extends ConsumerState<PickingListsScreen> {
               builder: (all) {
                 final list = all.where((p) {
                   if (widget.shippedOnly) {
-                    return p.status == PickingStatus.shipped;
+                    return p.status == PickingStatus.completed;
                   }
                   return _filter == null || p.status == _filter;
                 }).toList();

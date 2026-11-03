@@ -69,7 +69,7 @@ class RtOrderDetailScreen extends ConsumerWidget {
               Padding(
                 padding: const EdgeInsets.only(bottom: 10),
                 child: FilledButton.icon(
-                  onPressed: () => context.push(AppRoutes.rtReceive(o.code)),
+                  onPressed: () => context.push(AppRoutes.rtReceive(o.id)),
                   icon: const Icon(Icons.qr_code_scanner),
                   label: const Text('Quét QR nhận hàng'),
                 ),
@@ -107,7 +107,7 @@ class RtOrderDetailScreen extends ConsumerWidget {
             if (o.status == OrderStatus.delivered ||
                 o.status == OrderStatus.completed)
               OutlinedButton.icon(
-                onPressed: () => context.push(AppRoutes.rtComplaintFor(o.code)),
+                onPressed: () => context.push(AppRoutes.rtComplaintFor(o.id)),
                 icon: const Icon(Icons.report_gmailerrorred_outlined),
                 label: const Text('Khiếu nại đơn hàng'),
               ),
