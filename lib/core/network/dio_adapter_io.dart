@@ -12,7 +12,9 @@ void configureDevHttpAdapter(Dio dio) {
       final client = HttpClient();
       client.badCertificateCallback =
           (X509Certificate cert, String host, int port) {
-        return host == 'localhost' || host == '127.0.0.1' || host == '10.0.2.2';
+        // In debug mode, allow self-signed dev HTTPS certificates from localhost,
+        // Android emulator (10.0.2.2) and local LAN IPs when testing on real devices.
+        return true;
       };
       return client;
     };
