@@ -2,10 +2,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:fscm_mobile/core/network/api_client.dart';
 import 'package:fscm_mobile/core/network/endpoints.dart';
+import 'package:fscm_mobile/core/network/api_exception.dart';
 import 'package:fscm_mobile/data/models/json_utils.dart';
 import 'package:fscm_mobile/data/models/offline_order.dart';
 import 'package:fscm_mobile/data/models/order.dart';
-import 'package:fscm_mobile/data/models/receipt_confirmation.dart';
+import 'package:uuid/uuid.dart';
 
 final ordersApiProvider =
     Provider<OrdersApi>((ref) => OrdersApi(ref.watch(apiClientProvider)));
@@ -34,8 +35,13 @@ class OrdersApi {
     return unwrapItems(data).map(Order.fromJson).toList();
   }
 
-  Future<Order> get(String code) async {
-    final data = await _client.get(Endpoints.order(code));
+  Future<Order> get(String idOrCode) async {
+    final isId = RegExp(
+      r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$',
+    ).hasMatch(idOrCode);
+    final data = await _client.get(
+      isId ? Endpoints.order(idOrCode) : Endpoints.orderByCode(idOrCode),
+    );
     return Order.fromJson(asMap(data));
   }
 
@@ -45,34 +51,79 @@ class OrdersApi {
     return Order.fromJson(asMap(data));
   }
 
-  Future<Order> cancel(String code) async {
-    final data = await _client.post(Endpoints.orderCancel(code));
+  Future<Order> cancel(String orderId, int expectedVersion) async {
+    final data = await _client.post(
+      Endpoints.orderCancel(orderId),
+      body: <String, dynamic>{
+        'expectedVersion': expectedVersion,
+        'reason': 'Sales withdrew the SO before allocation completed.',
+      },
+    );
     return Order.fromJson(asMap(data));
   }
 
-  /// `POST /orders/sync`: the server processes the batch in the order given
-  /// (arrival order), re-prices every order and answers one result each.
+  /// The current API accepts one idempotent offline SO per request. Process
+  /// the local queue in creation order so server priority remains deterministic.
   Future<List<OrderSyncResult>> syncOffline(
       List<OfflineOrderPayload> orders) async {
-    final data = await _client.post(
-      Endpoints.ordersSync,
-      body: <String, dynamic>{'orders': orders.map((o) => o.toJson()).toList()},
-    );
-    return asMapList(asMap(data)['results'])
-        .map(OrderSyncResult.fromJson)
-        .toList();
+    final results = <OrderSyncResult>[];
+    for (final payload in orders) {
+      final data = await _client.post(Endpoints.ordersSync, body: payload.toJson());
+      final order = Order.fromJson(asMap(data));
+      results.add(OrderSyncResult(
+        clientRequestId: payload.clientRequestId,
+        accepted: true,
+        orderCode: order.code,
+        finalAmount: order.finalAmount,
+        promoChanged: order.finalAmount != payload.localFinal,
+        changeReason: order.finalAmount == payload.localFinal
+            ? ''
+            : 'Giá/khuyến mãi được tính lại khi đồng bộ.',
+      ));
+    }
+    return results;
   }
 
-  /// Retailer scans the QR on the shipment: confirms delivery + earns points.
-  Future<ReceiptConfirmation> confirmReceipt(
-    String code, {
-    required String qrToken,
+  /// Confirms one in-transit warehouse shipment. Multi-warehouse orders are
+  /// received one shipment at a time; the order becomes Delivered only when
+  /// every shipment is received without an exception.
+  Future<Order> confirmReceipt(
+    String orderId, {
     required List<String> labelCodes,
   }) async {
-    final data = await _client.post(
-      Endpoints.orderConfirmReceipt(code),
-      body: <String, dynamic>{'qrToken': qrToken, 'labelCodes': labelCodes},
+    final delivery = asMap(await _client.get(Endpoints.shipmentDeliveryView(orderId)));
+    final shipments = asMapList(delivery['shipments']);
+    Map<String, dynamic>? shipment;
+    for (final item in shipments) {
+      if (asStr(item['status']) == 'Delivering') {
+        shipment = item;
+        break;
+      }
+    }
+    if (shipment == null) {
+      throw const ApiException(
+        kind: ApiErrorKind.conflict,
+        message: 'Không có phần giao nào đang vận chuyển để xác nhận.',
+      );
+    }
+    final lines = asMapList(shipment['lines'])
+        .map((line) => <String, dynamic>{
+              'orderLineId': asStr(line['orderLineId']),
+              'batchId': asStr(line['batchId']),
+              'receivedQuantity': asDouble(line['quantity']),
+              'damagedQuantity': 0,
+            })
+        .toList();
+    await _client.post(
+      Endpoints.shipmentReceipt(asStr(shipment['id'])),
+      body: <String, dynamic>{
+        'qrCodes': labelCodes,
+        'lines': lines,
+        'expectedVersion': asInt(shipment['version']),
+        'note': 'Retailer confirmed full receipt on mobile.',
+      },
+      headers: <String, String>{'Idempotency-Key': const Uuid().v4()},
     );
-    return ReceiptConfirmation.fromJson(asMap(data));
+    return get(orderId);
   }
 }

@@ -66,13 +66,23 @@ class WarehouseRepository {
 
   Future<PickScanResult> pick(
     String code, {
-    required int lineIndex,
+    required String allocationId,
     required String labelCode,
     required int qty,
+    required int sourceLabelQty,
+    required int pickingVersion,
+    required int labelVersion,
   }) =>
-      _picking.scan(code, lineIndex: lineIndex, labelCode: labelCode, qty: qty);
+      _picking.scan(code,
+          allocationId: allocationId,
+          labelCode: labelCode,
+          qty: qty,
+          sourceLabelQty: sourceLabelQty,
+          pickingVersion: pickingVersion,
+          labelVersion: labelVersion);
 
-  Future<PickingList> ship(String code) => _picking.ship(code);
+  Future<PickingList> complete(String code, int expectedVersion) =>
+      _picking.complete(code, expectedVersion);
 
   Future<List<Transfer>> transfers({String? status, String? kind}) =>
       _transfers.list(status: status, kind: kind);

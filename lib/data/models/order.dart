@@ -15,9 +15,9 @@ class BatchAllocation {
 
   factory BatchAllocation.fromJson(Map<String, dynamic> j) => BatchAllocation(
         batchCode: asStr(j['batchCode']),
-        qty: asInt(j['qty']),
-        expiry: asDate(j['expiry']),
-        warehouseName: asStr(j['warehouseName']),
+        qty: asInt(j['qty'] ?? j['quantity'] ?? j['allocatedQuantity']),
+        expiry: asDate(j['expiry'] ?? j['batchExpirationDate']),
+        warehouseName: asStr(j['warehouseName'] ?? j['warehouseCode']),
         labelCode: asStr(j['labelCode']),
       );
 
@@ -51,14 +51,14 @@ class OrderLine {
 
   factory OrderLine.fromJson(Map<String, dynamic> j) => OrderLine(
         sku: asStr(j['sku']),
-        name: asStr(j['name']),
-        qty: asInt(j['qty']),
+        name: asStr(j['name'] ?? j['productName']),
+        qty: asInt(j['qty'] ?? j['quantity'] ?? j['orderedQuantity']),
         unitPrice: asInt(j['unitPrice']),
-        discount: asInt(j['discount']),
-        discountPct: asDouble(j['discountPct']),
-        promoId: asStr(j['promoId']),
-        promoName: asStr(j['promoName']),
-        batches: mapList(j['batches'], BatchAllocation.fromJson),
+        discount: asInt(j['discount'] ?? j['discountAmount']),
+        discountPct: asDouble(j['discountPct'] ?? j['discountPercent']),
+        promoId: asStr(j['promoId'] ?? j['discountSourceCode']),
+        promoName: asStr(j['promoName'] ?? j['discountSourceType']),
+        batches: mapList(j['batches'] ?? j['allocations'], BatchAllocation.fromJson),
       );
 
   final String sku;
@@ -91,6 +91,7 @@ class OrderLine {
 /// the local queue are mapped to this model too (see `OrderRepository`).
 class Order {
   const Order({
+    this.id = '',
     required this.code,
     required this.retailerCode,
     required this.retailerName,
@@ -100,7 +101,8 @@ class Order {
     required this.total,
     required this.discount,
     this.createdByName = '',
-    this.payment = PaymentMethod.cod,
+    this.payment = PaymentMethod.unselected,
+    this.version = 0,
     this.creditTerm = 0,
     this.rejectReason = '',
     this.isOffline = false,
@@ -125,18 +127,20 @@ class Order {
   });
 
   factory Order.fromJson(Map<String, dynamic> j) => Order(
-        code: asStr(j['code']),
+        id: asStr(j['id']),
+        code: asStr(j['code'] ?? j['orderCode']),
         retailerCode: asStr(j['retailerCode']),
         retailerName: asStr(j['retailerName']),
         status: OrderStatus.fromCode(asStrOrNull(j['status'])),
         createdAt: asDate(j['createdAt']) ?? DateTime.now(),
         lines: mapList(j['lines'], OrderLine.fromJson),
-        total: asInt(j['total']),
-        discount: asInt(j['discount']),
+        total: asInt(j['total'] ?? j['subtotalAmount'] ?? j['finalAmount']),
+        discount: asInt(j['discount'] ?? j['discountAmount']),
         createdByName: asStr(j['createdByName']),
-        payment: PaymentMethod.fromCode(asStrOrNull(j['payment'])),
-        creditTerm: asInt(j['creditTerm']),
-        rejectReason: asStr(j['rejectReason']),
+        payment: PaymentMethod.fromCode(asStrOrNull(j['payment'] ?? j['paymentMethod'])),
+        creditTerm: asInt(j['creditTerm'] ?? j['creditTermDays']),
+        rejectReason: asStr(j['rejectReason'] ?? j['rejectionReason']),
+        version: asInt(j['version']),
         isOffline: asBool(j['isOffline']),
         offlineCode: asStr(j['offlineCode']),
         syncedAt: asDate(j['syncedAt']),
@@ -154,9 +158,10 @@ class Order {
         pointsEarned: asInt(j['pointsEarned']),
         pointsPending: asBool(j['pointsPending']),
         labelCodes: asStrList(j['labelCodes']),
-        timeline: mapList(j['timeline'], TimelineEntry.fromJson),
+        timeline: mapList(j['timeline'] ?? j['history'], TimelineEntry.fromJson),
       );
 
+  final String id;
   final String code;
   final String retailerCode;
   final String retailerName;
@@ -167,6 +172,7 @@ class Order {
   final int discount;
   final String createdByName;
   final PaymentMethod payment;
+  final int version;
   final int creditTerm;
   final String rejectReason;
 
@@ -246,6 +252,7 @@ class Order {
     List<TimelineEntry>? timeline,
   }) =>
       Order(
+        id: id,
         code: code,
         retailerCode: retailerCode,
         retailerName: retailerName,
@@ -256,6 +263,7 @@ class Order {
         discount: discount,
         createdByName: createdByName,
         payment: payment,
+        version: version,
         creditTerm: creditTerm,
         rejectReason: rejectReason,
         isOffline: isOffline,
@@ -280,6 +288,7 @@ class Order {
       );
 
   Map<String, dynamic> toJson() => <String, dynamic>{
+        'id': id,
         'code': code,
         'retailerCode': retailerCode,
         'retailerName': retailerName,
@@ -290,6 +299,7 @@ class Order {
         'discount': discount,
         'createdByName': createdByName,
         'payment': payment.code,
+        'version': version,
         'creditTerm': creditTerm,
         'rejectReason': rejectReason,
         'isOffline': isOffline,
@@ -316,36 +326,50 @@ class Order {
 /// Request body of `POST /orders` (online order creation).
 class NewOrderRequest {
   const NewOrderRequest({
-    required this.retailerCode,
+    required this.clientOrderKey,
+    required this.retailerId,
     required this.lines,
-    required this.payment,
-    this.creditTerm = 0,
+    this.deliveryAddress,
+    this.note,
   });
 
-  final String retailerCode;
+  final String clientOrderKey;
+  final String retailerId;
   final List<CartLine> lines;
-  final PaymentMethod payment;
-  final int creditTerm;
+  final String? deliveryAddress;
+  final String? note;
 
   Map<String, dynamic> toJson() => <String, dynamic>{
-        'retailerCode': retailerCode,
-        'payment': payment.code,
-        'creditTerm': creditTerm,
+        'clientOrderKey': clientOrderKey,
+        'retailerId': retailerId,
+        'paymentMethod': null,
+        'deliveryAddress': deliveryAddress,
+        'note': note,
         'lines': lines.map((l) => l.toJson()).toList(),
       };
 }
 
 /// SKU + quantity (cartons) in the cart or in a request body.
 class CartLine {
-  const CartLine({required this.sku, required this.qty});
+  const CartLine({this.productId = '', required this.sku, required this.qty});
 
   factory CartLine.fromJson(Map<String, dynamic> j) =>
-      CartLine(sku: asStr(j['sku']), qty: asInt(j['qty']));
+      CartLine(
+        productId: asStr(j['productId']),
+        sku: asStr(j['sku']),
+        qty: asInt(j['qty'] ?? j['quantity']),
+      );
 
+  final String productId;
   final String sku;
   final int qty;
 
-  CartLine withQty(int q) => CartLine(sku: sku, qty: q);
+  CartLine withQty(int q) => CartLine(productId: productId, sku: sku, qty: q);
 
-  Map<String, dynamic> toJson() => <String, dynamic>{'sku': sku, 'qty': qty};
+  Map<String, dynamic> toJson() => <String, dynamic>{
+        'productId': productId,
+        'sku': sku,
+        'quantity': qty,
+        'qty': qty,
+      };
 }

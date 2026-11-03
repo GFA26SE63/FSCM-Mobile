@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 import 'package:fscm_mobile/core/utils/money.dart';
 import 'package:fscm_mobile/core/utils/status_tone.dart';
-import 'package:fscm_mobile/data/models/enums.dart';
 import 'package:fscm_mobile/data/models/price_quote.dart';
 import 'package:fscm_mobile/data/models/retailer.dart';
 import 'package:fscm_mobile/shared/theme/app_colors.dart';
@@ -11,8 +10,9 @@ import 'package:fscm_mobile/shared/widgets/kv_row.dart';
 import 'package:fscm_mobile/shared/widgets/section_title.dart';
 
 /// Bottom sheet "Xác nhận đơn hàng": lines, applied promotions, totals and
-/// payment choice. Pops with the chosen [PaymentMethod].
-class OrderConfirmSheet extends StatefulWidget {
+/// This step confirms the SO contents only. Payment is deliberately selected
+/// by the Retailer after allocation has produced the official quotation.
+class OrderConfirmSheet extends StatelessWidget {
   const OrderConfirmSheet({
     super.key,
     required this.retailer,
@@ -29,41 +29,8 @@ class OrderConfirmSheet extends StatefulWidget {
   final bool estimated;
 
   @override
-  State<OrderConfirmSheet> createState() => _OrderConfirmSheetState();
-}
-
-class _OrderConfirmSheetState extends State<OrderConfirmSheet> {
-  PaymentMethod _payment = PaymentMethod.cod;
-
-  bool _enabled(PaymentMethod m) {
-    switch (m) {
-      case PaymentMethod.cod:
-        return true;
-      case PaymentMethod.prepaid:
-        return widget.online;
-      case PaymentMethod.credit:
-        return widget.retailer.creditAllowed;
-    }
-  }
-
-  String _hint(PaymentMethod m) {
-    switch (m) {
-      case PaymentMethod.cod:
-        return 'Retailer trả tiền khi nhận hàng';
-      case PaymentMethod.prepaid:
-        return widget.online
-            ? 'Chuyển khoản QR hoặc tiền mặt trước khi giao'
-            : 'Cần có mạng để trả trước';
-      case PaymentMethod.credit:
-        return widget.retailer.creditAllowed
-            ? 'Trả một lần đủ trong ${widget.retailer.creditTerm} ngày kể từ ngày giao'
-            : 'Điểm bán chưa được phép mua công nợ';
-    }
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final q = widget.quote;
+    final q = quote;
     return SafeArea(
       child: DraggableScrollableSheet(
         expand: false,
@@ -76,13 +43,13 @@ class _OrderConfirmSheetState extends State<OrderConfirmSheet> {
           children: <Widget>[
             const Text('Xác nhận đơn hàng',
                 style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
-            Text('Giao đến ${widget.retailer.name} · ${widget.retailer.code}',
+            Text('Giao đến ${retailer.name} · ${retailer.code}',
                 style: const TextStyle(color: AppColors.textMuted)),
             const SizedBox(height: 10),
-            if (widget.estimated)
+            if (estimated)
               InfoBanner(
                 tone: StatusTone.warning,
-                text: widget.online
+                text: online
                     ? 'Không lấy được giá từ hệ thống - đang hiển thị khuyến mãi tạm tính trên máy.'
                     : 'Khuyến mãi tạm tính trên máy (offline). Hệ thống sẽ tính lại khi đồng bộ.',
               ),
@@ -120,17 +87,11 @@ class _OrderConfirmSheetState extends State<OrderConfirmSheet> {
                 KvRow('${a.id} · ${a.name}', Money.minus(a.amount),
                     valueColor: AppColors.success),
             const SectionTitle('Thanh toán'),
-            for (final m in PaymentMethod.values)
-              RadioListTile<PaymentMethod>(
-                contentPadding: EdgeInsets.zero,
-                value: m,
-                groupValue: _payment,
-                onChanged: _enabled(m)
-                    ? (v) => setState(() => _payment = v ?? _payment)
-                    : null,
-                title: Text(m.labelWithTerm(widget.retailer.creditTerm)),
-                subtitle: Text(_hint(m)),
-              ),
+            const InfoBanner(
+              tone: StatusTone.info,
+              text:
+                  'Retailer sẽ chọn trả trước hoặc công nợ sau khi hệ thống phân bổ batch, tính giảm HSD và gửi báo giá chính thức. Không áp dụng COD.',
+            ),
             const Divider(height: 24),
             KvRow('Tổng tiền hàng', Money.format(q.total)),
             KvRow('Tổng giảm', Money.minus(q.discount),
@@ -138,9 +99,9 @@ class _OrderConfirmSheetState extends State<OrderConfirmSheet> {
             KvRow('Thành tiền', Money.format(q.finalAmount), bold: true),
             const SizedBox(height: 14),
             FilledButton(
-              onPressed: () => Navigator.of(context).pop(_payment),
+              onPressed: () => Navigator.of(context).pop(true),
               child: Text(
-                  widget.online ? 'Xác nhận đặt hàng' : 'Lưu đơn trên máy'),
+                  online ? 'Xác nhận tạo SO' : 'Lưu SO trên máy'),
             ),
             const SizedBox(height: 6),
             TextButton(

@@ -3,12 +3,12 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:uuid/uuid.dart';
 
 import 'package:fscm_mobile/core/network/api_exception.dart';
 import 'package:fscm_mobile/core/network/network_monitor.dart';
 import 'package:fscm_mobile/core/utils/money.dart';
 import 'package:fscm_mobile/core/utils/status_tone.dart';
-import 'package:fscm_mobile/data/models/enums.dart';
 import 'package:fscm_mobile/data/models/order.dart';
 import 'package:fscm_mobile/data/models/price_quote.dart';
 import 'package:fscm_mobile/data/models/product.dart';
@@ -75,7 +75,7 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
                 title: 'Không tìm thấy điểm bán',
                 message: 'Đồng bộ lại danh sách điểm bán rồi thử lại.');
           }
-          if (retailer.areaCode != user?.areaCode) {
+          if (retailer.areaCode.isNotEmpty && retailer.areaCode != user?.areaCode) {
             return EmptyState(
               icon: Icons.lock_outline,
               title: 'Điểm bán ngoài khu vực',
@@ -263,7 +263,7 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
       try {
         quote = await ref
             .read(productsApiProvider)
-            .quote(retailerCode: retailer.code, lines: lines);
+            .quote(retailerId: retailer.id, lines: lines);
         estimated = false;
       } on ApiException {
         // Keep the local estimate.
@@ -271,7 +271,7 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
       if (!mounted) return;
       setState(() => _busy = false);
     }
-    final payment = await showModalBottomSheet<PaymentMethod>(
+    final confirmed = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
@@ -282,21 +282,33 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
         estimated: estimated,
       ),
     );
-    if (payment == null || !mounted) return;
-    await _submit(retailer, payment);
+    if (confirmed != true || !mounted) return;
+    await _submit(data, retailer);
   }
 
-  Future<void> _submit(Retailer retailer, PaymentMethod payment) async {
+  Future<void> _submit(CatalogData data, Retailer retailer) async {
     final repo = ref.read(orderRepositoryProvider);
-    final lines = _lines;
+    final productsBySku = <String, Product>{for (final p in data.products) p.sku: p};
+    final lines = _lines
+        .map((line) => CartLine(
+              productId: productsBySku[line.sku]?.id ?? '',
+              sku: line.sku,
+              qty: line.qty,
+            ))
+        .toList();
+    if (retailer.id.isEmpty || lines.any((line) => line.productId.isEmpty)) {
+      showAppSnack(context,
+          'Dữ liệu Retailer/SKU chưa có ID từ máy chủ. Hãy đồng bộ lại danh mục.',
+          error: true);
+      return;
+    }
     final online = ref.read(networkMonitorProvider).online;
     setState(() => _busy = true);
     try {
       var code = '';
       var message = '';
       Future<void> saveOffline(String notice) async {
-        final entry = await repo.createOffline(
-            retailer: retailer, lines: lines, payment: payment);
+        final entry = await repo.createOffline(retailer: retailer, lines: lines);
         code = entry.localCode;
         message = notice;
       }
@@ -304,16 +316,15 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
       if (online) {
         try {
           final order = await repo.createOnline(NewOrderRequest(
-            retailerCode: retailer.code,
+            clientOrderKey: const Uuid().v4(),
+            retailerId: retailer.id,
             lines: lines,
-            payment: payment,
-            creditTerm:
-                payment == PaymentMethod.credit ? retailer.creditTerm : 0,
+            deliveryAddress: retailer.address,
           ));
-          code = order.code;
-          message = order.status == OrderStatus.rejected
+          code = order.id;
+          message = order.status.isRejectedOrCancelled
               ? 'Đơn ${order.code} bị từ chối: ${order.rejectReason}'
-              : 'Đã tạo đơn ${order.code} - chờ duyệt.';
+              : 'Đã tạo SO ${order.code}. Hệ thống đang phân bổ và sẽ gửi báo giá cho Retailer.';
         } on ApiException catch (e) {
           if (!e.isNetwork) rethrow;
           await saveOffline(

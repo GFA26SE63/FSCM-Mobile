@@ -15,6 +15,7 @@ class LabelsApi {
 
   Future<LabelInfo> get(String code) async {
     final data = await _client.get(Endpoints.label(code));
-    return LabelInfo.fromJson(asMap(data));
+    final body = asMap(data);
+    return LabelInfo.fromJson(asMap(body['label']).isEmpty ? body : asMap(body['label']));
   }
 }

@@ -13,7 +13,6 @@ import 'package:fscm_mobile/data/local/local_providers.dart';
 import 'package:fscm_mobile/data/models/enums.dart';
 import 'package:fscm_mobile/data/models/offline_order.dart';
 import 'package:fscm_mobile/data/models/order.dart';
-import 'package:fscm_mobile/data/models/receipt_confirmation.dart';
 import 'package:fscm_mobile/data/models/retailer.dart';
 import 'package:fscm_mobile/data/remote/orders_api.dart';
 import 'package:fscm_mobile/data/repositories/auth_repository.dart';
@@ -152,7 +151,6 @@ class OrderRepository {
   Future<OfflineOrder> createOffline({
     required Retailer retailer,
     required List<CartLine> lines,
-    required PaymentMethod payment,
   }) async {
     final catalog = await _catalog.load();
     final seq = await _syncState.nextOfflineSeq();
@@ -161,11 +159,10 @@ class OrderRepository {
     final payload = OfflineOrderPayload(
       clientRequestId: const Uuid().v4(),
       offlineCode: IdFormat.offlineOrder(_device.deviceCode, seq),
+      retailerId: retailer.id,
       retailerCode: retailer.code,
       retailerName: retailer.name,
       createdAt: now,
-      payment: payment,
-      creditTerm: payment == PaymentMethod.credit ? retailer.creditTerm : 0,
       lines: lines,
       localTotal: quote.total,
       localDiscount: quote.discount,
@@ -186,16 +183,16 @@ class OrderRepository {
 
   // --------------------------------------------------------------- actions
 
-  Future<Order> cancel(String code) => _api.cancel(code);
+  Future<Order> cancel(String orderId, int expectedVersion) =>
+      _api.cancel(orderId, expectedVersion);
 
   /// "Xóa khỏi hàng đợi đồng bộ": only for orders not sent yet.
   Future<void> removeFromQueue(String clientRequestId) =>
       _queue.delete(clientRequestId);
 
-  Future<ReceiptConfirmation> confirmReceipt(
-    String code, {
+  Future<Order> confirmReceipt(
+    String orderId, {
     required List<String> labelCodes,
   }) =>
-      _api.confirmReceipt(code,
-          qrToken: labelCodes.first, labelCodes: labelCodes);
+      _api.confirmReceipt(orderId, labelCodes: labelCodes);
 }

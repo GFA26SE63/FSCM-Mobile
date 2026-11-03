@@ -42,9 +42,12 @@ class SalesHomeScreen extends ConsumerWidget {
     final today = AppClock.today();
     final todayOrders =
         orders.where((o) => AppDates.isSameDay(o.createdAt, today)).toList();
-    final waiting = orders.where((o) => o.status == OrderStatus.pending).length;
+    final waiting = orders.where((o) =>
+        o.status == OrderStatus.allocating ||
+        o.status == OrderStatus.quoted ||
+        o.status == OrderStatus.paymentPending).length;
     final rejected =
-        orders.where((o) => o.status == OrderStatus.rejected).length;
+        orders.where((o) => o.status.isRejectedOrCancelled).length;
     final unsynced = queue
         .where((e) =>
             e.status == SyncStatus.pending || e.status == SyncStatus.syncing)

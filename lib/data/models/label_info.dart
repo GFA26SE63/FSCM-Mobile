@@ -12,6 +12,7 @@ class LabelInfo {
     required this.batchCode,
     required this.qty,
     required this.status,
+    this.version = 0,
     this.expiry,
     this.location = '',
     this.warehouseName = '',
@@ -23,16 +24,17 @@ class LabelInfo {
   });
 
   factory LabelInfo.fromJson(Map<String, dynamic> j) => LabelInfo(
-        code: asStr(j['code']),
+        code: asStr(j['code'] ?? j['qrCode']),
         sku: asStr(j['sku']),
-        name: asStr(j['name']),
+        name: asStr(j['name'] ?? j['productName']),
         batchCode: asStr(j['batchCode']),
-        qty: asInt(j['qty']),
+        qty: asInt(j['qty'] ?? j['quantity']),
         status: LabelStatus.fromCode(asStrOrNull(j['status'])),
-        expiry: asDate(j['expiry']),
+        version: asInt(j['version']),
+        expiry: asDate(j['expiry'] ?? j['expirationDate']),
         location: asStr(j['location']),
-        warehouseName: asStr(j['warehouseName']),
-        parentCode: asStr(j['parentCode']),
+        warehouseName: asStr(j['warehouseName'] ?? j['warehouseCode']),
+        parentCode: asStr(j['parentCode'] ?? j['parentQrCode']),
         pickingCode: asStr(j['pickingCode']),
         orderCode: asStr(j['orderCode']),
         children: asStrList(j['children']),
@@ -45,6 +47,7 @@ class LabelInfo {
   final String batchCode;
   final int qty;
   final LabelStatus status;
+  final int version;
   final DateTime? expiry;
   final String location;
   final String warehouseName;
@@ -70,6 +73,7 @@ class LabelInfo {
         batchCode: batchCode,
         qty: qty ?? this.qty,
         status: status ?? this.status,
+        version: version,
         expiry: expiry,
         location: location ?? this.location,
         warehouseName: warehouseName ?? this.warehouseName,
@@ -87,6 +91,7 @@ class LabelInfo {
         'batchCode': batchCode,
         'qty': qty,
         'status': status.code,
+        'version': version,
         'expiry': isoOrNull(expiry),
         'location': location,
         'warehouseName': warehouseName,

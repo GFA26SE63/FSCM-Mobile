@@ -37,7 +37,7 @@ class PickingListTile extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             '${p.lines.length} dòng · ${p.totalNeed} thùng · '
-            '${p.status == PickingStatus.shipped ? 'xuất ${AppDates.timeDay(p.shippedAt)}' : 'duyệt ${AppDates.timeDay(p.approvedAt)}'}',
+            '${p.status == PickingStatus.completed ? 'soạn xong ${AppDates.timeDay(p.shippedAt)}' : 'bắt đầu ${AppDates.timeDay(p.approvedAt)}'}',
           ),
         ],
       ),

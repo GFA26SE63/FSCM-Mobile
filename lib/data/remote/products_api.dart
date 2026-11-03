@@ -11,7 +11,7 @@ import 'package:fscm_mobile/data/models/promotion.dart';
 final productsApiProvider =
     Provider<ProductsApi>((ref) => ProductsApi(ref.watch(apiClientProvider)));
 
-/// Catalog (`/products`), pricing (`/promotions`, `POST /pricing/quote`).
+/// Catalog (`/products`) and authoritative indicative pricing.
 class ProductsApi {
   ProductsApi(this._client);
 
@@ -32,16 +32,65 @@ class ProductsApi {
 
   /// Authoritative online quote used by the order screen when connected.
   Future<PriceQuote> quote({
-    required String retailerCode,
+    required String retailerId,
     required List<CartLine> lines,
   }) async {
     final data = await _client.post(
-      Endpoints.pricingQuote,
+      Endpoints.cartPricingQuote,
       body: <String, dynamic>{
-        'retailerCode': retailerCode,
-        'lines': lines.map((l) => l.toJson()).toList(),
+        'retailerId': retailerId,
+        'lines': lines
+            .map((line) => <String, dynamic>{
+                  'productId': line.productId,
+                  'quantity': line.qty,
+                })
+            .toList(),
       },
     );
-    return PriceQuote.fromJson(asMap(data));
+    final pricedLines = <QuoteLine>[];
+    final promotionNames = <String, String>{};
+    final promotionAmounts = <String, int>{};
+    final promotionSkus = <String, List<String>>{};
+    var total = 0;
+    var discount = 0;
+    for (final row in unwrapItems(data)) {
+      final promotion = asMap(row['appliedPromotion']);
+      final lineDiscount = asInt(row['discountAmount']);
+      final quantity = asInt(row['quantity']);
+      pricedLines.add(QuoteLine(
+        sku: asStr(row['sku']),
+        name: asStr(row['productName']),
+        qty: quantity,
+        unitPrice: asInt(row['unitPrice']),
+        discount: lineDiscount,
+        promoId: asStr(promotion['promotionId']),
+        promoName: asStr(promotion['name']),
+        pct: asDouble(row['discountPercent']),
+      ));
+      total += asInt(row['grossAmount']);
+      discount += lineDiscount;
+      if (promotion.isNotEmpty) {
+        final id = asStr(promotion['promotionId']);
+        promotionNames[id] = asStr(promotion['name']);
+        promotionAmounts[id] = (promotionAmounts[id] ?? 0) + lineDiscount;
+        promotionSkus.putIfAbsent(id, () => <String>[])
+            .add('${asStr(row['sku'])} × $quantity');
+      }
+    }
+    final applied = promotionAmounts.entries
+        .map((entry) => AppliedPromo(
+              id: entry.key,
+              name: promotionNames[entry.key] ?? '',
+              typeLabel: 'Khuyến mãi số lượng',
+              detail: promotionSkus[entry.key]!.join(' + '),
+              amount: entry.value,
+            ))
+        .toList();
+    return PriceQuote(
+      lines: pricedLines,
+      applied: applied,
+      total: total,
+      discount: discount,
+    );
   }
 }

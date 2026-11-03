@@ -11,11 +11,12 @@ class OfflineOrderPayload {
   const OfflineOrderPayload({
     required this.clientRequestId,
     required this.offlineCode,
+    this.retailerId = '',
     required this.retailerCode,
     required this.retailerName,
     required this.createdAt,
-    required this.payment,
-    required this.creditTerm,
+    this.payment = PaymentMethod.unselected,
+    this.creditTerm = 0,
     required this.lines,
     required this.localTotal,
     required this.localDiscount,
@@ -26,6 +27,7 @@ class OfflineOrderPayload {
       OfflineOrderPayload(
         clientRequestId: asStr(j['clientRequestId']),
         offlineCode: asStr(j['offlineCode']),
+        retailerId: asStr(j['retailerId']),
         retailerCode: asStr(j['retailerCode']),
         retailerName: asStr(j['retailerName']),
         createdAt: asDate(j['createdAt']) ?? DateTime.now(),
@@ -39,6 +41,7 @@ class OfflineOrderPayload {
 
   final String clientRequestId;
   final String offlineCode;
+  final String retailerId;
   final String retailerCode;
   final String retailerName;
   final DateTime createdAt;
@@ -52,17 +55,12 @@ class OfflineOrderPayload {
   int get localFinal => localTotal - localDiscount;
 
   Map<String, dynamic> toJson() => <String, dynamic>{
-        'clientRequestId': clientRequestId,
-        'offlineCode': offlineCode,
-        'retailerCode': retailerCode,
-        'retailerName': retailerName,
-        'createdAt': isoOrNull(createdAt),
-        'payment': payment.code,
-        'creditTerm': creditTerm,
+        'clientOrderKey': clientRequestId,
+        'retailerId': retailerId,
+        'paymentMethod': null,
+        'offlineEstimatedAmount': localFinal,
+        'confirmConditionChanges': true,
         'lines': lines.map((l) => l.toJson()).toList(),
-        'localTotal': localTotal,
-        'localDiscount': localDiscount,
-        'localPromoIds': localPromoIds,
       };
 }
 
@@ -192,8 +190,8 @@ Order orderFromOffline(
   final total = lines.fold<int>(0, (s, l) => s + l.base);
   final discount = lines.fold<int>(0, (s, l) => s + l.discount);
   final OrderStatus status = entry.status == SyncStatus.rejected
-      ? OrderStatus.rejected
-      : OrderStatus.pending;
+      ? OrderStatus.allocationFailed
+      : OrderStatus.allocating;
   return Order(
     code: '',
     offlineCode: p.offlineCode,
@@ -204,7 +202,7 @@ Order orderFromOffline(
     lines: lines,
     total: total,
     discount: discount,
-    payment: p.payment,
+    payment: PaymentMethod.unselected,
     creditTerm: p.creditTerm,
     rejectReason: entry.status == SyncStatus.rejected ? entry.error : '',
     isOffline: true,

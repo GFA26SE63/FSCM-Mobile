@@ -6,7 +6,7 @@ import 'package:fscm_mobile/core/network/api_exception.dart';
 import 'package:fscm_mobile/core/utils/id_format.dart';
 import 'package:fscm_mobile/core/utils/status_tone.dart';
 import 'package:fscm_mobile/data/models/order.dart';
-import 'package:fscm_mobile/data/models/receipt_confirmation.dart';
+import 'package:fscm_mobile/data/models/enums.dart';
 import 'package:fscm_mobile/data/repositories/data_version.dart';
 import 'package:fscm_mobile/data/repositories/order_repository.dart';
 import 'package:fscm_mobile/shared/routes.dart';
@@ -32,7 +32,7 @@ class _RtReceiveScreenState extends ConsumerState<RtReceiveScreen> {
   final Set<String> _scanned = <String>{};
   String _error = '';
   bool _busy = false;
-  ReceiptConfirmation? _result;
+  Order? _result;
 
   Future<void> _confirm(Order o) async {
     setState(() {
@@ -42,8 +42,8 @@ class _RtReceiveScreenState extends ConsumerState<RtReceiveScreen> {
     try {
       final r = await ref
           .read(orderRepositoryProvider)
-          .confirmReceipt(o.code, labelCodes: _scanned.toList());
-      ref.invalidate(orderDetailProvider(o.code));
+          .confirmReceipt(o.id, labelCodes: _scanned.toList());
+      ref.invalidate(orderDetailProvider(o.id));
       ref.read(dataVersionProvider.notifier).state++;
       if (mounted) setState(() => _result = r);
     } on ApiException catch (e) {
@@ -57,11 +57,6 @@ class _RtReceiveScreenState extends ConsumerState<RtReceiveScreen> {
     final code = raw.trim().toUpperCase();
     if (!IdFormat.isLabel(code)) {
       setState(() => _error = 'Mã "$code" không phải tem hàng (TEM-000000).');
-      return;
-    }
-    if (!o.labelCodes.contains(code)) {
-      setState(() => _error =
-          'Tem $code không thuộc đơn ${o.code}. Kiểm tra lại kiện hàng.');
       return;
     }
     if (_scanned.contains(code)) {
@@ -99,8 +94,8 @@ class _RtReceiveScreenState extends ConsumerState<RtReceiveScreen> {
               ],
             );
           }
-          final total = o.labelCodes.length;
-          final ready = total > 0 && _scanned.length >= total;
+          final total = _scanned.length;
+          final ready = total > 0;
           return ListView(
             padding: const EdgeInsets.all(16),
             children: <Widget>[
@@ -120,8 +115,8 @@ class _RtReceiveScreenState extends ConsumerState<RtReceiveScreen> {
                     icon: Icons.error_outline,
                     text: _error),
               ],
-              SectionTitle('Tem đã quét (${_scanned.length}/$total)'),
-              for (final c in o.labelCodes)
+              SectionTitle('Tem đã quét (${_scanned.length})'),
+              for (final c in _scanned)
                 AppCard(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
@@ -154,8 +149,7 @@ class _RtReceiveScreenState extends ConsumerState<RtReceiveScreen> {
     );
   }
 
-  Widget _done(ReceiptConfirmation r) {
-    final o = r.order;
+  Widget _done(Order o) {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: <Widget>[
@@ -163,18 +157,18 @@ class _RtReceiveScreenState extends ConsumerState<RtReceiveScreen> {
           tone: StatusTone.success,
           icon: Icons.check_circle_outline,
           title: 'Đã xác nhận nhận hàng ${o.code}',
-          text: r.pointsPending
-              ? 'Đơn công nợ: ${r.order.pointsEarned > 0 ? r.order.pointsEarned : 'các'} điểm sẽ được cộng khi bạn thanh toán đủ.'
-              : 'Bạn được cộng ${r.pointsEarned} điểm tích lũy.',
+          text: o.status == OrderStatus.delivered || o.status == OrderStatus.completed
+              ? 'Đã nhận đủ mọi phần giao. Công nợ bắt đầu tính hạn từ ngày nhận đủ hàng.'
+              : 'Đã nhận phần giao này. Đơn vẫn chờ các kho còn lại giao đủ.',
         ),
         FilledButton(
           onPressed: () =>
-              context.pushReplacement(AppRoutes.rtOrderDetail(o.code)),
+              context.pushReplacement(AppRoutes.rtOrderDetail(o.id)),
           child: const Text('Xem đơn hàng'),
         ),
         const SizedBox(height: 8),
         OutlinedButton.icon(
-          onPressed: () => context.push(AppRoutes.rtComplaintFor(o.code)),
+          onPressed: () => context.push(AppRoutes.rtComplaintFor(o.id)),
           icon: const Icon(Icons.report_gmailerrorred_outlined),
           label: const Text('Hàng thiếu / hư hỏng? Gửi khiếu nại'),
         ),
