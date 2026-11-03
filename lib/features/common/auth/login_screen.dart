@@ -7,7 +7,6 @@ import 'package:fscm_mobile/core/utils/status_tone.dart';
 import 'package:fscm_mobile/data/repositories/auth_repository.dart';
 import 'package:fscm_mobile/shared/routes.dart';
 import 'package:fscm_mobile/shared/theme/app_colors.dart';
-import 'package:fscm_mobile/shared/widgets/debug_log_dialog.dart';
 import 'package:fscm_mobile/shared/widgets/info_banner.dart';
 
 /// Phone + password or Google login.
@@ -87,19 +86,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: <Widget>[
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: <Widget>[
-                        const Icon(Icons.ac_unit,
-                            size: 44, color: AppColors.primary),
-                        IconButton(
-                          icon: const Icon(Icons.settings_ethernet,
-                              color: AppColors.textMuted),
-                          tooltip: 'Cấu hình máy chủ & Nhật ký lỗi',
-                          onPressed: () => showDebugLogDialog(context, ref),
-                        ),
-                      ],
-                    ),
+                    const Icon(Icons.ac_unit,
+                        size: 44, color: AppColors.primary),
                     const SizedBox(height: 8),
                     const Text(
                       'FSCM',
@@ -158,29 +146,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       ),
                     ),
                     const SizedBox(height: 12),
-                    if (_error != null) ...<Widget>[
+                    if (_error != null)
                       InfoBanner(
-                        text: _error!,
-                        tone: StatusTone.danger,
-                        icon: Icons.error_outline,
-                      ),
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: TextButton.icon(
-                          style: TextButton.styleFrom(
-                            visualDensity: VisualDensity.compact,
-                            padding: EdgeInsets.zero,
-                          ),
-                          icon: const Icon(Icons.bug_report_outlined, size: 16),
-                          label: const Text(
-                            'Xem chi tiết lỗi & log kết nối →',
-                            style: TextStyle(fontSize: 12.5),
-                          ),
-                          onPressed: () => showDebugLogDialog(context, ref),
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                    ],
+                          text: _error!,
+                          tone: StatusTone.danger,
+                          icon: Icons.error_outline),
                     FilledButton(
                       onPressed: _busy ? null : _submit,
                       child: Text(_busy ? 'Đang đăng nhập...' : 'Đăng nhập'),
