@@ -157,7 +157,8 @@ class _RtReceiveScreenState extends ConsumerState<RtReceiveScreen> {
           tone: StatusTone.success,
           icon: Icons.check_circle_outline,
           title: 'Đã xác nhận nhận hàng ${o.code}',
-          text: o.status == OrderStatus.delivered || o.status == OrderStatus.completed
+          text: o.status == OrderStatus.delivered ||
+                  o.status == OrderStatus.completed
               ? 'Đã nhận đủ mọi phần giao. Công nợ bắt đầu tính hạn từ ngày nhận đủ hàng.'
               : 'Đã nhận phần giao này. Đơn vẫn chờ các kho còn lại giao đủ.',
         ),
@@ -168,7 +169,7 @@ class _RtReceiveScreenState extends ConsumerState<RtReceiveScreen> {
         ),
         const SizedBox(height: 8),
         OutlinedButton.icon(
-          onPressed: () => context.push(AppRoutes.rtComplaintFor(o.id)),
+          onPressed: () => context.push(AppRoutes.rtComplaintFor(o.code)),
           icon: const Icon(Icons.report_gmailerrorred_outlined),
           label: const Text('Hàng thiếu / hư hỏng? Gửi khiếu nại'),
         ),

@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import 'package:fscm_mobile/core/network/api_exception.dart';
 import 'package:fscm_mobile/data/models/complaint.dart';
+import 'package:fscm_mobile/data/models/enums.dart';
 import 'package:fscm_mobile/data/models/order.dart';
 import 'package:fscm_mobile/data/repositories/loyalty_repository.dart';
 import 'package:fscm_mobile/data/repositories/order_repository.dart';
@@ -26,6 +27,8 @@ class ComplaintFormScreen extends ConsumerStatefulWidget {
 class _ComplaintFormScreenState extends ConsumerState<ComplaintFormScreen> {
   String? _orderCode;
   String? _sku;
+  String? _labelCode;
+  String _issueType = 'Shortage';
   final TextEditingController _actual = TextEditingController();
   final TextEditingController _note = TextEditingController();
   bool _busy = false;
@@ -50,6 +53,11 @@ class _ComplaintFormScreenState extends ConsumerState<ComplaintFormScreen> {
       showAppSnack(context, 'Chọn sản phẩm cần khiếu nại.', error: true);
       return;
     }
+    if (_labelCode == null) {
+      showAppSnack(context, 'Chọn tem của kiện hàng cần khiếu nại.',
+          error: true);
+      return;
+    }
     if (actual == null || actual < 0) {
       showAppSnack(context, 'Nhập số lượng thực nhận (0 trở lên).',
           error: true);
@@ -57,19 +65,20 @@ class _ComplaintFormScreenState extends ConsumerState<ComplaintFormScreen> {
     }
     final line = order.lines.firstWhere((l) => l.sku == sku);
     if (actual >= line.qty) {
-      showAppSnack(context, 'Số thực nhận phải nhỏ hơn số đặt (${line.qty}).',
+      showAppSnack(
+          context, 'Số lượng sử dụng được phải nhỏ hơn số giao (${line.qty}).',
           error: true);
       return;
     }
     setState(() => _busy = true);
     try {
-      final label = line.batches.isNotEmpty ? line.batches.first.labelCode : '';
       final c = await ref.read(loyaltyRepositoryProvider).complain(
             NewComplaint(
               orderCode: order.code,
               sku: sku,
-              labelCode: label,
+              labelCode: _labelCode!,
               actualQty: actual,
+              issueType: _issueType,
               note: _note.text.trim(),
             ),
           );
@@ -95,7 +104,10 @@ class _ComplaintFormScreenState extends ConsumerState<ComplaintFormScreen> {
         builder: (result) {
           final eligible = result.orders
               .where((o) =>
-                  !o.status.isActive && o.lines.isNotEmpty && o.code.isNotEmpty)
+                  (o.status == OrderStatus.delivered ||
+                      o.status == OrderStatus.completed) &&
+                  o.lines.isNotEmpty &&
+                  o.code.isNotEmpty)
               .toList();
           final selected = eligible.where((o) => o.code == _orderCode).toList();
           final order = selected.isEmpty ? null : selected.first;
@@ -114,6 +126,7 @@ class _ComplaintFormScreenState extends ConsumerState<ComplaintFormScreen> {
                 onChanged: (v) => setState(() {
                   _orderCode = v;
                   _sku = null;
+                  _labelCode = null;
                 }),
               ),
               if (order != null) ...<Widget>[
@@ -131,11 +144,49 @@ class _ComplaintFormScreenState extends ConsumerState<ComplaintFormScreen> {
                   ],
                   onChanged: (v) => setState(() => _sku = v),
                 ),
-                const SectionTitle('Số lượng thực nhận'),
+                const SectionTitle('Tem kiện hàng'),
+                ref.watch(receivedComplaintLabelsProvider(order.id)).when(
+                      data: (labels) => DropdownButtonFormField<String>(
+                        initialValue:
+                            labels.contains(_labelCode) ? _labelCode : null,
+                        hint: const Text('Chọn tem đã nhận'),
+                        items: labels
+                            .map((code) => DropdownMenuItem<String>(
+                                  value: code,
+                                  child: Text(code),
+                                ))
+                            .toList(),
+                        onChanged: (value) =>
+                            setState(() => _labelCode = value),
+                      ),
+                      loading: () => const LinearProgressIndicator(),
+                      error: (error, stack) => const Text(
+                        'Không tải được danh sách tem đã nhận.',
+                      ),
+                    ),
+                const SectionTitle('Loại vấn đề'),
+                DropdownButtonFormField<String>(
+                  initialValue: _issueType,
+                  items: const <DropdownMenuItem<String>>[
+                    DropdownMenuItem(
+                      value: 'Shortage',
+                      child: Text('Thiếu hàng'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'Damaged',
+                      child: Text('Hàng hỏng / không sử dụng được'),
+                    ),
+                  ],
+                  onChanged: (value) =>
+                      setState(() => _issueType = value ?? 'Shortage'),
+                ),
+                const SectionTitle('Số lượng sử dụng được'),
                 TextField(
                   controller: _actual,
                   keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(hintText: 'Ví dụ: 55'),
+                  decoration: const InputDecoration(
+                    hintText: 'Ví dụ giao 10, dùng được 8 thì nhập 8',
+                  ),
                 ),
                 const SectionTitle('Ghi chú'),
                 TextField(
