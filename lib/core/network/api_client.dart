@@ -1,16 +1,19 @@
 import 'dart:async';
 
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:fscm_mobile/core/config/env.dart';
 import 'package:fscm_mobile/core/network/api_exception.dart';
 import 'package:fscm_mobile/core/network/api_transport.dart';
+import 'package:fscm_mobile/core/network/dio_adapter.dart';
 import 'package:fscm_mobile/core/storage/token_store.dart';
+import 'package:fscm_mobile/core/utils/app_logger.dart';
 
 /// HTTP transport used by the repositories.
 final apiTransportProvider = Provider<ApiTransport>((ref) {
-  return DioTransport(baseUrl: Env.apiBaseUrl);
+  return DioTransport(baseUrl: Env.effectiveApiBaseUrl);
 });
 
 final apiClientProvider = Provider<ApiClient>((ref) {
@@ -22,6 +25,38 @@ final apiClientProvider = Provider<ApiClient>((ref) {
   ref.onDispose(client.dispose);
   return client;
 });
+
+/// Interceptor to stream network activity to the console (adb logcat / flutter logs)
+/// and into the in-memory [AppLogger] for on-device viewing.
+class _HttpLoggingInterceptor extends Interceptor {
+  @override
+  void onRequest(RequestOptions options, RequestInterceptorHandler handler) {
+    final msg = '--> ${options.method} ${options.uri}';
+    AppLogger.log(msg);
+    if (kDebugMode && options.data != null) {
+      debugPrint('    Data: ${options.data}');
+    }
+    super.onRequest(options, handler);
+  }
+
+  @override
+  void onResponse(
+      Response<Object?> response, ResponseInterceptorHandler handler) {
+    final msg =
+        '<-- ${response.statusCode} ${response.requestOptions.method} ${response.requestOptions.uri}';
+    AppLogger.log(msg);
+    super.onResponse(response, handler);
+  }
+
+  @override
+  void onError(DioException err, ErrorInterceptorHandler handler) {
+    final uri = err.requestOptions.uri;
+    final detail = '${err.type.name}: ${err.error ?? err.message}';
+    final msg = '<-- ERROR ${err.requestOptions.method} $uri: $detail';
+    AppLogger.log(msg);
+    super.onError(err, handler);
+  }
+}
 
 /// HTTP transport based on dio. Never throws for HTTP error statuses (they
 /// are mapped by [ApiClient]); throws [ApiException] for network problems.
@@ -38,7 +73,12 @@ class DioTransport implements ApiTransport {
                 responseType: ResponseType.json,
                 validateStatus: (_) => true,
               ),
-            );
+            ) {
+    if (dio == null) {
+      configureDevHttpAdapter(_dio);
+    }
+    _dio.interceptors.add(_HttpLoggingInterceptor());
+  }
 
   final Dio _dio;
 
@@ -54,19 +94,33 @@ class DioTransport implements ApiTransport {
       return ApiResponse(
           statusCode: response.statusCode ?? 0, data: response.data);
     } on DioException catch (e) {
+      final uri = e.requestOptions.uri;
+      final rawError = e.error ?? e.message;
+      final errorDetail = '${e.type.name}: $rawError';
+
       switch (e.type) {
         case DioExceptionType.connectionTimeout:
         case DioExceptionType.sendTimeout:
         case DioExceptionType.receiveTimeout:
-          throw const ApiException.timeout();
+          throw ApiException.timeout(
+            'Máy chủ phản hồi quá lâu ($uri).',
+            errorDetail,
+          );
         case DioExceptionType.connectionError:
-          throw const ApiException.network();
+        case DioExceptionType.badCertificate:
+          throw ApiException.network(
+            'Không kết nối được máy chủ $uri.\n($errorDetail)',
+            'Chi tiết: $e\nURL: $uri',
+          );
         default:
           final res = e.response;
           if (res != null) {
             return ApiResponse(statusCode: res.statusCode ?? 0, data: res.data);
           }
-          throw ApiException.network(e.message);
+          throw ApiException.network(
+            'Lỗi kết nối $uri: $rawError',
+            errorDetail,
+          );
       }
     }
   }
