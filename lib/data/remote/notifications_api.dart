@@ -14,11 +14,25 @@ class NotificationsApi {
   final ApiClient _client;
 
   Future<List<AppNotification>> list() async {
-    final data = await _client.get(Endpoints.notifications);
-    return unwrapItems(data).map(AppNotification.fromJson).toList();
+    final notifications = <AppNotification>[];
+    for (var page = 1; ; page++) {
+      final data = await _client.get(
+        Endpoints.notifications,
+        query: {'page': page},
+      );
+      final items = unwrapItems(data);
+      notifications.addAll(items.map(AppNotification.fromJson));
+      if (items.isEmpty ||
+          notifications.length >= asInt(asMap(data)['totalCount'])) {
+        return notifications;
+      }
+    }
   }
 
   Future<void> markRead(String id) async {
-    await _client.post(Endpoints.notificationRead(id));
+    await _client.patch(Endpoints.notificationRead(id));
   }
+
+  Future<void> markAllRead() async =>
+      _client.patch(Endpoints.notificationsReadAll);
 }

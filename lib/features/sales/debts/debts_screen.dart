@@ -68,7 +68,7 @@ class _DebtsScreenState extends ConsumerState<DebtsScreen> {
               builder: (all) {
                 final open = all
                     .where((r) => !r.isPaid)
-                    .fold<int>(0, (s, r) => s + r.amount);
+                    .fold<int>(0, (s, r) => s + r.outstandingAmount);
                 final list = all.where(_match).toList();
                 return RefreshIndicator(
                   onRefresh: () async => ref.invalidate(receivablesProvider),
@@ -128,7 +128,7 @@ class _DebtsScreenState extends ConsumerState<DebtsScreen> {
           const SizedBox(height: 4),
           Row(
             children: <Widget>[
-              Text(Money.format(r.amount),
+              Text(Money.format(r.isPaid ? r.amount : r.outstandingAmount),
                   style: const TextStyle(
                       fontSize: 17, fontWeight: FontWeight.w800)),
               const SizedBox(width: 10),
@@ -156,16 +156,16 @@ class _DebtsScreenState extends ConsumerState<DebtsScreen> {
       context,
       title: 'Ghi nhận đã thu?',
       message:
-          'Xác nhận đã thu đủ ${Money.format(r.amount)} tiền mặt của ${r.retailerName} cho đơn ${r.orderCode}. Không thu từng phần.',
+          'Xác nhận đã thu đủ ${Money.format(r.outstandingAmount)} tiền mặt của ${r.retailerName} cho đơn ${r.orderCode}. Không thu từng phần.',
       confirmLabel: 'Đã thu đủ',
     );
     if (!ok) return;
     try {
-      await ref.read(financeRepositoryProvider).collect(r.orderCode);
+      await ref.read(financeRepositoryProvider).collect(r);
       ref.read(dataVersionProvider.notifier).state++;
       if (mounted) {
         showAppSnack(this.context,
-            'Đã ghi nhận thu ${Money.format(r.amount)} cho ${r.orderCode}.');
+            'Đã ghi nhận thu ${Money.format(r.outstandingAmount)} cho ${r.orderCode}.');
       }
     } on ApiException catch (e) {
       if (mounted) showAppSnack(this.context, e.message, error: true);

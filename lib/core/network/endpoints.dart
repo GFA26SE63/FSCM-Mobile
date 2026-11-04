@@ -81,8 +81,8 @@ class Endpoints {
   static String paymentForOrder(String orderId) => '/payments/orders/$orderId';
   static String payOsCheckout(String orderId) =>
       '/payments/orders/$orderId/payos-checkout';
-  static String receivableCollect(String orderCode) =>
-      '/receivables/$orderCode/collect';
+  static String receivableCollect(String orderId) =>
+      '/receivables/orders/$orderId/collect';
 
   // ------------------------------------------------------------- loyalty
   static const String loyaltyPrograms = '/loyalty/programs';
@@ -98,6 +98,7 @@ class Endpoints {
   // ------------------------------------------------------- notifications
   static const String notifications = '/notifications';
   static String notificationRead(String id) => '/notifications/$id/read';
+  static const String notificationsReadAll = '/notifications/read-all';
 
   // ---------------------------------------------------------- mobile sync
   /// `GET /sync/snapshot?since=` - retailers in area, products, prices,
