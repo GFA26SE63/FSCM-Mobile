@@ -18,7 +18,9 @@ enum OrderStatus {
   completed('Completed', 'Hoàn tất', StatusTone.success),
   quoteRejected('QuoteRejected', 'Báo giá bị từ chối', StatusTone.danger),
   quoteExpired('QuoteExpired', 'Báo giá hết hạn', StatusTone.neutral),
-  withdrawn('Withdrawn', 'Đã hủy', StatusTone.neutral);
+  withdrawn('Withdrawn', 'Đã hủy', StatusTone.neutral),
+  cancelled('Cancelled', 'Đã hủy', StatusTone.neutral),
+  rejected('Rejected', 'Đã từ chối', StatusTone.danger);
 
   const OrderStatus(this.code, this.label, this.tone);
   final String code;
@@ -42,6 +44,8 @@ enum OrderStatus {
       this == quoteRejected ||
       this == quoteExpired ||
       this == withdrawn ||
+      this == cancelled ||
+      this == rejected ||
       this == allocationFailed ||
       this == outOfStock ||
       this == allocationConflict;
@@ -57,7 +61,7 @@ enum OrderStatus {
 
 enum PaymentMethod {
   unselected('', 'Chưa chọn phương thức'),
-  prepaid('Prepaid', 'Trả trước (QR / tiền mặt)'),
+  prepaid('Prepaid', 'Trả trước (chuyển khoản)'),
   credit('Credit', 'Công nợ - trả sau');
 
   const PaymentMethod(this.code, this.label);
@@ -100,7 +104,8 @@ enum SyncStatus {
 enum ReceivableStatus {
   unpaid('Unpaid', 'Chưa thu', StatusTone.info),
   paid('Paid', 'Đã thu đủ', StatusTone.success),
-  overdue('Overdue', 'Quá hạn', StatusTone.danger);
+  overdue('Overdue', 'Quá hạn', StatusTone.danger),
+  cancelled('Cancelled', 'Đã hủy', StatusTone.neutral);
 
   const ReceivableStatus(this.code, this.label, this.tone);
   final String code;

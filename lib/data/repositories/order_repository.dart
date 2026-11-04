@@ -11,6 +11,7 @@ import 'package:fscm_mobile/data/local/daos/offline_order_dao.dart';
 import 'package:fscm_mobile/data/local/daos/sync_state_dao.dart';
 import 'package:fscm_mobile/data/local/local_providers.dart';
 import 'package:fscm_mobile/data/models/enums.dart';
+import 'package:fscm_mobile/data/models/delivery_shipment.dart';
 import 'package:fscm_mobile/data/models/offline_order.dart';
 import 'package:fscm_mobile/data/models/order.dart';
 import 'package:fscm_mobile/data/models/retailer.dart';
@@ -56,6 +57,12 @@ final orderDetailProvider =
     FutureProvider.autoDispose.family<Order, String>((ref, code) async {
   ref.watch(dataVersionProvider);
   return ref.watch(orderRepositoryProvider).getOrder(code);
+});
+
+final deliveryShipmentsProvider = FutureProvider.autoDispose
+    .family<List<DeliveryShipment>, String>((ref, orderId) async {
+  ref.watch(dataVersionProvider);
+  return ref.watch(orderRepositoryProvider).deliveryShipments(orderId);
 });
 
 /// Entire offline queue (newest first) for the sync screen and badges.
@@ -190,9 +197,13 @@ class OrderRepository {
   Future<void> removeFromQueue(String clientRequestId) =>
       _queue.delete(clientRequestId);
 
-  Future<Order> confirmReceipt(
-    String orderId, {
+  Future<List<DeliveryShipment>> deliveryShipments(String orderId) =>
+      _api.deliveryShipments(orderId);
+
+  Future<Order> confirmShipmentReceipt(
+    String orderId,
+    DeliveryShipment shipment, {
     required List<String> labelCodes,
   }) =>
-      _api.confirmReceipt(orderId, labelCodes: labelCodes);
+      _api.confirmShipmentReceipt(orderId, shipment, labelCodes: labelCodes);
 }
