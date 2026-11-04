@@ -37,7 +37,7 @@ class _GiftsScreenState extends ConsumerState<GiftsScreen> {
     if (!ok || !mounted) return;
     setState(() => _busyGift = g.code);
     try {
-      final r = await ref.read(loyaltyRepositoryProvider).redeem(g.code);
+      final r = await ref.read(loyaltyRepositoryProvider).redeem(g);
       ref.invalidate(giftsProvider);
       ref.invalidate(redemptionsProvider);
       ref.read(dataVersionProvider.notifier).state++;

@@ -18,7 +18,9 @@ enum OrderStatus {
   completed('Completed', 'Hoàn tất', StatusTone.success),
   quoteRejected('QuoteRejected', 'Báo giá bị từ chối', StatusTone.danger),
   quoteExpired('QuoteExpired', 'Báo giá hết hạn', StatusTone.neutral),
-  withdrawn('Withdrawn', 'Đã hủy', StatusTone.neutral);
+  withdrawn('Withdrawn', 'Đã hủy', StatusTone.neutral),
+  cancelled('Cancelled', 'Đã hủy', StatusTone.neutral),
+  rejected('Rejected', 'Đã từ chối', StatusTone.danger);
 
   const OrderStatus(this.code, this.label, this.tone);
   final String code;
@@ -39,8 +41,14 @@ enum OrderStatus {
   bool get canConfirmReceipt => this == delivering;
 
   bool get isRejectedOrCancelled =>
-      this == quoteRejected || this == quoteExpired || this == withdrawn ||
-      this == allocationFailed || this == outOfStock || this == allocationConflict;
+      this == quoteRejected ||
+      this == quoteExpired ||
+      this == withdrawn ||
+      this == cancelled ||
+      this == rejected ||
+      this == allocationFailed ||
+      this == outOfStock ||
+      this == allocationConflict;
 
   static OrderStatus fromCode(String? code) {
     final c = (code ?? '').toLowerCase();
@@ -53,7 +61,7 @@ enum OrderStatus {
 
 enum PaymentMethod {
   unselected('', 'Chưa chọn phương thức'),
-  prepaid('Prepaid', 'Trả trước (QR / tiền mặt)'),
+  prepaid('Prepaid', 'Trả trước (chuyển khoản)'),
   credit('Credit', 'Công nợ - trả sau');
 
   const PaymentMethod(this.code, this.label);
@@ -96,7 +104,8 @@ enum SyncStatus {
 enum ReceivableStatus {
   unpaid('Unpaid', 'Chưa thu', StatusTone.info),
   paid('Paid', 'Đã thu đủ', StatusTone.success),
-  overdue('Overdue', 'Quá hạn', StatusTone.danger);
+  overdue('Overdue', 'Quá hạn', StatusTone.danger),
+  cancelled('Cancelled', 'Đã hủy', StatusTone.neutral);
 
   const ReceivableStatus(this.code, this.label, this.tone);
   final String code;
@@ -193,10 +202,10 @@ enum TransferStatus {
 }
 
 enum GiftRequestStatus {
-  requested('Requested', 'Chờ duyệt', StatusTone.info),
+  requested('Pending', 'Chờ duyệt', StatusTone.info),
   approved('Approved', 'Đã duyệt', StatusTone.primary),
   delivered('Delivered', 'Đang giao quà', StatusTone.purple),
-  done('Done', 'Hoàn tất', StatusTone.success),
+  done('Completed', 'Hoàn tất', StatusTone.success),
   rejected('Rejected', 'Bị từ chối', StatusTone.danger);
 
   const GiftRequestStatus(this.code, this.label, this.tone);
@@ -226,6 +235,11 @@ enum PointKind {
 
   static PointKind fromCode(String? code) {
     final c = (code ?? '').toLowerCase();
+    if (c == 'earnedadjusted') return PointKind.earned;
+    if (c == 'redemptionheld') return PointKind.held;
+    if (c == 'redemptionrejected') return PointKind.refunded;
+    if (c == 'redemptioncompleted') return PointKind.redeemed;
+    if (c == 'expired') return PointKind.redeemed;
     for (final k in PointKind.values) {
       if (k.code.toLowerCase() == c) return k;
     }
@@ -236,6 +250,7 @@ enum PointKind {
 enum ComplaintStatus {
   open('Open', 'Chờ xử lý', StatusTone.info),
   inProgress('InProgress', 'Đang xử lý', StatusTone.purple),
+  approved('Approved', 'Đã chấp nhận', StatusTone.success),
   resolved('Resolved', 'Đã xử lý', StatusTone.success),
   rejected('Rejected', 'Từ chối', StatusTone.danger);
 

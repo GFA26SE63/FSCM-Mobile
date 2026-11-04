@@ -23,4 +23,16 @@ class ComplaintsApi {
         await _client.post(Endpoints.complaints, body: request.toJson());
     return Complaint.fromJson(asMap(data));
   }
+
+  Future<List<String>> receivedLabels(String orderId) async {
+    final data = asMap(
+      await _client.get(Endpoints.shipmentDeliveryView(orderId)),
+    );
+    final labels = <String>{};
+    for (final shipment in asMapList(data['shipments'])) {
+      final receipt = asMap(shipment['receipt']);
+      labels.addAll(asStrList(receipt['qrCodes']));
+    }
+    return labels.toList()..sort();
+  }
 }

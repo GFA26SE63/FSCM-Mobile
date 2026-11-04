@@ -17,8 +17,8 @@ final loyaltyRepositoryProvider = Provider<LoyaltyRepository>((ref) {
 final loyaltyAccountProvider =
     FutureProvider.autoDispose<LoyaltyAccount>((ref) {
   ref.watch(dataVersionProvider);
-  final user = ref.watch(currentUserProvider);
-  return ref.watch(loyaltyRepositoryProvider).account(user?.retailerCode ?? '');
+  ref.watch(currentUserProvider);
+  return ref.watch(loyaltyRepositoryProvider).account();
 });
 
 final giftsProvider = FutureProvider.autoDispose<List<Gift>>((ref) {
@@ -37,6 +37,12 @@ final complaintsProvider = FutureProvider.autoDispose<List<Complaint>>((ref) {
   return ref.watch(loyaltyRepositoryProvider).complaints();
 });
 
+final receivedComplaintLabelsProvider =
+    FutureProvider.autoDispose.family<List<String>, String>((ref, orderId) {
+  if (orderId.isEmpty) return Future.value(const <String>[]);
+  return ref.watch(loyaltyRepositoryProvider).receivedLabels(orderId);
+});
+
 /// Retailer side: points, gifts, redemptions and complaints.
 class LoyaltyRepository {
   LoyaltyRepository(
@@ -47,18 +53,20 @@ class LoyaltyRepository {
   final LoyaltyApi _loyalty;
   final ComplaintsApi _complaints;
 
-  Future<LoyaltyAccount> account(String retailerCode) =>
-      _loyalty.account(retailerCode);
+  Future<LoyaltyAccount> account() => _loyalty.account();
 
   Future<List<Gift>> gifts() => _loyalty.gifts();
 
   Future<List<GiftRedemption>> redemptions() => _loyalty.redemptions();
 
   /// Points are held right away; refunded if the request is rejected.
-  Future<GiftRedemption> redeem(String giftCode) => _loyalty.redeem(giftCode);
+  Future<GiftRedemption> redeem(Gift gift) => _loyalty.redeem(gift);
 
   Future<List<Complaint>> complaints() => _complaints.list();
 
   Future<Complaint> complain(NewComplaint request) =>
       _complaints.create(request);
+
+  Future<List<String>> receivedLabels(String orderId) =>
+      _complaints.receivedLabels(orderId);
 }

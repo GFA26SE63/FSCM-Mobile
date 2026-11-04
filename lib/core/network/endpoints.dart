@@ -63,7 +63,8 @@ class Endpoints {
   static const String pickingLists = '/picking-lists';
   static String pickingList(String code) => '/picking-lists/$code';
   static String pickingListScan(String code) => '/picking-lists/$code/scans';
-  static String pickingListComplete(String code) => '/picking-lists/$code/complete';
+  static String pickingListComplete(String code) =>
+      '/picking-lists/$code/complete';
   static String shipmentDeliveryView(String orderId) =>
       '/shipments/orders/$orderId/delivery-view';
   static String shipmentReceipt(String shipmentId) =>
@@ -78,15 +79,16 @@ class Endpoints {
   // ------------------------------------------------------------- finance
   static const String receivables = '/receivables';
   static String paymentForOrder(String orderId) => '/payments/orders/$orderId';
-  static String payOsCheckout(String orderId) => '/payments/orders/$orderId/payos-checkout';
+  static String payOsCheckout(String orderId) =>
+      '/payments/orders/$orderId/payos-checkout';
   static String receivableCollect(String orderCode) =>
       '/receivables/$orderCode/collect';
 
   // ------------------------------------------------------------- loyalty
   static const String loyaltyPrograms = '/loyalty/programs';
-  static String loyaltyRetailer(String code) => '/loyalty/retailers/$code';
-  static const String gifts = '/gifts';
-  static const String giftRedemptions = '/gift-redemptions';
+  static const String loyaltyCardMe = '/loyalty/cards/me';
+  static const String loyaltyRewards = '/loyalty/rewards';
+  static const String loyaltyRedemptions = '/loyalty/redemptions';
 
   // --------------------------------------------------------- performance
   static const String kpiSales = '/kpi/sales';

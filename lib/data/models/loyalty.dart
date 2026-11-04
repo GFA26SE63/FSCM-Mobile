@@ -4,6 +4,7 @@ import 'package:fscm_mobile/data/models/json_utils.dart';
 /// Loyalty program `LP-000`: 1 point per [amountPerPoint] (đ) after promotion.
 class LoyaltyProgram {
   const LoyaltyProgram({
+    required this.id,
     required this.code,
     required this.name,
     required this.amountPerPoint,
@@ -11,18 +12,22 @@ class LoyaltyProgram {
   });
 
   factory LoyaltyProgram.fromJson(Map<String, dynamic> j) => LoyaltyProgram(
+        id: asStr(j['id']),
         code: asStr(j['code']),
         name: asStr(j['name']),
-        amountPerPoint: asInt(j['amountPerPoint'], 100000),
-        expiryText: asStr(j['expiryText']),
+        amountPerPoint:
+            asInt(j['spendAmountPerPoint'] ?? j['amountPerPoint'], 100000),
+        expiryText: asStr(j['expiryText'] ?? j['pointsExpireAt']),
       );
 
+  final String id;
   final String code;
   final String name;
   final int amountPerPoint;
   final String expiryText;
 
   Map<String, dynamic> toJson() => <String, dynamic>{
+        'id': id,
         'code': code,
         'name': name,
         'amountPerPoint': amountPerPoint,
@@ -40,10 +45,11 @@ class PointLedgerEntry {
   });
 
   factory PointLedgerEntry.fromJson(Map<String, dynamic> j) => PointLedgerEntry(
-        date: asDate(j['date']),
-        description: asStr(j['description']),
+        date: asDate(j['createdAt'] ?? j['date']),
+        description: _ledgerDescription(j),
         points: asInt(j['points']),
-        kind: PointKind.fromCode(asStrOrNull(j['kind'])),
+        kind:
+            PointKind.fromCode(asStrOrNull(j['transactionType'] ?? j['kind'])),
         orderCode: asStr(j['orderCode']),
       );
 
@@ -76,13 +82,22 @@ class LoyaltyAccount {
     this.tier = '',
   });
 
-  factory LoyaltyAccount.fromJson(Map<String, dynamic> j) => LoyaltyAccount(
+  factory LoyaltyAccount.fromJson(Map<String, dynamic> j,
+          {LoyaltyProgram? program}) =>
+      LoyaltyAccount(
         retailerCode: asStr(j['retailerCode']),
-        balance: asInt(j['balance']),
-        pending: asInt(j['pending']),
-        held: asInt(j['held']),
+        balance: asInt(j['availablePoints'] ?? j['balance']),
+        pending: asInt(j['pendingPoints'] ?? j['pending']),
+        held: asInt(j['heldPoints'] ?? j['held']),
         tier: asStr(j['tier']),
-        program: LoyaltyProgram.fromJson(asMap(j['program'])),
+        program: program ??
+            LoyaltyProgram(
+              id: asStr(j['programId']),
+              code: asStr(j['programCode'], '-'),
+              name: asStr(j['programName'], 'Chưa có chương trình'),
+              amountPerPoint: 0,
+              expiryText: asStr(j['pointsExpireAt']),
+            ),
         ledger: mapList(j['ledger'], PointLedgerEntry.fromJson),
       );
 
@@ -110,6 +125,7 @@ class LoyaltyAccount {
 /// Gift `QUA-000`.
 class Gift {
   const Gift({
+    required this.id,
     required this.code,
     required this.name,
     required this.points,
@@ -117,18 +133,21 @@ class Gift {
   });
 
   factory Gift.fromJson(Map<String, dynamic> j) => Gift(
+        id: asStr(j['id']),
         code: asStr(j['code']),
         name: asStr(j['name']),
-        points: asInt(j['points']),
-        stock: asInt(j['stock']),
+        points: asInt(j['requiredPoints'] ?? j['points']),
+        stock: asInt(j['availableQuantity'] ?? j['stock'], 999999),
       );
 
+  final String id;
   final String code;
   final String name;
   final int points;
   final int stock;
 
   Map<String, dynamic> toJson() => <String, dynamic>{
+        'id': id,
         'code': code,
         'name': name,
         'points': points,
@@ -148,12 +167,12 @@ class GiftRedemption {
   });
 
   factory GiftRedemption.fromJson(Map<String, dynamic> j) => GiftRedemption(
-        code: asStr(j['code']),
-        giftCode: asStr(j['giftCode']),
-        giftName: asStr(j['giftName']),
-        points: asInt(j['points']),
+        code: asStr(j['id'] ?? j['code']),
+        giftCode: asStr(j['rewardCode'] ?? j['giftCode']),
+        giftName: asStr(j['rewardName'] ?? j['giftName']),
+        points: asInt(j['redeemedPoints'] ?? j['points']),
         status: GiftRequestStatus.fromCode(asStrOrNull(j['status'])),
-        requestedAt: asDate(j['requestedAt']),
+        requestedAt: asDate(j['createdAt'] ?? j['requestedAt']),
       );
 
   final String code;
@@ -171,4 +190,18 @@ class GiftRedemption {
         'status': status.code,
         'requestedAt': isoOrNull(requestedAt),
       };
+}
+
+String _ledgerDescription(Map<String, dynamic> json) {
+  final note = asStr(json['note'] ?? json['description']);
+  if (note.isNotEmpty) return note;
+  return switch (asStr(json['transactionType'] ?? json['kind'])) {
+    'Earned' => 'Cộng điểm đơn hàng',
+    'EarnedAdjusted' => 'Điều chỉnh điểm theo giá trị đơn',
+    'RedemptionHeld' => 'Giữ điểm đổi quà',
+    'RedemptionRejected' => 'Hoàn điểm do từ chối đổi quà',
+    'RedemptionCompleted' => 'Hoàn tất đổi quà',
+    'Expired' => 'Điểm hết hạn',
+    final value => value.isEmpty ? 'Giao dịch điểm' : value,
+  };
 }

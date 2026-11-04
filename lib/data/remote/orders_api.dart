@@ -4,6 +4,7 @@ import 'package:fscm_mobile/core/network/api_client.dart';
 import 'package:fscm_mobile/core/network/endpoints.dart';
 import 'package:fscm_mobile/core/network/api_exception.dart';
 import 'package:fscm_mobile/data/models/json_utils.dart';
+import 'package:fscm_mobile/data/models/delivery_shipment.dart';
 import 'package:fscm_mobile/data/models/offline_order.dart';
 import 'package:fscm_mobile/data/models/order.dart';
 import 'package:uuid/uuid.dart';
@@ -84,42 +85,40 @@ class OrdersApi {
     return results;
   }
 
-  /// Confirms one in-transit warehouse shipment. Multi-warehouse orders are
-  /// received one shipment at a time; the order becomes Delivered only when
-  /// every shipment is received without an exception.
-  Future<Order> confirmReceipt(
-    String orderId, {
+  Future<List<DeliveryShipment>> deliveryShipments(String orderId) async {
+    final delivery =
+        asMap(await _client.get(Endpoints.shipmentDeliveryView(orderId)));
+    return asMapList(delivery['shipments'])
+        .map(DeliveryShipment.fromJson)
+        .toList(growable: false);
+  }
+
+  /// Confirms the warehouse shipment explicitly selected by the retailer.
+  Future<Order> confirmShipmentReceipt(
+    String orderId,
+    DeliveryShipment shipment, {
     required List<String> labelCodes,
   }) async {
-    final delivery = asMap(await _client.get(Endpoints.shipmentDeliveryView(orderId)));
-    final shipments = asMapList(delivery['shipments']);
-    Map<String, dynamic>? shipment;
-    for (final item in shipments) {
-      if (asStr(item['status']) == 'Delivering') {
-        shipment = item;
-        break;
-      }
-    }
-    if (shipment == null) {
+    if (!shipment.canReceive) {
       throw const ApiException(
         kind: ApiErrorKind.conflict,
         message: 'Không có phần giao nào đang vận chuyển để xác nhận.',
       );
     }
-    final lines = asMapList(shipment['lines'])
+    final lines = shipment.lines
         .map((line) => <String, dynamic>{
-              'orderLineId': asStr(line['orderLineId']),
-              'batchId': asStr(line['batchId']),
-              'receivedQuantity': asDouble(line['quantity']),
+              'orderLineId': line.orderLineId,
+              'batchId': line.batchId,
+              'receivedQuantity': line.quantity,
               'damagedQuantity': 0,
             })
         .toList();
     await _client.post(
-      Endpoints.shipmentReceipt(asStr(shipment['id'])),
+      Endpoints.shipmentReceipt(shipment.id),
       body: <String, dynamic>{
         'qrCodes': labelCodes,
         'lines': lines,
-        'expectedVersion': asInt(shipment['version']),
+        'expectedVersion': shipment.version,
         'note': 'Retailer confirmed full receipt on mobile.',
       },
       headers: <String, String>{'Idempotency-Key': const Uuid().v4()},

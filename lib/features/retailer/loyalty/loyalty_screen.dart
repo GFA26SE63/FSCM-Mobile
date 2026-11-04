@@ -69,8 +69,8 @@ class LoyaltyScreen extends ConsumerWidget {
               const SizedBox(height: 12),
               AppCard(
                 child: Text(
-                  'Cứ ${Money.format(a.program.amountPerPoint)} giá trị đơn hàng (sau khuyến mãi) được 1 điểm. '
-                  'Điểm được cộng khi bạn quét QR nhận hàng; đơn công nợ cộng sau khi thanh toán đủ.'
+                  '${a.program.amountPerPoint > 0 ? 'Cứ ${Money.format(a.program.amountPerPoint)} giá trị đơn hàng (sau khuyến mãi) được 1 điểm. ' : 'Retailer chưa được gắn chương trình tích điểm đang hoạt động. '}'
+                  'Điểm chỉ được cộng khi đơn đã giao và đã thanh toán đủ.'
                   '${a.program.expiryText.isEmpty ? '' : '\n${a.program.expiryText}'}',
                   style: const TextStyle(height: 1.4),
                 ),
