@@ -307,6 +307,10 @@ List<RouteBase> _warehouseRoutes() => <RouteBase>[
 // --------------------------------------------------------------- retailer
 
 List<RouteBase> _retailerRoutes() => <RouteBase>[
+      GoRoute(
+        path: '/retailer/order/new',
+        builder: (c, s) => const OrderCreateScreen(),
+      ),
       StatefulShellRoute.indexedStack(
         builder: (context, state, shell) =>
             RetailerShell(navigationShell: shell),
