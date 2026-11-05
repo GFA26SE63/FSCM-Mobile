@@ -54,6 +54,11 @@ class _RtOrdersScreenState extends ConsumerState<RtOrdersScreen> {
     return DefaultTabController(
       length: 2,
       child: Scaffold(
+        floatingActionButton: FloatingActionButton.extended(
+          onPressed: () => context.push('/retailer/order/new'),
+          icon: const Icon(Icons.add_shopping_cart),
+          label: const Text('Đặt hàng'),
+        ),
         appBar: AppBar(
           title: const Text('Đơn hàng'),
           actions: const <Widget>[NotificationBellButton()],
