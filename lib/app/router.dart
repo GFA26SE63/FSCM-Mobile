@@ -41,8 +41,6 @@ import 'package:fscm_mobile/features/warehouse/picking/pick_line_screen.dart';
 import 'package:fscm_mobile/features/warehouse/picking/picking_detail_screen.dart';
 import 'package:fscm_mobile/features/warehouse/picking/picking_lists_screen.dart';
 import 'package:fscm_mobile/features/warehouse/scan/wk_scan_screen.dart';
-import 'package:fscm_mobile/features/warehouse/transfers/transfer_detail_screen.dart';
-import 'package:fscm_mobile/features/warehouse/transfers/transfers_screen.dart';
 import 'package:fscm_mobile/shared/routes.dart';
 
 /// First screen of each role after login.
@@ -263,11 +261,6 @@ List<RouteBase> _warehouseRoutes() => <RouteBase>[
           ]),
           StatefulShellBranch(routes: <RouteBase>[
             GoRoute(
-                path: AppRoutes.wkTransfers,
-                builder: (c, s) => const TransfersScreen()),
-          ]),
-          StatefulShellBranch(routes: <RouteBase>[
-            GoRoute(
               path: AppRoutes.wkAccount,
               builder: (c, s) => const ProfileScreen(actions: <ProfileAction>[
                 ProfileAction(
@@ -303,11 +296,6 @@ List<RouteBase> _warehouseRoutes() => <RouteBase>[
           code: s.pathParameters['code'] ?? '',
           lineIndex: int.tryParse(s.pathParameters['index'] ?? '') ?? 0,
         ),
-      ),
-      GoRoute(
-        path: AppRoutes.wkTransferDetailPattern,
-        builder: (c, s) =>
-            TransferDetailScreen(code: s.pathParameters['code'] ?? ''),
       ),
       GoRoute(
         path: AppRoutes.wkLabelPattern,
