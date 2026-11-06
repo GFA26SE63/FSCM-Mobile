@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:uuid/uuid.dart';
 
 import 'package:fscm_mobile/core/network/api_exception.dart';
+import 'package:fscm_mobile/core/auth/user_role.dart';
 import 'package:fscm_mobile/core/network/network_monitor.dart';
 import 'package:fscm_mobile/core/utils/money.dart';
 import 'package:fscm_mobile/core/utils/status_tone.dart';
@@ -35,9 +36,9 @@ import 'package:fscm_mobile/sync/sync_service.dart';
 /// local queue (`OFF-{device}-{0000}`); online it goes straight to
 /// `POST /orders`.
 class OrderCreateScreen extends ConsumerStatefulWidget {
-  const OrderCreateScreen({super.key, required this.retailerCode});
+  const OrderCreateScreen({super.key, this.retailerCode});
 
-  final String retailerCode;
+  final String? retailerCode;
 
   @override
   ConsumerState<OrderCreateScreen> createState() => _OrderCreateScreenState();
@@ -46,6 +47,13 @@ class OrderCreateScreen extends ConsumerStatefulWidget {
 class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
   final Map<String, int> _cart = <String, int>{};
   String _query = '';
+  late final String _clientOrderKey = const Uuid().v4();
+
+  @override
+  void initState() {
+    super.initState();
+    Future.microtask(() => ref.read(syncServiceProvider.notifier).refreshSnapshot());
+  }
   bool _busy = false;
 
   List<CartLine> get _lines => _cart.entries
@@ -69,13 +77,15 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
         value: catalog,
         onRetry: () => ref.invalidate(catalogProvider),
         builder: (data) {
-          final retailer = data.retailer(widget.retailerCode);
+          final retailer = widget.retailerCode == null
+              ? (data.retailers.length == 1 ? data.retailers.single : null)
+              : data.retailer(widget.retailerCode!);
           if (retailer == null) {
             return const EmptyState(
                 title: 'Không tìm thấy điểm bán',
                 message: 'Đồng bộ lại danh sách điểm bán rồi thử lại.');
           }
-          if (retailer.areaCode.isNotEmpty && retailer.areaCode != user?.areaCode) {
+          if (user?.role != UserRole.retailer && retailer.areaCode.isNotEmpty && retailer.areaCode != user?.areaCode) {
             return EmptyState(
               icon: Icons.lock_outline,
               title: 'Điểm bán ngoài khu vực',
@@ -91,6 +101,7 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
 
   Widget _body(
       BuildContext context, CatalogData data, Retailer retailer, bool online) {
+    final isRetailer = ref.watch(currentUserProvider)?.role == UserRole.retailer;
     final products = data.products.where((p) {
       if (_query.isEmpty) return true;
       return p.name.toLowerCase().contains(_query) ||
@@ -126,12 +137,13 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
                 ),
               ),
               if (!online)
-                const InfoBanner(
+                InfoBanner(
                   tone: StatusTone.warning,
                   icon: Icons.cloud_off,
                   title: 'Đang offline',
-                  text:
-                      'Đơn được lưu trên máy, khuyến mãi chỉ là tạm tính. Khi có mạng hệ thống sẽ tính lại, phân bổ kho và quyết định cuối cùng.',
+                  text: isRetailer
+                      ? 'Kết nối mạng để xem giá khuyến mãi và gửi đơn hàng.'
+                      : 'Đơn được lưu trên máy, khuyến mãi chỉ là tạm tính. Khi có mạng hệ thống sẽ tính lại, phân bổ kho và quyết định cuối cùng.',
                 ),
               InfoBanner(
                 text:
@@ -255,6 +267,10 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
   }
 
   Future<void> _review(CatalogData data, Retailer retailer, bool online) async {
+    if (!online && ref.read(currentUserProvider)?.role == UserRole.retailer) {
+      showAppSnack(context, 'Cần kết nối mạng để gửi đơn và kiểm tra khuyến mãi.', error: true);
+      return;
+    }
     final lines = _lines;
     var quote = data.quote(lines, retailer.code);
     var estimated = true;
@@ -263,7 +279,9 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
       try {
         quote = await ref
             .read(productsApiProvider)
-            .quote(retailerId: retailer.id, lines: lines);
+            .quote(retailerId: retailer.id, lines: lines.map((line) => CartLine(
+                  productId: data.product(line.sku)?.id ?? '',
+                  sku: line.sku, qty: line.qty)).toList());
         estimated = false;
       } on ApiException {
         // Keep the local estimate.
@@ -316,7 +334,7 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
       if (online) {
         try {
           final order = await repo.createOnline(NewOrderRequest(
-            clientOrderKey: const Uuid().v4(),
+            clientOrderKey: _clientOrderKey,
             retailerId: retailer.id,
             lines: lines,
             deliveryAddress: retailer.address,
@@ -326,7 +344,7 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
               ? 'Đơn ${order.code} bị từ chối: ${order.rejectReason}'
               : 'Đã tạo SO ${order.code}. Hệ thống đang phân bổ và sẽ gửi báo giá cho Retailer.';
         } on ApiException catch (e) {
-          if (!e.isNetwork) rethrow;
+          if (!e.isNetwork || ref.read(currentUserProvider)?.role == UserRole.retailer) rethrow;
           await saveOffline(
               'Mất kết nối - đã lưu đơn trên máy, sẽ tự đồng bộ khi có mạng.');
         }
@@ -339,7 +357,8 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
       }
       if (!mounted) return;
       showAppSnack(context, message);
-      context.pushReplacement(AppRoutes.salesOrderDetail(code));
+      context.pushReplacement(ref.read(currentUserProvider)?.role == UserRole.retailer
+          ? AppRoutes.rtOrderDetail(code) : AppRoutes.salesOrderDetail(code));
     } on ApiException catch (e) {
       if (mounted) showAppSnack(context, e.message, error: true);
     } finally {

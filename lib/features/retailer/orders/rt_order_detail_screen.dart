@@ -94,7 +94,7 @@ class RtOrderDetailScreen extends ConsumerWidget {
                   KvRow(
                     'Trạng thái',
                     o.paid
-                        ? 'Đã thanh toán ${AppDates.timeDay(o.paidAt)}'
+                        ? (o.paidAt == null ? 'Đã thanh toán' : 'Đã thanh toán ${AppDates.timeDay(o.paidAt)}')
                         : 'Chưa thanh toán',
                   ),
                 ],

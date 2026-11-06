@@ -126,7 +126,10 @@ class Order {
     this.timeline = const <TimelineEntry>[],
   });
 
-  factory Order.fromJson(Map<String, dynamic> j) => Order(
+  factory Order.fromJson(Map<String, dynamic> j) {
+    final payment = asMap(j['payment']);
+    final legacyMethod = j['payment'] is String ? j['payment'] : null;
+    return Order(
         id: asStr(j['id']),
         code: asStr(j['code'] ?? j['orderCode']),
         retailerCode: asStr(j['retailerCode']),
@@ -137,7 +140,7 @@ class Order {
         total: asInt(j['total'] ?? j['subtotalAmount'] ?? j['finalAmount']),
         discount: asInt(j['discount'] ?? j['discountAmount']),
         createdByName: asStr(j['createdByName']),
-        payment: PaymentMethod.fromCode(asStrOrNull(j['payment'] ?? j['paymentMethod'])),
+        payment: PaymentMethod.fromCode(asStrOrNull(payment['method'] ?? j['paymentMethod'] ?? legacyMethod)),
         creditTerm: asInt(j['creditTerm'] ?? j['creditTermDays']),
         rejectReason: asStr(j['rejectReason'] ?? j['rejectionReason']),
         version: asInt(j['version']),
@@ -152,14 +155,17 @@ class Order {
         driverName: asStr(j['driverName']),
         driverPhone: asStr(j['driverPhone']),
         departedAt: asDate(j['departedAt']),
-        paid: asBool(j['paid']),
-        paidAt: asDate(j['paidAt']),
-        dueDate: asDate(j['dueDate']),
+        paid: payment.containsKey('status')
+            ? asStr(payment['status']).toLowerCase() == 'paid'
+            : asBool(j['paid']),
+        paidAt: asDate(payment['paidDate'] ?? payment['paidAt'] ?? j['paidAt']),
+        dueDate: asDate(payment['dueDate'] ?? j['dueDate']),
         pointsEarned: asInt(j['pointsEarned']),
         pointsPending: asBool(j['pointsPending']),
         labelCodes: asStrList(j['labelCodes']),
         timeline: mapList(j['timeline'] ?? j['history'], TimelineEntry.fromJson),
       );
+  }
 
   final String id;
   final String code;
