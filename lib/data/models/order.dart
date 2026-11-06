@@ -167,6 +167,9 @@ class Order {
       );
   }
 
+  bool get canPayOnline => payment == PaymentMethod.prepaid &&
+      status == OrderStatus.paymentPending && !paid;
+
   final String id;
   final String code;
   final String retailerCode;
