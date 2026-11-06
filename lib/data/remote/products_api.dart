@@ -18,11 +18,34 @@ class ProductsApi {
   final ApiClient _client;
 
   Future<List<Product>> products({String? search}) async {
-    final data = await _client.get(
-      Endpoints.products,
-      query: <String, dynamic>{'search': search, 'size': 200},
-    );
-    return unwrapItems(data).map(Product.fromJson).toList();
+    final result = <Product>[];
+    var page = 1;
+
+    while (true) {
+      final response = asMap(
+        await _client.get(
+          Endpoints.products,
+          query: {
+            'search': search,
+            'status': 'Published',
+            'page': page,
+            'pageSize': 100,
+          },
+        ),
+      );
+
+      final items = unwrapItems(response);
+
+      result.addAll(items.map(Product.fromJson));
+
+      if (items.isEmpty || page >= asInt(response['totalPages'], 1)) {
+        break;
+      }
+
+      page++;
+    }
+
+    return result;
   }
 
   Future<List<Promotion>> promotions() async {
@@ -73,7 +96,8 @@ class ProductsApi {
         final id = asStr(promotion['promotionId']);
         promotionNames[id] = asStr(promotion['name']);
         promotionAmounts[id] = (promotionAmounts[id] ?? 0) + lineDiscount;
-        promotionSkus.putIfAbsent(id, () => <String>[])
+        promotionSkus
+            .putIfAbsent(id, () => <String>[])
             .add('${asStr(row['sku'])} × $quantity');
       }
     }
