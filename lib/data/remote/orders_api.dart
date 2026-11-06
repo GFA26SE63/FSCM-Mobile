@@ -36,6 +36,20 @@ class OrdersApi {
     return unwrapItems(data).map(Order.fromJson).toList();
   }
 
+  Future<Map<String, int>> availability(String retailerId, List<String> productIds) async {
+    final quantities = <String, int>{};
+    for (var offset = 0; offset < productIds.length; offset += 100) {
+      final data = asMap(await _client.post('/orders/availability', body: {
+        'retailerId': retailerId,
+        'productIds': productIds.skip(offset).take(100).toList(),
+      }));
+      for (final item in unwrapItems(data)) {
+        quantities[asStr(item['sku'])] = asInt(item['eligibleQuantity']);
+      }
+    }
+    return quantities;
+  }
+
   Future<Order> get(String idOrCode) async {
     final isId = RegExp(
       r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$',
