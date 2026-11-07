@@ -11,6 +11,7 @@ import 'package:fscm_mobile/data/repositories/retailer_repository.dart';
 import 'package:fscm_mobile/shared/widgets/dialogs.dart';
 import 'package:fscm_mobile/shared/widgets/info_banner.dart';
 import 'package:fscm_mobile/shared/widgets/section_title.dart';
+import 'package:fscm_mobile/shared/widgets/search_picker_field.dart';
 
 /// "Khai báo retailer mới" (`POST /retailers`) or edit of a Draft / Rejected
 /// declaration (`PUT /retailers/{id}/declaration`). Sales can save a draft or
@@ -479,17 +480,12 @@ class _MlorEditorState extends ConsumerState<_MlorEditor> {
               loading: () => const LinearProgressIndicator(),
               error: (e, _) => Text(ApiException.describe(e),
                   style: const TextStyle(color: Color(0xFFB42318))),
-              data: (list) => DropdownButtonFormField<MlorScopeOption>(
+              data: (list) => SearchPickerField<MlorScopeOption>(
                 key: ValueKey<bool>(_sku),
-                isExpanded: true,
                 initialValue: _option,
-                decoration: InputDecoration(
-                    labelText: _sku ? 'Chọn SKU' : 'Chọn ngành hàng'),
-                items: list
-                    .map((o) => DropdownMenuItem<MlorScopeOption>(
-                        value: o,
-                        child: Text(o.label, overflow: TextOverflow.ellipsis)))
-                    .toList(),
+                label: _sku ? 'Chọn SKU' : 'Chọn ngành hàng',
+                options: list,
+                labelOf: (o) => o.label,
                 onChanged: (v) => setState(() => _option = v),
                 validator: (v) {
                   if (v == null) return 'Chọn phạm vi áp dụng';
