@@ -35,7 +35,7 @@ class RtOrderDetailScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final value = ref.watch(orderDetailProvider(code));
     return Scaffold(
-      appBar: AppBar(title: Text(code)),
+      appBar: AppBar(title: Text(value.valueOrNull?.code ?? 'Chi tiết đơn hàng')),
       body: AsyncBody<Order>(
         value: value,
         onRetry: () => ref.invalidate(orderDetailProvider(code)),
@@ -293,6 +293,33 @@ class _PrepaidPaymentState extends ConsumerState<_PrepaidPayment> {
     }
   }
 
+  Future<void> _switchToCredit() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Đổi sang công nợ?'),
+        content: const Text('Áp dụng kỳ hạn công nợ đã được duyệt cho cửa hàng. Chỉ đổi khi chưa thu tiền và chưa có giao dịch PayOS.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Giữ trả trước')),
+          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Đổi sang công nợ')),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    setState(() { _busy = true; _error = null; });
+    try {
+      await ref.read(quotesApiProvider).switchToCredit(widget.order.id);
+      ref.read(dataVersionProvider.notifier).state++;
+      if (mounted) {
+        showAppSnack(context, 'Đã đổi sang công nợ và phát hành đơn mua hàng.');
+      }
+    } on ApiException catch (error) {
+      if (mounted) setState(() => _error = error.message);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) => AppCard(
     child: Column(
@@ -308,6 +335,10 @@ class _PrepaidPaymentState extends ConsumerState<_PrepaidPayment> {
           onPressed: _busy ? null : _pay,
           icon: const Icon(Icons.payments_outlined),
           label: Text(_busy ? 'Đang mở thanh toán...' : 'Thanh toán qua PayOS'),
+        ),
+        OutlinedButton(
+          onPressed: _busy ? null : _switchToCredit,
+          child: const Text('Đổi sang công nợ'),
         ),
         TextButton(
           onPressed: _busy ? null : () => ref.read(dataVersionProvider.notifier).state++,

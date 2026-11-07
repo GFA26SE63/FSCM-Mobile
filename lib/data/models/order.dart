@@ -49,7 +49,15 @@ class OrderLine {
     this.batches = const <BatchAllocation>[],
   });
 
-  factory OrderLine.fromJson(Map<String, dynamic> j) => OrderLine(
+  factory OrderLine.fromJson(Map<String, dynamic> j) {
+    final fragments = asMapList(j['allocationFragments']);
+    final ordinaryPromotion = asMap(j['ordinaryPromotion']);
+    var promotionName = asStr(j['promoName'] ?? ordinaryPromotion['name'], 'Khuyến mãi');
+    if (j['promoName'] == null && j['discountSourceType'] == 'ShelfLife') {
+      promotionName = asInt(ordinaryPromotion['discountAmount']) > 0
+          ? 'Khuyến mãi và giảm giá HSD' : 'Giảm giá theo HSD';
+    }
+    return OrderLine(
         sku: asStr(j['sku']),
         name: asStr(j['name'] ?? j['productName']),
         qty: asInt(j['qty'] ?? j['quantity'] ?? j['orderedQuantity']),
@@ -57,9 +65,10 @@ class OrderLine {
         discount: asInt(j['discount'] ?? j['discountAmount']),
         discountPct: asDouble(j['discountPct'] ?? j['discountPercent']),
         promoId: asStr(j['promoId'] ?? j['discountSourceCode']),
-        promoName: asStr(j['promoName'] ?? j['discountSourceType']),
-        batches: mapList(j['batches'] ?? j['allocations'], BatchAllocation.fromJson),
+        promoName: promotionName,
+        batches: mapList(j['batches'] ?? (fragments.isNotEmpty ? fragments : j['allocations']), BatchAllocation.fromJson),
       );
+  }
 
   final String sku;
   final String name;

@@ -68,7 +68,7 @@ class OrderLinesCard extends StatelessWidget {
             child: Row(
               children: <Widget>[
                 StatusChip(
-                  label: '${l.promoId} · giảm ${_pct(l.discountPct)}%',
+                  label: 'Giảm ${_pct(l.discountPct)}%',
                   tone: StatusTone.warning,
                 ),
                 const SizedBox(width: 8),
@@ -128,7 +128,7 @@ class AppliedPromoCard extends StatelessWidget {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: <Widget>[
                               Text(
-                                '${p.id} · ${p.name}',
+                                p.name.isEmpty ? 'Khuyến mãi' : p.name,
                                 style: const TextStyle(
                                     fontWeight: FontWeight.w700),
                               ),

@@ -9,6 +9,38 @@ import 'package:fscm_mobile/data/repositories/order_repository.dart';
 import 'package:fscm_mobile/features/retailer/orders/rt_order_detail_screen.dart';
 
 void main() {
+  testWidgets('order detail shows business code, promotion name and batch expiry',
+      (tester) async {
+    const promotionId = '740f093b-003b-4b94-b667-981de8226262';
+    final order = Order.fromJson({
+      'id': 'order-2', 'orderCode': 'DH-001057', 'status': 'Picking',
+      'paymentMethod': 'Credit',
+      'lines': [
+        {
+          'sku': 'SKU001', 'productName': 'Sữa tươi', 'quantity': 20,
+          'unitPrice': 252000, 'discountAmount': 403200,
+          'discountSourceCode': promotionId,
+          'ordinaryPromotion': {'name': 'Ưu đãi số lượng'},
+          'allocations': [{'batchCode': 'BATCH-1', 'quantity': 20}],
+          'allocationFragments': [
+            {'batchCode': 'BATCH-1', 'quantity': 20, 'batchExpirationDate': '2026-11-16'},
+          ],
+        },
+      ],
+    });
+    await tester.pumpWidget(ProviderScope(
+      overrides: [
+        orderDetailProvider('order-2').overrideWith((ref) async => order),
+      ],
+      child: const MaterialApp(home: RtOrderDetailScreen(code: 'order-2')),
+    ));
+    await tester.pumpAndSettle();
+    expect(find.widgetWithText(AppBar, 'DH-001057'), findsOneWidget);
+    expect(find.textContaining('16/11/2026'), findsOneWidget);
+    expect(find.text('Ưu đãi số lượng'), findsOneWidget);
+    expect(find.textContaining(promotionId), findsNothing);
+  });
+
   testWidgets('reopened prepaid order retains checkout and reports gateway failure',
       (tester) async {
     final transport = _UnavailableCheckout();
@@ -33,6 +65,12 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.textContaining('Kênh PayOS hiện chưa sẵn sàng'), findsOneWidget);
     expect(checkout, findsOneWidget);
+    await tester.ensureVisible(find.text('Đổi sang công nợ'));
+    await tester.tap(find.text('Đổi sang công nợ'));
+    await tester.pumpAndSettle();
+    expect(find.text('Đổi sang công nợ?'), findsOneWidget);
+    await tester.tap(find.text('Giữ trả trước'));
+    await tester.pumpAndSettle();
     expect(transport.requests.map((request) => request.toString()), [
       'GET /payments/orders/order-1',
       'POST /payments/orders/order-1/payos-checkout',

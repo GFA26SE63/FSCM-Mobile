@@ -68,7 +68,7 @@ class OrderConfirmSheet extends StatelessWidget {
                               style:
                                   const TextStyle(fontWeight: FontWeight.w600)),
                           if (l.hasDiscount)
-                            Text('${l.promoId} · −${l.pct.round()}%',
+                            Text('${l.promoName.isEmpty ? 'Khuyến mãi' : l.promoName} · −${l.pct.round()}%',
                                 style: const TextStyle(
                                     color: AppColors.success, fontSize: 12.5)),
                         ],
@@ -84,7 +84,7 @@ class OrderConfirmSheet extends StatelessWidget {
                   style: TextStyle(color: AppColors.textMuted))
             else
               for (final a in q.applied)
-                KvRow('${a.id} · ${a.name}', Money.minus(a.amount),
+                KvRow(a.name.isEmpty ? 'Khuyến mãi' : a.name, Money.minus(a.amount),
                     valueColor: AppColors.success),
             const SectionTitle('Thanh toán'),
             const InfoBanner(
