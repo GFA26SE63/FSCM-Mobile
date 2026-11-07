@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:fscm_mobile/data/models/label_detail.dart';
 import 'package:fscm_mobile/data/models/label_info.dart';
 import 'package:fscm_mobile/data/models/picking.dart';
 import 'package:fscm_mobile/data/models/transfer.dart';
@@ -21,6 +22,7 @@ final pickingListsProvider =
     FutureProvider.autoDispose<List<PickingList>>((ref) {
   ref.watch(dataVersionProvider);
   ref.watch(currentUserProvider);
+
   return ref.watch(warehouseRepositoryProvider).pickingLists();
 });
 
@@ -29,11 +31,11 @@ final pickingDetailProvider =
   return ref.watch(warehouseRepositoryProvider).pickingList(code);
 });
 
-// Kept for the archived transfer screens only. No active route or navigation
-// exposes these providers in the current direct-to-retailer scope.
+// Các màn transfer đã được lưu trữ, không mở thêm route trong task này.
 final transfersProvider = FutureProvider.autoDispose<List<Transfer>>((ref) {
   ref.watch(dataVersionProvider);
   ref.watch(currentUserProvider);
+
   return ref.watch(warehouseRepositoryProvider).transfers();
 });
 
@@ -42,12 +44,24 @@ final transferDetailProvider =
   return ref.watch(warehouseRepositoryProvider).transfer(code);
 });
 
+// Giữ cho picking và các caller hiện có.
 final labelProvider =
     FutureProvider.autoDispose.family<LabelInfo, String>((ref, code) {
+  ref.watch(currentUserProvider);
+  ref.watch(dataVersionProvider);
+
   return ref.watch(warehouseRepositoryProvider).label(code);
 });
 
-/// Picking, transfers and label lookup of the Warehouse Keeper.
+// Dùng cho màn tra cứu đầy đủ.
+final labelDetailProvider =
+    FutureProvider.autoDispose.family<LabelDetail, String>((ref, code) {
+  ref.watch(currentUserProvider);
+  ref.watch(dataVersionProvider);
+
+  return ref.watch(warehouseRepositoryProvider).labelDetail(code);
+});
+
 class WarehouseRepository {
   WarehouseRepository({
     required PickingApi picking,
@@ -75,24 +89,34 @@ class WarehouseRepository {
     required int pickingVersion,
     required int labelVersion,
   }) =>
-      _picking.scan(code,
-          allocationId: allocationId,
-          labelCode: labelCode,
-          qty: qty,
-          sourceLabelQty: sourceLabelQty,
-          pickingVersion: pickingVersion,
-          labelVersion: labelVersion);
+      _picking.scan(
+        code,
+        allocationId: allocationId,
+        labelCode: labelCode,
+        qty: qty,
+        sourceLabelQty: sourceLabelQty,
+        pickingVersion: pickingVersion,
+        labelVersion: labelVersion,
+      );
 
   Future<PickingList> complete(String code, int expectedVersion) =>
       _picking.complete(code, expectedVersion);
 
-  Future<List<Transfer>> transfers({String? status, String? kind}) =>
+  Future<List<Transfer>> transfers({
+    String? status,
+    String? kind,
+  }) =>
       _transfers.list(status: status, kind: kind);
 
   Future<Transfer> transfer(String code) => _transfers.get(code);
 
-  Future<Transfer> receiveTransfer(String code, List<String> labelCodes) =>
+  Future<Transfer> receiveTransfer(
+    String code,
+    List<String> labelCodes,
+  ) =>
       _transfers.receive(code, labelCodes: labelCodes);
 
   Future<LabelInfo> label(String code) => _labels.get(code);
+
+  Future<LabelDetail> labelDetail(String code) => _labels.getDetail(code);
 }
