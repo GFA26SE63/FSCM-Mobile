@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:fscm_mobile/data/models/json_utils.dart';
 import 'package:fscm_mobile/data/models/product.dart';
 import 'package:fscm_mobile/data/models/promotion.dart';
@@ -18,86 +20,10 @@ class SyncSnapshot {
     required this.priceDisclaimer,
   });
 
-  factory SyncSnapshot.fromJson(Map<String, dynamic> j) {
-    final generatedAt = asDate(j['generatedAt'] ?? j['serverTime']) ?? DateTime.now();
-    final productRows = asMapList(j['products']);
-    final retailers = mapList(j['retailers'], Retailer.fromJson);
-    final skuById = <String, String>{
-      for (final product in productRows) asStr(product['id']): asStr(product['sku']),
-    };
-    final categoryNames = <String, String>{
-      for (final category in asMapList(j['categories']))
-        asStr(category['id']): asStr(category['name']),
-    };
-    String skuOf(Map<String, dynamic> row) =>
-        asStr(row['sku'], skuById[asStr(row['productId'])] ?? '');
-
-    final priceRows = asMapList(j['prices']);
-    priceRows.sort((a, b) =>
-        (asDate(a['effectiveFrom']) ?? DateTime(0))
-            .compareTo(asDate(b['effectiveFrom']) ?? DateTime(0)));
-    final prices = <String, PriceEntry>{};
-    for (final row in priceRows) {
-      final from = asDate(row['effectiveFrom']);
-      final to = asDate(row['effectiveTo']);
-      if (!asBool(row['isActive'], true) ||
-          (from != null && from.isAfter(generatedAt)) ||
-          (to != null && !to.isAfter(generatedAt))) {
-        continue;
-      }
-      final sku = skuOf(row);
-      if (sku.isNotEmpty) {
-        prices[sku] = PriceEntry(sku: sku, price: asInt(row['unitPrice'] ?? row['price']));
-      }
-    }
-    final products = productRows.map((row) => Product.fromJson({
-      ...row,
-      'basePrice': prices[asStr(row['sku'])]?.price ?? row['basePrice'],
-      'category': row['category'] ?? categoryNames[asStr(row['categoryId'])],
-    })).toList();
-    final stock = asMapList(j['indicativeStock'] ?? j['stock'])
-        .where((row) => skuOf(row).isNotEmpty)
-        .map((row) => StockEntry(
-          sku: skuOf(row),
-          available: asInt(row['indicativeAvailableQuantity'] ?? row['available']),
-        )).toList();
-
-    final promotions = asMapList(j['promotions']).map((row) {
-      if (!row.containsKey('minimumQuantity')) return Promotion.fromJson(row);
-      final productIds = asStrList(row['productIds']);
-      final categoryIds = asStrList(row['categoryIds']);
-      final retailerIds = asStrList(row['retailerIds']);
-      final skus = productRows.where((product) =>
-          (productIds.isEmpty && categoryIds.isEmpty) ||
-          productIds.contains(asStr(product['id'])) ||
-          categoryIds.contains(asStr(product['categoryId'])))
-          .map((product) => asStr(product['sku'])).toList();
-      return Promotion.fromJson({
-        'id': row['id'],
-        'name': row['name'],
-        'type': 2,
-        'validFrom': row['startAt'],
-        'validTo': row['endAt'],
-        'active': row['isActive'],
-        'usesExactTimes': true,
-        'groupSkus': skus,
-        'groupMinQty': row['minimumQuantity'],
-        'groupPct': row['discountPercent'],
-        'retailerCodes': retailerIds.isEmpty ? null :
-            retailers.where((retailer) => retailerIds.contains(retailer.id))
-                .map((retailer) => retailer.code).toList(),
-      });
-    }).toList();
-    return SyncSnapshot(
-      serverTime: generatedAt,
-      retailers: retailers,
-      products: products,
-      prices: prices.values.toList(),
-      promotions: promotions,
-      stock: stock,
-      fullReload: asBool(j['fullReload'], true),
-    );
-  }
+  final Map<String, dynamic> raw;
+  final String version;
+  final String checksum;
+  final DateTime generatedAt;
 
   final List<Retailer> retailers;
   final List<Product> products;
@@ -113,12 +39,12 @@ class SyncSnapshot {
   bool get fullReload => true;
 
   factory SyncSnapshot.fromJson(Map<String, dynamic> json) {
-    final version = asStr(json['version']);
+    final version = _requiredString(json, 'version');
     final generatedAt = asDate(json['generatedAt']);
 
-    if (version.isEmpty || generatedAt == null) {
+    if (generatedAt == null) {
       throw const FormatException(
-        'Snapshot thiếu version hoặc generatedAt.',
+        'Snapshot thiếu generatedAt hợp lệ.',
       );
     }
 
@@ -150,8 +76,7 @@ class SyncSnapshot {
       _requiredString(row, 'id');
       _requiredString(row, 'code');
 
-      // Snapshot không có region/area/contact.
-      // Không tự suy diễn các trường đó.
+      // Không tự suy diễn region/area/contact ngoài contract snapshot.
       return Retailer.fromJson(row);
     }).toList();
 
@@ -171,10 +96,10 @@ class SyncSnapshot {
       _number(row, 'unitPrice');
 
       final previous = effectivePrices[productId];
-      final startsAt = asDate(row['effectiveFrom'])!;
 
       if (previous == null ||
-          startsAt.isAfter(asDate(previous['effectiveFrom'])!)) {
+          asDate(row['effectiveFrom'])!
+              .isAfter(asDate(previous['effectiveFrom'])!)) {
         effectivePrices[productId] = row;
       }
     }
@@ -192,8 +117,8 @@ class SyncSnapshot {
         pack: asStr(row['unit']),
         category:
             category == null ? 'Chưa có tên danh mục' : asStr(category['name']),
-        // Model giá cũ dùng int; chỉ phục vụ compatibility.
-        // Giá gốc vẫn được giữ nguyên trong raw.
+        // Các model compatibility hiện dùng int.
+        // Giá chính xác vẫn được giữ trong raw/priceForProduct().
         basePrice: price == null ? 0 : _number(price, 'unitPrice').round(),
         shelfLifeDays: (_number(row, 'shelfLifeHours') / 24).ceil(),
       );
@@ -218,9 +143,12 @@ class SyncSnapshot {
       final categoryIds = asStrList(row['categoryIds']).toSet();
       final retailerIds = asStrList(row['retailerIds']);
 
+      final allProducts = productIds.isEmpty && categoryIds.isEmpty;
+
       final matchingSkus = publishedRows
           .where(
             (product) =>
+                allProducts ||
                 productIds.contains(asStr(product['id'])) ||
                 categoryIds.contains(asStr(product['categoryId'])),
           )
@@ -231,21 +159,46 @@ class SyncSnapshot {
       final startsAt = asDate(row['startAt']);
       final endsAt = asDate(row['endAt']);
 
-      if (startsAt == null || endsAt == null) {
+      if (startsAt == null || endsAt == null || endsAt.isBefore(startsAt)) {
         throw const FormatException(
-          'Khuyến mãi thiếu thời gian hiệu lực.',
+          'Khuyến mãi có thời gian hiệu lực không hợp lệ.',
         );
+      }
+
+      final perSku = row['campaignMode'] == 'PerSku';
+      final rules = <PromoRule>[];
+
+      if (perSku) {
+        for (final rule in _rows(row, 'productRules')) {
+          final productId = _requiredString(rule, 'productId');
+          final product = productsById[productId];
+
+          if (product == null) continue;
+
+          final sku = _requiredString(product, 'sku');
+
+          if (!matchingSkus.contains(sku)) continue;
+
+          rules.add(
+            PromoRule(
+              sku: sku,
+              minQty: _number(rule, 'minimumQuantity').ceil(),
+              pct: _number(rule, 'discountPercent').toDouble(),
+            ),
+          );
+        }
       }
 
       promotions.add(
         Promotion(
           id: _requiredString(row, 'id'),
           name: _requiredString(row, 'name'),
-          // Campaign dùng tổng lượng các SKU phù hợp.
-          type: 2,
+          type: perSku ? 1 : 2,
+          rules: rules,
           validFrom: startsAt,
           validTo: endsAt,
           active: true,
+          usesExactTimes: true,
           retailerCodes: retailerIds.isEmpty
               ? null
               : retailerIds
@@ -253,7 +206,6 @@ class SyncSnapshot {
                   .map((id) => retailerCodesById[id]!)
                   .toList(),
           groupSkus: matchingSkus,
-          // Số lượng đặt hiện tại là thùng nguyên.
           groupMinQty: _number(row, 'minimumQuantity').ceil(),
           groupPct: _number(row, 'discountPercent').toDouble(),
         ),
@@ -271,16 +223,13 @@ class SyncSnapshot {
       stock.add(
         StockEntry(
           sku: _requiredString(product, 'sku'),
-          available: _number(
-            row,
-            'indicativeAvailableQuantity',
-          ).floor(),
+          available: _number(row, 'indicativeAvailableQuantity').floor(),
         ),
       );
     }
 
     return SyncSnapshot._(
-      raw: Map<String, dynamic>.from(json),
+      raw: _copyJson(json),
       version: version,
       checksum: asStr(json['checksum']),
       generatedAt: generatedAt,
@@ -307,7 +256,6 @@ class SyncSnapshot {
     return row == null ? id : asStr(row['code'], id);
   }
 
-  // Giá chính xác từ snapshot, không lấy giá int compatibility.
   num? priceForProduct(String productId, DateTime at) {
     Map<String, dynamic>? selected;
 
@@ -336,18 +284,25 @@ class SyncSnapshot {
     return null;
   }
 
-  Map<String, dynamic> toJson() => Map<String, dynamic>.from(raw);
+  Map<String, dynamic> toJson() => _copyJson(raw);
+
+  static Map<String, dynamic> _copyJson(
+    Map<String, dynamic> value,
+  ) {
+    return jsonDecode(jsonEncode(value)) as Map<String, dynamic>;
+  }
 
   static bool _effectiveAt(
     Map<String, dynamic> row,
     DateTime at,
   ) {
     final start = asDate(row['effectiveFrom']);
-    final end = asDate(row['effectiveTo']);
+    final rawEnd = row['effectiveTo'];
+    final end = asDate(rawEnd);
 
-    if (start == null) {
+    if (start == null || (rawEnd != null && end == null)) {
       throw const FormatException(
-        'Bản giá thiếu effectiveFrom.',
+        'Bản giá có thời gian hiệu lực không hợp lệ.',
       );
     }
 
