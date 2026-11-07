@@ -3,6 +3,22 @@ import 'package:fscm_mobile/data/models/order.dart';
 import 'package:fscm_mobile/data/models/enums.dart';
 
 void main() {
+  test('pending prepaid orders retain a payment entry after reopening', () {
+    final pending = Order.fromJson({
+      'status': 'PaymentPending',
+      'payment': {'method': 'Prepaid', 'status': 'Unpaid'},
+    });
+    expect(pending.canPayOnline, isTrue);
+    expect(Order.fromJson({
+      'status': 'PaymentPending',
+      'payment': {'method': 'Prepaid', 'status': 'Paid'},
+    }).canPayOnline, isFalse);
+    expect(Order.fromJson({
+      'status': 'Cancelled',
+      'payment': {'method': 'Prepaid', 'status': 'Cancelled'},
+    }).canPayOnline, isFalse);
+  });
+
   test('reads nested payment and server history from order detail', () {
     final order = Order.fromJson({
       'paymentMethod': 'Credit',

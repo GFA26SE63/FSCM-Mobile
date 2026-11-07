@@ -231,7 +231,7 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
             Padding(
               padding: const EdgeInsets.only(top: 4),
               child: Text(
-                '${line.first.promoId} · giảm ${Money.format(line.first.discount)}',
+                '${line.first.promoName.isEmpty ? 'Khuyến mãi' : line.first.promoName} · giảm ${Money.format(line.first.discount)}',
                 style: const TextStyle(
                     color: AppColors.success, fontWeight: FontWeight.w600),
               ),
