@@ -1,70 +1,150 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:fscm_mobile/data/models/sync_snapshot.dart';
+
 import 'package:fscm_mobile/data/models/order.dart';
+import 'package:fscm_mobile/data/models/sync_snapshot.dart';
 import 'package:fscm_mobile/data/pricing/promotion_calculator.dart';
 
+import 'fixtures/mobile_snapshot_fixture.dart';
+
 void main() {
-  test('joins server prices, stock and promotion scopes to SKU codes', () {
-    final snapshot = SyncSnapshot.fromJson({
-      'generatedAt': '2026-11-06T03:00:00Z',
-      'retailers': [
-        {'id': 'r1', 'code': 'DEMO'},
-      ],
-      'categories': [
-        {'id': 'c1', 'name': 'Sữa'},
-      ],
-      'products': [
-        {'id': 'p1', 'sku': 'SKU001', 'name': 'Sữa', 'categoryId': 'c1'},
-      ],
-      'prices': [
-        {'productId': 'p1', 'unitPrice': 252000, 'effectiveFrom': '2026-10-01'},
-      ],
-      'indicativeStock': [
-        {'productId': 'p1', 'indicativeAvailableQuantity': 150},
-      ],
-      'promotions': [
-        {
-          'id': 'promo1', 'name': 'Giảm 8%', 'type': 'Campaign',
-          'minimumQuantity': 10, 'discountPercent': 8,
-          'startAt': '2026-11-06T02:00:00Z',
-          'endAt': '2026-11-06T04:00:00Z', 'isActive': true,
-          'productIds': [], 'categoryIds': ['c1'], 'retailerIds': ['r1'],
-        },
-      ],
-    });
-    expect(snapshot.prices.single.sku, 'SKU001');
-    expect(snapshot.prices.single.price, 252000);
-    expect(snapshot.stock.single.sku, 'SKU001');
-    expect(snapshot.stock.single.available, 150);
-    expect(snapshot.products.single.basePrice, 252000);
-    expect(snapshot.products.single.category, 'Sữa');
+  test('group promotion works after snapshot cache round-trip', () {
+    final json = mobileSnapshotFixture();
+
+    final prices = json['prices'] as List;
+    (prices.first as Map<String, dynamic>)['unitPrice'] = 100000;
+
+    final original = SyncSnapshot.fromJson(json);
+    final snapshot = SyncSnapshot.fromJson(original.toJson());
+
     final quote = PromotionCalculator.quote(
-      lines: [const CartLine(sku: 'SKU001', qty: 10)],
-      retailerCode: 'DEMO',
+      lines: [
+        const CartLine(sku: 'SKU001', qty: 10),
+      ],
+      retailerCode: '10000001',
       promotions: snapshot.promotions,
-      products: {for (final p in snapshot.products) p.sku: p},
-      prices: {for (final p in snapshot.prices) p.sku: p.price},
+      products: {
+        for (final product in snapshot.products) product.sku: product,
+      },
+      prices: {
+        for (final price in snapshot.prices) price.sku: price.price,
+      },
       now: snapshot.serverTime,
     );
-    expect(quote.total, 2520000);
-    expect(quote.discount, 201600);
-    expect(snapshot.promotions.single.appliesTo('OTHER'), isFalse);
-    expect(snapshot.promotions.single.isRunning(
-      DateTime.parse('2026-11-06T01:59:00Z')), isFalse);
-    final cached = SyncSnapshot.fromJson(snapshot.toJson());
-    expect(cached.prices.single.price, 252000);
-    expect(cached.stock.single.available, 150);
-    expect(cached.promotions.single.usesExactTimes, isTrue);
+
+    expect(quote.total, 1000000);
+    expect(quote.discount, 50000);
   });
 
-  test('continues reading cached snapshots keyed by SKU', () {
-    final snapshot = SyncSnapshot.fromJson({
-      'serverTime': '2026-11-06T03:00:00Z',
-      'products': [{'sku': 'SKU001', 'basePrice': 100}],
-      'prices': [{'sku': 'SKU001', 'price': 100}],
-      'stock': [{'sku': 'SKU001', 'available': 50}],
-    });
-    expect(snapshot.prices.single.price, 100);
-    expect(snapshot.stock.single.available, 50);
+  test('PerSku rules remain independent when payload provides them', () {
+    final json = mobileSnapshotFixture();
+
+    json['prices'] = [
+      {
+        'productId': 'product-1',
+        'unitPrice': 100000,
+        'effectiveFrom': '2026-01-01T00:00:00Z',
+        'isActive': true,
+      },
+      {
+        'productId': 'product-2',
+        'unitPrice': 100000,
+        'effectiveFrom': '2026-01-01T00:00:00Z',
+        'isActive': true,
+      },
+    ];
+
+    final promotion =
+        (json['promotions'] as List).first as Map<String, dynamic>;
+
+    promotion['campaignMode'] = 'PerSku';
+    promotion['productRules'] = [
+      {
+        'productId': 'product-1',
+        'minimumQuantity': 10,
+        'discountPercent': 5,
+      },
+      {
+        'productId': 'product-2',
+        'minimumQuantity': 30,
+        'discountPercent': 7,
+      },
+    ];
+
+    final original = SyncSnapshot.fromJson(json);
+    final snapshot = SyncSnapshot.fromJson(original.toJson());
+
+    expect(snapshot.promotions.single.type, 1);
+    expect(snapshot.promotions.single.rules.length, 2);
+
+    final quote = PromotionCalculator.quote(
+      lines: [
+        const CartLine(sku: 'SKU001', qty: 9),
+        const CartLine(sku: 'SKU002', qty: 30),
+      ],
+      retailerCode: '10000001',
+      promotions: snapshot.promotions,
+      products: {
+        for (final product in snapshot.products) product.sku: product,
+      },
+      prices: {
+        for (final price in snapshot.prices) price.sku: price.price,
+      },
+      now: snapshot.serverTime,
+    );
+
+    // SKU001 chưa đạt 10; chỉ SKU002 đạt 30 và nhận 7%.
+    expect(quote.discount, 210000);
+  });
+
+  test('empty product/category scope includes Published products', () {
+    final json = mobileSnapshotFixture();
+    final promotion =
+        (json['promotions'] as List).first as Map<String, dynamic>;
+
+    promotion['productIds'] = <String>[];
+    promotion['categoryIds'] = <String>[];
+
+    final snapshot = SyncSnapshot.fromJson(json);
+
+    expect(
+      snapshot.promotions.single.groupSkus,
+      containsAll(['SKU001', 'SKU002']),
+    );
+
+    expect(
+      snapshot.promotions.single.groupSkus,
+      isNot(contains('DRAFT')),
+    );
+  });
+
+  test('price is valid at start and invalid at exclusive end', () {
+    final snapshot = SyncSnapshot.fromJson(
+      mobileSnapshotFixture(),
+    );
+
+    expect(
+      snapshot.priceForProduct(
+        'product-1',
+        DateTime.parse('2026-11-01T00:00:00Z'),
+      ),
+      125000.5,
+    );
+
+    expect(
+      snapshot.priceForProduct(
+        'product-1',
+        DateTime.parse('2026-12-01T00:00:00Z'),
+      ),
+      isNull,
+    );
+  });
+
+  test('invalid snapshot does not substitute current time', () {
+    final json = mobileSnapshotFixture()..['generatedAt'] = 'not-a-date';
+
+    expect(
+      () => SyncSnapshot.fromJson(json),
+      throwsFormatException,
+    );
   });
 }
