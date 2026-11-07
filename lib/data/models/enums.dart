@@ -144,24 +144,32 @@ enum PickingStatus {
 }
 
 enum LabelStatus {
+  available('Available', 'Sẵn sàng', StatusTone.primary),
   inStock('InStock', 'Trong kho', StatusTone.primary),
-  picked('Picked', 'Đã pick', StatusTone.purple),
+  picked('Picked', 'Đã soạn', StatusTone.purple),
   inTransit('InTransit', 'Đang vận chuyển', StatusTone.warning),
   delivered('Delivered', 'Đã giao', StatusTone.success),
+  invalidated('Invalidated', 'Đã vô hiệu hóa', StatusTone.danger),
   expired('Expired', 'Hết hạn', StatusTone.danger),
-  cancelled('Cancelled', 'Hủy', StatusTone.neutral);
+  cancelled('Cancelled', 'Đã hủy', StatusTone.neutral),
+  unknown('Unknown', 'Không xác định', StatusTone.neutral);
 
   const LabelStatus(this.code, this.label, this.tone);
+
   final String code;
   final String label;
   final StatusTone tone;
 
   static LabelStatus fromCode(String? code) {
-    final c = (code ?? '').toLowerCase();
-    for (final s in LabelStatus.values) {
-      if (s.code.toLowerCase() == c) return s;
+    final normalized = (code ?? '').trim().toLowerCase();
+
+    for (final status in LabelStatus.values) {
+      if (status.code.toLowerCase() == normalized) {
+        return status;
+      }
     }
-    return LabelStatus.inStock;
+
+    return LabelStatus.unknown;
   }
 }
 
