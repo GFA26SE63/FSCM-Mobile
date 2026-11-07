@@ -14,7 +14,9 @@ import 'package:fscm_mobile/data/models/order.dart';
 import 'package:fscm_mobile/data/models/price_quote.dart';
 import 'package:fscm_mobile/data/models/product.dart';
 import 'package:fscm_mobile/data/models/retailer.dart';
+import 'package:fscm_mobile/data/pricing/order_limits.dart';
 import 'package:fscm_mobile/data/remote/products_api.dart';
+import 'package:fscm_mobile/data/remote/orders_api.dart';
 import 'package:fscm_mobile/data/repositories/auth_repository.dart';
 import 'package:fscm_mobile/data/repositories/catalog_repository.dart';
 import 'package:fscm_mobile/data/repositories/data_version.dart';
@@ -30,6 +32,14 @@ import 'package:fscm_mobile/shared/widgets/info_banner.dart';
 import 'package:fscm_mobile/shared/widgets/online_chip.dart';
 import 'package:fscm_mobile/shared/widgets/quantity_stepper.dart';
 import 'package:fscm_mobile/sync/sync_service.dart';
+
+final _orderAvailabilityProvider = FutureProvider.autoDispose
+    .family<Map<String, int>, String>((ref, retailerId) async {
+  ref.watch(dataVersionProvider);
+  final catalog = await ref.watch(catalogProvider.future);
+  return ref.watch(ordersApiProvider).availability(
+      retailerId, catalog.products.map((product) => product.id).toList());
+});
 
 /// Create an order for one retailer. Works offline: the discount is
 /// estimated from the cached promotions and the order is stored in the
@@ -93,7 +103,17 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
                   '${retailer.name} thuộc khu vực ${retailer.areaName}. Bạn chỉ tạo được đơn cho điểm bán trong khu vực ${user?.areaName ?? ''}.',
             );
           }
-          return _body(context, data, retailer, online);
+          if (!online) return _body(context, data, retailer, online);
+          final availability = ref.watch(_orderAvailabilityProvider(retailer.id));
+          return AsyncBody<Map<String, int>>(
+            value: availability,
+            onRetry: () => ref.invalidate(_orderAvailabilityProvider(retailer.id)),
+            builder: (quantities) => _body(context, CatalogData(
+              retailers: data.retailers, products: data.products,
+              prices: data.prices, promotions: data.promotions,
+              stock: quantities, lastSyncAt: data.lastSyncAt,
+            ), retailer, online),
+          );
         },
       ),
     );
@@ -147,7 +167,9 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
                 ),
               InfoBanner(
                 text:
-                    'Số lượng tối đa = tồn khả dụng (cập nhật lúc ${_stamp(data)}) trừ tồn đệm 20, làm tròn xuống bội số 10.',
+                    online
+                    ? 'Đã kiểm tra tồn đáp ứng điều kiện giao cho cửa hàng, hạn sử dụng và hàng đang giữ. Số lượng có thể thay đổi trước khi gửi đơn.'
+                    : 'Tồn tham khảo lúc ${_stamp(data)}. Hệ thống sẽ kiểm tra lại điều kiện giao khi có mạng.',
               ),
               TextField(
                 decoration: const InputDecoration(
@@ -189,8 +211,8 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
               Expanded(
                 child: Text(
                   max == 0
-                      ? 'Không đủ tồn để đặt'
-                      : 'Có thể đặt tối đa: $max thùng',
+                      ? 'Chưa đủ hàng đáp ứng điều kiện giao và tồn đệm'
+                      : 'Giới hạn chọn hiện tại: $max thùng',
                   style: TextStyle(
                       color: max == 0 ? AppColors.danger : AppColors.textMuted,
                       fontSize: 13),
@@ -333,6 +355,25 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
 
       if (online) {
         try {
+          final quantities = await ref.read(ordersApiProvider).availability(
+              retailer.id, lines.map((line) => line.productId).toList());
+          if (lines.any((line) => line.qty > (quantities[line.sku] ?? 0))) {
+            ref.invalidate(_orderAvailabilityProvider(retailer.id));
+            if (mounted) {
+              setState(() {
+                for (final entry in _cart.entries.toList()) {
+                  final maximum = OrderLimits.maxQty(quantities[entry.key] ?? 0);
+                  if (entry.value > maximum) {
+                    _cart[entry.key] = maximum;
+                  }
+                }
+              });
+              showAppSnack(context,
+                  'Tồn đủ điều kiện giao vừa thay đổi. Hãy điều chỉnh số lượng và thử lại.',
+                  error: true);
+            }
+            return;
+          }
           final order = await repo.createOnline(NewOrderRequest(
             clientOrderKey: _clientOrderKey,
             retailerId: retailer.id,
