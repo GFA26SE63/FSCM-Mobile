@@ -36,7 +36,7 @@ class SalesOrderDetailScreen extends ConsumerWidget {
     final queue =
         ref.watch(offlineQueueProvider).valueOrNull ?? const <OfflineOrder>[];
     return Scaffold(
-      appBar: AppBar(title: Text(code)),
+      appBar: AppBar(title: Text(value.valueOrNull?.code ?? 'Chi tiết đơn hàng')),
       body: AsyncBody<Order>(
         value: value,
         onRetry: () => ref.invalidate(orderDetailProvider(code)),
