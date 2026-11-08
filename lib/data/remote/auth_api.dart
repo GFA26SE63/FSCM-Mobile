@@ -84,4 +84,12 @@ class AuthApi {
     await _client.post(Endpoints.authLogout,
         body: <String, dynamic>{'refreshToken': refreshToken});
   }
+
+  Future<Session> refresh(String refreshToken) async {
+    final data = await _client.post(
+      Endpoints.authRefresh,
+      body: <String, dynamic>{'refreshToken': refreshToken},
+    );
+    return Session.fromJson(asMap(data));
+  }
 }
