@@ -21,23 +21,36 @@ class OfflineOrderPayload {
     required this.localTotal,
     required this.localDiscount,
     this.localPromoIds = const <String>[],
+    this.localQuote,
+    this.estimatedAt,
+    this.snapshotVersion,
   });
 
-  factory OfflineOrderPayload.fromJson(Map<String, dynamic> j) =>
-      OfflineOrderPayload(
-        clientRequestId: asStr(j['clientRequestId']),
-        offlineCode: asStr(j['offlineCode']),
-        retailerId: asStr(j['retailerId']),
-        retailerCode: asStr(j['retailerCode']),
-        retailerName: asStr(j['retailerName']),
-        createdAt: asDate(j['createdAt']) ?? DateTime.now(),
-        payment: PaymentMethod.fromCode(asStrOrNull(j['payment'])),
-        creditTerm: asInt(j['creditTerm']),
-        lines: mapList(j['lines'], CartLine.fromJson),
-        localTotal: asInt(j['localTotal']),
-        localDiscount: asInt(j['localDiscount']),
-        localPromoIds: asStrList(j['localPromoIds']),
-      );
+  factory OfflineOrderPayload.fromJson(Map<String, dynamic> json) {
+    final rawQuote = json['localQuote'];
+
+    return OfflineOrderPayload(
+      clientRequestId: asStr(
+        json['clientRequestId'] ?? json['clientOrderKey'],
+      ),
+      offlineCode: asStr(json['offlineCode']),
+      retailerId: asStr(json['retailerId']),
+      retailerCode: asStr(json['retailerCode']),
+      retailerName: asStr(json['retailerName']),
+      createdAt: asDate(json['createdAt']) ?? DateTime.now(),
+      payment: PaymentMethod.fromCode(asStrOrNull(json['payment'])),
+      creditTerm: asInt(json['creditTerm']),
+      lines: mapList(json['lines'], CartLine.fromJson),
+      localTotal: asInt(
+        json['localTotal'] ?? json['offlineEstimatedAmount'],
+      ),
+      localDiscount: asInt(json['localDiscount']),
+      localPromoIds: asStrList(json['localPromoIds']),
+      localQuote: rawQuote is Map ? PriceQuote.fromJson(asMap(rawQuote)) : null,
+      estimatedAt: asDate(json['estimatedAt']),
+      snapshotVersion: asStrOrNull(json['snapshotVersion']),
+    );
+  }
 
   final String clientRequestId;
   final String offlineCode;
@@ -51,16 +64,48 @@ class OfflineOrderPayload {
   final int localTotal;
   final int localDiscount;
   final List<String> localPromoIds;
+  final PriceQuote? localQuote;
+  final DateTime? estimatedAt;
+  final String? snapshotVersion;
 
   int get localFinal => localTotal - localDiscount;
 
+  /// Local persistence format, not the API request body.
   Map<String, dynamic> toJson() => <String, dynamic>{
+        'clientRequestId': clientRequestId,
+        'offlineCode': offlineCode,
+        'retailerId': retailerId,
+        'retailerCode': retailerCode,
+        'retailerName': retailerName,
+        'createdAt': createdAt.toUtc().toIso8601String(),
+        'payment': payment.code,
+        'creditTerm': creditTerm,
+        'lines': lines.map((line) => line.toJson()).toList(),
+        'localTotal': localTotal,
+        'localDiscount': localDiscount,
+        'localPromoIds': localPromoIds,
+        'localQuote': localQuote?.toJson(),
+        'estimatedAt': estimatedAt?.toUtc().toIso8601String(),
+        'snapshotVersion': snapshotVersion,
+      };
+
+  Map<String, dynamic> toRequestJson() => <String, dynamic>{
         'clientOrderKey': clientRequestId,
         'retailerId': retailerId,
         'paymentMethod': null,
         'offlineEstimatedAmount': localFinal,
+        if (snapshotVersion != null) 'snapshotVersion': snapshotVersion,
+        // Giữ hành vi gửi hiện có.
+        // Luồng yêu cầu xác nhận thay đổi điều kiện sẽ xử lý riêng.
         'confirmConditionChanges': true,
-        'lines': lines.map((l) => l.toJson()).toList(),
+        'lines': lines
+            .map(
+              (line) => {
+                'productId': line.productId,
+                'quantity': line.qty,
+              },
+            )
+            .toList(),
       };
 }
 
@@ -164,46 +209,42 @@ class OrderSyncResult {
 }
 
 /// Conversion of a queue row into the order model used by the UI.
-Order orderFromOffline(
-  OfflineOrder entry, {
-  required Map<String, String> productNames,
-  required Map<String, int> unitPrices,
-  PriceQuote? localQuote,
-}) {
-  final p = entry.payload;
-  final quoteBySku = <String, QuoteLine>{
-    for (final l in localQuote?.lines ?? const <QuoteLine>[]) l.sku: l,
-  };
-  final lines = p.lines.map((l) {
-    final q = quoteBySku[l.sku];
-    return OrderLine(
-      sku: l.sku,
-      name: productNames[l.sku] ?? l.sku,
-      qty: l.qty,
-      unitPrice: unitPrices[l.sku] ?? q?.unitPrice ?? 0,
-      discount: q?.discount ?? 0,
-      discountPct: q?.pct ?? 0,
-      promoId: q?.promoId ?? '',
-      promoName: q?.promoName ?? '',
-    );
-  }).toList();
-  final total = lines.fold<int>(0, (s, l) => s + l.base);
-  final discount = lines.fold<int>(0, (s, l) => s + l.discount);
-  final OrderStatus status = entry.status == SyncStatus.rejected
-      ? OrderStatus.allocationFailed
-      : OrderStatus.allocating;
+Order orderFromOffline(OfflineOrder entry) {
+  final payload = entry.payload;
+  final quote = payload.localQuote;
+
+  final lines = quote == null
+      ? <OrderLine>[]
+      : quote.lines
+          .map(
+            (line) => OrderLine(
+              sku: line.sku,
+              name: line.name,
+              qty: line.qty,
+              unitPrice: line.unitPrice,
+              grossAmount: line.base,
+              discount: line.discount,
+              discountPct: line.pct,
+              promoId: line.promoId,
+              promoName: line.promoName,
+            ),
+          )
+          .toList();
+
   return Order(
     code: '',
-    offlineCode: p.offlineCode,
-    retailerCode: p.retailerCode,
-    retailerName: p.retailerName,
-    status: status,
-    createdAt: p.createdAt,
+    offlineCode: payload.offlineCode,
+    retailerCode: payload.retailerCode,
+    retailerName: payload.retailerName,
+    status: entry.status == SyncStatus.rejected
+        ? OrderStatus.allocationFailed
+        : OrderStatus.allocating,
+    createdAt: payload.createdAt,
     lines: lines,
-    total: total,
-    discount: discount,
+    total: payload.localTotal,
+    discount: payload.localDiscount,
     payment: PaymentMethod.unselected,
-    creditTerm: p.creditTerm,
+    creditTerm: payload.creditTerm,
     rejectReason: entry.status == SyncStatus.rejected ? entry.error : '',
     isOffline: true,
     syncStatus: entry.status,
@@ -211,6 +252,6 @@ Order orderFromOffline(
     syncMode: entry.syncMode,
     promoChanged: entry.promoChanged,
     changeReason: entry.changeReason,
-    localFinal: p.localFinal,
+    localFinal: payload.localFinal,
   );
 }

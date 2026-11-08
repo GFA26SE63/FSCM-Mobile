@@ -123,14 +123,37 @@ class CatalogData {
   Map<String, dynamic>? promotionRecord(Promotion promotion) =>
       snapshot?.promotionRecord(promotion.id);
 
-  PriceQuote quote(List<CartLine> lines, String retailerCode) =>
-      PromotionCalculator.quote(
-        lines: lines,
-        retailerCode: retailerCode,
-        promotions: promotions,
-        products: productMap,
-        prices: prices,
-      );
+  PriceQuote quote(
+    List<CartLine> lines,
+    String retailerCode, {
+    DateTime? now,
+  }) {
+    final at = now ?? AppClock.now();
+    final effectivePrices = <String, num>{};
+
+    for (final product in products) {
+      final num? price = snapshot != null
+          ? snapshot!.priceForProduct(product.id, at)
+          : prices[product.sku];
+
+      if (price != null) {
+        effectivePrices[product.sku] = price;
+      }
+    }
+
+    return PromotionCalculator.quote(
+      lines: lines,
+      retailerCode: retailerCode,
+      promotions: promotions,
+      products: productMap,
+      prices: effectivePrices,
+      promotionCodes: {
+        for (final promotion in promotions)
+          promotion.id: promotionCode(promotion),
+      },
+      now: at,
+    );
+  }
 }
 
 final catalogRepositoryProvider = Provider<CatalogRepository>((ref) {

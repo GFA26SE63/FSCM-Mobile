@@ -42,6 +42,7 @@ class OrderLine {
     required this.name,
     required this.qty,
     required this.unitPrice,
+    this.grossAmount,
     this.discount = 0,
     this.discountPct = 0,
     this.promoId = '',
@@ -49,29 +50,41 @@ class OrderLine {
     this.batches = const <BatchAllocation>[],
   });
 
-  factory OrderLine.fromJson(Map<String, dynamic> j) => OrderLine(
-        sku: asStr(j['sku']),
-        name: asStr(j['name'] ?? j['productName']),
-        qty: asInt(j['qty'] ?? j['quantity'] ?? j['orderedQuantity']),
-        unitPrice: asInt(j['unitPrice']),
-        discount: asInt(j['discount'] ?? j['discountAmount']),
-        discountPct: asDouble(j['discountPct'] ?? j['discountPercent']),
-        promoId: asStr(j['promoId'] ?? j['discountSourceCode']),
-        promoName: asStr(j['promoName'] ?? j['discountSourceType']),
-        batches: mapList(j['batches'] ?? j['allocations'], BatchAllocation.fromJson),
+  factory OrderLine.fromJson(Map<String, dynamic> json) => OrderLine(
+        sku: asStr(json['sku']),
+        name: asStr(json['name'] ?? json['productName']),
+        qty: asInt(
+          json['qty'] ?? json['quantity'] ?? json['orderedQuantity'],
+        ),
+        unitPrice: asDouble(json['unitPrice']),
+        grossAmount:
+            json['grossAmount'] == null ? null : asInt(json['grossAmount']),
+        discount: asInt(json['discount'] ?? json['discountAmount']),
+        discountPct: asDouble(
+          json['discountPct'] ?? json['discountPercent'],
+        ),
+        promoId: asStr(json['promoId'] ?? json['discountSourceCode']),
+        promoName: asStr(
+          json['promoName'] ?? json['discountSourceType'],
+        ),
+        batches: mapList(
+          json['batches'] ?? json['allocations'],
+          BatchAllocation.fromJson,
+        ),
       );
 
   final String sku;
   final String name;
   final int qty;
-  final int unitPrice;
+  final num unitPrice;
+  final int? grossAmount;
   final int discount;
   final double discountPct;
   final String promoId;
   final String promoName;
   final List<BatchAllocation> batches;
 
-  int get base => qty * unitPrice;
+  int get base => grossAmount ?? (qty * unitPrice).round();
   int get net => base - discount;
 
   Map<String, dynamic> toJson() => <String, dynamic>{
@@ -79,11 +92,12 @@ class OrderLine {
         'name': name,
         'qty': qty,
         'unitPrice': unitPrice,
+        'grossAmount': base,
         'discount': discount,
         'discountPct': discountPct,
         'promoId': promoId,
         'promoName': promoName,
-        'batches': batches.map((b) => b.toJson()).toList(),
+        'batches': batches.map((batch) => batch.toJson()).toList(),
       };
 }
 
@@ -130,41 +144,51 @@ class Order {
     final payment = asMap(j['payment']);
     final legacyMethod = j['payment'] is String ? j['payment'] : null;
     return Order(
-        id: asStr(j['id']),
-        code: asStr(j['code'] ?? j['orderCode']),
-        retailerCode: asStr(j['retailerCode']),
-        retailerName: asStr(j['retailerName']),
-        status: OrderStatus.fromCode(asStrOrNull(j['status'])),
-        createdAt: asDate(j['createdAt']) ?? DateTime.now(),
-        lines: mapList(j['lines'], OrderLine.fromJson),
-        total: asInt(j['total'] ?? j['subtotalAmount'] ?? j['finalAmount']),
-        discount: asInt(j['discount'] ?? j['discountAmount']),
-        createdByName: asStr(j['createdByName']),
-        payment: PaymentMethod.fromCode(asStrOrNull(payment['method'] ?? j['paymentMethod'] ?? legacyMethod)),
-        creditTerm: asInt(j['creditTerm'] ?? j['creditTermDays']),
-        rejectReason: asStr(j['rejectReason'] ?? j['rejectionReason']),
-        version: asInt(j['version']),
-        isOffline: asBool(j['isOffline']),
-        offlineCode: asStr(j['offlineCode']),
-        syncedAt: asDate(j['syncedAt']),
-        syncMode: asStr(j['syncMode']),
-        promoChanged: asBool(j['promoChanged']),
-        changeReason: asStr(j['changeReason']),
-        localFinal: j['localFinal'] == null ? null : asInt(j['localFinal']),
-        vehiclePlate: asStr(j['vehiclePlate']),
-        driverName: asStr(j['driverName']),
-        driverPhone: asStr(j['driverPhone']),
-        departedAt: asDate(j['departedAt']),
-        paid: payment.containsKey('status')
-            ? asStr(payment['status']).toLowerCase() == 'paid'
-            : asBool(j['paid']),
-        paidAt: asDate(payment['paidDate'] ?? payment['paidAt'] ?? j['paidAt']),
-        dueDate: asDate(payment['dueDate'] ?? j['dueDate']),
-        pointsEarned: asInt(j['pointsEarned']),
-        pointsPending: asBool(j['pointsPending']),
-        labelCodes: asStrList(j['labelCodes']),
-        timeline: mapList(j['timeline'] ?? j['history'], TimelineEntry.fromJson),
-      );
+      id: asStr(j['id']),
+      code: asStr(j['code'] ?? j['orderCode']),
+      retailerCode: asStr(j['retailerCode']),
+      retailerName: asStr(j['retailerName']),
+      status: OrderStatus.fromCode(asStrOrNull(j['status'])),
+      createdAt: asDate(j['createdAt']) ?? DateTime.now(),
+      lines: mapList(j['lines'], OrderLine.fromJson),
+      total: asInt(j['total'] ?? j['subtotalAmount'] ?? j['finalAmount']),
+      discount: asInt(j['discount'] ?? j['discountAmount']),
+      createdByName: asStr(j['createdByName']),
+      payment: PaymentMethod.fromCode(
+          asStrOrNull(payment['method'] ?? j['paymentMethod'] ?? legacyMethod)),
+      creditTerm: asInt(j['creditTerm'] ?? j['creditTermDays']),
+      rejectReason: asStr(j['rejectReason'] ?? j['rejectionReason']),
+      version: asInt(j['version']),
+      isOffline: asBool(j['isOffline']) || asStr(j['source']) == 'Offline',
+      offlineCode: asStr(j['offlineCode']),
+      syncedAt: asDate(j['syncedAt']),
+      syncMode: asStr(j['syncMode']),
+      promoChanged: asBool(
+        j['promoChanged'] ?? j['hasOfflineDifference'],
+      ),
+      changeReason: asStr(
+        j['changeReason'],
+        asBool(j['hasOfflineDifference'])
+            ? 'Giá hệ thống khác với bản tạm tính khi lưu offline.'
+            : '',
+      ),
+      localFinal: (j['localFinal'] ?? j['offlineEstimatedAmount']) == null
+          ? null
+          : asInt(j['localFinal'] ?? j['offlineEstimatedAmount']),
+      vehiclePlate: asStr(j['vehiclePlate']),
+      driverName: asStr(j['driverName']),
+      driverPhone: asStr(j['driverPhone']),
+      departedAt: asDate(j['departedAt']),
+      paid: payment.containsKey('status')
+          ? asStr(payment['status']).toLowerCase() == 'paid'
+          : asBool(j['paid']),
+      paidAt: asDate(payment['paidDate'] ?? payment['paidAt'] ?? j['paidAt']),
+      dueDate: asDate(payment['dueDate'] ?? j['dueDate']),
+      pointsEarned: asInt(j['pointsEarned']),
+      pointsPending: asBool(j['pointsPending']),
+      labelCodes: asStrList(j['labelCodes']),
+      timeline: mapList(j['timeline'] ?? j['history'], TimelineEntry.fromJson),
+    );
   }
 
   final String id;
@@ -359,8 +383,7 @@ class NewOrderRequest {
 class CartLine {
   const CartLine({this.productId = '', required this.sku, required this.qty});
 
-  factory CartLine.fromJson(Map<String, dynamic> j) =>
-      CartLine(
+  factory CartLine.fromJson(Map<String, dynamic> j) => CartLine(
         productId: asStr(j['productId']),
         sku: asStr(j['sku']),
         qty: asInt(j['qty'] ?? j['quantity']),

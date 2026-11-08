@@ -36,7 +36,8 @@ class OrdersApi {
     return unwrapItems(data).map(Order.fromJson).toList();
   }
 
-  Future<Map<String, int>> availability(String retailerId, List<String> productIds) async {
+  Future<Map<String, int>> availability(
+      String retailerId, List<String> productIds) async {
     final quantities = <String, int>{};
     for (var offset = 0; offset < productIds.length; offset += 100) {
       final data = asMap(await _client.post('/orders/availability', body: {
@@ -83,7 +84,8 @@ class OrdersApi {
       List<OfflineOrderPayload> orders) async {
     final results = <OrderSyncResult>[];
     for (final payload in orders) {
-      final data = await _client.post(Endpoints.ordersSync, body: payload.toJson());
+      final data = await _client.post(Endpoints.ordersSync,
+          body: payload.toRequestJson());
       final order = Order.fromJson(asMap(data));
       results.add(OrderSyncResult(
         clientRequestId: payload.clientRequestId,
@@ -93,7 +95,8 @@ class OrdersApi {
         promoChanged: order.finalAmount != payload.localFinal,
         changeReason: order.finalAmount == payload.localFinal
             ? ''
-            : 'Giá/khuyến mãi được tính lại khi đồng bộ.',
+            : 'Giá dự kiến được backend tính lại khi nhận đơn. '
+                'Giá sau giảm HSD được xác định khi phân bổ.',
       ));
     }
     return results;
