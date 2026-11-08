@@ -46,28 +46,48 @@ class OrderLine {
     this.discountPct = 0,
     this.promoId = '',
     this.promoName = '',
+    this.campaignDiscount,
+    this.shelfLifeDiscount = 0,
+    this.shelfLifeSource = '',
     this.batches = const <BatchAllocation>[],
   });
 
   factory OrderLine.fromJson(Map<String, dynamic> j) {
     final fragments = asMapList(j['allocationFragments']);
     final ordinaryPromotion = asMap(j['ordinaryPromotion']);
-    var promotionName = asStr(j['promoName'] ?? ordinaryPromotion['name'], 'Khuyến mãi');
-    if (j['promoName'] == null && j['discountSourceType'] == 'ShelfLife') {
-      promotionName = asInt(ordinaryPromotion['discountAmount']) > 0
-          ? 'Khuyến mãi và giảm giá HSD' : 'Giảm giá theo HSD';
-    }
+    final discount = asInt(j['discount'] ?? j['discountAmount']);
+    final hasShelfLife = j['discountSourceType'] == 'ShelfLife';
+    final hasBreakdown = hasShelfLife ||
+        j['campaignDiscount'] != null ||
+        ordinaryPromotion.containsKey('discountAmount');
+    final campaignDiscount = hasBreakdown
+        ? asInt(j['campaignDiscount'] ?? ordinaryPromotion['discountAmount'])
+            .clamp(0, discount)
+            .toInt()
+        : null;
     return OrderLine(
-        sku: asStr(j['sku']),
-        name: asStr(j['name'] ?? j['productName']),
-        qty: asInt(j['qty'] ?? j['quantity'] ?? j['orderedQuantity']),
-        unitPrice: asInt(j['unitPrice']),
-        discount: asInt(j['discount'] ?? j['discountAmount']),
-        discountPct: asDouble(j['discountPct'] ?? j['discountPercent']),
-        promoId: asStr(j['promoId'] ?? j['discountSourceCode']),
-        promoName: promotionName,
-        batches: mapList(j['batches'] ?? (fragments.isNotEmpty ? fragments : j['allocations']), BatchAllocation.fromJson),
-      );
+      sku: asStr(j['sku']),
+      name: asStr(j['name'] ?? j['productName']),
+      qty: asInt(j['qty'] ?? j['quantity'] ?? j['orderedQuantity']),
+      unitPrice: asInt(j['unitPrice']),
+      discount: discount,
+      discountPct: asDouble(j['discountPct'] ?? j['discountPercent']),
+      promoId: asStr(j['promoId'] ??
+          ordinaryPromotion['promotionId'] ??
+          ordinaryPromotion['code'] ??
+          j['discountSourceCode']),
+      promoName:
+          asStr(j['promoName'] ?? ordinaryPromotion['name'], 'Khuyến mãi'),
+      campaignDiscount: campaignDiscount,
+      shelfLifeDiscount: hasShelfLife
+          ? discount - (campaignDiscount ?? 0)
+          : asInt(j['shelfLifeDiscount']),
+      shelfLifeSource: asStr(j['shelfLifeSource'] ??
+          (hasShelfLife ? j['discountSourceCode'] : null)),
+      batches: mapList(
+          j['batches'] ?? (fragments.isNotEmpty ? fragments : j['allocations']),
+          BatchAllocation.fromJson),
+    );
   }
 
   final String sku;
@@ -78,6 +98,11 @@ class OrderLine {
   final double discountPct;
   final String promoId;
   final String promoName;
+
+  /// Null preserves legacy/offline lines whose discount has no component breakdown.
+  final int? campaignDiscount;
+  final int shelfLifeDiscount;
+  final String shelfLifeSource;
   final List<BatchAllocation> batches;
 
   int get base => qty * unitPrice;
@@ -92,6 +117,9 @@ class OrderLine {
         'discountPct': discountPct,
         'promoId': promoId,
         'promoName': promoName,
+        'campaignDiscount': campaignDiscount,
+        'shelfLifeDiscount': shelfLifeDiscount,
+        'shelfLifeSource': shelfLifeSource,
         'batches': batches.map((b) => b.toJson()).toList(),
       };
 }
@@ -139,45 +167,48 @@ class Order {
     final payment = asMap(j['payment']);
     final legacyMethod = j['payment'] is String ? j['payment'] : null;
     return Order(
-        id: asStr(j['id']),
-        code: asStr(j['code'] ?? j['orderCode']),
-        retailerCode: asStr(j['retailerCode']),
-        retailerName: asStr(j['retailerName']),
-        status: OrderStatus.fromCode(asStrOrNull(j['status'])),
-        createdAt: asDate(j['createdAt']) ?? DateTime.now(),
-        lines: mapList(j['lines'], OrderLine.fromJson),
-        total: asInt(j['total'] ?? j['subtotalAmount'] ?? j['finalAmount']),
-        discount: asInt(j['discount'] ?? j['discountAmount']),
-        createdByName: asStr(j['createdByName']),
-        payment: PaymentMethod.fromCode(asStrOrNull(payment['method'] ?? j['paymentMethod'] ?? legacyMethod)),
-        creditTerm: asInt(j['creditTerm'] ?? j['creditTermDays']),
-        rejectReason: asStr(j['rejectReason'] ?? j['rejectionReason']),
-        version: asInt(j['version']),
-        isOffline: asBool(j['isOffline']),
-        offlineCode: asStr(j['offlineCode']),
-        syncedAt: asDate(j['syncedAt']),
-        syncMode: asStr(j['syncMode']),
-        promoChanged: asBool(j['promoChanged']),
-        changeReason: asStr(j['changeReason']),
-        localFinal: j['localFinal'] == null ? null : asInt(j['localFinal']),
-        vehiclePlate: asStr(j['vehiclePlate']),
-        driverName: asStr(j['driverName']),
-        driverPhone: asStr(j['driverPhone']),
-        departedAt: asDate(j['departedAt']),
-        paid: payment.containsKey('status')
-            ? asStr(payment['status']).toLowerCase() == 'paid'
-            : asBool(j['paid']),
-        paidAt: asDate(payment['paidDate'] ?? payment['paidAt'] ?? j['paidAt']),
-        dueDate: asDate(payment['dueDate'] ?? j['dueDate']),
-        pointsEarned: asInt(j['pointsEarned']),
-        pointsPending: asBool(j['pointsPending']),
-        labelCodes: asStrList(j['labelCodes']),
-        timeline: mapList(j['timeline'] ?? j['history'], TimelineEntry.fromJson),
-      );
+      id: asStr(j['id']),
+      code: asStr(j['code'] ?? j['orderCode']),
+      retailerCode: asStr(j['retailerCode']),
+      retailerName: asStr(j['retailerName']),
+      status: OrderStatus.fromCode(asStrOrNull(j['status'])),
+      createdAt: asDate(j['createdAt']) ?? DateTime.now(),
+      lines: mapList(j['lines'], OrderLine.fromJson),
+      total: asInt(j['total'] ?? j['subtotalAmount'] ?? j['finalAmount']),
+      discount: asInt(j['discount'] ?? j['discountAmount']),
+      createdByName: asStr(j['createdByName']),
+      payment: PaymentMethod.fromCode(
+          asStrOrNull(payment['method'] ?? j['paymentMethod'] ?? legacyMethod)),
+      creditTerm: asInt(j['creditTerm'] ?? j['creditTermDays']),
+      rejectReason: asStr(j['rejectReason'] ?? j['rejectionReason']),
+      version: asInt(j['version']),
+      isOffline: asBool(j['isOffline']),
+      offlineCode: asStr(j['offlineCode']),
+      syncedAt: asDate(j['syncedAt']),
+      syncMode: asStr(j['syncMode']),
+      promoChanged: asBool(j['promoChanged']),
+      changeReason: asStr(j['changeReason']),
+      localFinal: j['localFinal'] == null ? null : asInt(j['localFinal']),
+      vehiclePlate: asStr(j['vehiclePlate']),
+      driverName: asStr(j['driverName']),
+      driverPhone: asStr(j['driverPhone']),
+      departedAt: asDate(j['departedAt']),
+      paid: payment.containsKey('status')
+          ? asStr(payment['status']).toLowerCase() == 'paid'
+          : asBool(j['paid']),
+      paidAt: asDate(payment['paidDate'] ?? payment['paidAt'] ?? j['paidAt']),
+      dueDate: asDate(payment['dueDate'] ?? j['dueDate']),
+      pointsEarned: asInt(j['pointsEarned']),
+      pointsPending: asBool(j['pointsPending']),
+      labelCodes: asStrList(j['labelCodes']),
+      timeline: mapList(j['timeline'] ?? j['history'], TimelineEntry.fromJson),
+    );
   }
 
-  bool get canPayOnline => payment == PaymentMethod.prepaid &&
-      status == OrderStatus.paymentPending && !paid;
+  bool get canPayOnline =>
+      payment == PaymentMethod.prepaid &&
+      status == OrderStatus.paymentPending &&
+      !paid;
 
   final String id;
   final String code;
@@ -234,32 +265,33 @@ class Order {
   String get itemsSummary =>
       lines.map((l) => '${l.name} ×${l.qty}').join(' · ');
 
-  /// Groups line discounts by promotion for the summary card.
+  /// Keep campaign names separate from the shared shelf-life table/version.
   List<AppliedPromo> get appliedPromos {
-    final byId = <String, List<OrderLine>>{};
-    for (final l in lines) {
-      if (l.discount > 0) {
-        byId.putIfAbsent(l.promoId, () => <OrderLine>[]).add(l);
-      }
+    final grouped = <String, AppliedPromo>{};
+    void add(
+        String key, String name, String typeLabel, int amount, OrderLine line) {
+      if (amount <= 0) return;
+      final prior = grouped[key];
+      final detail = '${line.sku} × ${line.qty}';
+      grouped[key] = AppliedPromo(
+          id: key,
+          name: name,
+          typeLabel: typeLabel,
+          detail: prior == null ? detail : '${prior.detail} · $detail',
+          amount: (prior?.amount ?? 0) + amount);
     }
-    return byId.entries.map((e) {
-      final first = e.value.first;
-      final amount = e.value.fold<int>(0, (s, l) => s + l.discount);
-      final detail = e.value
-          .map((l) => '${l.sku} × ${l.qty} (−${_pct(l.discountPct)}%)')
-          .join(', ');
-      return AppliedPromo(
-        id: e.key,
-        name: first.promoName,
-        typeLabel: '',
-        detail: detail,
-        amount: amount,
-      );
-    }).toList();
-  }
 
-  static String _pct(double v) =>
-      v == v.roundToDouble() ? v.round().toString() : v.toString();
+    for (final line in lines) {
+      final name = line.promoName.isEmpty ? 'Khuyến mãi' : line.promoName;
+      add('campaign:${line.promoId.isEmpty ? name : line.promoId}', name,
+          'Khuyến mãi số lượng', line.campaignDiscount ?? line.discount, line);
+    }
+    for (final line in lines) {
+      add('shelf-life:${line.shelfLifeSource}', 'Giảm giá theo HSD',
+          'Tính sau khuyến mãi số lượng', line.shelfLifeDiscount, line);
+    }
+    return grouped.values.toList();
+  }
 
   Order copyWith({
     OrderStatus? status,
@@ -371,8 +403,7 @@ class NewOrderRequest {
 class CartLine {
   const CartLine({this.productId = '', required this.sku, required this.qty});
 
-  factory CartLine.fromJson(Map<String, dynamic> j) =>
-      CartLine(
+  factory CartLine.fromJson(Map<String, dynamic> j) => CartLine(
         productId: asStr(j['productId']),
         sku: asStr(j['sku']),
         qty: asInt(j['qty'] ?? j['quantity']),

@@ -9,6 +9,7 @@ import 'package:fscm_mobile/core/network/api_exception.dart';
 import 'package:fscm_mobile/core/auth/user_role.dart';
 import 'package:fscm_mobile/core/network/network_monitor.dart';
 import 'package:fscm_mobile/core/utils/money.dart';
+import 'package:fscm_mobile/core/utils/dates.dart';
 import 'package:fscm_mobile/core/utils/status_tone.dart';
 import 'package:fscm_mobile/data/models/order.dart';
 import 'package:fscm_mobile/data/models/order_availability.dart';
@@ -213,7 +214,7 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
   String _stamp(CatalogData data) {
     final t = data.lastSyncAt;
     if (t == null) return 'chưa đồng bộ';
-    return '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')} ${t.day.toString().padLeft(2, '0')}/${t.month.toString().padLeft(2, '0')}';
+    return AppDates.timeDay(t);
   }
 
   Widget _productRow(Product p, CatalogData data, Retailer retailer,
