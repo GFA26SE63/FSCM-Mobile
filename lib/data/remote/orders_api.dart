@@ -92,8 +92,20 @@ class OrdersApi {
       List<OfflineOrderPayload> orders) async {
     final results = <OrderSyncResult>[];
     for (final payload in orders) {
-      final data =
-          await _client.post(Endpoints.ordersSync, body: payload.toJson());
+      if (!payload.hasCompleteExpectedConditions) {
+        results.add(
+          OrderSyncResult(
+            clientRequestId: payload.clientRequestId,
+            accepted: false,
+            reason: 'Draft thiếu điều kiện giá/MLOR tại thời điểm lưu. '
+                'Hãy tạo draft mới sau khi kiểm tra snapshot; '
+                'bản cũ được giữ lại để đối chiếu.',
+          ),
+        );
+        continue;
+      }
+      final data = await _client.post(Endpoints.ordersSync,
+          body: payload.toRequestJson());
       final order = Order.fromJson(asMap(data));
       results.add(OrderSyncResult(
         clientRequestId: payload.clientRequestId,
@@ -103,7 +115,8 @@ class OrdersApi {
         promoChanged: order.finalAmount != payload.localFinal,
         changeReason: order.finalAmount == payload.localFinal
             ? ''
-            : 'Giá/khuyến mãi được tính lại khi đồng bộ.',
+            : 'Giá dự kiến được backend tính lại khi nhận đơn. '
+                'Giá sau giảm HSD được xác định khi phân bổ.',
       ));
     }
     return results;
