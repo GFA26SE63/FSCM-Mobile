@@ -21,10 +21,25 @@ class OrderStatusChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final sync = order.syncStatus;
-    if (sync == SyncStatus.pending || sync == SyncStatus.syncing) {
-      return StatusChip(label: sync!.label, tone: sync.tone);
+
+    if (sync == SyncStatus.rejected) {
+      return const StatusChip(
+        label: 'Gửi đơn bị từ chối',
+        tone: StatusTone.danger,
+      );
     }
-    return StatusChip(label: order.status.label, tone: order.status.tone);
+
+    if (sync == SyncStatus.pending || sync == SyncStatus.syncing) {
+      return StatusChip(
+        label: sync!.label,
+        tone: sync.tone,
+      );
+    }
+
+    return StatusChip(
+      label: order.status.label,
+      tone: order.status.tone,
+    );
   }
 }
 

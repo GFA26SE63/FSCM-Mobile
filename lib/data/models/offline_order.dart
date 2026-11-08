@@ -2,6 +2,8 @@ import 'package:fscm_mobile/data/models/enums.dart';
 import 'package:fscm_mobile/data/models/json_utils.dart';
 import 'package:fscm_mobile/data/models/order.dart';
 import 'package:fscm_mobile/data/models/price_quote.dart';
+import 'package:fscm_mobile/core/network/api_exception.dart';
+import 'package:fscm_mobile/data/models/offline_expected_condition.dart';
 
 /// JSON element sent to `POST /orders/sync`. The UUID [clientRequestId] is
 /// the idempotency key; [offlineCode] (`OFF-{device}-{0000}`) is the
@@ -24,6 +26,7 @@ class OfflineOrderPayload {
     this.localQuote,
     this.estimatedAt,
     this.snapshotVersion,
+    this.expectedConditions = const <OfflineExpectedCondition>[],
   });
 
   factory OfflineOrderPayload.fromJson(Map<String, dynamic> json) {
@@ -49,6 +52,10 @@ class OfflineOrderPayload {
       localQuote: rawQuote is Map ? PriceQuote.fromJson(asMap(rawQuote)) : null,
       estimatedAt: asDate(json['estimatedAt']),
       snapshotVersion: asStrOrNull(json['snapshotVersion']),
+      expectedConditions: mapList(
+        json['expectedConditions'],
+        OfflineExpectedCondition.fromJson,
+      ),
     );
   }
 
@@ -67,10 +74,23 @@ class OfflineOrderPayload {
   final PriceQuote? localQuote;
   final DateTime? estimatedAt;
   final String? snapshotVersion;
+  final List<OfflineExpectedCondition> expectedConditions;
 
   int get localFinal => localTotal - localDiscount;
 
-  /// Local persistence format, not the API request body.
+  bool get hasCompleteExpectedConditions {
+    final productIds = lines.map((line) => line.productId).toSet();
+    final conditionIds =
+        expectedConditions.map((condition) => condition.productId).toSet();
+
+    return productIds.isNotEmpty &&
+        !productIds.contains('') &&
+        expectedConditions.length == productIds.length &&
+        conditionIds.length == expectedConditions.length &&
+        conditionIds.containsAll(productIds) &&
+        expectedConditions.every((condition) => condition.isValid);
+  }
+
   Map<String, dynamic> toJson() => <String, dynamic>{
         'clientRequestId': clientRequestId,
         'offlineCode': offlineCode,
@@ -87,26 +107,39 @@ class OfflineOrderPayload {
         'localQuote': localQuote?.toJson(),
         'estimatedAt': estimatedAt?.toUtc().toIso8601String(),
         'snapshotVersion': snapshotVersion,
+        'expectedConditions':
+            expectedConditions.map((item) => item.toJson()).toList(),
       };
 
-  Map<String, dynamic> toRequestJson() => <String, dynamic>{
-        'clientOrderKey': clientRequestId,
-        'retailerId': retailerId,
-        'paymentMethod': null,
-        'offlineEstimatedAmount': localFinal,
-        if (snapshotVersion != null) 'snapshotVersion': snapshotVersion,
-        // Giữ hành vi gửi hiện có.
-        // Luồng yêu cầu xác nhận thay đổi điều kiện sẽ xử lý riêng.
-        'confirmConditionChanges': true,
-        'lines': lines
-            .map(
-              (line) => {
-                'productId': line.productId,
-                'quantity': line.qty,
-              },
-            )
-            .toList(),
-      };
+  Map<String, dynamic> toRequestJson() {
+    if (!hasCompleteExpectedConditions) {
+      throw const ApiException(
+        kind: ApiErrorKind.validation,
+        message: 'Draft thiếu điều kiện giá/MLOR gốc. '
+            'Không thể gửi bằng dữ liệu điều kiện mới thay thế.',
+      );
+    }
+
+    return <String, dynamic>{
+      'clientOrderKey': clientRequestId,
+      'retailerId': retailerId,
+      'paymentMethod': null,
+      'offlineEstimatedAmount': localFinal,
+      if (snapshotVersion != null) 'snapshotVersion': snapshotVersion,
+      // Giữ hành vi hiện tại; luồng xác nhận thay đổi xử lý ở F31.
+      'confirmConditionChanges': true,
+      'expectedConditions':
+          expectedConditions.map((item) => item.toJson()).toList(),
+      'lines': lines
+          .map(
+            (line) => {
+              'productId': line.productId,
+              'quantity': line.qty,
+            },
+          )
+          .toList(),
+    };
+  }
 }
 
 /// Row of the OfflineOrderQueue table.
@@ -237,7 +270,7 @@ Order orderFromOffline(OfflineOrder entry) {
     retailerCode: payload.retailerCode,
     retailerName: payload.retailerName,
     status: entry.status == SyncStatus.rejected
-        ? OrderStatus.allocationFailed
+        ? OrderStatus.rejected
         : OrderStatus.allocating,
     createdAt: payload.createdAt,
     lines: lines,

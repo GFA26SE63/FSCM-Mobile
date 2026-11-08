@@ -84,6 +84,18 @@ class OrdersApi {
       List<OfflineOrderPayload> orders) async {
     final results = <OrderSyncResult>[];
     for (final payload in orders) {
+      if (!payload.hasCompleteExpectedConditions) {
+        results.add(
+          OrderSyncResult(
+            clientRequestId: payload.clientRequestId,
+            accepted: false,
+            reason: 'Draft thiếu điều kiện giá/MLOR tại thời điểm lưu. '
+                'Hãy tạo draft mới sau khi kiểm tra snapshot; '
+                'bản cũ được giữ lại để đối chiếu.',
+          ),
+        );
+        continue;
+      }
       final data = await _client.post(Endpoints.ordersSync,
           body: payload.toRequestJson());
       final order = Order.fromJson(asMap(data));

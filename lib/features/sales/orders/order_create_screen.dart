@@ -742,7 +742,7 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
           lines: lines,
           estimate: estimate,
           estimatedAt: estimatedAt,
-          snapshotVersion: data.snapshot?.version,
+          snapshot: data.snapshot,
         );
 
         code = entry.localCode;

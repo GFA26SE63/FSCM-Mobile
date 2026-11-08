@@ -19,6 +19,8 @@ import 'package:fscm_mobile/data/remote/orders_api.dart';
 import 'package:fscm_mobile/data/repositories/auth_repository.dart';
 import 'package:fscm_mobile/data/repositories/data_version.dart';
 import 'package:fscm_mobile/data/models/price_quote.dart';
+import 'package:fscm_mobile/data/models/sync_snapshot.dart';
+import 'package:fscm_mobile/data/pricing/offline_condition_builder.dart';
 
 /// Orders for the list screens plus whether the server was unreachable.
 class OrderListResult {
@@ -142,7 +144,7 @@ class OrderRepository {
     required List<CartLine> lines,
     required PriceQuote estimate,
     required DateTime estimatedAt,
-    String? snapshotVersion,
+    required SyncSnapshot? snapshot,
   }) async {
     if (!estimate.isComplete || estimate.lines.isEmpty) {
       throw const ApiException(
@@ -170,6 +172,19 @@ class OrderRepository {
       );
     }
 
+    if (snapshot == null) {
+      throw const ApiException(
+        kind: ApiErrorKind.validation,
+        message: 'Chưa có snapshot để lưu điều kiện giá/MLOR.',
+      );
+    }
+
+    final expectedConditions = OfflineConditionBuilder.capture(
+      snapshot: snapshot,
+      retailerId: retailer.id,
+      lines: lines,
+      at: estimatedAt,
+    );
     final seq = await _syncState.nextOfflineSeq();
     final now = AppClock.now();
 
@@ -187,7 +202,8 @@ class OrderRepository {
       localPromoIds: estimate.applied.map((promo) => promo.id).toList(),
       localQuote: estimate,
       estimatedAt: estimatedAt,
-      snapshotVersion: snapshotVersion,
+      snapshotVersion: snapshot.version,
+      expectedConditions: expectedConditions,
     );
 
     final entry = OfflineOrder(

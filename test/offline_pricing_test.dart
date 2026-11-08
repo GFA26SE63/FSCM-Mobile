@@ -7,6 +7,7 @@ import 'package:fscm_mobile/data/models/offline_order.dart';
 import 'package:fscm_mobile/data/models/order.dart';
 import 'package:fscm_mobile/data/models/sync_snapshot.dart';
 import 'package:fscm_mobile/data/repositories/catalog_repository.dart';
+import 'package:fscm_mobile/data/models/offline_expected_condition.dart';
 
 import 'fixtures/mobile_snapshot_fixture.dart';
 
@@ -109,6 +110,14 @@ void main() {
       localQuote: quote,
       estimatedAt: at,
       snapshotVersion: 'snapshot-test-v1',
+      expectedConditions: const [
+        OfflineExpectedCondition(
+          productId: 'product-1',
+          expectedBaseUnitPrice: 125000.5,
+          expectedMlorVersion: 1,
+          expectedMlorRatio: 0.5,
+        ),
+      ],
     );
 
     final restored = OfflineOrderPayload.fromJson(
@@ -122,6 +131,18 @@ void main() {
     expect(restored.estimatedAt, at);
 
     final request = restored.toRequestJson();
+    expect(restored.hasCompleteExpectedConditions, isTrue);
+    expect(
+      request['expectedConditions'],
+      [
+        {
+          'productId': 'product-1',
+          'expectedBaseUnitPrice': 125000.5,
+          'expectedMlorVersion': 1,
+          'expectedMlorRatio': 0.5,
+        },
+      ],
+    );
     expect(request['clientOrderKey'], 'request-1');
     expect(request['offlineEstimatedAmount'], quote.finalAmount);
     expect(request.containsKey('localQuote'), isFalse);
