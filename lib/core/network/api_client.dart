@@ -358,23 +358,23 @@ class ApiClient {
           );
         }
 
+        var refreshed = false;
         try {
-          final refreshed = await _tryRefreshToken();
-          if (refreshed) {
-            return await _send(
-              method,
-              path,
-              body: body,
-              query: query,
-              extraHeaders: extraHeaders,
-              isRetry: true,
-            );
-          }
+          refreshed = await _tryRefreshToken();
         } on ApiException catch (e) {
           if (e.kind == ApiErrorKind.network ||
               e.kind == ApiErrorKind.timeout) {
             rethrow;
           }
+        }
+        // Retry errors belong to the retried request. Catching them as refresh
+        // failures emitted logout twice for 401 and turned a genuine 403 into 401.
+        if (refreshed) {
+          return _send(method, path,
+              body: body,
+              query: query,
+              extraHeaders: extraHeaders,
+              isRetry: true);
         }
       }
 

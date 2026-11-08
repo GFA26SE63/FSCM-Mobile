@@ -415,6 +415,30 @@ void main() {
       expect(unauthorizedCount, 1);
     });
 
+    test('retry 403 preserves forbidden without emitting logout', () async {
+      var calls = 0;
+      transport.handlers['GET /orders'] = (_) => ApiResponse(
+          statusCode: ++calls == 1 ? 401 : 403,
+          data: const {'title': 'Access denied'});
+      transport.handlers['POST ${Endpoints.authRefresh}'] =
+          (_) => const ApiResponse(statusCode: 200, data: {
+                'accessToken': 'new-access',
+                'refreshToken': 'new-refresh',
+              });
+      var logouts = 0;
+      var forbidden = 0;
+      client.onUnauthorized.listen((_) => logouts++);
+      client.onForbidden.listen((_) => forbidden++);
+      await expectLater(
+          client.get('/orders'),
+          throwsA(isA<ApiException>()
+              .having((e) => e.kind, 'kind', ApiErrorKind.forbidden)));
+      await Future<void>.delayed(Duration.zero);
+      expect(calls, 2);
+      expect(forbidden, 1);
+      expect(logouts, 0);
+    });
+
     test('9. Logout trong lúc refresh: không khôi phục session cũ', () async {
       final refreshCompleter = Completer<ApiResponse>();
       transport.handlers['GET /orders'] = (req) {
