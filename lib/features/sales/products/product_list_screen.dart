@@ -175,7 +175,7 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
               children: [
                 for (final promotion in promotions)
                   Chip(
-                    label: Text(data.promotionCode(promotion)),
+                    label: Text(promotion.name),
                   ),
               ],
             ),

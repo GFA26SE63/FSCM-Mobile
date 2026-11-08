@@ -24,6 +24,7 @@ import 'package:fscm_mobile/data/repositories/catalog_repository.dart';
 import 'package:fscm_mobile/data/repositories/data_version.dart';
 import 'package:fscm_mobile/data/repositories/order_repository.dart';
 import 'package:fscm_mobile/features/sales/orders/order_confirm_sheet.dart';
+import 'package:fscm_mobile/features/sales/products/product_detail_screen.dart';
 import 'package:fscm_mobile/shared/routes.dart';
 import 'package:fscm_mobile/shared/theme/app_colors.dart';
 import 'package:fscm_mobile/shared/widgets/app_card.dart';
@@ -200,7 +201,7 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
               ),
               const SizedBox(height: 10),
               for (final p in products)
-                _productRow(p, data, quote, availability?[p.sku]),
+                _productRow(p, data, retailer, quote, availability?[p.sku]),
             ],
           ),
         ),
@@ -215,28 +216,48 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
     return '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')} ${t.day.toString().padLeft(2, '0')}/${t.month.toString().padLeft(2, '0')}';
   }
 
-  Widget _productRow(Product p, CatalogData data, PriceQuote quote,
-      ProductAvailability? availability) {
+  Widget _productRow(Product p, CatalogData data, Retailer retailer,
+      PriceQuote quote, ProductAvailability? availability) {
     final max = data.maxQty(p.sku);
     final qty = _cart[p.sku] ?? 0;
     final line = quote.lines.where((l) => l.sku == p.sku).toList();
+    void openDetail() => Navigator.of(context).push(MaterialPageRoute<void>(
+        builder: (_) => ProductDetailScreen(
+            product: p,
+            unitPrice: data.unitPrice(p.sku),
+            availability: availability,
+            promotions: data
+                .runningPromotions(retailerCode: retailer.code)
+                .where((promo) => promo.groupSkus.contains(p.sku))
+                .toList())));
     return AppCard(
+      onTap: openDetail,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Text('${p.sku} · ${p.name}',
-              style: const TextStyle(fontWeight: FontWeight.w700)),
+          Row(children: [
+            Expanded(
+                child: Text('${p.sku} · ${p.name}',
+                    style: const TextStyle(fontWeight: FontWeight.w700))),
+            IconButton(
+                onPressed: openDetail,
+                tooltip: 'Chi tiết ${p.name}',
+                icon: const Icon(Icons.chevron_right)),
+          ]),
           Text('${p.pack} · ${Money.format(data.unitPrice(p.sku))}/thùng',
               style: const TextStyle(color: AppColors.textMuted)),
           const SizedBox(height: 6),
           if (availability != null)
-            WarehouseStockList(warehouses: availability.warehouses),
+            WarehouseStockList(
+                warehouses: availability.warehouses, onViewAll: openDetail),
           Row(
             children: <Widget>[
               Expanded(
                 child: Text(
                   max == 0
-                      ? 'Chưa đủ hàng để đặt theo bội 10 thùng'
+                      ? ((availability?.quantity ?? data.available(p.sku)) <= 0
+                          ? 'Không có hàng đủ điều kiện để giao'
+                          : 'Chưa đủ hàng để đặt theo bội 10 thùng')
                       : 'Chọn số lượng · bội 10 thùng',
                   style: TextStyle(
                       color: max == 0 ? AppColors.danger : AppColors.textMuted,

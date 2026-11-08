@@ -23,6 +23,7 @@ class WarehouseAvailability {
   final int quantity;
   final double? distanceMeters;
   final String? unavailableReason;
+  bool get withinServiceArea => unavailableReason != 'OutsideServiceRadius';
   String get reasonLabel => switch (unavailableReason) {
         'OutsideServiceRadius' => 'Ngoài phạm vi phục vụ',
         'RouteUnavailable' => 'Chưa xác định được tuyến giao',
@@ -47,4 +48,16 @@ class ProductAvailability {
   final String sku;
   final int quantity;
   final List<WarehouseAvailability> warehouses;
+
+  List<WarehouseAvailability> get serviceWarehouses {
+    final result = warehouses.where((w) => w.withinServiceArea).toList();
+    result.sort((a, b) {
+      final quantityOrder = b.quantity.compareTo(a.quantity);
+      if (quantityOrder != 0) return quantityOrder;
+      final distanceOrder = (a.distanceMeters ?? double.infinity)
+          .compareTo(b.distanceMeters ?? double.infinity);
+      return distanceOrder != 0 ? distanceOrder : a.code.compareTo(b.code);
+    });
+    return result;
+  }
 }

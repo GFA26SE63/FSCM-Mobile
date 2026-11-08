@@ -3,6 +3,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:fscm_mobile/core/network/api_client.dart';
 import 'package:fscm_mobile/core/network/api_transport.dart';
 import 'package:fscm_mobile/data/models/order_availability.dart';
+import 'package:fscm_mobile/data/models/product.dart';
+import 'package:fscm_mobile/data/models/promotion.dart';
+import 'package:fscm_mobile/features/sales/products/product_detail_screen.dart';
 import 'package:fscm_mobile/data/remote/orders_api.dart';
 import 'package:fscm_mobile/data/pricing/order_limits.dart';
 import 'package:fscm_mobile/shared/widgets/warehouse_stock_list.dart';
@@ -53,10 +56,106 @@ void main() {
     expect(find.text('10 thùng'), findsOneWidget);
     expect(find.text('30 thùng'), findsOneWidget);
     expect(find.text('40 thùng'), findsNothing);
-    expect(find.text('Ngoài phạm vi phục vụ'), findsOneWidget);
+    expect(find.text('Ngoài phạm vi phục vụ'), findsNothing);
+    expect(find.text('Kho Củ Chi · WH-HCM-01'), findsNothing);
     await tester.tap(find.byIcon(Icons.add));
     expect(selected, 10);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+      'previews the three highest serviceable warehouses and opens all in product detail',
+      (tester) async {
+    tester.view.physicalSize = const Size(360, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final warehouses = [
+      for (final entry in {'A': 10, 'B': 50, 'C': 20, 'D': 40, 'E': 30}.entries)
+        WarehouseAvailability(
+            id: entry.key,
+            code: 'WH-${entry.key}',
+            name: 'Kho ${entry.key}',
+            quantity: entry.value),
+      const WarehouseAvailability(
+          id: 'far',
+          code: 'FAR',
+          name: 'Kho quá xa',
+          quantity: 0,
+          unavailableReason: 'OutsideServiceRadius'),
+    ];
+    final availability = ProductAvailability(
+        sku: 'SKU001', quantity: 150, warehouses: warehouses);
+    expect(availability.serviceWarehouses.map((w) => w.code),
+        ['WH-B', 'WH-D', 'WH-E', 'WH-C', 'WH-A']);
+    await tester.pumpWidget(MaterialApp(
+        home: Builder(
+            builder: (context) => Scaffold(
+                    body: WarehouseStockList(
+                  warehouses: warehouses,
+                  onViewAll: () =>
+                      Navigator.of(context).push(MaterialPageRoute<void>(
+                          builder: (_) => ProductDetailScreen(
+                                product: const Product(
+                                    sku: 'SKU001',
+                                    name: 'Sữa tươi',
+                                    pack: 'Thùng',
+                                    category: 'Sữa',
+                                    basePrice: 1000),
+                                unitPrice: 1000,
+                                availability: availability,
+                                promotions: const [
+                                  Promotion(
+                                      id: 'internal-promotion-id',
+                                      name: 'Ưu đãi mùa hè',
+                                      type: 1)
+                                ],
+                              ))),
+                )))));
+    expect(find.text('Kho B · WH-B'), findsOneWidget);
+    expect(find.text('Kho D · WH-D'), findsOneWidget);
+    expect(find.text('Kho E · WH-E'), findsOneWidget);
+    expect(find.text('Kho C · WH-C'), findsNothing);
+    expect(find.textContaining('quá xa'), findsNothing);
+    await tester.tap(find.text('Xem tất cả 5 kho'));
+    await tester.pumpAndSettle();
+    expect(find.text('Chi tiết sản phẩm'), findsOneWidget);
+    expect(find.text('Kho C · WH-C'), findsOneWidget);
+    expect(find.text('Kho A · WH-A'), findsOneWidget);
+    expect(find.text('Ưu đãi mùa hè'), findsOneWidget);
+    expect(find.text('internal-promotion-id'), findsNothing);
+    expect(find.textContaining('quá xa'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+      'reports unavailable delivery when all serviceable warehouses have zero stock or none exist',
+      (tester) async {
+    for (final warehouses in [
+      <WarehouseAvailability>[],
+      [
+        const WarehouseAvailability(
+            id: 'far',
+            code: 'FAR',
+            name: 'Kho quá xa',
+            quantity: 0,
+            unavailableReason: 'OutsideServiceRadius')
+      ],
+      [
+        const WarehouseAvailability(
+            id: 'near',
+            code: 'NEAR',
+            name: 'Kho gần',
+            quantity: 0,
+            unavailableReason: 'BelowMlor')
+      ],
+    ]) {
+      await tester.pumpWidget(MaterialApp(
+          home: Scaffold(body: WarehouseStockList(warehouses: warehouses))));
+      expect(find.text('Không có hàng đủ điều kiện để giao.'), findsOneWidget);
+      expect(find.textContaining('quá xa'), findsNothing);
+      expect(tester.takeException(), isNull);
+    }
   });
 }
 
