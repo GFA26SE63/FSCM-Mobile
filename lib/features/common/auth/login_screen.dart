@@ -74,6 +74,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final authError = _error ?? ref.watch(authControllerProvider).error;
     return Scaffold(
       body: SafeArea(
         child: Center(
@@ -146,9 +147,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       ),
                     ),
                     const SizedBox(height: 12),
-                    if (_error != null)
+                    if (authError != null)
                       InfoBanner(
-                          text: _error!,
+                          text: authError,
                           tone: StatusTone.danger,
                           icon: Icons.error_outline),
                     FilledButton(

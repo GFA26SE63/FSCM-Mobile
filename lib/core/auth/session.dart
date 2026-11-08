@@ -191,6 +191,26 @@ class Session {
   bool get isExpired =>
       expiresAt != null && expiresAt!.isBefore(DateTime.now());
 
+  bool get isRefreshTokenExpired =>
+      refreshTokenExpiresAt != null &&
+      refreshTokenExpiresAt!.isBefore(DateTime.now());
+
+  Session copyWith({
+    String? accessToken,
+    String? refreshToken,
+    DateTime? expiresAt,
+    DateTime? refreshTokenExpiresAt,
+    AppUser? user,
+  }) =>
+      Session(
+        accessToken: accessToken ?? this.accessToken,
+        refreshToken: refreshToken ?? this.refreshToken,
+        expiresAt: expiresAt ?? this.expiresAt,
+        refreshTokenExpiresAt:
+            refreshTokenExpiresAt ?? this.refreshTokenExpiresAt,
+        user: user ?? this.user,
+      );
+
   Map<String, dynamic> toJson() => <String, dynamic>{
         'accessToken': accessToken,
         'refreshToken': refreshToken,
