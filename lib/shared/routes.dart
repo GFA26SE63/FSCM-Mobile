@@ -17,6 +17,9 @@ class AppRoutes {
   static const String salesSync = '/sales/sync';
   static const String salesAccount = '/sales/account';
   static const String salesRetailers = '/sales/retailers';
+  static const String salesRetailerDetailPattern = '/sales/retailers/:code';
+  static String salesRetailerDetail(String code) =>
+      '/sales/retailers/${Uri.encodeComponent(code)}';
   static const String salesProducts = '/sales/products';
   static const String salesPromotions = '/sales/promotions';
   static const String salesDebts = '/sales/debts';
