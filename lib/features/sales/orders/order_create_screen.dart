@@ -32,6 +32,7 @@ import 'package:fscm_mobile/shared/widgets/info_banner.dart';
 import 'package:fscm_mobile/shared/widgets/online_chip.dart';
 import 'package:fscm_mobile/shared/widgets/quantity_stepper.dart';
 import 'package:fscm_mobile/sync/sync_service.dart';
+import 'package:fscm_mobile/data/repositories/retailer_repository.dart';
 
 final _orderAvailabilityProvider = FutureProvider.autoDispose
     .family<Map<String, int>, String>((ref, retailerId) async {
@@ -62,8 +63,10 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
   @override
   void initState() {
     super.initState();
-    Future.microtask(() => ref.read(syncServiceProvider.notifier).refreshSnapshot());
+    Future.microtask(
+        () => ref.read(syncServiceProvider.notifier).refreshSnapshot());
   }
+
   bool _busy = false;
 
   List<CartLine> get _lines => _cart.entries
@@ -95,24 +98,37 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
                 title: 'Không tìm thấy điểm bán',
                 message: 'Đồng bộ lại danh sách điểm bán rồi thử lại.');
           }
-          if (user?.role != UserRole.retailer && retailer.areaCode.isNotEmpty && retailer.areaCode != user?.areaCode) {
-            return EmptyState(
+          if (user?.role == UserRole.sales &&
+              !online &&
+              retailer.status != 'Active') {
+            return const EmptyState(
               icon: Icons.lock_outline,
-              title: 'Điểm bán ngoài khu vực',
-              message:
-                  '${retailer.name} thuộc khu vực ${retailer.areaName}. Bạn chỉ tạo được đơn cho điểm bán trong khu vực ${user?.areaName ?? ''}.',
+              title: 'Chưa thể chuẩn bị đơn offline',
+              message: 'Theo snapshot hiện có, điểm bán chưa hoạt động. '
+                  'Kết nối mạng và cập nhật dữ liệu để kiểm tra lại.',
             );
           }
           if (!online) return _body(context, data, retailer, online);
-          final availability = ref.watch(_orderAvailabilityProvider(retailer.id));
+          final availability =
+              ref.watch(_orderAvailabilityProvider(retailer.id));
           return AsyncBody<Map<String, int>>(
             value: availability,
-            onRetry: () => ref.invalidate(_orderAvailabilityProvider(retailer.id)),
-            builder: (quantities) => _body(context, CatalogData(
-              retailers: data.retailers, products: data.products,
-              prices: data.prices, promotions: data.promotions,
-              stock: quantities, lastSyncAt: data.lastSyncAt,
-            ), retailer, online),
+            onRetry: () =>
+                ref.invalidate(_orderAvailabilityProvider(retailer.id)),
+            builder: (quantities) => _body(
+              context,
+              CatalogData(
+                retailers: data.retailers,
+                products: data.products,
+                prices: data.prices,
+                promotions: data.promotions,
+                stock: quantities,
+                lastSyncAt: data.lastSyncAt,
+                snapshot: data.snapshot,
+              ),
+              retailer,
+              online,
+            ),
           );
         },
       ),
@@ -121,7 +137,8 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
 
   Widget _body(
       BuildContext context, CatalogData data, Retailer retailer, bool online) {
-    final isRetailer = ref.watch(currentUserProvider)?.role == UserRole.retailer;
+    final isRetailer =
+        ref.watch(currentUserProvider)?.role == UserRole.retailer;
     final products = data.products.where((p) {
       if (_query.isEmpty) return true;
       return p.name.toLowerCase().contains(_query) ||
@@ -166,8 +183,7 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
                       : 'Đơn được lưu trên máy, khuyến mãi chỉ là tạm tính. Khi có mạng hệ thống sẽ tính lại, phân bổ kho và quyết định cuối cùng.',
                 ),
               InfoBanner(
-                text:
-                    online
+                text: online
                     ? 'Đã kiểm tra tồn đáp ứng điều kiện giao cho cửa hàng, hạn sử dụng và hàng đang giữ. Số lượng có thể thay đổi trước khi gửi đơn.'
                     : 'Tồn tham khảo lúc ${_stamp(data)}. Hệ thống sẽ kiểm tra lại điều kiện giao khi có mạng.',
               ),
@@ -288,29 +304,131 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
     );
   }
 
-  Future<void> _review(CatalogData data, Retailer retailer, bool online) async {
-    if (!online && ref.read(currentUserProvider)?.role == UserRole.retailer) {
-      showAppSnack(context, 'Cần kết nối mạng để gửi đơn và kiểm tra khuyến mãi.', error: true);
+  Future<void> _ensureSalesOrderEligibility(
+    Retailer retailer,
+  ) async {
+    final user = ref.read(currentUserProvider);
+
+    if (user == null) {
+      throw const ApiException(
+        kind: ApiErrorKind.unauthorized,
+        message: 'Vui lòng đăng nhập lại.',
+      );
+    }
+
+    // Retailer self-order uses its existing backend authorization.
+    if (user.role == UserRole.retailer) return;
+
+    if (user.role != UserRole.sales) {
+      throw const ApiException(
+        kind: ApiErrorKind.forbidden,
+        message: 'Tài khoản không được sử dụng luồng đặt hàng Sales.',
+      );
+    }
+
+    final result = await ref.read(retailerRepositoryProvider).orderEligibility(
+          retailer.id,
+          salesUserId: user.id,
+        );
+
+    if (!mounted) {
+      throw const ApiException(
+        kind: ApiErrorKind.forbidden,
+        message: 'Màn hình đặt hàng đã đóng.',
+      );
+    }
+
+    if (ref.read(currentUserProvider)?.id != user.id) {
+      throw const ApiException(
+        kind: ApiErrorKind.forbidden,
+        message: 'Phiên đăng nhập đã thay đổi. Vui lòng mở lại đơn.',
+      );
+    }
+
+    if (!result.isEligible) {
+      throw ApiException(
+        kind: ApiErrorKind.forbidden,
+        message: result.denialMessage,
+      );
+    }
+  }
+
+  Future<void> _review(
+    CatalogData data,
+    Retailer retailer,
+    bool online,
+  ) async {
+    if (_busy) return;
+
+    final user = ref.read(currentUserProvider);
+
+    if (!online && user?.role == UserRole.retailer) {
+      showAppSnack(
+        context,
+        'Cần kết nối mạng để gửi đơn và kiểm tra khuyến mãi.',
+        error: true,
+      );
       return;
     }
+
+    if (!online &&
+        user?.role == UserRole.sales &&
+        retailer.status != 'Active') {
+      showAppSnack(
+        context,
+        'Điểm bán chưa hoạt động theo snapshot hiện có. '
+        'Kết nối mạng để kiểm tra lại.',
+        error: true,
+      );
+      return;
+    }
+
     final lines = _lines;
     var quote = data.quote(lines, retailer.code);
     var estimated = true;
+
     if (online) {
       setState(() => _busy = true);
+
       try {
-        quote = await ref
-            .read(productsApiProvider)
-            .quote(retailerId: retailer.id, lines: lines.map((line) => CartLine(
-                  productId: data.product(line.sku)?.id ?? '',
-                  sku: line.sku, qty: line.qty)).toList());
-        estimated = false;
-      } on ApiException {
-        // Keep the local estimate.
+        await _ensureSalesOrderEligibility(retailer);
+
+        if (!mounted) return;
+
+        try {
+          quote = await ref.read(productsApiProvider).quote(
+                retailerId: retailer.id,
+                lines: lines
+                    .map(
+                      (line) => CartLine(
+                        productId: data.product(line.sku)?.id ?? '',
+                        sku: line.sku,
+                        qty: line.qty,
+                      ),
+                    )
+                    .toList(),
+              );
+          estimated = false;
+        } on ApiException {
+          // Preserve the existing quote fallback behavior.
+          // Eligibility failures are handled by the outer catch.
+        }
+      } catch (error) {
+        if (mounted) {
+          showAppSnack(
+            context,
+            ApiException.describe(error),
+            error: true,
+          );
+        }
+        return;
+      } finally {
+        if (mounted) setState(() => _busy = false);
       }
-      if (!mounted) return;
-      setState(() => _busy = false);
     }
+
+    if (!mounted) return;
+
     final confirmed = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
@@ -322,13 +440,17 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
         estimated: estimated,
       ),
     );
+
     if (confirmed != true || !mounted) return;
+
     await _submit(data, retailer);
   }
 
   Future<void> _submit(CatalogData data, Retailer retailer) async {
     final repo = ref.read(orderRepositoryProvider);
-    final productsBySku = <String, Product>{for (final p in data.products) p.sku: p};
+    final productsBySku = <String, Product>{
+      for (final p in data.products) p.sku: p
+    };
     final lines = _lines
         .map((line) => CartLine(
               productId: productsBySku[line.sku]?.id ?? '',
@@ -348,13 +470,18 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
       var code = '';
       var message = '';
       Future<void> saveOffline(String notice) async {
-        final entry = await repo.createOffline(retailer: retailer, lines: lines);
+        final entry =
+            await repo.createOffline(retailer: retailer, lines: lines);
         code = entry.localCode;
         message = notice;
       }
 
       if (online) {
         try {
+          await _ensureSalesOrderEligibility(retailer);
+
+          if (!mounted) return;
+
           final quantities = await ref.read(ordersApiProvider).availability(
               retailer.id, lines.map((line) => line.productId).toList());
           if (lines.any((line) => line.qty > (quantities[line.sku] ?? 0))) {
@@ -362,7 +489,8 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
             if (mounted) {
               setState(() {
                 for (final entry in _cart.entries.toList()) {
-                  final maximum = OrderLimits.maxQty(quantities[entry.key] ?? 0);
+                  final maximum =
+                      OrderLimits.maxQty(quantities[entry.key] ?? 0);
                   if (entry.value > maximum) {
                     _cart[entry.key] = maximum;
                   }
@@ -385,7 +513,8 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
               ? 'Đơn ${order.code} bị từ chối: ${order.rejectReason}'
               : 'Đã tạo SO ${order.code}. Hệ thống đang phân bổ và sẽ gửi báo giá cho Retailer.';
         } on ApiException catch (e) {
-          if (!e.isNetwork || ref.read(currentUserProvider)?.role == UserRole.retailer) rethrow;
+          if (!e.isNetwork ||
+              ref.read(currentUserProvider)?.role == UserRole.retailer) { rethrow; }
           await saveOffline(
               'Mất kết nối - đã lưu đơn trên máy, sẽ tự đồng bộ khi có mạng.');
         }
@@ -398,8 +527,10 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
       }
       if (!mounted) return;
       showAppSnack(context, message);
-      context.pushReplacement(ref.read(currentUserProvider)?.role == UserRole.retailer
-          ? AppRoutes.rtOrderDetail(code) : AppRoutes.salesOrderDetail(code));
+      context.pushReplacement(
+          ref.read(currentUserProvider)?.role == UserRole.retailer
+              ? AppRoutes.rtOrderDetail(code)
+              : AppRoutes.salesOrderDetail(code));
     } on ApiException catch (e) {
       if (mounted) showAppSnack(context, e.message, error: true);
     } finally {

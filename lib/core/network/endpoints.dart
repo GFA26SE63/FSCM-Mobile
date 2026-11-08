@@ -26,6 +26,8 @@ class Endpoints {
   static const String salesGroups = '/sales-groups';
   static const String retailers = '/retailers';
   static String retailer(String code) => '/retailers/$code';
+  static String retailerOrderEligibility(String retailerId) =>
+      '/retailers/$retailerId/order-eligibility';
   static String retailerMlor(String code) => '/retailers/$code/mlor';
   static String salesGroup(String id) => '/sales-groups/$id';
 

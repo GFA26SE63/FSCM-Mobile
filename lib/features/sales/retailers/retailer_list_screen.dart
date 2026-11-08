@@ -2,20 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import 'package:fscm_mobile/data/models/retailer.dart';
-import 'package:fscm_mobile/data/repositories/auth_repository.dart';
+import 'package:fscm_mobile/core/network/network_monitor.dart';
 import 'package:fscm_mobile/data/repositories/catalog_repository.dart';
+import 'package:fscm_mobile/features/sales/products/catalog_sync_button.dart';
+import 'package:fscm_mobile/features/sales/retailers/widgets/retailer_summary_card.dart';
 import 'package:fscm_mobile/shared/routes.dart';
-import 'package:fscm_mobile/shared/theme/app_colors.dart';
-import 'package:fscm_mobile/shared/widgets/app_card.dart';
 import 'package:fscm_mobile/shared/widgets/async_body.dart';
-import 'package:fscm_mobile/shared/widgets/dialogs.dart';
 import 'package:fscm_mobile/shared/widgets/empty_state.dart';
 import 'package:fscm_mobile/shared/widgets/info_banner.dart';
-import 'package:fscm_mobile/sync/sync_service.dart';
 
-/// "Chọn điểm bán": retailers of the Sales' area. Retailers outside the
-/// area are listed but locked (no order can be created for them).
 class RetailerListScreen extends ConsumerStatefulWidget {
   const RetailerListScreen({super.key});
 
@@ -28,20 +23,28 @@ class _RetailerListScreenState extends ConsumerState<RetailerListScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final user = ref.watch(currentUserProvider);
     final catalog = ref.watch(catalogProvider);
+    final online = ref.watch(networkMonitorProvider).online;
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Chọn điểm bán')),
+      appBar: AppBar(
+        title: const Text('Điểm bán phụ trách'),
+        actions: const [CatalogSyncButton()],
+      ),
       body: Column(
-        children: <Widget>[
+        children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
             child: TextField(
               decoration: const InputDecoration(
-                hintText: 'Tìm theo tên hoặc mã 8 số',
+                hintText: 'Tìm mã, tên hoặc địa chỉ',
                 prefixIcon: Icon(Icons.search),
               ),
-              onChanged: (v) => setState(() => _query = v.trim().toLowerCase()),
+              onChanged: (value) {
+                setState(() {
+                  _query = value.trim().toLowerCase();
+                });
+              },
             ),
           ),
           Expanded(
@@ -49,40 +52,64 @@ class _RetailerListScreenState extends ConsumerState<RetailerListScreen> {
               value: catalog,
               onRetry: () => ref.invalidate(catalogProvider),
               builder: (data) {
-                if (data.retailers.isEmpty) {
-                  return EmptyState(
-                    icon: Icons.sync_problem,
-                    title: 'Chưa có dữ liệu điểm bán trên máy',
+                if (!data.hasSnapshot) {
+                  return const EmptyState(
+                    icon: Icons.cloud_download_outlined,
+                    title: 'Chưa có dữ liệu điểm bán',
                     message:
-                        'Kết nối mạng và đồng bộ để tải điểm bán, sản phẩm, giá và khuyến mãi.',
-                    action: FilledButton(
-                      onPressed: () => ref
-                          .read(syncServiceProvider.notifier)
-                          .syncAll(manual: true),
-                      child: const Text('Đồng bộ ngay'),
-                    ),
+                        'Kết nối mạng và bấm nút đồng bộ trên thanh tiêu đề '
+                        'để tải danh sách được phân công.',
                   );
                 }
-                final list = data.retailers.where((r) {
-                  if (_query.isEmpty) return true;
-                  return r.name.toLowerCase().contains(_query) ||
-                      r.code.contains(_query);
-                }).toList();
-                final mine =
-                    list.where((r) => r.areaCode == user?.areaCode).toList();
-                final others =
-                    list.where((r) => r.areaCode != user?.areaCode).toList();
+
+                final retailers = data.retailers.where((retailer) {
+                  return _query.isEmpty ||
+                      retailer.code.toLowerCase().contains(_query) ||
+                      retailer.name.toLowerCase().contains(_query) ||
+                      retailer.address.toLowerCase().contains(_query);
+                }).toList()
+                  ..sort((a, b) => a.code.compareTo(b.code));
+
                 return ListView(
                   padding: const EdgeInsets.all(16),
-                  children: <Widget>[
+                  children: [
                     InfoBanner(
+                      icon: online
+                          ? Icons.info_outline
+                          : Icons.cloud_off_outlined,
                       text:
-                          'Mã điểm bán gồm 8 chữ số, đồng bộ với mã khách hàng trên SAP. Điểm bán ngoài khu vực ${user?.areaName ?? ''} của nhóm bị khóa - không tạo được đơn trái vùng.',
+                          '${online ? 'Dữ liệu đã lưu' : 'Đang dùng cache offline'}'
+                          ' · Snapshot ${_stamp(data.lastSyncAt)}.\n'
+                          'Danh sách theo phân công tại lần cập nhật này. '
+                          'Điều kiện đặt hàng được kiểm tra lại với máy chủ.',
                     ),
-                    if (list.isEmpty)
-                      const EmptyState(title: 'Không có điểm bán phù hợp.'),
-                    for (final r in mine) _tile(context, r, locked: false),
-                    for (final r in others) _tile(context, r, locked: true),
+                    Text(
+                      '${data.retailers.length} điểm bán phụ trách',
+                      style: Theme.of(context).textTheme.titleSmall,
+                    ),
+                    const SizedBox(height: 12),
+                    if (data.retailers.isEmpty)
+                      const EmptyState(
+                        icon: Icons.storefront_outlined,
+                        title: 'Chưa có điểm bán được phân công',
+                        message:
+                            'Nếu vừa được phân công, hãy cập nhật snapshot.',
+                      )
+                    else if (retailers.isEmpty)
+                      const EmptyState(
+                        title: 'Không có điểm bán phù hợp',
+                        message: 'Thử mã, tên hoặc địa chỉ khác.',
+                      )
+                    else
+                      for (final retailer in retailers)
+                        RetailerSummaryCard(
+                          retailer: retailer,
+                          onTap: () {
+                            context.push(
+                              AppRoutes.salesRetailerDetail(retailer.code),
+                            );
+                          },
+                        ),
                   ],
                 );
               },
@@ -93,56 +120,13 @@ class _RetailerListScreenState extends ConsumerState<RetailerListScreen> {
     );
   }
 
-  Widget _tile(BuildContext context, Retailer r, {required bool locked}) {
-    return AppCard(
-      color: locked ? AppColors.background : null,
-      onTap: () {
-        if (locked) {
-          showAppSnack(
-            context,
-            'Điểm bán ${r.code} thuộc khu vực ${r.areaName}, ngoài khu vực của bạn - không tạo được đơn.',
-            error: true,
-          );
-          return;
-        }
-        context.push(AppRoutes.salesNewOrder(r.code));
-      },
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Text(
-                  r.name,
-                  style: TextStyle(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 15,
-                    color: locked ? AppColors.textMuted : AppColors.text,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text('Mã ${r.code} · ${r.areaName}',
-                    style: const TextStyle(color: AppColors.textMuted)),
-                Text(r.address,
-                    style: const TextStyle(
-                        color: AppColors.textMuted, fontSize: 12.5)),
-                const SizedBox(height: 4),
-                Text(
-                  r.creditAllowed
-                      ? 'Công nợ cho phép ${r.creditTerm} ngày · ${r.tier}'
-                      : 'Không mua công nợ · ${r.tier}',
-                  style:
-                      const TextStyle(fontSize: 12.5, color: AppColors.primary),
-                ),
-              ],
-            ),
-          ),
-          Icon(locked ? Icons.lock_outline : Icons.chevron_right,
-              color: AppColors.textMuted),
-        ],
-      ),
-    );
+  String _stamp(DateTime? value) {
+    if (value == null) return 'chưa xác định';
+
+    final local = value.toLocal();
+    String pad(int number) => number.toString().padLeft(2, '0');
+
+    return '${pad(local.hour)}:${pad(local.minute)} '
+        '${pad(local.day)}/${pad(local.month)}/${local.year}';
   }
 }
