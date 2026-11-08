@@ -48,6 +48,12 @@ class QuotesApi {
     return SalesOrderQuote.fromJson(asMap(data));
   }
 
+  Future<void> switchToCredit(String orderId) async {
+    final payment = asMap(await _client.get(Endpoints.paymentForOrder(orderId)));
+    await _client.post('/payments/orders/$orderId/switch-to-credit',
+        body: {'expectedVersion': asInt(payment['version'])});
+  }
+
   Future<PayOsCheckout> createPayOsCheckout(String orderId) async {
     final paymentData = asMap(await _client.get(Endpoints.paymentForOrder(orderId)));
     final data = await _client.post(

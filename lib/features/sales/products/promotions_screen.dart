@@ -96,9 +96,6 @@ class _PromotionsScreenState extends ConsumerState<PromotionsScreen> {
                     builder: (context) {
                       final record = data.promotionRecord(promotion) ?? {};
 
-                      final minimum = record['minimumQuantity'];
-                      final percent = record['discountPercent'];
-
                       final productNames = promotion.groupSkus.map((sku) {
                         final product = data.product(sku);
                         return product == null ? sku : '$sku · ${product.name}';
@@ -108,18 +105,15 @@ class _PromotionsScreenState extends ConsumerState<PromotionsScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            '${data.promotionCode(promotion)}'
-                            ' · ${promotion.name}',
+                            promotion.name,
                             style: const TextStyle(
                               fontWeight: FontWeight.w700,
                               fontSize: 15,
                             ),
                           ),
                           const SizedBox(height: 8),
-                          Text(
-                            'Tổng từ ${_number(minimum)} thùng phù hợp'
-                            ' · giảm ${_number(percent)}%',
-                          ),
+                          for (final condition in promotion.conditionLines)
+                            Text(condition),
                           const SizedBox(height: 6),
                           const Text(
                             'Sản phẩm trong phạm vi:',
@@ -167,13 +161,5 @@ class _PromotionsScreenState extends ConsumerState<PromotionsScreen> {
         },
       ),
     );
-  }
-
-  String _number(Object? value) {
-    if (value is! num) return '—';
-
-    return value == value.roundToDouble()
-        ? value.toInt().toString()
-        : value.toString();
   }
 }
