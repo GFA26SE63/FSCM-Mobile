@@ -1,17 +1,22 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:fscm_mobile/core/auth/session.dart';
+import 'package:fscm_mobile/core/auth/user_role.dart';
+import 'package:fscm_mobile/core/network/api_exception.dart';
 import 'package:fscm_mobile/data/models/retailer_declaration.dart';
+import 'package:fscm_mobile/data/models/retailer_order_eligibility.dart';
 import 'package:fscm_mobile/data/remote/auth_api.dart';
 import 'package:fscm_mobile/data/remote/retailers_api.dart';
 import 'package:fscm_mobile/data/repositories/auth_repository.dart';
 import 'package:fscm_mobile/data/repositories/data_version.dart';
 
-final retailerRepositoryProvider = Provider<RetailerRepository>((ref) =>
-    RetailerRepository(
-        ref.watch(retailersApiProvider), ref.watch(authApiProvider)));
+final retailerRepositoryProvider = Provider<RetailerRepository>(
+  (ref) => RetailerRepository(
+    ref.watch(retailersApiProvider),
+    ref.watch(authApiProvider),
+  ),
+);
 
-/// Declarations created by the signed-in Sales.
 final declarationsProvider =
     FutureProvider.autoDispose<List<RetailerDeclaration>>((ref) {
   ref.watch(dataVersionProvider);
@@ -19,7 +24,6 @@ final declarationsProvider =
   return ref.watch(retailerRepositoryProvider).myDeclarations();
 });
 
-/// Sales groups (with their region) the signed-in Sales can declare into.
 final salesTerritoriesProvider =
     FutureProvider.autoDispose<List<SalesTerritory>>((ref) {
   final user = ref.watch(currentUserProvider);
@@ -28,10 +32,30 @@ final salesTerritoriesProvider =
 
 final mlorCategoriesProvider =
     FutureProvider.autoDispose<List<MlorScopeOption>>(
-        (ref) => ref.watch(retailerRepositoryProvider).mlorCategories());
+  (ref) => ref.watch(retailerRepositoryProvider).mlorCategories(),
+);
 
 final mlorProductsProvider = FutureProvider.autoDispose<List<MlorScopeOption>>(
-    (ref) => ref.watch(retailerRepositoryProvider).mlorProducts());
+  (ref) => ref.watch(retailerRepositoryProvider).mlorProducts(),
+);
+
+final retailerOrderEligibilityProvider = FutureProvider.autoDispose
+    .family<RetailerOrderEligibility, String>((ref, retailerId) {
+  ref.watch(dataVersionProvider);
+  final user = ref.watch(currentUserProvider);
+
+  if (user == null || user.role != UserRole.sales) {
+    throw const ApiException(
+      kind: ApiErrorKind.forbidden,
+      message: 'Chức năng kiểm tra này dành cho Sales.',
+    );
+  }
+
+  return ref.watch(retailerRepositoryProvider).orderEligibility(
+        retailerId,
+        salesUserId: user.id,
+      );
+});
 
 class RetailerRepository {
   RetailerRepository(this._api, this._authApi);
@@ -39,13 +63,30 @@ class RetailerRepository {
   final RetailersApi _api;
   final AuthApi _authApi;
 
+  Future<RetailerOrderEligibility> orderEligibility(
+    String retailerId, {
+    required String salesUserId,
+  }) async {
+    final result = await _api.orderEligibility(retailerId);
+
+    if (result.retailerId != retailerId || result.salesUserId != salesUserId) {
+      throw const ApiException(
+        kind: ApiErrorKind.forbidden,
+        message: 'Kết quả kiểm tra không khớp phiên đăng nhập hoặc điểm bán.',
+      );
+    }
+
+    return result;
+  }
+
   Future<List<RetailerDeclaration>> myDeclarations() => _api.myDeclarations();
 
-  /// Uses the scope stored with the session; older sessions saved before the
-  /// scope was persisted fall back to `GET /auth/me`.
   Future<List<SalesTerritory>> territories(AppUser? user) async {
     var groupIds = user?.salesGroupIds ?? const <String>[];
-    if (groupIds.isEmpty) groupIds = (await _authApi.me()).salesGroupIds;
+    if (groupIds.isEmpty) {
+      groupIds = (await _authApi.me()).salesGroupIds;
+    }
+
     final territories = <SalesTerritory>[];
     for (final id in groupIds) {
       territories.add(await _api.salesGroup(id));
@@ -54,12 +95,19 @@ class RetailerRepository {
   }
 
   Future<RetailerDeclaration> declare(
-          RetailerDeclarationInput input, SalesTerritory territory) =>
-      _api.declare(input,
-          regionId: territory.regionId, salesGroupId: territory.salesGroupId);
+    RetailerDeclarationInput input,
+    SalesTerritory territory,
+  ) =>
+      _api.declare(
+        input,
+        regionId: territory.regionId,
+        salesGroupId: territory.salesGroupId,
+      );
 
   Future<RetailerDeclaration> update(
-          String retailerId, RetailerDeclarationInput input) =>
+    String retailerId,
+    RetailerDeclarationInput input,
+  ) =>
       _api.updateDeclaration(retailerId, input);
 
   Future<RetailerDeclaration> submitForReview(String retailerId) =>

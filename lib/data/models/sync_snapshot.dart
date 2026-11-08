@@ -1,139 +1,350 @@
+import 'dart:convert';
+
 import 'package:fscm_mobile/data/models/json_utils.dart';
 import 'package:fscm_mobile/data/models/product.dart';
 import 'package:fscm_mobile/data/models/promotion.dart';
 import 'package:fscm_mobile/data/models/retailer.dart';
 
-/// Response of `GET /sync/snapshot?since=` (SPEC section 8): everything the
-/// Sales app needs offline.
 class SyncSnapshot {
-  const SyncSnapshot({
-    required this.serverTime,
+  SyncSnapshot._({
+    required this.raw,
+    required this.version,
+    required this.checksum,
+    required this.generatedAt,
     required this.retailers,
     required this.products,
     required this.prices,
     required this.promotions,
     required this.stock,
-    this.fullReload = true,
+    required this.stockDisclaimer,
+    required this.priceDisclaimer,
   });
 
-  factory SyncSnapshot.fromJson(Map<String, dynamic> j) {
-    final generatedAt =
-        asDate(j['generatedAt'] ?? j['serverTime']) ?? DateTime.now();
-    final productRows = asMapList(j['products']);
-    final retailers = mapList(j['retailers'], Retailer.fromJson);
-    final skuById = <String, String>{
-      for (final product in productRows)
-        asStr(product['id']): asStr(product['sku']),
-    };
-    final categoryNames = <String, String>{
-      for (final category in asMapList(j['categories']))
-        asStr(category['id']): asStr(category['name']),
-    };
-    String skuOf(Map<String, dynamic> row) =>
-        asStr(row['sku'], skuById[asStr(row['productId'])] ?? '');
+  final Map<String, dynamic> raw;
+  final String version;
+  final String checksum;
+  final DateTime generatedAt;
 
-    final priceRows = asMapList(j['prices']);
-    priceRows.sort((a, b) => (asDate(a['effectiveFrom']) ?? DateTime(0))
-        .compareTo(asDate(b['effectiveFrom']) ?? DateTime(0)));
-    final prices = <String, PriceEntry>{};
-    for (final row in priceRows) {
-      final from = asDate(row['effectiveFrom']);
-      final to = asDate(row['effectiveTo']);
-      if (!asBool(row['isActive'], true) ||
-          (from != null && from.isAfter(generatedAt)) ||
-          (to != null && !to.isAfter(generatedAt))) {
-        continue;
-      }
-      final sku = skuOf(row);
-      if (sku.isNotEmpty) {
-        prices[sku] = PriceEntry(
-            sku: sku, price: asInt(row['unitPrice'] ?? row['price']));
-      }
-    }
-    final products = productRows
-        .map((row) => Product.fromJson({
-              ...row,
-              'basePrice': prices[asStr(row['sku'])]?.price ?? row['basePrice'],
-              'category':
-                  row['category'] ?? categoryNames[asStr(row['categoryId'])],
-            }))
-        .toList();
-    final stock = asMapList(j['indicativeStock'] ?? j['stock'])
-        .where((row) => skuOf(row).isNotEmpty)
-        .map((row) => StockEntry(
-              sku: skuOf(row),
-              available:
-                  asInt(row['indicativeAvailableQuantity'] ?? row['available']),
-            ))
-        .toList();
-
-    final promotions = asMapList(j['promotions']).map((row) {
-      if (!row.containsKey('minimumQuantity')) return Promotion.fromJson(row);
-      final productIds = asStrList(row['productIds']);
-      final categoryIds = asStrList(row['categoryIds']);
-      final retailerIds = asStrList(row['retailerIds']);
-      final skus = productRows
-          .where((product) =>
-              (productIds.isEmpty && categoryIds.isEmpty) ||
-              productIds.contains(asStr(product['id'])) ||
-              categoryIds.contains(asStr(product['categoryId'])))
-          .map((product) => asStr(product['sku']))
-          .toList();
-      return Promotion.fromJson({
-        'id': row['id'],
-        'name': row['name'],
-        'type': row['campaignMode'] == 'PerSku' ? 1 : 2,
-        'rules': asMapList(row['productRules'])
-            .map((rule) => {
-                  'sku': skuOf(rule),
-                  'minQty': rule['minimumQuantity'],
-                  'pct': rule['discountPercent'],
-                })
-            .where((rule) => (rule['sku'] as String).isNotEmpty)
-            .toList(),
-        'validFrom': row['startAt'],
-        'validTo': row['endAt'],
-        'active': row['isActive'],
-        'usesExactTimes': true,
-        'groupSkus': skus,
-        'groupMinQty': row['minimumQuantity'],
-        'groupPct': row['discountPercent'],
-        'retailerCodes': retailerIds.isEmpty
-            ? null
-            : retailers
-                .where((retailer) => retailerIds.contains(retailer.id))
-                .map((retailer) => retailer.code)
-                .toList(),
-      });
-    }).toList();
-    return SyncSnapshot(
-      serverTime: generatedAt,
-      retailers: retailers,
-      products: products,
-      prices: prices.values.toList(),
-      promotions: promotions,
-      stock: stock,
-      fullReload: asBool(j['fullReload'], true),
-    );
-  }
-
-  final DateTime serverTime;
   final List<Retailer> retailers;
   final List<Product> products;
   final List<PriceEntry> prices;
   final List<Promotion> promotions;
   final List<StockEntry> stock;
 
-  /// When true the local tables are replaced, otherwise rows are upserted.
-  final bool fullReload;
+  final String stockDisclaimer;
+  final String priceDisclaimer;
 
-  Map<String, dynamic> toJson() => <String, dynamic>{
-        'serverTime': isoOrNull(serverTime),
-        'retailers': retailers.map((r) => r.toJson()).toList(),
-        'products': products.map((p) => p.toJson()).toList(),
-        'prices': prices.map((p) => p.toJson()).toList(),
-        'promotions': promotions.map((p) => p.toJson()).toList(),
-        'stock': stock.map((s) => s.toJson()).toList(),
-        'fullReload': fullReload,
-      };
+  // Compatibility với SyncService hiện tại.
+  DateTime get serverTime => generatedAt;
+  bool get fullReload => true;
+
+  factory SyncSnapshot.fromJson(Map<String, dynamic> json) {
+    final version = _requiredString(json, 'version');
+    final generatedAt = asDate(json['generatedAt']);
+
+    if (generatedAt == null) {
+      throw const FormatException(
+        'Snapshot thiếu generatedAt hợp lệ.',
+      );
+    }
+
+    if (json['deltaMode'] != 'Full') {
+      throw const FormatException(
+        'Mobile hiện chỉ hỗ trợ Full snapshot.',
+      );
+    }
+
+    final retailerRows = _rows(json, 'retailers');
+    final categoryRows = _rows(json, 'categories');
+    final productRows = _rows(json, 'products');
+    final priceRows = _rows(json, 'prices');
+    final promotionRows = _rows(json, 'promotions');
+    final stockRows = _rows(json, 'indicativeStock');
+
+    final categoriesById = {
+      for (final row in categoryRows) _requiredString(row, 'id'): row,
+    };
+
+    final publishedRows =
+        productRows.where((row) => row['status'] == 'Published').toList();
+
+    final productsById = {
+      for (final row in publishedRows) _requiredString(row, 'id'): row,
+    };
+
+    final retailers = retailerRows.map((row) {
+      _requiredString(row, 'id');
+      _requiredString(row, 'code');
+
+      // Không tự suy diễn region/area/contact ngoài contract snapshot.
+      return Retailer.fromJson(row);
+    }).toList();
+
+    final retailerCodesById = {
+      for (final retailer in retailers) retailer.id: retailer.code,
+    };
+
+    final effectivePrices = <String, Map<String, dynamic>>{};
+
+    for (final row in priceRows) {
+      final productId = _requiredString(row, 'productId');
+
+      if (!productsById.containsKey(productId)) continue;
+      if (!asBool(row['isActive'])) continue;
+      if (!_effectiveAt(row, generatedAt)) continue;
+
+      _number(row, 'unitPrice');
+
+      final previous = effectivePrices[productId];
+
+      if (previous == null ||
+          asDate(row['effectiveFrom'])!
+              .isAfter(asDate(previous['effectiveFrom'])!)) {
+        effectivePrices[productId] = row;
+      }
+    }
+
+    final products = publishedRows.map((row) {
+      final id = _requiredString(row, 'id');
+      final categoryId = _requiredString(row, 'categoryId');
+      final category = categoriesById[categoryId];
+      final price = effectivePrices[id];
+
+      return Product(
+        id: id,
+        sku: _requiredString(row, 'sku'),
+        name: _requiredString(row, 'name'),
+        pack: asStr(row['unit']),
+        category:
+            category == null ? 'Chưa có tên danh mục' : asStr(category['name']),
+        // Các model compatibility hiện dùng int.
+        // Giá chính xác vẫn được giữ trong raw/priceForProduct().
+        basePrice: price == null ? 0 : _number(price, 'unitPrice').round(),
+        shelfLifeDays: (_number(row, 'shelfLifeHours') / 24).ceil(),
+      );
+    }).toList();
+
+    final prices = effectivePrices.entries.map((entry) {
+      final product = productsById[entry.key]!;
+
+      return PriceEntry(
+        sku: _requiredString(product, 'sku'),
+        price: _number(entry.value, 'unitPrice').round(),
+      );
+    }).toList();
+
+    final promotions = <Promotion>[];
+
+    for (final row in promotionRows) {
+      if (row['type'] != 'Campaign') continue;
+      if (!asBool(row['isActive'])) continue;
+
+      final productIds = asStrList(row['productIds']).toSet();
+      final categoryIds = asStrList(row['categoryIds']).toSet();
+      final retailerIds = asStrList(row['retailerIds']);
+
+      final allProducts = productIds.isEmpty && categoryIds.isEmpty;
+
+      final matchingSkus = publishedRows
+          .where(
+            (product) =>
+                allProducts ||
+                productIds.contains(asStr(product['id'])) ||
+                categoryIds.contains(asStr(product['categoryId'])),
+          )
+          .map((product) => _requiredString(product, 'sku'))
+          .toSet()
+          .toList();
+
+      final startsAt = asDate(row['startAt']);
+      final endsAt = asDate(row['endAt']);
+
+      if (startsAt == null || endsAt == null || endsAt.isBefore(startsAt)) {
+        throw const FormatException(
+          'Khuyến mãi có thời gian hiệu lực không hợp lệ.',
+        );
+      }
+
+      final perSku = row['campaignMode'] == 'PerSku';
+      final rules = <PromoRule>[];
+
+      if (perSku) {
+        for (final rule in _rows(row, 'productRules')) {
+          final productId = _requiredString(rule, 'productId');
+          final product = productsById[productId];
+
+          if (product == null) continue;
+
+          final sku = _requiredString(product, 'sku');
+
+          if (!matchingSkus.contains(sku)) continue;
+
+          rules.add(
+            PromoRule(
+              sku: sku,
+              minQty: _number(rule, 'minimumQuantity').ceil(),
+              pct: _number(rule, 'discountPercent').toDouble(),
+            ),
+          );
+        }
+      }
+
+      promotions.add(
+        Promotion(
+          id: _requiredString(row, 'id'),
+          name: _requiredString(row, 'name'),
+          type: perSku ? 1 : 2,
+          rules: rules,
+          validFrom: startsAt,
+          validTo: endsAt,
+          active: true,
+          usesExactTimes: true,
+          retailerCodes: retailerIds.isEmpty
+              ? null
+              : retailerIds
+                  .where(retailerCodesById.containsKey)
+                  .map((id) => retailerCodesById[id]!)
+                  .toList(),
+          groupSkus: matchingSkus,
+          groupMinQty: _number(row, 'minimumQuantity').ceil(),
+          groupPct: _number(row, 'discountPercent').toDouble(),
+        ),
+      );
+    }
+
+    final stock = <StockEntry>[];
+
+    for (final row in stockRows) {
+      final productId = _requiredString(row, 'productId');
+      final product = productsById[productId];
+
+      if (product == null) continue;
+
+      stock.add(
+        StockEntry(
+          sku: _requiredString(product, 'sku'),
+          available: _number(row, 'indicativeAvailableQuantity').floor(),
+        ),
+      );
+    }
+
+    return SyncSnapshot._(
+      raw: _copyJson(json),
+      version: version,
+      checksum: asStr(json['checksum']),
+      generatedAt: generatedAt,
+      retailers: retailers,
+      products: products,
+      prices: prices,
+      promotions: promotions,
+      stock: stock,
+      stockDisclaimer: asStr(json['stockDisclaimer']),
+      priceDisclaimer: asStr(json['priceDisclaimer']),
+    );
+  }
+
+  Map<String, dynamic>? promotionRecord(String id) {
+    for (final row in _rows(raw, 'promotions')) {
+      if (row['id'] == id) return row;
+    }
+
+    return null;
+  }
+
+  String promotionCode(String id) {
+    final row = promotionRecord(id);
+    return row == null ? id : asStr(row['code'], id);
+  }
+
+  num? priceForProduct(String productId, DateTime at) {
+    Map<String, dynamic>? selected;
+
+    for (final row in _rows(raw, 'prices')) {
+      if (row['productId'] != productId) continue;
+      if (!asBool(row['isActive'])) continue;
+      if (!_effectiveAt(row, at)) continue;
+
+      if (selected == null ||
+          asDate(row['effectiveFrom'])!
+              .isAfter(asDate(selected['effectiveFrom'])!)) {
+        selected = row;
+      }
+    }
+
+    return selected == null ? null : _number(selected, 'unitPrice');
+  }
+
+  num? stockForProduct(String productId) {
+    for (final row in _rows(raw, 'indicativeStock')) {
+      if (row['productId'] == productId) {
+        return _number(row, 'indicativeAvailableQuantity');
+      }
+    }
+
+    return null;
+  }
+
+  Map<String, dynamic> toJson() => _copyJson(raw);
+
+  static Map<String, dynamic> _copyJson(
+    Map<String, dynamic> value,
+  ) {
+    return jsonDecode(jsonEncode(value)) as Map<String, dynamic>;
+  }
+
+  static bool _effectiveAt(
+    Map<String, dynamic> row,
+    DateTime at,
+  ) {
+    final start = asDate(row['effectiveFrom']);
+    final rawEnd = row['effectiveTo'];
+    final end = asDate(rawEnd);
+
+    if (start == null || (rawEnd != null && end == null)) {
+      throw const FormatException(
+        'Bản giá có thời gian hiệu lực không hợp lệ.',
+      );
+    }
+
+    return !at.isBefore(start) && (end == null || at.isBefore(end));
+  }
+
+  static List<Map<String, dynamic>> _rows(
+    Map<String, dynamic> json,
+    String key,
+  ) {
+    final value = json[key];
+
+    if (value is! List || value.any((item) => item is! Map)) {
+      throw FormatException('Snapshot có $key không hợp lệ.');
+    }
+
+    return value.map((item) => Map<String, dynamic>.from(item as Map)).toList();
+  }
+
+  static String _requiredString(
+    Map<String, dynamic> row,
+    String key,
+  ) {
+    final value = row[key];
+
+    if (value is! String || value.trim().isEmpty) {
+      throw FormatException('Snapshot thiếu $key.');
+    }
+
+    return value;
+  }
+
+  static num _number(
+    Map<String, dynamic> row,
+    String key,
+  ) {
+    final value = row[key];
+
+    if (value is! num || !value.isFinite) {
+      throw FormatException('Snapshot có $key không hợp lệ.');
+    }
+
+    return value;
+  }
 }

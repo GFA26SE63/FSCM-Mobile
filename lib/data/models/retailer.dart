@@ -1,6 +1,6 @@
 import 'package:fscm_mobile/data/models/json_utils.dart';
 
-/// Retailer (điểm bán). `code` is the 8-digit customer code.
+/// Retailer (điểm bán). `code` is the customer code; `id` is the backend ID.
 class Retailer {
   const Retailer({
     this.id = '',
@@ -9,6 +9,7 @@ class Retailer {
     required this.address,
     required this.areaCode,
     required this.areaName,
+    this.status = '',
     this.region = '',
     this.creditTerm = 0,
     this.tier = 'Thành viên',
@@ -17,30 +18,33 @@ class Retailer {
     this.contactName = '',
   });
 
-  factory Retailer.fromJson(Map<String, dynamic> j) => Retailer(
-        id: asStr(j['id']),
-        code: asStr(j['code']),
-        name: asStr(j['name']),
-        address: asStr(j['address']),
-        areaCode: asStr(j['areaCode'] ?? j['regionCode']),
-        areaName: asStr(j['areaName'] ?? j['regionName']),
-        region: asStr(j['region']),
-        creditTerm: asInt(j['creditTerm'] ?? j['creditTermDays']),
-        tier: asStr(j['tier'], 'Thành viên'),
-        points: asInt(j['points']),
-        phone: asStr(j['phone']),
-        contactName: asStr(j['contactName']),
+  factory Retailer.fromJson(Map<String, dynamic> json) => Retailer(
+        id: asStr(json['id']),
+        code: asStr(json['code']),
+        name: asStr(json['name']),
+        address: asStr(json['address']),
+        areaCode: asStr(json['areaCode'] ?? json['regionCode']),
+        areaName: asStr(json['areaName'] ?? json['regionName']),
+        status: asStr(json['status']),
+        region: asStr(json['region']),
+        creditTerm: asInt(json['creditTermDays'] ?? json['creditTerm']),
+        tier: asStr(json['tier'], 'Thành viên'),
+        points: asInt(json['points']),
+        phone: asStr(json['phone']),
+        contactName: asStr(json['contactName']),
       );
 
   final String id;
   final String code;
   final String name;
   final String address;
+
+  // Compatibility fields. Do not use these to authorize Sales orders.
   final String areaCode;
   final String areaName;
   final String region;
 
-  /// Allowed credit term in days: 0 (none), 7, 14 or 30.
+  final String status;
   final int creditTerm;
   final String tier;
   final int points;
@@ -49,6 +53,16 @@ class Retailer {
 
   bool get creditAllowed => creditTerm > 0;
 
+  String get statusLabel => switch (status) {
+        'Draft' => 'Bản nháp',
+        'PendingApproval' => 'Chờ duyệt',
+        'Active' => 'Đang hoạt động',
+        'Rejected' => 'Bị từ chối',
+        'Inactive' => 'Ngừng hoạt động',
+        '' => 'Chưa có trạng thái',
+        _ => status,
+      };
+
   Map<String, dynamic> toJson() => <String, dynamic>{
         'id': id,
         'code': code,
@@ -56,6 +70,7 @@ class Retailer {
         'address': address,
         'areaCode': areaCode,
         'areaName': areaName,
+        'status': status,
         'region': region,
         'creditTerm': creditTerm,
         'tier': tier,
@@ -65,7 +80,7 @@ class Retailer {
       };
 }
 
-/// "Đánh giá tiềm năng" fields sent with a new retailer declaration.
+/// Potential information used by existing declaration screens.
 class RetailerPotential {
   const RetailerPotential({
     this.kind = 'Tạp hóa',
@@ -78,31 +93,25 @@ class RetailerPotential {
     this.grade = '',
   });
 
-  factory RetailerPotential.fromJson(Map<String, dynamic> j) =>
+  factory RetailerPotential.fromJson(Map<String, dynamic> json) =>
       RetailerPotential(
-        kind: asStr(j['kind'], 'Tạp hóa'),
-        size: asStr(j['size'], 'S'),
-        areaM2: asInt(j['areaM2']),
-        fridges: asInt(j['fridges']),
-        forecastRevenue: asInt(j['forecastRevenue']),
-        capacityCases: asInt(j['capacityCases']),
-        frequency: asStr(j['frequency'], '1 lần/tuần'),
-        grade: asStr(j['grade']),
+        kind: asStr(json['kind'], 'Tạp hóa'),
+        size: asStr(json['size'], 'S'),
+        areaM2: asInt(json['areaM2']),
+        fridges: asInt(json['fridges']),
+        forecastRevenue: asInt(json['forecastRevenue']),
+        capacityCases: asInt(json['capacityCases']),
+        frequency: asStr(json['frequency'], '1 lần/tuần'),
+        grade: asStr(json['grade']),
       );
 
   final String kind;
   final String size;
   final int areaM2;
   final int fridges;
-
-  /// Forecast revenue per month (đ).
   final int forecastRevenue;
-
-  /// Purchasing capacity, cartons per month.
   final int capacityCases;
   final String frequency;
-
-  /// Assigned by Operator on approval (A/B/C).
   final String grade;
 
   Map<String, dynamic> toJson() => <String, dynamic>{
