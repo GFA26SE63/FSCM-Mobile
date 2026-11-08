@@ -51,47 +51,66 @@ class OrderLinesCard extends StatelessWidget {
     );
   }
 
-  Widget _line(OrderLine l) {
+  Widget _line(OrderLine line) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
-      children: <Widget>[
-        Text('${l.sku} · ${l.name}',
-            style: const TextStyle(fontWeight: FontWeight.w700)),
+      children: [
+        Text(
+          '${line.sku} · ${line.name}',
+          style: const TextStyle(fontWeight: FontWeight.w700),
+        ),
         const SizedBox(height: 2),
         Text(
-          '${l.qty} thùng × ${Money.format(l.unitPrice)} = ${Money.format(l.base)}',
+          '${line.qty} thùng × ${Money.format(line.unitPrice)}'
+          ' = ${Money.format(line.base)}',
           style: const TextStyle(color: AppColors.textMuted),
         ),
-        if (l.discount > 0)
-          Padding(
-            padding: const EdgeInsets.only(top: 4),
-            child: Row(
-              children: <Widget>[
-                StatusChip(
-                  label: '${l.promoId} · giảm ${_pct(l.discountPct)}%',
-                  tone: StatusTone.warning,
+        if (line.discount > 0) ...[
+          const SizedBox(height: 6),
+          Wrap(
+            spacing: 8,
+            runSpacing: 6,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              StatusChip(
+                label: 'Giảm ${_pct(line.discountPct)}%',
+                tone: StatusTone.warning,
+              ),
+              Text(
+                Money.minus(line.discount),
+                style: const TextStyle(
+                  color: AppColors.success,
+                  fontWeight: FontWeight.w700,
                 ),
-                const SizedBox(width: 8),
-                Text(
-                  Money.minus(l.discount),
-                  style: const TextStyle(
-                    color: AppColors.success,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
-        if (showBatches)
-          for (final b in l.batches)
+          if (line.promoName.isNotEmpty)
             Padding(
               padding: const EdgeInsets.only(top: 4),
               child: Text(
-                '• ${b.batchCode} · ${b.qty} thùng · HSD ${AppDates.date(b.expiry)}'
-                '${b.warehouseName.isEmpty ? '' : ' · ${b.warehouseName}'}'
-                '${b.labelCode.isEmpty ? '' : ' · tem ${b.labelCode}'}',
+                line.promoName,
                 style: const TextStyle(
-                    fontSize: 12.5, color: AppColors.textMuted, height: 1.3),
+                  color: AppColors.textMuted,
+                  fontSize: 12.5,
+                ),
+              ),
+            ),
+        ],
+        if (showBatches)
+          for (final batch in line.batches)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text(
+                '• ${batch.batchCode} · ${batch.qty} thùng'
+                ' · HSD ${AppDates.date(batch.expiry)}'
+                '${batch.warehouseName.isEmpty ? '' : ' · ${batch.warehouseName}'}'
+                '${batch.labelCode.isEmpty ? '' : ' · tem ${batch.labelCode}'}',
+                style: const TextStyle(
+                  fontSize: 12.5,
+                  color: AppColors.textMuted,
+                  height: 1.3,
+                ),
               ),
             ),
       ],
@@ -128,7 +147,7 @@ class AppliedPromoCard extends StatelessWidget {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: <Widget>[
                               Text(
-                                '${p.id} · ${p.name}',
+                                p.name.isEmpty ? 'Khuyến mãi' : p.name,
                                 style: const TextStyle(
                                     fontWeight: FontWeight.w700),
                               ),
