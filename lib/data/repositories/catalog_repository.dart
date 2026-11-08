@@ -55,7 +55,7 @@ class CatalogData {
 
   int available(String sku) => stock[sku] ?? 0;
 
-  /// Max cartons orderable for [sku] (available - safety buffer, step 10).
+  /// Max cartons orderable for [sku] (eligible available stock, step 10; no safety buffer).
   int maxQty(String sku) => OrderLimits.maxQty(available(sku));
 
   /// Promotions running today that apply to [retailerCode] (all if null).
