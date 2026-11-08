@@ -14,6 +14,8 @@ import 'package:fscm_mobile/core/utils/money.dart';
 import 'package:fscm_mobile/core/utils/status_tone.dart';
 import 'package:fscm_mobile/data/models/json_utils.dart';
 import 'package:fscm_mobile/data/models/order.dart';
+import 'package:fscm_mobile/data/models/order_availability.dart';
+import 'package:fscm_mobile/shared/widgets/warehouse_stock_list.dart';
 import 'package:fscm_mobile/data/models/price_quote.dart';
 import 'package:fscm_mobile/data/models/product.dart';
 import 'package:fscm_mobile/data/models/retailer.dart';
@@ -25,6 +27,7 @@ import 'package:fscm_mobile/data/repositories/catalog_repository.dart';
 import 'package:fscm_mobile/data/repositories/data_version.dart';
 import 'package:fscm_mobile/data/repositories/order_repository.dart';
 import 'package:fscm_mobile/features/sales/orders/order_confirm_sheet.dart';
+import 'package:fscm_mobile/features/sales/products/product_detail_screen.dart';
 import 'package:fscm_mobile/shared/routes.dart';
 import 'package:fscm_mobile/shared/theme/app_colors.dart';
 import 'package:fscm_mobile/shared/widgets/app_card.dart';
@@ -37,14 +40,14 @@ import 'package:fscm_mobile/shared/widgets/quantity_stepper.dart';
 import 'package:fscm_mobile/sync/sync_service.dart';
 
 final _orderAvailabilityProvider = FutureProvider.autoDispose
-    .family<Map<String, int>, String>((ref, retailerId) async {
+    .family<Map<String, ProductAvailability>, String>((ref, retailerId) async {
   ref.watch(dataVersionProvider);
   ref.watch(currentUserProvider);
 
   final api = ref.watch(ordersApiProvider);
   final catalog = await ref.watch(catalogProvider.future);
 
-  return api.availability(
+  return api.availabilityByWarehouse(
     retailerId,
     catalog.products.map((product) => product.id).toList(),
   );
@@ -162,7 +165,7 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
             _orderAvailabilityProvider(retailer.id),
           );
 
-          return AsyncBody<Map<String, int>>(
+          return AsyncBody<Map<String, ProductAvailability>>(
             value: availability,
             onRetry: () {
               ref.invalidate(_orderAvailabilityProvider(retailer.id));
@@ -174,12 +177,14 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
                 products: data.products,
                 prices: data.prices,
                 promotions: data.promotions,
-                stock: quantities,
+                stock: quantities
+                    .map((sku, stock) => MapEntry(sku, stock.quantity)),
                 lastSyncAt: data.lastSyncAt,
                 snapshot: data.snapshot,
               ),
               retailer,
               online,
+              availability: quantities,
             ),
           );
         },
@@ -191,8 +196,9 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
     BuildContext context,
     CatalogData data,
     Retailer retailer,
-    bool online,
-  ) {
+    bool online, {
+    Map<String, ProductAvailability>? availability,
+  }) {
     final isRetailer =
         ref.watch(currentUserProvider)?.role == UserRole.retailer;
 
@@ -290,7 +296,13 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
                 )
               else
                 for (final product in products)
-                  _productRow(product, data, quote),
+                  _productRow(
+                    product,
+                    data,
+                    retailer,
+                    quote,
+                    availability?[product.sku],
+                  ),
             ],
           ),
         ),
@@ -314,7 +326,9 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
   Widget _productRow(
     Product product,
     CatalogData data,
+    Retailer retailer,
     PriceQuote quote,
+    ProductAvailability? availability,
   ) {
     final maximum = data.maxQty(product.sku);
     final quantity = _cart[product.sku] ?? 0;
@@ -322,13 +336,49 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
     final pricedLines =
         quote.lines.where((line) => line.sku == product.sku).toList();
 
+    void openDetail() {
+      if (_busy) {
+        return;
+      }
+
+      final promotions = data
+          .runningPromotions(retailerCode: retailer.code)
+          .where((promotion) =>
+              promotion.groupSkus.contains(product.sku) ||
+              promotion.rules.any((rule) => rule.sku == product.sku))
+          .toList();
+
+      unawaited(Navigator.of(context).push<void>(
+        MaterialPageRoute<void>(
+          builder: (_) => ProductDetailScreen(
+            product: product,
+            unitPrice: price,
+            availability: availability,
+            promotions: promotions,
+          ),
+        ),
+      ));
+    }
+
     return AppCard(
+      onTap: _busy ? null : openDetail,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            '${product.sku} · ${product.name}',
-            style: const TextStyle(fontWeight: FontWeight.w700),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  '${product.sku} · ${product.name}',
+                  style: const TextStyle(fontWeight: FontWeight.w700),
+                ),
+              ),
+              IconButton(
+                onPressed: _busy ? null : openDetail,
+                tooltip: 'Chi tiết ${product.name}',
+                icon: const Icon(Icons.chevron_right),
+              ),
+            ],
           ),
           Text(
             price == null
@@ -340,13 +390,22 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
             ),
           ),
           const SizedBox(height: 6),
+          if (availability != null)
+            WarehouseStockList(
+              warehouses: availability.warehouses,
+              onViewAll: _busy ? null : openDetail,
+            ),
           Row(
             children: [
               Expanded(
                 child: Text(
                   maximum == 0
-                      ? 'Giới hạn chọn hiện tại: 0 thùng'
-                      : 'Giới hạn chọn hiện tại: $maximum thùng',
+                      ? (availability == null
+                          ? 'Chưa có số lượng có thể chọn từ snapshot'
+                          : availability.quantity <= 0
+                              ? 'Không có hàng đủ điều kiện để giao'
+                              : 'Chưa đủ hàng để đặt theo bội ${OrderLimits.step} thùng')
+                      : 'Chọn số lượng · bội ${OrderLimits.step} thùng',
                   style: TextStyle(
                     color:
                         maximum == 0 ? AppColors.warning : AppColors.textMuted,
@@ -357,7 +416,7 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
               if (maximum > 0)
                 QuantityStepper(
                   value: quantity,
-                  step: 10,
+                  step: OrderLimits.step,
                   max: maximum,
                   onChanged: (value) {
                     if (_busy) {
@@ -372,7 +431,7 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
             Padding(
               padding: const EdgeInsets.only(top: 4),
               child: Text(
-                '${pricedLines.first.promoName} · '
+                '${pricedLines.first.promoName.isEmpty ? 'Khuyến mãi' : pricedLines.first.promoName} · '
                 'giảm dự kiến '
                 '${Money.format(pricedLines.first.discount)}',
                 style: const TextStyle(
@@ -768,7 +827,7 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
           }
 
           if (lines.any(
-            (line) => line.qty > (quantities[line.sku] ?? 0),
+            (line) => line.qty > OrderLimits.maxQty(quantities[line.sku] ?? 0),
           )) {
             ref.invalidate(
               _orderAvailabilityProvider(retailer.id),

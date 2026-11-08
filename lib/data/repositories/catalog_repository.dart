@@ -92,6 +92,7 @@ class CatalogData {
 
   int available(String sku) => stock[sku] ?? 0;
 
+  /// Max orderable cartons at the existing step; no safety buffer.
   int maxQty(String sku) => OrderLimits.maxQty(available(sku));
 
   num? displayPrice(Product product) =>

@@ -8,6 +8,7 @@ import 'package:fscm_mobile/data/models/delivery_shipment.dart';
 import 'package:fscm_mobile/data/models/offline_order.dart';
 import 'package:fscm_mobile/data/models/order.dart';
 import 'package:uuid/uuid.dart';
+import 'package:fscm_mobile/data/models/order_availability.dart';
 
 final ordersApiProvider =
     Provider<OrdersApi>((ref) => OrdersApi(ref.watch(apiClientProvider)));
@@ -38,14 +39,21 @@ class OrdersApi {
 
   Future<Map<String, int>> availability(
       String retailerId, List<String> productIds) async {
-    final quantities = <String, int>{};
+    final products = await availabilityByWarehouse(retailerId, productIds);
+    return products.map((sku, item) => MapEntry(sku, item.quantity));
+  }
+
+  Future<Map<String, ProductAvailability>> availabilityByWarehouse(
+      String retailerId, List<String> productIds) async {
+    final quantities = <String, ProductAvailability>{};
     for (var offset = 0; offset < productIds.length; offset += 100) {
       final data = asMap(await _client.post('/orders/availability', body: {
         'retailerId': retailerId,
         'productIds': productIds.skip(offset).take(100).toList(),
       }));
       for (final item in unwrapItems(data)) {
-        quantities[asStr(item['sku'])] = asInt(item['eligibleQuantity']);
+        final availability = ProductAvailability.fromJson(item);
+        quantities[availability.sku] = availability;
       }
     }
     return quantities;

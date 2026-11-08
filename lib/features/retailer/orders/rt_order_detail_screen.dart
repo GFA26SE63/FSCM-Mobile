@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import 'package:fscm_mobile/core/utils/dates.dart';
 import 'package:fscm_mobile/core/utils/money.dart';
@@ -34,7 +35,7 @@ class RtOrderDetailScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final value = ref.watch(orderDetailProvider(code));
     return Scaffold(
-      appBar: AppBar(title: Text(code)),
+      appBar: AppBar(title: Text(value.valueOrNull?.code ?? 'Chi tiết đơn hàng')),
       body: AsyncBody<Order>(
         value: value,
         onRetry: () => ref.invalidate(orderDetailProvider(code)),
@@ -64,6 +65,7 @@ class RtOrderDetailScreen extends ConsumerWidget {
                     : o.rejectReason,
               ),
             if (o.status == OrderStatus.quoted) _QuoteDecision(order: o),
+            if (o.canPayOnline) _PrepaidPayment(order: o),
             if (o.hasDelivery) DeliveryInfoCard(o),
             if (o.status.canConfirmReceipt)
               Padding(
@@ -214,40 +216,15 @@ class _QuoteDecision extends ConsumerWidget {
     try {
       final api = ref.read(quotesApiProvider);
       await api.accept(quote, payment);
-      final checkout = payment == PaymentMethod.prepaid
-          ? await api.createPayOsCheckout(order.id)
-          : null;
       ref.invalidate(orderQuotesProvider(order.id));
-      ref.invalidate(orderDetailProvider(order.id));
       ref.read(dataVersionProvider.notifier).state++;
-      if (context.mounted) {
-        if (checkout != null) {
-          await showDialog<void>(
-            context: context,
-            builder: (context) => AlertDialog(
-              title: const Text('Thanh toán trả trước'),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  const Text('Thanh toán theo thông tin PayOS bên dưới. PO chỉ được tạo sau khi PayOS xác nhận đã thu đủ.'),
-                  const SizedBox(height: 12),
-                  const Text('Checkout URL', style: TextStyle(fontWeight: FontWeight.w700)),
-                  SelectableText(checkout.checkoutUrl),
-                  const SizedBox(height: 8),
-                  const Text('QR payload', style: TextStyle(fontWeight: FontWeight.w700)),
-                  SelectableText(checkout.qrCode),
-                ],
-              ),
-              actions: <Widget>[
-                FilledButton(onPressed: () => Navigator.pop(context), child: const Text('Đã hiểu')),
-              ],
-            ),
-          );
-        } else {
-          showAppSnack(context,
-              'Đã xác nhận công nợ. Hệ thống đã chuyển SO đủ điều kiện thành PO.');
-        }
+      if (!context.mounted) return;
+      if (payment == PaymentMethod.prepaid) {
+        showAppSnack(context,
+            'Đã chọn trả trước. Bấm Thanh toán qua PayOS trên chi tiết đơn để tiếp tục.');
+      } else {
+        showAppSnack(context,
+            'Đã xác nhận công nợ. Hệ thống đã chuyển SO đủ điều kiện thành PO.');
       }
     } on ApiException catch (error) {
       if (context.mounted) showAppSnack(context, error.message, error: true);
@@ -286,4 +263,128 @@ class _QuoteDecision extends ConsumerWidget {
       if (context.mounted) showAppSnack(context, error.message, error: true);
     }
   }
+}
+
+
+class _PrepaidPayment extends ConsumerStatefulWidget {
+  const _PrepaidPayment({required this.order});
+  final Order order;
+
+  @override
+  ConsumerState<_PrepaidPayment> createState() => _PrepaidPaymentState();
+}
+
+class _PrepaidPaymentState extends ConsumerState<_PrepaidPayment> {
+  bool _busy = false;
+  String? _error;
+
+  Future<void> _pay() async {
+    setState(() { _busy = true; _error = null; });
+    try {
+      await _openPrepaidCheckout(context, ref, widget.order.id);
+    } on ApiException catch (error) {
+      if (mounted) {
+        setState(() => _error = error.code == 'payment_gateway_error'
+            ? 'Kênh PayOS hiện chưa sẵn sàng. Vui lòng liên hệ nhà phân phối hoặc thử lại sau.'
+            : error.message);
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _switchToCredit() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Đổi sang công nợ?'),
+        content: const Text('Áp dụng kỳ hạn công nợ đã được duyệt cho cửa hàng. Chỉ đổi khi chưa thu tiền và chưa có giao dịch PayOS.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Giữ trả trước')),
+          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Đổi sang công nợ')),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    setState(() { _busy = true; _error = null; });
+    try {
+      await ref.read(quotesApiProvider).switchToCredit(widget.order.id);
+      ref.read(dataVersionProvider.notifier).state++;
+      if (mounted) {
+        showAppSnack(context, 'Đã đổi sang công nợ và phát hành đơn mua hàng.');
+      }
+    } on ApiException catch (error) {
+      if (mounted) setState(() => _error = error.message);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => AppCard(
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const Text('Thanh toán trả trước',
+            style: TextStyle(fontWeight: FontWeight.w800)),
+        Text('Số tiền cần thanh toán: ${Money.format(widget.order.finalAmount)}'),
+        const Text('PO và phiếu soạn được tạo sau khi hệ thống xác nhận đã thu đủ.'),
+        if (_error != null) InfoBanner(tone: StatusTone.danger, text: _error!),
+        const SizedBox(height: 8),
+        FilledButton.icon(
+          onPressed: _busy ? null : _pay,
+          icon: const Icon(Icons.payments_outlined),
+          label: Text(_busy ? 'Đang mở thanh toán...' : 'Thanh toán qua PayOS'),
+        ),
+        OutlinedButton(
+          onPressed: _busy ? null : _switchToCredit,
+          child: const Text('Đổi sang công nợ'),
+        ),
+        TextButton(
+          onPressed: _busy ? null : () => ref.read(dataVersionProvider.notifier).state++,
+          child: const Text('Kiểm tra trạng thái thanh toán'),
+        ),
+      ],
+    ),
+  );
+}
+
+Future<void> _openPrepaidCheckout(
+    BuildContext context, WidgetRef ref, String orderId) async {
+  final checkout = await ref.read(quotesApiProvider).createPayOsCheckout(orderId);
+  if (!context.mounted) return;
+  final uri = Uri.tryParse(checkout.checkoutUrl);
+  await showDialog<void>(
+    context: context,
+    builder: (dialogContext) => AlertDialog(
+      title: const Text('Thanh toán qua PayOS'),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Mở trang PayOS để quét QR hoặc chuyển khoản. Sau đó quay lại app và kiểm tra trạng thái.'),
+            const SizedBox(height: 12),
+            SelectableText(checkout.checkoutUrl),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(dialogContext),
+          child: const Text('Đóng'),
+        ),
+        FilledButton(
+          onPressed: uri == null || !['https', 'http'].contains(uri.scheme) ? null : () async {
+            final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+            if (!opened && dialogContext.mounted) {
+              showAppSnack(dialogContext, 'Không mở được trang thanh toán. Hãy sao chép liên kết phía trên.', error: true);
+            }
+          },
+          child: const Text('Mở trang thanh toán'),
+        ),
+      ],
+    ),
+  );
+  if (context.mounted) ref.read(dataVersionProvider.notifier).state++;
 }

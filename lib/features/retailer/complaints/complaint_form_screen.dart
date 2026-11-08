@@ -11,6 +11,7 @@ import 'package:fscm_mobile/data/repositories/order_repository.dart';
 import 'package:fscm_mobile/shared/widgets/async_body.dart';
 import 'package:fscm_mobile/shared/widgets/dialogs.dart';
 import 'package:fscm_mobile/shared/widgets/section_title.dart';
+import 'package:fscm_mobile/shared/widgets/search_picker_field.dart';
 
 /// New complaint about a delivered order (missing / damaged goods).
 /// [orderCode] pre-selects the order when opened from an order screen.
@@ -131,17 +132,15 @@ class _ComplaintFormScreenState extends ConsumerState<ComplaintFormScreen> {
               ),
               if (order != null) ...<Widget>[
                 const SectionTitle('Sản phẩm'),
-                DropdownButtonFormField<String>(
+                SearchPickerField<String>(
+                  key: ValueKey(order.id),
                   initialValue: _sku,
-                  hint: const Text('Chọn sản phẩm'),
-                  isExpanded: true,
-                  items: <DropdownMenuItem<String>>[
-                    for (final l in order.lines)
-                      DropdownMenuItem<String>(
-                          value: l.sku,
-                          child: Text('${l.sku} · ${l.name} (đặt ${l.qty})',
-                              overflow: TextOverflow.ellipsis)),
-                  ],
+                  label: 'Chọn sản phẩm',
+                  options: order.lines.map((l) => l.sku).toSet().toList(),
+                  labelOf: (sku) {
+                    final line = order.lines.firstWhere((l) => l.sku == sku);
+                    return '${line.sku} · ${line.name} (đặt ${line.qty})';
+                  },
                   onChanged: (v) => setState(() => _sku = v),
                 ),
                 const SectionTitle('Tem kiện hàng'),
