@@ -42,6 +42,7 @@ import 'package:fscm_mobile/features/warehouse/picking/picking_detail_screen.dar
 import 'package:fscm_mobile/features/warehouse/picking/picking_lists_screen.dart';
 import 'package:fscm_mobile/features/warehouse/scan/wk_scan_screen.dart';
 import 'package:fscm_mobile/shared/routes.dart';
+import 'package:fscm_mobile/features/sales/retailers/retailer_detail_screen.dart';
 
 /// First screen of each role after login.
 String homeRouteFor(UserRole role) {
@@ -211,6 +212,12 @@ List<RouteBase> _salesRoutes() => <RouteBase>[
       GoRoute(
           path: AppRoutes.salesRetailers,
           builder: (c, s) => const RetailerListScreen()),
+      GoRoute(
+        path: AppRoutes.salesRetailerDetailPattern,
+        builder: (c, s) => RetailerDetailScreen(
+          code: s.pathParameters['code'] ?? '',
+        ),
+      ),
       GoRoute(
           path: AppRoutes.salesProducts,
           builder: (c, s) => const ProductListScreen()),

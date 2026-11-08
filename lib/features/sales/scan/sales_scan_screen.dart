@@ -60,23 +60,16 @@ class _SalesScanScreenState extends ConsumerState<SalesScanScreen> {
       if (retailer == null) {
         showAppSnack(
           context,
-          'Không tìm thấy điểm bán $code trên máy. Hãy đồng bộ rồi quét lại.',
+          'Điểm bán $code không có trong snapshot hiện tại. '
+          'Hãy cập nhật danh sách điểm bán phụ trách rồi thử lại.',
           error: true,
         );
         return;
       }
 
-      // Giữ kiểm tra khu vực hiện có của màn Sales.
-      if (retailer.areaCode != user.areaCode) {
-        showAppSnack(
-          context,
-          '${retailer.name} ngoài khu vực của bạn.',
-          error: true,
-        );
-        return;
-      }
-
-      await context.push<void>(AppRoutes.salesNewOrder(code));
+      await context.push<void>(
+        AppRoutes.salesRetailerDetail(retailer.code),
+      );
     } catch (error) {
       if (mounted) {
         showAppSnack(
@@ -86,9 +79,7 @@ class _SalesScanScreenState extends ConsumerState<SalesScanScreen> {
         );
       }
     } finally {
-      if (mounted) {
-        setState(() => _busy = false);
-      }
+      if (mounted) setState(() => _busy = false);
     }
   }
 
@@ -100,7 +91,8 @@ class _SalesScanScreenState extends ConsumerState<SalesScanScreen> {
         padding: const EdgeInsets.all(16),
         children: [
           const Text(
-            'Quét mã điểm bán để mở trang đặt hàng.',
+            'Quét mã điểm bán để xem thông tin và kiểm tra '
+            'điều kiện đặt hàng.',
           ),
           const SizedBox(height: 14),
           if (_busy)
