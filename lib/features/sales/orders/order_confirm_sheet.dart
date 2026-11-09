@@ -1,69 +1,35 @@
 import 'package:flutter/material.dart';
 
 import 'package:fscm_mobile/core/utils/money.dart';
-import 'package:fscm_mobile/core/utils/status_tone.dart';
-import 'package:fscm_mobile/data/models/enums.dart';
 import 'package:fscm_mobile/data/models/price_quote.dart';
 import 'package:fscm_mobile/data/models/retailer.dart';
-import 'package:fscm_mobile/shared/theme/app_colors.dart';
+import 'package:fscm_mobile/features/sales/orders/widgets/price_difference_card.dart';
 import 'package:fscm_mobile/shared/widgets/info_banner.dart';
 import 'package:fscm_mobile/shared/widgets/kv_row.dart';
 import 'package:fscm_mobile/shared/widgets/section_title.dart';
 
-/// Bottom sheet "Xác nhận đơn hàng": lines, applied promotions, totals and
-/// payment choice. Pops with the chosen [PaymentMethod].
-class OrderConfirmSheet extends StatefulWidget {
+class OrderConfirmSheet extends StatelessWidget {
   const OrderConfirmSheet({
     super.key,
     required this.retailer,
     required this.quote,
     required this.online,
     required this.estimated,
+    this.localEstimate,
+    this.snapshotAt,
+    this.estimatedAt,
   });
 
   final Retailer retailer;
   final PriceQuote quote;
   final bool online;
-
-  /// True when [quote] is the local estimate (offline or quote API failed).
   final bool estimated;
-
-  @override
-  State<OrderConfirmSheet> createState() => _OrderConfirmSheetState();
-}
-
-class _OrderConfirmSheetState extends State<OrderConfirmSheet> {
-  PaymentMethod _payment = PaymentMethod.cod;
-
-  bool _enabled(PaymentMethod m) {
-    switch (m) {
-      case PaymentMethod.cod:
-        return true;
-      case PaymentMethod.prepaid:
-        return widget.online;
-      case PaymentMethod.credit:
-        return widget.retailer.creditAllowed;
-    }
-  }
-
-  String _hint(PaymentMethod m) {
-    switch (m) {
-      case PaymentMethod.cod:
-        return 'Retailer trả tiền khi nhận hàng';
-      case PaymentMethod.prepaid:
-        return widget.online
-            ? 'Chuyển khoản QR hoặc tiền mặt trước khi giao'
-            : 'Cần có mạng để trả trước';
-      case PaymentMethod.credit:
-        return widget.retailer.creditAllowed
-            ? 'Trả một lần đủ trong ${widget.retailer.creditTerm} ngày kể từ ngày giao'
-            : 'Điểm bán chưa được phép mua công nợ';
-    }
-  }
+  final PriceQuote? localEstimate;
+  final DateTime? snapshotAt;
+  final DateTime? estimatedAt;
 
   @override
   Widget build(BuildContext context) {
-    final q = widget.quote;
     return SafeArea(
       child: DraggableScrollableSheet(
         expand: false,
@@ -73,82 +39,106 @@ class _OrderConfirmSheetState extends State<OrderConfirmSheet> {
         builder: (context, controller) => ListView(
           controller: controller,
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-          children: <Widget>[
-            const Text('Xác nhận đơn hàng',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
-            Text('Giao đến ${widget.retailer.name} · ${widget.retailer.code}',
-                style: const TextStyle(color: AppColors.textMuted)),
+          children: [
+            const Text(
+              'Xác nhận đơn hàng',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            Text('${retailer.name} · ${retailer.code}'),
+            const SizedBox(height: 12),
+            InfoBanner(
+              text: estimated
+                  ? 'Tạm tính trên máy từ snapshot đã lưu. '
+                      'Backend sẽ tính lại khi nhận đơn.'
+                  : 'Giá dự kiến được máy chủ tính lại cho giỏ hàng này. '
+                      'Chưa phải báo giá cuối sau phân bổ.',
+            ),
+            if (snapshotAt != null) Text('Snapshot: ${_stamp(snapshotAt!)}'),
+            if (estimatedAt != null)
+              Text('Tính trên máy lúc: ${_stamp(estimatedAt!)}'),
             const SizedBox(height: 10),
-            if (widget.estimated)
+            if (!estimated && localEstimate?.isComplete == true)
+              PriceDifferenceCard(
+                localAmount: localEstimate!.finalAmount,
+                serverAmount: quote.finalAmount,
+              ),
+            if (!quote.isComplete)
               InfoBanner(
-                tone: StatusTone.warning,
-                text: widget.online
-                    ? 'Không lấy được giá từ hệ thống - đang hiển thị khuyến mãi tạm tính trên máy.'
-                    : 'Khuyến mãi tạm tính trên máy (offline). Hệ thống sẽ tính lại khi đồng bộ.',
+                text: 'Thiếu giá: ${quote.missingPriceSkus.join(', ')}. '
+                    'Chưa thể xác nhận bản tạm tính.',
               ),
             const SectionTitle('Sản phẩm'),
-            for (final l in q.lines)
+            for (final line in quote.lines)
               Padding(
-                padding: const EdgeInsets.symmetric(vertical: 4),
+                padding: const EdgeInsets.symmetric(vertical: 6),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
+                  children: [
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
-                        children: <Widget>[
-                          Text('${l.name} ×${l.qty}',
-                              style:
-                                  const TextStyle(fontWeight: FontWeight.w600)),
-                          if (l.hasDiscount)
-                            Text('${l.promoId} · −${l.pct.round()}%',
-                                style: const TextStyle(
-                                    color: AppColors.success, fontSize: 12.5)),
+                        children: [
+                          Text('${line.name} × ${line.qty}'),
+                          if (line.hasDiscount)
+                            Text(
+                              '${line.promoName} · −${line.pct}%',
+                              style: const TextStyle(fontSize: 12),
+                            ),
                         ],
                       ),
                     ),
-                    Text(Money.format(l.base - l.discount)),
+                    Text(Money.format(line.net)),
                   ],
                 ),
               ),
             const SectionTitle('Khuyến mãi áp dụng'),
-            if (q.applied.isEmpty)
-              const Text('Đơn chưa đạt điều kiện khuyến mãi nào.',
-                  style: TextStyle(color: AppColors.textMuted))
+            if (quote.applied.isEmpty)
+              const Text('Chưa có khuyến mãi áp dụng.')
             else
-              for (final a in q.applied)
-                KvRow('${a.id} · ${a.name}', Money.minus(a.amount),
-                    valueColor: AppColors.success),
+              for (final promo in quote.applied)
+                KvRow(promo.name, Money.minus(promo.amount)),
             const SectionTitle('Thanh toán'),
-            for (final m in PaymentMethod.values)
-              RadioListTile<PaymentMethod>(
-                contentPadding: EdgeInsets.zero,
-                value: m,
-                groupValue: _payment,
-                onChanged: _enabled(m)
-                    ? (v) => setState(() => _payment = v ?? _payment)
-                    : null,
-                title: Text(m.labelWithTerm(widget.retailer.creditTerm)),
-                subtitle: Text(_hint(m)),
-              ),
-            const Divider(height: 24),
-            KvRow('Tổng tiền hàng', Money.format(q.total)),
-            KvRow('Tổng giảm', Money.minus(q.discount),
-                valueColor: AppColors.success),
-            KvRow('Thành tiền', Money.format(q.finalAmount), bold: true),
-            const SizedBox(height: 14),
-            FilledButton(
-              onPressed: () => Navigator.of(context).pop(_payment),
-              child: Text(
-                  widget.online ? 'Xác nhận đặt hàng' : 'Lưu đơn trên máy'),
+            const InfoBanner(
+              text: 'Retailer chọn phương thức thanh toán sau khi '
+                  'hệ thống phân bổ và gửi báo giá chính thức.',
             ),
-            const SizedBox(height: 6),
+            if (quote.isComplete) ...[
+              const Divider(height: 24),
+              KvRow('Tiền hàng dự kiến', Money.format(quote.total)),
+              KvRow('Giảm dự kiến', Money.minus(quote.discount)),
+              KvRow(
+                'Thành tiền dự kiến',
+                Money.format(quote.finalAmount),
+                bold: true,
+              ),
+            ],
+            const SizedBox(height: 16),
+            FilledButton(
+              onPressed: quote.isComplete
+                  ? () => Navigator.of(context).pop(true)
+                  : null,
+              child: Text(
+                online ? 'Xác nhận tạo SO' : 'Lưu SO trên máy',
+              ),
+            ),
             TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: const Text('Quay lại giỏ hàng')),
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Quay lại giỏ hàng'),
+            ),
           ],
         ),
       ),
     );
+  }
+
+  String _stamp(DateTime value) {
+    final local = value.toLocal();
+    String pad(int number) => number.toString().padLeft(2, '0');
+
+    return '${pad(local.hour)}:${pad(local.minute)} '
+        '${pad(local.day)}/${pad(local.month)}/${local.year}';
   }
 }

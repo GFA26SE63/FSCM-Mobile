@@ -6,7 +6,6 @@ import 'package:fscm_mobile/core/utils/dates.dart';
 import 'package:fscm_mobile/core/utils/status_tone.dart';
 import 'package:fscm_mobile/data/models/enums.dart';
 import 'package:fscm_mobile/data/models/picking.dart';
-import 'package:fscm_mobile/data/models/transfer.dart';
 import 'package:fscm_mobile/data/repositories/auth_repository.dart';
 import 'package:fscm_mobile/data/repositories/warehouse_repository.dart';
 import 'package:fscm_mobile/features/common/notifications/notification_bell_button.dart';
@@ -26,13 +25,9 @@ class WkHomeScreen extends ConsumerWidget {
     final user = ref.watch(currentUserProvider);
     final pickings =
         ref.watch(pickingListsProvider).valueOrNull ?? const <PickingList>[];
-    final transfers =
-        ref.watch(transfersProvider).valueOrNull ?? const <Transfer>[];
     final todo =
-        pickings.where((p) => p.status != PickingStatus.shipped).toList();
+        pickings.where((p) => p.status != PickingStatus.completed).toList();
     int count(PickingStatus s) => pickings.where((p) => p.status == s).length;
-    final incoming =
-        transfers.where((t) => t.status == TransferStatus.inTransit).toList();
 
     return Scaffold(
       appBar: AppBar(
@@ -46,7 +41,6 @@ class WkHomeScreen extends ConsumerWidget {
       body: RefreshIndicator(
         onRefresh: () async {
           ref.invalidate(pickingListsProvider);
-          ref.invalidate(transfersProvider);
         },
         child: ListView(
           padding: const EdgeInsets.all(16),
@@ -68,29 +62,11 @@ class WkHomeScreen extends ConsumerWidget {
                         StatusTone.purple)),
                 const SizedBox(width: 10),
                 Expanded(
-                    child: _Stat('Đã xuất', count(PickingStatus.shipped),
+                    child: _Stat('Đã soạn', count(PickingStatus.completed),
                         StatusTone.success)),
               ],
             ),
             const SizedBox(height: 10),
-            AppCard(
-              onTap: () => context.go(AppRoutes.wkTransfers),
-              child: Row(
-                children: <Widget>[
-                  const Icon(Icons.swap_horiz, color: AppColors.primary),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      incoming.isEmpty
-                          ? 'Không có phiếu chuyển kho đang tới'
-                          : '${incoming.length} phiếu chuyển kho đang tới - quét tem để nhận',
-                      style: const TextStyle(fontWeight: FontWeight.w600),
-                    ),
-                  ),
-                  const Icon(Icons.chevron_right, color: AppColors.textMuted),
-                ],
-              ),
-            ),
             AppCard(
               onTap: () => context.push(AppRoutes.wkLabelLookup),
               child: const Row(
@@ -128,7 +104,7 @@ class WkHomeScreen extends ConsumerWidget {
                 icon: Icons.task_alt,
                 title: 'Không còn picking list cần lấy.',
                 message:
-                    'Picking list xuất hiện ngay khi Admin / Operator duyệt đơn. Mỗi đơn có một picking list cho mỗi kho (mã đơn + A, B, C...).',
+                    'Picking list được tạo sau khi Retailer chấp nhận báo giá và đơn đủ điều kiện trở thành PO. Mỗi kho tham gia có một picking list riêng.',
               )
             else
               for (final p in todo.take(3)) PickingListTile(list: p),

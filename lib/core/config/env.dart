@@ -19,6 +19,19 @@ class Env {
     defaultValue: 'http://10.0.2.2:5080/api/v1',
   );
 
+  static String? _runtimeApiBaseUrl;
+
+  /// Effective URL in use: falls back to [apiBaseUrl] if not overridden at runtime.
+  static String get effectiveApiBaseUrl => _runtimeApiBaseUrl ?? apiBaseUrl;
+
+  static void setRuntimeApiBaseUrl(String? url) {
+    if (url == null || url.trim().isEmpty) {
+      _runtimeApiBaseUrl = null;
+    } else {
+      _runtimeApiBaseUrl = url.trim();
+    }
+  }
+
   /// Web-type OAuth client used as the server client ID on Android and iOS.
   static const String googleServerClientId = String.fromEnvironment(
     'GOOGLE_SERVER_CLIENT_ID',

@@ -42,15 +42,32 @@ class AuthController extends StateNotifier<AuthState> {
   AuthController(this._ref) : super(const AuthState.unknown()) {
     _unauthorizedSub = _ref.read(apiClientProvider).onUnauthorized.listen((_) {
       if (state.isAuthenticated) {
-        unawaited(logout(callServer: false));
+        unawaited(_handleSessionExpired());
+      }
+    });
+    _sessionRefreshedSub =
+        _ref.read(apiClientProvider).onSessionRefreshed.listen((newSession) {
+      if (state.isAuthenticated) {
+        state =
+            AuthState(status: AuthStatus.authenticated, session: newSession);
       }
     });
   }
 
   final Ref _ref;
   StreamSubscription<void>? _unauthorizedSub;
+  StreamSubscription<Session>? _sessionRefreshedSub;
 
   TokenStore get _tokens => _ref.read(tokenStoreProvider);
+
+  Future<void> _handleSessionExpired() async {
+    await _tokens.clear();
+    await _ref.read(appDatabaseProvider).clearCache();
+    state = const AuthState(
+      status: AuthStatus.unauthenticated,
+      error: 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.',
+    );
+  }
 
   /// Called once from the splash screen.
   Future<void> restore() async {
@@ -60,9 +77,30 @@ class AuthController extends StateNotifier<AuthState> {
       return;
     }
     final session = Session.fromJson(json);
-    if (session.isExpired || !session.user.role.hasMobileShell) {
+    if (!session.user.role.hasMobileShell) {
       await _tokens.clear();
       state = const AuthState(status: AuthStatus.unauthenticated);
+      return;
+    }
+    if (session.isExpired) {
+      if (session.refreshToken.isNotEmpty && !session.isRefreshTokenExpired) {
+        final refreshed = await _ref.read(apiClientProvider).tryRefreshToken();
+        if (refreshed) {
+          final newJson = await _tokens.load();
+          if (newJson != null) {
+            final refreshedSession = Session.fromJson(newJson);
+            state = AuthState(
+                status: AuthStatus.authenticated, session: refreshedSession);
+            unawaited(_registerDevice());
+            return;
+          }
+        }
+      }
+      await _tokens.clear();
+      state = const AuthState(
+        status: AuthStatus.unauthenticated,
+        error: 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.',
+      );
       return;
     }
     state = AuthState(status: AuthStatus.authenticated, session: session);
@@ -190,6 +228,7 @@ class AuthController extends StateNotifier<AuthState> {
   @override
   void dispose() {
     unawaited(_unauthorizedSub?.cancel());
+    unawaited(_sessionRefreshedSub?.cancel());
     super.dispose();
   }
 }

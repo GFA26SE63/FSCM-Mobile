@@ -2,12 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import 'package:fscm_mobile/core/utils/status_tone.dart';
 import 'package:fscm_mobile/core/network/api_exception.dart';
+import 'package:fscm_mobile/core/utils/status_tone.dart';
 import 'package:fscm_mobile/data/repositories/auth_repository.dart';
+import 'package:fscm_mobile/shared/routes.dart';
 import 'package:fscm_mobile/shared/theme/app_colors.dart';
 import 'package:fscm_mobile/shared/widgets/info_banner.dart';
-import 'package:fscm_mobile/shared/routes.dart';
 
 /// Phone + password or Google login.
 class LoginScreen extends ConsumerStatefulWidget {
@@ -74,6 +74,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final authError = _error ?? ref.watch(authControllerProvider).error;
     return Scaffold(
       body: SafeArea(
         child: Center(
@@ -146,9 +147,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       ),
                     ),
                     const SizedBox(height: 12),
-                    if (_error != null)
+                    if (authError != null)
                       InfoBanner(
-                          text: _error!,
+                          text: authError,
                           tone: StatusTone.danger,
                           icon: Icons.error_outline),
                     FilledButton(
