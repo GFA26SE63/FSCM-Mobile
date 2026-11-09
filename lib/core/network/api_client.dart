@@ -367,18 +367,14 @@ class ApiClient {
             rethrow;
           }
         }
-
-        // The retry handles its own unauthorized event.
-        // Its error must propagate without being caught by the refresh block.
+        // Retry errors belong to the retried request. Catching them as refresh
+        // failures emitted logout twice for 401 and turned a genuine 403 into 401.
         if (refreshed) {
-          return await _send(
-            method,
-            path,
-            body: body,
-            query: query,
-            extraHeaders: extraHeaders,
-            isRetry: true,
-          );
+          return _send(method, path,
+              body: body,
+              query: query,
+              extraHeaders: extraHeaders,
+              isRetry: true);
         }
       }
 

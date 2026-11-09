@@ -11,6 +11,7 @@ import 'package:fscm_mobile/core/network/api_exception.dart';
 import 'package:fscm_mobile/core/network/network_monitor.dart';
 import 'package:fscm_mobile/core/utils/clock.dart';
 import 'package:fscm_mobile/core/utils/money.dart';
+import 'package:fscm_mobile/core/utils/dates.dart';
 import 'package:fscm_mobile/core/utils/status_tone.dart';
 import 'package:fscm_mobile/data/models/json_utils.dart';
 import 'package:fscm_mobile/data/models/order.dart';
@@ -316,11 +317,7 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
       return 'chưa đồng bộ';
     }
 
-    final local = value.toLocal();
-    String pad(int number) => number.toString().padLeft(2, '0');
-
-    return '${pad(local.hour)}:${pad(local.minute)} '
-        '${pad(local.day)}/${pad(local.month)}/${local.year}';
+    return AppDates.timeDay(value.toLocal());
   }
 
   Widget _productRow(

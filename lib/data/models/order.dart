@@ -47,16 +47,31 @@ class OrderLine {
     this.discountPct = 0,
     this.promoId = '',
     this.promoName = '',
+    this.campaignDiscount,
+    this.shelfLifeDiscount = 0,
+    this.shelfLifeSource = '',
     this.batches = const <BatchAllocation>[],
   });
 
   factory OrderLine.fromJson(Map<String, dynamic> j) {
     final fragments = asMapList(j['allocationFragments']);
     final ordinaryPromotion = asMap(j['ordinaryPromotion']);
+    final discount = asInt(j['discount'] ?? j['discountAmount']);
+    final hasShelfLife = j['discountSourceType'] == 'ShelfLife';
+    final hasBreakdown = hasShelfLife ||
+        j['campaignDiscount'] != null ||
+        ordinaryPromotion.containsKey('discountAmount');
+    final campaignDiscount = hasBreakdown
+        ? asInt(j['campaignDiscount'] ?? ordinaryPromotion['discountAmount'])
+            .clamp(0, discount)
+            .toInt()
+        : null;
     var promotionName =
         asStr(j['promoName'] ?? ordinaryPromotion['name'], 'Khuyến mãi');
-    if (j['promoName'] == null && j['discountSourceType'] == 'ShelfLife') {
-      promotionName = asInt(ordinaryPromotion['discountAmount']) > 0
+    if (j['promoName'] == null &&
+        asStr(ordinaryPromotion['name']).isEmpty &&
+        hasShelfLife) {
+      promotionName = (campaignDiscount ?? 0) > 0
           ? 'Khuyến mãi và giảm giá HSD'
           : 'Giảm giá theo HSD';
     }
@@ -66,10 +81,19 @@ class OrderLine {
       qty: asInt(j['qty'] ?? j['quantity'] ?? j['orderedQuantity']),
       unitPrice: asDouble(j['unitPrice']),
       grossAmount: j['grossAmount'] == null ? null : asInt(j['grossAmount']),
-      discount: asInt(j['discount'] ?? j['discountAmount']),
+      discount: discount,
       discountPct: asDouble(j['discountPct'] ?? j['discountPercent']),
-      promoId: asStr(j['promoId'] ?? j['discountSourceCode']),
+      promoId: asStr(j['promoId'] ??
+          ordinaryPromotion['promotionId'] ??
+          ordinaryPromotion['code'] ??
+          j['discountSourceCode']),
       promoName: promotionName,
+      campaignDiscount: campaignDiscount,
+      shelfLifeDiscount: hasShelfLife
+          ? discount - (campaignDiscount ?? 0)
+          : asInt(j['shelfLifeDiscount']),
+      shelfLifeSource: asStr(j['shelfLifeSource'] ??
+          (hasShelfLife ? j['discountSourceCode'] : null)),
       batches: mapList(
           j['batches'] ?? (fragments.isNotEmpty ? fragments : j['allocations']),
           BatchAllocation.fromJson),
@@ -85,6 +109,11 @@ class OrderLine {
   final double discountPct;
   final String promoId;
   final String promoName;
+
+  /// Null preserves legacy/offline lines whose discount has no component breakdown.
+  final int? campaignDiscount;
+  final int shelfLifeDiscount;
+  final String shelfLifeSource;
   final List<BatchAllocation> batches;
 
   int get base => grossAmount ?? (qty * unitPrice).round();
@@ -100,7 +129,10 @@ class OrderLine {
         'discountPct': discountPct,
         'promoId': promoId,
         'promoName': promoName,
-        'batches': batches.map((batch) => batch.toJson()).toList(),
+        'campaignDiscount': campaignDiscount,
+        'shelfLifeDiscount': shelfLifeDiscount,
+        'shelfLifeSource': shelfLifeSource,
+        'batches': batches.map((b) => b.toJson()).toList(),
       };
 }
 
@@ -254,32 +286,33 @@ class Order {
   String get itemsSummary =>
       lines.map((l) => '${l.name} ×${l.qty}').join(' · ');
 
-  /// Groups line discounts by promotion for the summary card.
+  /// Keep campaign names separate from the shared shelf-life table/version.
   List<AppliedPromo> get appliedPromos {
-    final byId = <String, List<OrderLine>>{};
-    for (final l in lines) {
-      if (l.discount > 0) {
-        byId.putIfAbsent(l.promoId, () => <OrderLine>[]).add(l);
-      }
+    final grouped = <String, AppliedPromo>{};
+    void add(
+        String key, String name, String typeLabel, int amount, OrderLine line) {
+      if (amount <= 0) return;
+      final prior = grouped[key];
+      final detail = '${line.sku} × ${line.qty}';
+      grouped[key] = AppliedPromo(
+          id: key,
+          name: name,
+          typeLabel: typeLabel,
+          detail: prior == null ? detail : '${prior.detail} · $detail',
+          amount: (prior?.amount ?? 0) + amount);
     }
-    return byId.entries.map((e) {
-      final first = e.value.first;
-      final amount = e.value.fold<int>(0, (s, l) => s + l.discount);
-      final detail = e.value
-          .map((l) => '${l.sku} × ${l.qty} (−${_pct(l.discountPct)}%)')
-          .join(', ');
-      return AppliedPromo(
-        id: e.key,
-        name: first.promoName,
-        typeLabel: '',
-        detail: detail,
-        amount: amount,
-      );
-    }).toList();
-  }
 
-  static String _pct(double v) =>
-      v == v.roundToDouble() ? v.round().toString() : v.toString();
+    for (final line in lines) {
+      final name = line.promoName.isEmpty ? 'Khuyến mãi' : line.promoName;
+      add('campaign:${line.promoId.isEmpty ? name : line.promoId}', name,
+          'Khuyến mãi số lượng', line.campaignDiscount ?? line.discount, line);
+    }
+    for (final line in lines) {
+      add('shelf-life:${line.shelfLifeSource}', 'Giảm giá theo HSD',
+          'Tính sau khuyến mãi số lượng', line.shelfLifeDiscount, line);
+    }
+    return grouped.values.toList();
+  }
 
   Order copyWith({
     OrderStatus? status,
