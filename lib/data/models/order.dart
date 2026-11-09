@@ -42,6 +42,7 @@ class OrderLine {
     required this.name,
     required this.qty,
     required this.unitPrice,
+    this.grossAmount,
     this.discount = 0,
     this.discountPct = 0,
     this.promoId = '',
@@ -65,19 +66,28 @@ class OrderLine {
             .clamp(0, discount)
             .toInt()
         : null;
+    var promotionName =
+        asStr(j['promoName'] ?? ordinaryPromotion['name'], 'Khuyến mãi');
+    if (j['promoName'] == null &&
+        asStr(ordinaryPromotion['name']).isEmpty &&
+        hasShelfLife) {
+      promotionName = (campaignDiscount ?? 0) > 0
+          ? 'Khuyến mãi và giảm giá HSD'
+          : 'Giảm giá theo HSD';
+    }
     return OrderLine(
       sku: asStr(j['sku']),
       name: asStr(j['name'] ?? j['productName']),
       qty: asInt(j['qty'] ?? j['quantity'] ?? j['orderedQuantity']),
-      unitPrice: asInt(j['unitPrice']),
+      unitPrice: asDouble(j['unitPrice']),
+      grossAmount: j['grossAmount'] == null ? null : asInt(j['grossAmount']),
       discount: discount,
       discountPct: asDouble(j['discountPct'] ?? j['discountPercent']),
       promoId: asStr(j['promoId'] ??
           ordinaryPromotion['promotionId'] ??
           ordinaryPromotion['code'] ??
           j['discountSourceCode']),
-      promoName:
-          asStr(j['promoName'] ?? ordinaryPromotion['name'], 'Khuyến mãi'),
+      promoName: promotionName,
       campaignDiscount: campaignDiscount,
       shelfLifeDiscount: hasShelfLife
           ? discount - (campaignDiscount ?? 0)
@@ -93,7 +103,8 @@ class OrderLine {
   final String sku;
   final String name;
   final int qty;
-  final int unitPrice;
+  final num unitPrice;
+  final int? grossAmount;
   final int discount;
   final double discountPct;
   final String promoId;
@@ -105,7 +116,7 @@ class OrderLine {
   final String shelfLifeSource;
   final List<BatchAllocation> batches;
 
-  int get base => qty * unitPrice;
+  int get base => grossAmount ?? (qty * unitPrice).round();
   int get net => base - discount;
 
   Map<String, dynamic> toJson() => <String, dynamic>{
@@ -113,6 +124,7 @@ class OrderLine {
         'name': name,
         'qty': qty,
         'unitPrice': unitPrice,
+        'grossAmount': base,
         'discount': discount,
         'discountPct': discountPct,
         'promoId': promoId,
@@ -182,13 +194,22 @@ class Order {
       creditTerm: asInt(j['creditTerm'] ?? j['creditTermDays']),
       rejectReason: asStr(j['rejectReason'] ?? j['rejectionReason']),
       version: asInt(j['version']),
-      isOffline: asBool(j['isOffline']),
+      isOffline: asBool(j['isOffline']) || asStr(j['source']) == 'Offline',
       offlineCode: asStr(j['offlineCode']),
       syncedAt: asDate(j['syncedAt']),
       syncMode: asStr(j['syncMode']),
-      promoChanged: asBool(j['promoChanged']),
-      changeReason: asStr(j['changeReason']),
-      localFinal: j['localFinal'] == null ? null : asInt(j['localFinal']),
+      promoChanged: asBool(
+        j['promoChanged'] ?? j['hasOfflineDifference'],
+      ),
+      changeReason: asStr(
+        j['changeReason'],
+        asBool(j['hasOfflineDifference'])
+            ? 'Giá hệ thống khác với bản tạm tính khi lưu offline.'
+            : '',
+      ),
+      localFinal: (j['localFinal'] ?? j['offlineEstimatedAmount']) == null
+          ? null
+          : asInt(j['localFinal'] ?? j['offlineEstimatedAmount']),
       vehiclePlate: asStr(j['vehiclePlate']),
       driverName: asStr(j['driverName']),
       driverPhone: asStr(j['driverPhone']),

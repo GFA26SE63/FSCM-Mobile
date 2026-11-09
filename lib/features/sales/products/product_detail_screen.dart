@@ -14,7 +14,7 @@ class ProductDetailScreen extends StatelessWidget {
       this.availability,
       this.promotions = const []});
   final Product product;
-  final int unitPrice;
+  final num? unitPrice;
   final ProductAvailability? availability;
   final List<Promotion> promotions;
 
@@ -32,7 +32,9 @@ class ProductDetailScreen extends StatelessWidget {
                 Text('Danh mục: ${product.category}'),
                 Text('Đơn vị: ${product.pack}'),
                 Text('Hạn dùng: ${product.shelfLifeDays} ngày'),
-                Text('${Money.format(unitPrice)} / ${product.pack}'),
+                Text(unitPrice == null
+                    ? 'Chưa có giá hiệu lực trong snapshot'
+                    : '${Money.format(unitPrice!)} / ${product.pack} · dự kiến'),
               ])),
           if (availability != null) ...[
             AppCard(

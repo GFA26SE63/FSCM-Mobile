@@ -7,23 +7,36 @@ import 'package:fscm_mobile/data/models/order.dart';
 import 'package:fscm_mobile/data/remote/quotes_api.dart';
 import 'package:fscm_mobile/data/repositories/order_repository.dart';
 import 'package:fscm_mobile/features/retailer/orders/rt_order_detail_screen.dart';
+import 'package:fscm_mobile/shared/widgets/order_widgets.dart';
 
 void main() {
-  testWidgets('order detail shows business code, promotion name and batch expiry',
+  testWidgets(
+      'order detail shows business code, promotion name and batch expiry',
       (tester) async {
     const promotionId = '740f093b-003b-4b94-b667-981de8226262';
     final order = Order.fromJson({
-      'id': 'order-2', 'orderCode': 'DH-001057', 'status': 'Picking',
+      'id': 'order-2',
+      'orderCode': 'DH-001057',
+      'status': 'Picking',
       'paymentMethod': 'Credit',
       'lines': [
         {
-          'sku': 'SKU001', 'productName': 'Sữa tươi', 'quantity': 20,
-          'unitPrice': 252000, 'discountAmount': 403200,
+          'sku': 'SKU001',
+          'productName': 'Sữa tươi',
+          'quantity': 20,
+          'unitPrice': 252000,
+          'discountAmount': 403200,
           'discountSourceCode': promotionId,
           'ordinaryPromotion': {'name': 'Ưu đãi số lượng'},
-          'allocations': [{'batchCode': 'BATCH-1', 'quantity': 20}],
+          'allocations': [
+            {'batchCode': 'BATCH-1', 'quantity': 20}
+          ],
           'allocationFragments': [
-            {'batchCode': 'BATCH-1', 'quantity': 20, 'batchExpirationDate': '2026-11-16'},
+            {
+              'batchCode': 'BATCH-1',
+              'quantity': 20,
+              'batchExpirationDate': '2026-11-16'
+            },
           ],
         },
       ],
@@ -37,17 +50,34 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.widgetWithText(AppBar, 'DH-001057'), findsOneWidget);
     expect(find.textContaining('16/11/2026'), findsOneWidget);
-    expect(find.text('Ưu đãi số lượng'), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byType(OrderLinesCard),
+        matching: find.text('Ưu đãi số lượng'),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: find.byType(AppliedPromoCard),
+        matching: find.text('Ưu đãi số lượng'),
+      ),
+      findsOneWidget,
+    );
     expect(find.textContaining(promotionId), findsNothing);
   });
 
-  testWidgets('reopened prepaid order retains checkout and reports gateway failure',
+  testWidgets(
+      'reopened prepaid order retains checkout and reports gateway failure',
       (tester) async {
     final transport = _UnavailableCheckout();
     final order = Order.fromJson({
-      'id': 'order-1', 'orderCode': 'DH-001057', 'status': 'PaymentPending',
+      'id': 'order-1',
+      'orderCode': 'DH-001057',
+      'status': 'PaymentPending',
       'payment': {'method': 'Prepaid', 'status': 'Unpaid'},
-      'subtotalAmount': 11440000, 'discountAmount': 635040,
+      'subtotalAmount': 11440000,
+      'discountAmount': 635040,
     });
     await tester.pumpWidget(ProviderScope(
       overrides: [
@@ -63,7 +93,8 @@ void main() {
     expect(checkout, findsOneWidget);
     await tester.tap(checkout);
     await tester.pumpAndSettle();
-    expect(find.textContaining('Kênh PayOS hiện chưa sẵn sàng'), findsOneWidget);
+    expect(
+        find.textContaining('Kênh PayOS hiện chưa sẵn sàng'), findsOneWidget);
     expect(checkout, findsOneWidget);
     await tester.ensureVisible(find.text('Đổi sang công nợ'));
     await tester.tap(find.text('Đổi sang công nợ'));

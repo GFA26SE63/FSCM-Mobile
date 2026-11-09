@@ -22,10 +22,11 @@ class _SalesShellState extends ConsumerState<SalesShell> {
   @override
   void initState() {
     super.initState();
-    // Creating the service starts the connectivity listener and the retry
-    // timer; the first sync runs right after login.
+
+    // Login downloads catalog only. Draft submission is always explicit.
     Future<void>.microtask(
-        () => ref.read(syncServiceProvider.notifier).syncAll());
+      () => ref.read(syncServiceProvider.notifier).refreshSnapshot(),
+    );
   }
 
   @override

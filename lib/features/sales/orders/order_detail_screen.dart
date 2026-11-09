@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:fscm_mobile/core/network/api_exception.dart';
-import 'package:fscm_mobile/core/network/network_monitor.dart';
 import 'package:fscm_mobile/core/utils/dates.dart';
 import 'package:fscm_mobile/core/utils/money.dart';
 import 'package:fscm_mobile/core/utils/status_tone.dart';
@@ -12,6 +11,7 @@ import 'package:fscm_mobile/data/models/offline_order.dart';
 import 'package:fscm_mobile/data/models/order.dart';
 import 'package:fscm_mobile/data/repositories/data_version.dart';
 import 'package:fscm_mobile/data/repositories/order_repository.dart';
+import 'package:fscm_mobile/features/sales/orders/widgets/price_difference_card.dart';
 import 'package:fscm_mobile/shared/theme/app_colors.dart';
 import 'package:fscm_mobile/shared/widgets/app_card.dart';
 import 'package:fscm_mobile/shared/widgets/async_body.dart';
@@ -21,31 +21,57 @@ import 'package:fscm_mobile/shared/widgets/kv_row.dart';
 import 'package:fscm_mobile/shared/widgets/order_widgets.dart';
 import 'package:fscm_mobile/shared/widgets/section_title.dart';
 import 'package:fscm_mobile/shared/widgets/timeline_list.dart';
-import 'package:fscm_mobile/sync/sync_service.dart';
+import 'package:fscm_mobile/features/sales/orders/widgets/offline_draft_actions.dart';
 
-/// Order detail for Sales: product names, promotions, offline/sync info,
-/// promotion comparison when the server re-priced the order.
 class SalesOrderDetailScreen extends ConsumerWidget {
-  const SalesOrderDetailScreen({super.key, required this.code});
+  const SalesOrderDetailScreen({
+    super.key,
+    required this.code,
+  });
 
   final String code;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final value = ref.watch(orderDetailProvider(code));
-    final queue =
-        ref.watch(offlineQueueProvider).valueOrNull ?? const <OfflineOrder>[];
+    final queue = ref.watch(offlineQueueProvider);
+
     return Scaffold(
-      appBar: AppBar(title: Text(value.valueOrNull?.code ?? 'Chi tiết đơn hàng')),
+      appBar: AppBar(
+        title: Text(code),
+        actions: [
+          IconButton(
+            tooltip: 'Tải lại',
+            onPressed: () {
+              ref.invalidate(orderDetailProvider(code));
+              ref.invalidate(offlineQueueProvider);
+            },
+            icon: const Icon(Icons.refresh),
+          ),
+        ],
+      ),
       body: AsyncBody<Order>(
         value: value,
-        onRetry: () => ref.invalidate(orderDetailProvider(code)),
-        builder: (o) {
-          final entry = queue
-              .where((e) =>
-                  e.localCode == o.offlineCode && o.offlineCode.isNotEmpty)
-              .toList();
-          return _Detail(order: o, entry: entry.isEmpty ? null : entry.first);
+        onRetry: () {
+          ref.invalidate(orderDetailProvider(code));
+          ref.invalidate(offlineQueueProvider);
+        },
+        builder: (order) {
+          final entries = queue.valueOrNull ?? const <OfflineOrder>[];
+
+          final matches = entries.where(
+            (entry) =>
+                (order.offlineCode.isNotEmpty &&
+                    entry.localCode == order.offlineCode) ||
+                (order.code.isNotEmpty &&
+                    entry.serverOrderCode == order.code) ||
+                entry.localCode == code,
+          );
+
+          return _Detail(
+            order: order,
+            entry: matches.isEmpty ? null : matches.first,
+          );
         },
       ),
     );
@@ -53,168 +79,210 @@ class SalesOrderDetailScreen extends ConsumerWidget {
 }
 
 class _Detail extends ConsumerWidget {
-  const _Detail({required this.order, required this.entry});
+  const _Detail({
+    required this.order,
+    required this.entry,
+  });
 
   final Order order;
   final OfflineOrder? entry;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final o = order;
-    final online = ref.watch(networkMonitorProvider).online;
-    final queued = entry != null && entry!.status == SyncStatus.pending;
+    final localQueued = order.isLocalQueued;
+    final hasStoredQuote = entry?.payload.localQuote != null;
+
+    final localAmount = order.localFinal ??
+        (entry?.status == SyncStatus.synced ? entry?.payload.localFinal : null);
+
+    final estimatedAt = entry?.payload.estimatedAt;
+
     return ListView(
       padding: const EdgeInsets.all(16),
-      children: <Widget>[
+      children: [
         Row(
-          children: <Widget>[
+          children: [
             Expanded(
-              child: Text(o.displayCode,
-                  style: const TextStyle(
-                      fontSize: 20, fontWeight: FontWeight.w800)),
+              child: Text(
+                order.displayCode,
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
             ),
-            OrderStatusChip(o),
+            OrderStatusChip(order),
           ],
         ),
         const SizedBox(height: 4),
-        Text('${o.retailerName} · ${o.retailerCode}',
-            style: const TextStyle(color: AppColors.textMuted)),
+        Text(
+          '${order.retailerName} · ${order.retailerCode}',
+          style: const TextStyle(color: AppColors.textMuted),
+        ),
         const SizedBox(height: 10),
-        if (o.status.isRejectedOrCancelled)
+        if (order.status.isRejectedOrCancelled)
           InfoBanner(
             tone: StatusTone.danger,
             icon: Icons.block,
             title: 'Lý do từ chối',
-            text: o.rejectReason.isEmpty
+            text: order.rejectReason.isEmpty
                 ? 'Hệ thống từ chối đơn hàng.'
-                : o.rejectReason,
+                : order.rejectReason,
           ),
-        if (o.syncStatus == SyncStatus.pending ||
-            o.syncStatus == SyncStatus.syncing)
+        if (order.syncStatus == SyncStatus.pending ||
+            order.syncStatus == SyncStatus.syncing)
           const InfoBanner(
             icon: Icons.save_alt,
-            text:
-                'Đơn đang lưu trên máy. Khi có mạng, đơn được gửi lên hệ thống; hệ thống sẽ tính lại khuyến mãi và phân bổ kho, batch. Kết quả của hệ thống là chính thức.',
+            text: 'Đơn đang lưu trên máy. Giá và khuyến mãi là bản '
+                'tạm tính lúc lưu, không phải báo giá cuối. '
+                'Backend sẽ tính lại khi nhận đơn.',
           ),
-        if (o.promoChanged) _PromoComparison(order: o),
-        if (o.hasDelivery) DeliveryInfoCard(o),
-        const SectionTitle('Sản phẩm'),
-        OrderLinesCard(o, showBatches: !o.status.isRejectedOrCancelled),
-        const SectionTitle('Khuyến mãi áp dụng'),
-        AppliedPromoCard(o.appliedPromos, emptyText: 'Không có khuyến mãi.'),
-        const SizedBox(height: 10),
-        TotalsCard(total: o.total, discount: o.discount),
+        if (localQueued && !hasStoredQuote)
+          const InfoBanner(
+            tone: StatusTone.warning,
+            text: 'Đơn cũ chỉ còn số tiền tạm tính đã lưu, không có '
+                'bản giá chi tiết từng dòng. Ứng dụng không dùng '
+                'catalog mới để thay thế giá ban đầu.',
+          ),
+        if (!localQueued && localAmount != null)
+          PriceDifferenceCard(
+            localAmount: localAmount,
+            serverAmount: order.finalAmount,
+            title: 'Đối chiếu với bản offline',
+            serverLabel: 'Giá hệ thống hiện tại',
+          ),
+        if (!localQueued && order.changeReason.isNotEmpty)
+          InfoBanner(text: order.changeReason),
+        if (order.hasDelivery) DeliveryInfoCard(order),
+        if (!localQueued || hasStoredQuote) ...[
+          const SectionTitle('Sản phẩm'),
+          OrderLinesCard(
+            order,
+            showBatches: !order.status.isRejectedOrCancelled,
+          ),
+          const SectionTitle('Khuyến mãi áp dụng'),
+          AppliedPromoCard(
+            order.appliedPromos,
+            emptyText: 'Không có khuyến mãi.',
+          ),
+          const SizedBox(height: 10),
+          if (localQueued)
+            const InfoBanner(
+              text: 'Các khoản tiền bên dưới là tạm tính đã lưu trên máy.',
+            ),
+          TotalsCard(
+            total: order.total,
+            discount: order.discount,
+          ),
+        ] else
+          AppCard(
+            child: KvRow(
+              'Số tiền tạm tính đã lưu',
+              Money.format(order.localFinal ?? order.finalAmount),
+            ),
+          ),
         const SectionTitle('Thông tin đơn'),
         AppCard(
           child: Column(
-            children: <Widget>[
-              KvRow('Thanh toán', o.payment.labelWithTerm(o.creditTerm)),
+            children: [
               KvRow(
-                  'Người tạo', o.createdByName.isEmpty ? '—' : o.createdByName),
-              KvRow('Kênh tạo', o.isOffline ? 'Offline (OFF)' : 'Online'),
-              KvRow('Đặt hàng lúc', AppDates.timeDay(o.createdAt)),
-              if (o.isOffline && o.offlineCode.isNotEmpty)
-                KvRow('Mã tạm trên máy', o.offlineCode),
-              if (o.syncedAt != null)
-                KvRow('Tới hệ thống lúc', AppDates.timeDay(o.syncedAt)),
-              if (o.syncMode.isNotEmpty) KvRow('Cách đồng bộ', o.syncMode),
+                'Thanh toán',
+                order.payment.labelWithTerm(order.creditTerm),
+              ),
+              KvRow(
+                'Người tạo',
+                order.createdByName.isEmpty ? '—' : order.createdByName,
+              ),
+              KvRow(
+                'Kênh tạo',
+                order.isOffline ? 'Offline (OFF)' : 'Online',
+              ),
+              KvRow(
+                'Đặt hàng lúc',
+                AppDates.timeDay(order.createdAt.toLocal()),
+              ),
+              if (estimatedAt != null)
+                KvRow(
+                  'Tạm tính trên máy lúc',
+                  AppDates.timeDay(estimatedAt.toLocal()),
+                ),
+              if (order.offlineCode.isNotEmpty)
+                KvRow('Mã tạm trên máy', order.offlineCode)
+              else if (entry != null)
+                KvRow('Mã tạm trên máy', entry!.localCode),
+              if (order.syncedAt != null)
+                KvRow(
+                  'Đồng bộ lúc',
+                  AppDates.timeDay(order.syncedAt!.toLocal()),
+                )
+              else if (entry?.syncedAt != null)
+                KvRow(
+                  'Đồng bộ lúc',
+                  AppDates.timeDay(entry!.syncedAt!.toLocal()),
+                ),
+              if (order.syncMode.isNotEmpty)
+                KvRow('Cách đồng bộ', order.syncMode)
+              else if (entry?.syncMode.isNotEmpty == true)
+                KvRow('Cách đồng bộ', entry!.syncMode),
             ],
           ),
         ),
-        if (o.timeline.isNotEmpty) ...<Widget>[
+        if (order.timeline.isNotEmpty) ...[
           const SectionTitle('Tiến trình'),
-          AppCard(child: TimelineList(o.timeline)),
+          AppCard(
+            child: TimelineList(order.timeline),
+          ),
         ],
         const SizedBox(height: 8),
-        if (queued && online)
-          FilledButton.icon(
-            onPressed: () =>
-                ref.read(syncServiceProvider.notifier).syncAll(manual: true),
-            icon: const Icon(Icons.sync),
-            label: const Text('Đồng bộ ngay'),
+        if (entry != null)
+          OfflineDraftActions(
+            entry: entry!,
+            onDeleted: () => context.pop(),
           ),
-        if (queued) ...<Widget>[
-          const SizedBox(height: 8),
-          OutlinedButton.icon(
-            onPressed: () => _removeFromQueue(context, ref),
-            icon: const Icon(Icons.delete_outline),
-            label: const Text('Xóa khỏi hàng đợi đồng bộ'),
-          ),
-        ],
-        if (o.syncStatus == null && o.status == OrderStatus.allocating)
+        if (order.syncStatus == null && order.status == OrderStatus.allocating)
           OutlinedButton.icon(
             onPressed: () => _cancel(context, ref),
             icon: const Icon(Icons.cancel_outlined),
-            label: const Text('Hủy đơn (đang chờ duyệt)'),
+            label: const Text('Hủy đơn'),
           ),
       ],
     );
   }
 
-  Future<void> _removeFromQueue(BuildContext context, WidgetRef ref) async {
-    final ok = await confirmDialog(
-      context,
-      title: 'Xóa đơn khỏi máy?',
-      message:
-          'Đơn ${order.offlineCode} chưa gửi lên hệ thống sẽ bị xóa và không thể khôi phục.',
-      confirmLabel: 'Xóa',
-    );
-    if (!ok) return;
-    await ref
-        .read(orderRepositoryProvider)
-        .removeFromQueue(entry!.clientRequestId);
-    ref.read(dataVersionProvider.notifier).state++;
-    if (context.mounted) context.pop();
-  }
+  Future<void> _cancel(
+    BuildContext context,
+    WidgetRef ref,
+  ) async {
+    final repository = ref.read(orderRepositoryProvider);
 
-  Future<void> _cancel(BuildContext context, WidgetRef ref) async {
-    final ok = await confirmDialog(
+    final confirmed = await confirmDialog(
       context,
       title: 'Hủy đơn ${order.code}?',
-      message: 'Hàng đang giữ cho đơn sẽ được giải phóng.',
+      message: 'Bạn muốn gửi yêu cầu hủy đơn hàng này?',
       confirmLabel: 'Hủy đơn',
       cancelLabel: 'Không',
     );
-    if (!ok) return;
-    try {
-      await ref.read(orderRepositoryProvider).cancel(order.id, order.version);
-      ref.read(dataVersionProvider.notifier).state++;
-    } on ApiException catch (e) {
-      if (context.mounted) showAppSnack(context, e.message, error: true);
+
+    if (!confirmed || !context.mounted) {
+      return;
     }
-  }
-}
 
-/// "Khuyến mãi thay đổi khi đồng bộ": local estimate vs official result.
-class _PromoComparison extends StatelessWidget {
-  const _PromoComparison({required this.order});
+    try {
+      await repository.cancel(order.id, order.version);
 
-  final Order order;
+      if (!context.mounted) {
+        return;
+      }
 
-  @override
-  Widget build(BuildContext context) {
-    final local = order.localFinal ?? order.finalAmount;
-    final official = order.finalAmount;
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: AppColors.tone(StatusTone.warning).background,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          const Text('Khuyến mãi thay đổi khi đồng bộ',
-              style: TextStyle(fontWeight: FontWeight.w800)),
-          if (order.changeReason.isNotEmpty) Text(order.changeReason),
-          const SizedBox(height: 6),
-          KvRow('Tạm tính trên máy', Money.format(local)),
-          KvRow('Chính thức (hệ thống)', Money.format(official), bold: true),
-          KvRow('Chênh lệch thành tiền', Money.format(official - local),
-              valueColor: AppColors.danger),
-        ],
-      ),
-    );
+      ref.read(dataVersionProvider.notifier).state++;
+    } on ApiException catch (error) {
+      if (context.mounted) {
+        showAppSnack(
+          context,
+          error.message,
+          error: true,
+        );
+      }
+    }
   }
 }
