@@ -15,7 +15,7 @@ class BatchAllocation {
 
   factory BatchAllocation.fromJson(Map<String, dynamic> j) => BatchAllocation(
         batchCode: asStr(j['batchCode']),
-        qty: asInt(j['qty']),
+        qty: asInt(j['quantity'] ?? j['qty']),
         expiry: asDate(j['expiry']),
         warehouseName: asStr(j['warehouseName']),
         labelCode: asStr(j['labelCode']),
@@ -51,11 +51,11 @@ class OrderLine {
 
   factory OrderLine.fromJson(Map<String, dynamic> j) => OrderLine(
         sku: asStr(j['sku']),
-        name: asStr(j['name']),
-        qty: asInt(j['qty']),
+        name: asStr(j['productName'] ?? j['name']),
+        qty: asInt(j['quantity'] ?? j['qty']),
         unitPrice: asInt(j['unitPrice']),
-        discount: asInt(j['discount']),
-        discountPct: asDouble(j['discountPct']),
+        discount: asInt(j['discountAmount'] ?? j['discount']),
+        discountPct: asDouble(j['discountPercent'] ?? j['discountPct']),
         promoId: asStr(j['promoId']),
         promoName: asStr(j['promoName']),
         batches: mapList(j['batches'], BatchAllocation.fromJson),
@@ -130,18 +130,19 @@ class Order {
 
   factory Order.fromJson(Map<String, dynamic> j) => Order(
         id: asStr(j['id']),
-        code: asStr(j['code']),
+        code: asStr(j['orderCode'] ?? j['code']),
         retailerCode: asStr(j['retailerCode']),
         retailerName: asStr(j['retailerName']),
         status: OrderStatus.fromCode(asStrOrNull(j['status'])),
         createdAt: asDate(j['createdAt']) ?? DateTime.now(),
         lines: mapList(j['lines'], OrderLine.fromJson),
-        total: asInt(j['total']),
-        discount: asInt(j['discount']),
-        createdByName: asStr(j['createdByName']),
-        payment: PaymentMethod.fromCode(asStrOrNull(j['payment'])),
-        creditTerm: asInt(j['creditTerm']),
-        rejectReason: asStr(j['rejectReason']),
+        total: asInt(j['finalAmount'] ?? j['total']),
+        discount: asInt(j['discountAmount'] ?? j['discount']),
+        createdByName: asStr(j['createdByUserName'] ?? j['createdByName']),
+        payment: PaymentMethod.fromCode(
+            asStrOrNull(j['paymentMethod'] ?? j['payment'])),
+        creditTerm: asInt(j['creditTermDays'] ?? j['creditTerm']),
+        rejectReason: asStr(j['rejectionReason'] ?? j['rejectReason']),
         isOffline: asBool(j['isOffline']),
         offlineCode: asStr(j['offlineCode']),
         syncedAt: asDate(j['syncedAt']),
@@ -341,12 +342,14 @@ class Order {
 /// Request body of `POST /orders` (online order creation).
 class NewOrderRequest {
   const NewOrderRequest({
+    this.clientOrderKey,
     required this.retailerCode,
     required this.lines,
     required this.payment,
     this.creditTerm = 0,
   });
 
+  final String? clientOrderKey;
   final String retailerCode;
   final List<CartLine> lines;
   final PaymentMethod payment;
@@ -365,7 +368,7 @@ class CartLine {
   const CartLine({required this.sku, required this.qty});
 
   factory CartLine.fromJson(Map<String, dynamic> j) =>
-      CartLine(sku: asStr(j['sku']), qty: asInt(j['qty']));
+      CartLine(sku: asStr(j['sku']), qty: asInt(j['quantity'] ?? j['qty']));
 
   final String sku;
   final int qty;

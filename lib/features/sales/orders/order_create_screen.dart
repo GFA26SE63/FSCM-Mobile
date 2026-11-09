@@ -1,3 +1,4 @@
+import 'package:uuid/uuid.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -44,6 +45,7 @@ class OrderCreateScreen extends ConsumerStatefulWidget {
 }
 
 class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
+  final Map<String, String> _attemptKeys = {};
   final Map<String, int> _cart = <String, int>{};
   String _query = '';
   bool _busy = false;
@@ -294,9 +296,17 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
     try {
       var code = '';
       var message = '';
+      final signature =
+          '${retailer.code}|${payment.code}|${lines.map((l) => '${l.sku}:${l.qty}').join(',')}';
+      final attemptKey =
+          _attemptKeys.putIfAbsent(signature, () => const Uuid().v4());
       Future<void> saveOffline(String notice) async {
         final entry = await repo.createOffline(
-            retailer: retailer, lines: lines, payment: payment);
+            retailer: retailer,
+            lines: lines,
+            payment: payment,
+            clientOrderKey: attemptKey,
+            onlineAttempt: online);
         code = entry.localCode;
         message = notice;
       }
@@ -304,6 +314,7 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
       if (online) {
         try {
           final order = await repo.createOnline(NewOrderRequest(
+            clientOrderKey: attemptKey,
             retailerCode: retailer.code,
             lines: lines,
             payment: payment,

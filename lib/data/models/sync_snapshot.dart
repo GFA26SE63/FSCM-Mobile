@@ -26,6 +26,93 @@ class SyncSnapshot {
         fullReload: asBool(j['fullReload'], true),
       );
 
+  factory SyncSnapshot.fromBackendJson(Map<String, dynamic> j) {
+    final now = asDate(j['generatedAt']) ?? DateTime.now();
+    final products = asMapList(j['products']);
+    final retailers = asMapList(j['retailers']);
+    final categories = {
+      for (final c in asMapList(j['categories']))
+        asStr(c['id']): asStr(c['name'])
+    };
+    final productById = {for (final p in products) asStr(p['id']): p};
+    final retailerById = {
+      for (final r in retailers) asStr(r['id']): asStr(r['code'])
+    };
+    final prices = <String, Map<String, dynamic>>{};
+    for (final p in asMapList(j['prices'])) {
+      final from = asDate(p['effectiveFrom']);
+      final to = asDate(p['effectiveTo']);
+      if (!asBool(p['isActive'], true) ||
+          from == null ||
+          from.isAfter(now) ||
+          (to != null && !to.isAfter(now))) {
+        continue;
+      }
+      final id = asStr(p['productId']);
+      final old = prices[id];
+      if (old == null || from.isAfter(asDate(old['effectiveFrom'])!)) {
+        prices[id] = p;
+      }
+    }
+    return SyncSnapshot(
+      serverTime: now,
+      retailers: retailers
+          .map((r) =>
+              Retailer.fromJson({...r, 'creditTerm': r['creditTermDays']}))
+          .toList(),
+      products: products
+          .map((p) => Product.fromJson({
+                ...p,
+                'pack': p['unit'],
+                'category': categories[asStr(p['categoryId'])],
+                'shelfLifeDays': (asInt(p['shelfLifeHours']) / 24).ceil(),
+                'basePrice': prices[asStr(p['id'])]?['unitPrice'] ?? 0
+              }))
+          .toList(),
+      prices: prices.entries
+          .where((p) => productById.containsKey(p.key))
+          .map((p) => PriceEntry(
+              sku: asStr(productById[p.key]!['sku']),
+              price: asInt(p.value['unitPrice'])))
+          .toList(),
+      stock: asMapList(j['indicativeStock'])
+          .where((p) => productById.containsKey(asStr(p['productId'])))
+          .map((p) => StockEntry(
+              sku: asStr(productById[asStr(p['productId'])]!['sku']),
+              available: asInt(p['indicativeAvailableQuantity'])))
+          .toList(),
+      promotions: asMapList(j['promotions'])
+          .where((p) => p['type'] == 'Campaign')
+          .map((p) {
+        final ids = asStrList(p['productIds']).toSet();
+        final categoryIds = asStrList(p['categoryIds']).toSet();
+        final targets = products.where((x) =>
+            ids.contains(asStr(x['id'])) ||
+            categoryIds.contains(asStr(x['categoryId'])));
+        final retailerIds = asStrList(p['retailerIds']);
+        return Promotion(
+            id: asStr(p['id']),
+            name: asStr(p['name']),
+            type: 1,
+            validFrom: asDate(p['startAt']),
+            validTo: asDate(p['endAt']),
+            active: asBool(p['isActive']),
+            retailerCodes: retailerIds.isEmpty
+                ? null
+                : retailerIds
+                    .map((id) => retailerById[id] ?? '')
+                    .where((code) => code.isNotEmpty)
+                    .toList(),
+            rules: targets
+                .map((x) => PromoRule(
+                    sku: asStr(x['sku']),
+                    minQty: asInt(p['minimumQuantity']),
+                    pct: asDouble(p['discountPercent'])))
+                .toList());
+      }).toList(),
+    );
+  }
+
   final DateTime serverTime;
   final List<Retailer> retailers;
   final List<Product> products;

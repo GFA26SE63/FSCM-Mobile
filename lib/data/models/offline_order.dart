@@ -20,10 +20,12 @@ class OfflineOrderPayload {
     required this.localTotal,
     required this.localDiscount,
     this.localPromoIds = const <String>[],
+    this.onlineAttempt = false,
   });
 
   factory OfflineOrderPayload.fromJson(Map<String, dynamic> j) =>
       OfflineOrderPayload(
+        onlineAttempt: asBool(j['onlineAttempt']),
         clientRequestId: asStr(j['clientRequestId']),
         offlineCode: asStr(j['offlineCode']),
         retailerCode: asStr(j['retailerCode']),
@@ -48,10 +50,12 @@ class OfflineOrderPayload {
   final int localTotal;
   final int localDiscount;
   final List<String> localPromoIds;
+  final bool onlineAttempt;
 
   int get localFinal => localTotal - localDiscount;
 
   Map<String, dynamic> toJson() => <String, dynamic>{
+        'onlineAttempt': onlineAttempt,
         'clientRequestId': clientRequestId,
         'offlineCode': offlineCode,
         'retailerCode': retailerCode,
