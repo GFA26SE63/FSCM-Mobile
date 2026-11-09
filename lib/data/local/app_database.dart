@@ -104,6 +104,13 @@ CREATE INDEX idx_queue_owner_status
 ON ${Tables.offlineOrderQueue}(owner_user_id, status, id)
 ''',
     ],
+    // v3 - persist reconciliation and explicit consent across app restarts.
+    <String>[
+      'ALTER TABLE ${Tables.offlineOrderQueue} ADD COLUMN condition_conflict TEXT',
+      'ALTER TABLE ${Tables.offlineOrderQueue} ADD COLUMN server_order_json TEXT',
+      'ALTER TABLE ${Tables.offlineOrderQueue} ADD COLUMN conditions_confirmed INTEGER NOT NULL DEFAULT 0',
+      "UPDATE ${Tables.offlineOrderQueue} SET status = 'failed' WHERE status = 'pending' AND (last_attempt_at IS NOT NULL OR retry_count > 0)",
+    ],
   ];
 
   Future<Database> get database async => _db ??= await _open();

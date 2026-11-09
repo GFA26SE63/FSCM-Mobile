@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import 'package:fscm_mobile/data/models/enums.dart';
 import 'package:fscm_mobile/data/repositories/auth_repository.dart';
 import 'package:fscm_mobile/data/repositories/order_repository.dart';
 import 'package:fscm_mobile/shared/routes.dart';
@@ -124,14 +123,14 @@ class ProfileScreen extends ConsumerWidget {
     int unsynced = 0;
     try {
       final queue = ref.read(offlineQueueProvider).valueOrNull ?? const [];
-      unsynced = queue.where((e) => e.status == SyncStatus.pending).length;
+      unsynced = queue.where((e) => e.status.isUnsent).length;
     } catch (_) {}
 
     final ok = await confirmDialog(
       context,
       title: 'Đăng xuất?',
       message: unsynced > 0
-          ? 'Còn $unsynced đơn chưa đồng bộ. Đơn vẫn được giữ trên máy và gửi khi bạn đăng nhập lại có mạng.'
+          ? 'Còn $unsynced đơn chưa gửi xong. Đơn vẫn được giữ trên máy; đăng nhập lại đúng tài khoản và bấm Gửi để tiếp tục.'
           : 'Bạn sẽ cần đăng nhập lại để tiếp tục.',
       confirmLabel: 'Đăng xuất',
     );

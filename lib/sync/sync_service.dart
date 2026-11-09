@@ -9,12 +9,13 @@ import 'package:fscm_mobile/core/utils/clock.dart';
 import 'package:fscm_mobile/data/local/local_providers.dart';
 import 'package:fscm_mobile/data/models/enums.dart';
 import 'package:fscm_mobile/data/models/offline_order.dart';
+import 'package:fscm_mobile/data/models/offline_condition_conflict.dart';
 import 'package:fscm_mobile/data/remote/orders_api.dart';
 import 'package:fscm_mobile/data/remote/sync_api.dart';
 import 'package:fscm_mobile/data/repositories/auth_repository.dart';
 import 'package:fscm_mobile/data/repositories/catalog_repository.dart';
 import 'package:fscm_mobile/data/repositories/data_version.dart';
-import 'package:fscm_mobile/sync/sync_queue_logic.dart';
+import 'package:fscm_mobile/sync/draft_submission_failure.dart';
 
 enum SyncPhase { idle, pushing, pulling }
 
@@ -146,7 +147,10 @@ class SyncService extends StateNotifier<SyncState> {
   }
 
   /// Only explicit user actions call this method.
-  Future<bool> sendDraft(String clientRequestId) async {
+  Future<bool> sendDraft(
+    String clientRequestId, {
+    OfflineConditionConflict? confirmedConditions,
+  }) async {
     if (_running || !_sessionMatches || !_isSales) {
       return false;
     }
@@ -176,6 +180,7 @@ class SyncService extends StateNotifier<SyncState> {
         clientRequestId,
         ownerId: _ownerId,
         now: AppClock.now(),
+        confirmedConditions: confirmedConditions,
       );
 
       _bump();
@@ -187,20 +192,17 @@ class SyncService extends StateNotifier<SyncState> {
         );
       }
 
-      // Existing API method is retained, but only one item is submitted.
-      final results = await api.syncOffline(
-        <OfflineOrderPayload>[sending.payload],
+      final result = await api.submitOffline(
+        sending.payload,
+        confirmConditionChanges: sending.conditionsConfirmed,
       );
 
-      if (results.length != 1 ||
-          results.single.clientRequestId != sending.clientRequestId) {
+      if (result.clientRequestId != sending.clientRequestId) {
         throw const ApiException(
           kind: ApiErrorKind.server,
           message: 'Máy chủ chưa trả kết quả hợp lệ. Có thể gửi lại.',
         );
       }
-
-      final result = results.single;
 
       if (!result.accepted) {
         throw ApiException(
@@ -226,6 +228,7 @@ class SyncService extends StateNotifier<SyncState> {
           error: '',
           syncMode: 'Sales bấm Gửi',
           finalAmount: result.finalAmount,
+          serverOrder: result.serverOrder,
           promoChanged: result.promoChanged,
           changeReason: result.changeReason,
         ),
@@ -245,22 +248,16 @@ class SyncService extends StateNotifier<SyncState> {
     } catch (error) {
       var message = ApiException.describe(error);
 
-      if (error is ApiException && error.kind == ApiErrorKind.conflict) {
-        message = '$message\n'
-            'Draft vẫn được giữ trên máy. '
-            'Không tự xác nhận thay đổi điều kiện.';
-      }
-
       final attempted = sending;
+      final failure = attempted == null
+          ? null
+          : DraftSubmissionFailure.apply(attempted, error);
+      var failureSaved = false;
 
       if (attempted != null) {
         try {
-          await queue.finishAttempt(
-            SyncQueueLogic.markFailed(
-              attempted,
-              message,
-              attempted.lastAttemptAt!,
-            ),
+          failureSaved = await queue.finishAttempt(
+            failure!,
             ownerId: _ownerId,
             attemptedAt: attempted.lastAttemptAt!,
           );
@@ -269,10 +266,29 @@ class SyncService extends StateNotifier<SyncState> {
               'Chưa lưu được kết quả gửi: '
               '${ApiException.describe(storageError)}';
         }
+      } else if (error is ApiException &&
+          error.kind == ApiErrorKind.validation) {
+        try {
+          await queue.recordPreparationFailure(
+            clientRequestId,
+            ownerId: _ownerId,
+            message: message,
+          );
+        } catch (storageError) {
+          message = '$message\n${ApiException.describe(storageError)}';
+        }
       }
 
       if (_sessionMatches) {
-        state = state.copyWith(lastError: message);
+        final waiting =
+            failureSaved && failure?.status == SyncStatus.needsConfirmation;
+        state = state.copyWith(
+          lastError: waiting ? null : message,
+          clearError: waiting,
+          lastSummary: waiting
+              ? 'Điều kiện đã thay đổi. Mở đối chiếu để xác nhận.'
+              : null,
+        );
       }
 
       return false;

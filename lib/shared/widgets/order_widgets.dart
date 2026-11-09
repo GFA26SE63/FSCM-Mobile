@@ -29,9 +29,9 @@ class OrderStatusChip extends StatelessWidget {
       );
     }
 
-    if (sync == SyncStatus.pending || sync == SyncStatus.syncing) {
+    if (sync != null && sync != SyncStatus.synced) {
       return StatusChip(
-        label: sync!.label,
+        label: sync.label,
         tone: sync.tone,
       );
     }

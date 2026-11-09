@@ -196,6 +196,9 @@ class Order {
       version: asInt(j['version']),
       isOffline: asBool(j['isOffline']) || asStr(j['source']) == 'Offline',
       offlineCode: asStr(j['offlineCode']),
+      syncStatus: j['syncStatus'] == null
+          ? null
+          : SyncStatus.fromCode(asStrOrNull(j['syncStatus'])),
       syncedAt: asDate(j['syncedAt']),
       syncMode: asStr(j['syncMode']),
       promoChanged: asBool(
@@ -375,6 +378,7 @@ class Order {
         'rejectReason': rejectReason,
         'isOffline': isOffline,
         'offlineCode': offlineCode,
+        'syncStatus': syncStatus?.code,
         'syncedAt': isoOrNull(syncedAt),
         'syncMode': syncMode,
         'promoChanged': promoChanged,

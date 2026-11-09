@@ -83,15 +83,19 @@ enum PaymentMethod {
 
 /// State of an entry in the OfflineOrderQueue table.
 enum SyncStatus {
-  pending('pending', 'Chờ đồng bộ', StatusTone.neutral),
-  syncing('syncing', 'Đang đồng bộ', StatusTone.info),
-  synced('synced', 'Đã đồng bộ', StatusTone.success),
+  pending('pending', 'Bản nháp', StatusTone.neutral),
+  syncing('syncing', 'Đang gửi', StatusTone.info),
+  needsConfirmation('needs_confirmation', 'Cần xác nhận', StatusTone.warning),
+  failed('failed', 'Gửi lỗi', StatusTone.danger),
+  synced('synced', 'Đã gửi', StatusTone.success),
   rejected('rejected', 'Bị từ chối', StatusTone.danger);
 
   const SyncStatus(this.code, this.label, this.tone);
   final String code;
   final String label;
   final StatusTone tone;
+
+  bool get isUnsent => this != SyncStatus.synced && this != SyncStatus.rejected;
 
   static SyncStatus fromCode(String? code) {
     for (final s in SyncStatus.values) {

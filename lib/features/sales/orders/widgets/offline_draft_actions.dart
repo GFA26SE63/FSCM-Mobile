@@ -9,6 +9,7 @@ import 'package:fscm_mobile/data/models/offline_order.dart';
 import 'package:fscm_mobile/data/repositories/data_version.dart';
 import 'package:fscm_mobile/data/repositories/order_repository.dart';
 import 'package:fscm_mobile/features/sales/orders/draft_edit_screen.dart';
+import 'package:fscm_mobile/features/sales/orders/widgets/offline_condition_review.dart';
 import 'package:fscm_mobile/shared/widgets/dialogs.dart';
 import 'package:fscm_mobile/sync/sync_queue_logic.dart';
 import 'package:fscm_mobile/sync/sync_service.dart';
@@ -37,8 +38,16 @@ class OfflineDraftActions extends ConsumerWidget {
         entry.status == SyncStatus.rejected;
 
     if (completed) {
-      return const SizedBox.shrink();
+      return entry.error.isEmpty
+          ? const SizedBox.shrink()
+          : Text(
+              entry.error,
+              style: TextStyle(color: Theme.of(context).colorScheme.error),
+            );
     }
+
+    final needsConfirmation = entry.status == SyncStatus.needsConfirmation;
+    final canConfirm = needsConfirmation && entry.conditionConflict != null;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -53,17 +62,21 @@ class OfflineDraftActions extends ConsumerWidget {
               ),
             ),
           ),
+        if (canConfirm)
+          OfflineConditionReview(conflict: entry.conditionConflict!),
         FilledButton.icon(
-          onPressed: !online || sync.busy || !sendable
+          onPressed: !online || sync.busy || (!sendable && !canConfirm)
               ? null
               : () => _send(context, ref),
           icon: const Icon(Icons.send_outlined),
           label: Text(
             sync.phase == SyncPhase.pushing
                 ? 'Đang gửi...'
-                : entry.lastAttemptAt == null
-                    ? 'Gửi đơn'
-                    : 'Gửi lại cùng yêu cầu',
+                : needsConfirmation
+                    ? 'Xem và xác nhận điều kiện'
+                    : entry.lastAttemptAt == null
+                        ? 'Gửi đơn'
+                        : 'Gửi lại cùng yêu cầu',
           ),
         ),
         if (!online)
@@ -123,20 +136,36 @@ class OfflineDraftActions extends ConsumerWidget {
     BuildContext context,
     WidgetRef ref,
   ) async {
-    final confirmed = await confirmDialog(
-      context,
-      title: 'Gửi ${entry.localCode}?',
-      message: 'Gửi riêng draft này lên hệ thống. '
-          'Backend sẽ kiểm tra lại giá, MLOR và phạm vi điểm bán.',
-      confirmLabel: 'Gửi',
-    );
+    final service = ref.read(syncServiceProvider.notifier);
+    final conflict = entry.status == SyncStatus.needsConfirmation
+        ? entry.conditionConflict
+        : null;
+    final confirmed = conflict != null
+        ? await showModalBottomSheet<bool>(
+              context: context,
+              isScrollControlled: true,
+              builder: (_) => OfflineConditionReviewSheet(
+                localCode: entry.localCode,
+                conflict: conflict,
+              ),
+            ) ==
+            true
+        : await confirmDialog(
+            context,
+            title: 'Gửi ${entry.localCode}?',
+            message: 'Gửi riêng draft này lên hệ thống. '
+                'Backend sẽ kiểm tra lại giá, MLOR và phạm vi điểm bán.',
+            confirmLabel: 'Gửi',
+          );
 
     if (!context.mounted || !confirmed) {
       return;
     }
 
-    final service = ref.read(syncServiceProvider.notifier);
-    final sent = await service.sendDraft(entry.clientRequestId);
+    final sent = await service.sendDraft(
+      entry.clientRequestId,
+      confirmedConditions: conflict,
+    );
 
     if (!context.mounted) {
       return;
@@ -148,8 +177,10 @@ class OfflineDraftActions extends ConsumerWidget {
       context,
       sent
           ? state.lastSummary ?? 'Đã gửi draft.'
-          : state.lastError ?? 'Chưa gửi được. Draft vẫn được giữ.',
-      error: !sent,
+          : state.lastError ??
+              state.lastSummary ??
+              'Chưa gửi được. Draft vẫn được giữ.',
+      error: !sent && state.lastError != null,
     );
   }
 

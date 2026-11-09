@@ -49,10 +49,7 @@ class SalesHomeScreen extends ConsumerWidget {
             o.status == OrderStatus.paymentPending)
         .length;
     final rejected = orders.where((o) => o.status.isRejectedOrCancelled).length;
-    final unsynced = queue
-        .where((e) =>
-            e.status == SyncStatus.pending || e.status == SyncStatus.syncing)
-        .length;
+    final unsynced = queue.where((e) => e.status.isUnsent).length;
     final overdue = debts.where((d) => d.isOverdue).toList();
     final promoCount = catalog?.runningPromotions().length ?? 0;
 

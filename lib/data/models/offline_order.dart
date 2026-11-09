@@ -4,6 +4,7 @@ import 'package:fscm_mobile/data/models/order.dart';
 import 'package:fscm_mobile/data/models/price_quote.dart';
 import 'package:fscm_mobile/core/network/api_exception.dart';
 import 'package:fscm_mobile/data/models/offline_expected_condition.dart';
+import 'package:fscm_mobile/data/models/offline_condition_conflict.dart';
 
 /// JSON element sent to `POST /orders/sync`. The UUID [clientRequestId] is
 /// the idempotency key; [offlineCode] (`OFF-{device}-{0000}`) is the
@@ -111,7 +112,7 @@ class OfflineOrderPayload {
             expectedConditions.map((item) => item.toJson()).toList(),
       };
 
-  Map<String, dynamic> toRequestJson() {
+  Map<String, dynamic> toRequestJson({bool confirmConditionChanges = false}) {
     if (!hasCompleteExpectedConditions) {
       throw const ApiException(
         kind: ApiErrorKind.validation,
@@ -127,7 +128,7 @@ class OfflineOrderPayload {
       'offlineEstimatedAmount': localFinal,
       if (snapshotVersion != null) 'snapshotVersion': snapshotVersion,
       // Commercial changes require a separate explicit confirmation flow.
-      'confirmConditionChanges': false,
+      'confirmConditionChanges': confirmConditionChanges,
       'expectedConditions':
           expectedConditions.map((item) => item.toJson()).toList(),
       'lines': lines
@@ -159,6 +160,9 @@ class OfflineOrder {
     this.finalAmount,
     this.promoChanged = false,
     this.changeReason = '',
+    this.conditionConflict,
+    this.conditionsConfirmed = false,
+    this.serverOrder,
   });
 
   /// Auto-increment primary key = creation order (tie-break for equal
@@ -177,6 +181,13 @@ class OfflineOrder {
   final int? finalAmount;
   final bool promoChanged;
   final String changeReason;
+  final OfflineConditionConflict? conditionConflict;
+
+  /// Persisted only after Sales explicitly accepts the displayed conditions.
+  final bool conditionsConfirmed;
+
+  /// Server receipt captured at submission, usable while the device is offline.
+  final Order? serverOrder;
 
   String get localCode => payload.offlineCode;
 
@@ -191,6 +202,10 @@ class OfflineOrder {
     int? finalAmount,
     bool? promoChanged,
     String? changeReason,
+    OfflineConditionConflict? conditionConflict,
+    bool clearConditionConflict = false,
+    bool? conditionsConfirmed,
+    Order? serverOrder,
   }) =>
       OfflineOrder(
         id: id,
@@ -207,6 +222,11 @@ class OfflineOrder {
         finalAmount: finalAmount ?? this.finalAmount,
         promoChanged: promoChanged ?? this.promoChanged,
         changeReason: changeReason ?? this.changeReason,
+        conditionConflict: clearConditionConflict
+            ? null
+            : conditionConflict ?? this.conditionConflict,
+        conditionsConfirmed: conditionsConfirmed ?? this.conditionsConfirmed,
+        serverOrder: serverOrder ?? this.serverOrder,
       );
 }
 
@@ -220,6 +240,7 @@ class OrderSyncResult {
     this.finalAmount,
     this.promoChanged = false,
     this.changeReason = '',
+    this.serverOrder,
   });
 
   factory OrderSyncResult.fromJson(Map<String, dynamic> j) => OrderSyncResult(
@@ -239,11 +260,25 @@ class OrderSyncResult {
   final int? finalAmount;
   final bool promoChanged;
   final String changeReason;
+  final Order? serverOrder;
 }
 
 /// Conversion of a queue row into the order model used by the UI.
 Order orderFromOffline(OfflineOrder entry) {
   final payload = entry.payload;
+  if (entry.status == SyncStatus.synced && entry.serverOrder != null) {
+    return Order.fromJson({
+      ...entry.serverOrder!.toJson(),
+      'isOffline': true,
+      'offlineCode': payload.offlineCode,
+      'syncStatus': SyncStatus.synced.code,
+      'syncedAt': entry.syncedAt?.toUtc().toIso8601String(),
+      'syncMode': entry.syncMode,
+      'localFinal': payload.localFinal,
+      'promoChanged': entry.promoChanged,
+      'changeReason': entry.changeReason,
+    });
+  }
   final quote = payload.localQuote;
 
   final lines = quote == null
@@ -265,7 +300,7 @@ Order orderFromOffline(OfflineOrder entry) {
           .toList();
 
   return Order(
-    code: '',
+    code: entry.status == SyncStatus.synced ? entry.serverOrderCode : '',
     offlineCode: payload.offlineCode,
     retailerCode: payload.retailerCode,
     retailerName: payload.retailerName,

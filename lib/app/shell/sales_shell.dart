@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import 'package:fscm_mobile/data/models/enums.dart';
 import 'package:fscm_mobile/data/models/offline_order.dart';
 import 'package:fscm_mobile/data/repositories/order_repository.dart';
 import 'package:fscm_mobile/sync/sync_service.dart';
@@ -35,10 +34,7 @@ class _SalesShellState extends ConsumerState<SalesShell> {
     ref.watch(syncServiceProvider.select((s) => s.phase));
     final queue =
         ref.watch(offlineQueueProvider).valueOrNull ?? const <OfflineOrder>[];
-    final waiting = queue
-        .where((e) =>
-            e.status == SyncStatus.pending || e.status == SyncStatus.syncing)
-        .length;
+    final waiting = queue.where((e) => e.status.isUnsent).length;
     final shell = widget.navigationShell;
     return Scaffold(
       body: shell,

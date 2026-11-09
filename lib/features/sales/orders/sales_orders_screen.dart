@@ -154,7 +154,11 @@ class SalesOrderTile extends StatelessWidget {
     final code = o.displayCode;
     return AppCard(
       onTap: () => context.push(AppRoutes.salesOrderDetail(
-          o.isOffline || o.id.isEmpty ? code : o.id)),
+          o.syncStatus != null && o.offlineCode.isNotEmpty
+              ? o.offlineCode
+              : o.isOffline || o.id.isEmpty
+                  ? code
+                  : o.id)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
@@ -169,6 +173,9 @@ class SalesOrderTile extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 2),
+          if (o.offlineCode.isNotEmpty && o.offlineCode != code)
+            Text('Mã trên máy: ${o.offlineCode}',
+                style: const TextStyle(color: AppColors.textMuted)),
           Text('${o.retailerName} · ${AppDates.timeDay(o.createdAt)}',
               style: const TextStyle(color: AppColors.textMuted)),
           const SizedBox(height: 4),
