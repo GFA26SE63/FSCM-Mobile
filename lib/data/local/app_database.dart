@@ -92,6 +92,18 @@ CREATE TABLE ${Tables.offlineOrderQueue} (
 )''',
       'CREATE INDEX idx_queue_status ON ${Tables.offlineOrderQueue}(status, id)',
     ],
+
+    // v2 - owner of locally stored order drafts.
+    <String>[
+      '''
+ALTER TABLE ${Tables.offlineOrderQueue}
+ADD COLUMN owner_user_id TEXT NOT NULL DEFAULT ''
+''',
+      '''
+CREATE INDEX idx_queue_owner_status
+ON ${Tables.offlineOrderQueue}(owner_user_id, status, id)
+''',
+    ],
   ];
 
   Future<Database> get database async => _db ??= await _open();

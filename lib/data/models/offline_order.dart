@@ -126,8 +126,8 @@ class OfflineOrderPayload {
       'paymentMethod': null,
       'offlineEstimatedAmount': localFinal,
       if (snapshotVersion != null) 'snapshotVersion': snapshotVersion,
-      // Giữ hành vi hiện tại; luồng xác nhận thay đổi xử lý ở F31.
-      'confirmConditionChanges': true,
+      // Commercial changes require a separate explicit confirmation flow.
+      'confirmConditionChanges': false,
       'expectedConditions':
           expectedConditions.map((item) => item.toJson()).toList(),
       'lines': lines

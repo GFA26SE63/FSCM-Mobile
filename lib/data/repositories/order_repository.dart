@@ -6,146 +6,241 @@ import 'package:fscm_mobile/core/config/device_identity.dart';
 import 'package:fscm_mobile/core/network/api_exception.dart';
 import 'package:fscm_mobile/core/utils/clock.dart';
 import 'package:fscm_mobile/core/utils/id_format.dart';
-import 'package:fscm_mobile/data/local/daos/inventory_snapshot_dao.dart';
 import 'package:fscm_mobile/data/local/daos/offline_order_dao.dart';
 import 'package:fscm_mobile/data/local/daos/sync_state_dao.dart';
 import 'package:fscm_mobile/data/local/local_providers.dart';
-import 'package:fscm_mobile/data/models/enums.dart';
 import 'package:fscm_mobile/data/models/delivery_shipment.dart';
+import 'package:fscm_mobile/data/models/enums.dart';
 import 'package:fscm_mobile/data/models/offline_order.dart';
 import 'package:fscm_mobile/data/models/order.dart';
+import 'package:fscm_mobile/data/models/price_quote.dart';
 import 'package:fscm_mobile/data/models/retailer.dart';
+import 'package:fscm_mobile/data/models/sync_snapshot.dart';
+import 'package:fscm_mobile/data/pricing/offline_condition_builder.dart';
+import 'package:fscm_mobile/data/pricing/order_limits.dart';
 import 'package:fscm_mobile/data/remote/orders_api.dart';
 import 'package:fscm_mobile/data/repositories/auth_repository.dart';
 import 'package:fscm_mobile/data/repositories/data_version.dart';
-import 'package:fscm_mobile/data/models/price_quote.dart';
-import 'package:fscm_mobile/data/models/sync_snapshot.dart';
-import 'package:fscm_mobile/data/pricing/offline_condition_builder.dart';
 
-/// Orders for the list screens plus whether the server was unreachable.
 class OrderListResult {
-  const OrderListResult({required this.orders, this.offlineOnly = false});
+  const OrderListResult({
+    required this.orders,
+    this.offlineOnly = false,
+  });
 
   final List<Order> orders;
-
-  /// True when the server could not be reached: only orders stored on this
-  /// device (offline queue) are shown.
   final bool offlineOnly;
 }
 
 final orderRepositoryProvider = Provider<OrderRepository>((ref) {
+  final user = ref.watch(currentUserProvider);
+  final ownerId = user?.id ?? '';
+
   return OrderRepository(
     api: ref.watch(ordersApiProvider),
     queue: ref.watch(offlineOrderDaoProvider),
-    inventory: ref.watch(inventorySnapshotDaoProvider),
     syncState: ref.watch(syncStateDaoProvider),
     device: ref.watch(deviceIdentityProvider),
+    ownerId: ownerId,
+    isSales: user?.role == UserRole.sales,
+    isCurrentUser: () => ref.read(currentUserProvider)?.id == ownerId,
   );
 });
 
-/// Orders of the signed-in user (Sales: area/group, Retailer: own).
 final ordersProvider = FutureProvider.autoDispose<OrderListResult>((ref) async {
   ref.watch(dataVersionProvider);
+
   final user = ref.watch(currentUserProvider);
-  if (user == null) return const OrderListResult(orders: <Order>[]);
-  return ref
-      .watch(orderRepositoryProvider)
-      .listOrders(includeQueue: user.role == UserRole.sales);
+  if (user == null) {
+    return const OrderListResult(orders: <Order>[]);
+  }
+
+  return ref.watch(orderRepositoryProvider).listOrders(
+        includeQueue: user.role == UserRole.sales,
+      );
 });
 
-/// One order by code; offline codes (`OFF-...`) are resolved from the queue.
 final orderDetailProvider =
     FutureProvider.autoDispose.family<Order, String>((ref, code) async {
   ref.watch(dataVersionProvider);
+  ref.watch(currentUserProvider);
+
   return ref.watch(orderRepositoryProvider).getOrder(code);
 });
 
 final deliveryShipmentsProvider = FutureProvider.autoDispose
     .family<List<DeliveryShipment>, String>((ref, orderId) async {
   ref.watch(dataVersionProvider);
+  ref.watch(currentUserProvider);
+
   return ref.watch(orderRepositoryProvider).deliveryShipments(orderId);
 });
 
-/// Entire offline queue (newest first) for the sync screen and badges.
 final offlineQueueProvider =
     FutureProvider.autoDispose<List<OfflineOrder>>((ref) async {
   ref.watch(dataVersionProvider);
-  return ref.watch(offlineOrderDaoProvider).all();
+
+  final user = ref.watch(currentUserProvider);
+  if (user == null || user.role != UserRole.sales) {
+    return const <OfflineOrder>[];
+  }
+
+  return ref.watch(offlineOrderDaoProvider).all(ownerId: user.id);
 });
 
 class OrderRepository {
   OrderRepository({
     required OrdersApi api,
     required OfflineOrderDao queue,
-    required InventorySnapshotDao inventory,
     required SyncStateDao syncState,
     required DeviceIdentity device,
+    required String ownerId,
+    required bool isSales,
+    required bool Function() isCurrentUser,
   })  : _api = api,
         _queue = queue,
-        _inventory = inventory,
         _syncState = syncState,
-        _device = device;
+        _device = device,
+        _ownerId = ownerId,
+        _isSales = isSales,
+        _isCurrentUser = isCurrentUser;
 
   final OrdersApi _api;
   final OfflineOrderDao _queue;
-  final InventorySnapshotDao _inventory;
   final SyncStateDao _syncState;
   final DeviceIdentity _device;
+  final String _ownerId;
+  final bool _isSales;
+  final bool Function() _isCurrentUser;
 
-  // ------------------------------------------------------------------ read
+  void _requireSession({bool salesOnly = false}) {
+    if (_ownerId.isEmpty || !_isCurrentUser()) {
+      throw const ApiException(
+        kind: ApiErrorKind.unauthorized,
+        message: 'Phiên đăng nhập đã thay đổi. Vui lòng mở lại màn hình.',
+      );
+    }
 
-  Future<OrderListResult> listOrders({bool includeQueue = false}) async {
+    if (salesOnly && !_isSales) {
+      throw const ApiException(
+        kind: ApiErrorKind.forbidden,
+        message: 'Chỉ Sales được quản lý draft offline.',
+      );
+    }
+  }
+
+  Future<OrderListResult> listOrders({
+    bool includeQueue = false,
+  }) async {
+    _requireSession();
+
     var remote = <Order>[];
     var offlineOnly = false;
+
     try {
       remote = await _api.list(size: 100);
-    } on ApiException catch (e) {
-      if (!e.isNetwork) rethrow;
+    } on ApiException catch (error) {
+      if (!error.isNetwork) {
+        rethrow;
+      }
+
       offlineOnly = true;
     }
-    if (!includeQueue) {
-      return OrderListResult(orders: remote, offlineOnly: offlineOnly);
+
+    _requireSession();
+
+    if (!includeQueue || !_isSales) {
+      return OrderListResult(
+        orders: remote,
+        offlineOnly: offlineOnly,
+      );
     }
 
-    final entries = await _queue.all();
-    final remoteOffline =
-        remote.map((o) => o.offlineCode).where((c) => c.isNotEmpty).toSet();
+    final entries = await _queue.all(ownerId: _ownerId);
+    _requireSession(salesOnly: true);
+
+    final remoteOffline = remote
+        .map((order) => order.offlineCode)
+        .where((code) => code.isNotEmpty)
+        .toSet();
+
     final local = entries
-        .where((e) => !remoteOffline.contains(e.localCode))
-        .where((e) => offlineOnly || e.status != SyncStatus.synced)
+        .where((entry) => !remoteOffline.contains(entry.localCode))
+        .where(
+          (entry) => offlineOnly || entry.status != SyncStatus.synced,
+        )
         .map(orderFromOffline)
         .toList();
+
     final merged = <Order>[...local, ...remote]
       ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
-    return OrderListResult(orders: merged, offlineOnly: offlineOnly);
+
+    return OrderListResult(
+      orders: merged,
+      offlineOnly: offlineOnly,
+    );
   }
 
   Future<Order> getOrder(String code) async {
+    _requireSession();
+
     if (IdFormat.isOfflineOrder(code)) {
-      final entry = await _queue.byLocalCode(code);
-      if (entry == null) throw const ApiException.notFoundLocal();
+      _requireSession(salesOnly: true);
+
+      final entry = await _queue.byLocalCode(
+        code,
+        ownerId: _ownerId,
+      );
+
+      _requireSession(salesOnly: true);
+
+      if (entry == null) {
+        throw const ApiException.notFoundLocal();
+      }
+
       if (entry.status == SyncStatus.synced &&
           entry.serverOrderCode.isNotEmpty) {
         return getOrder(entry.serverOrderCode);
       }
+
       return orderFromOffline(entry);
     }
-    return _api.get(code);
+
+    final result = await _api.get(code);
+    _requireSession();
+
+    return result;
   }
 
-  // ---------------------------------------------------------------- create
+  Future<Order> createOnline(NewOrderRequest request) {
+    _requireSession();
+    return _api.create(request);
+  }
 
-  Future<Order> createOnline(NewOrderRequest request) => _api.create(request);
-
-  /// Stores an order locally (no network). It keeps `OFF-{device}-{0000}`
-  /// and a UUID idempotency key until the sync service pushes it.
-  Future<OfflineOrder> createOffline({
-    required Retailer retailer,
+  void _validateEstimate({
     required List<CartLine> lines,
     required PriceQuote estimate,
-    required DateTime estimatedAt,
-    required SyncSnapshot? snapshot,
-  }) async {
+  }) {
+    if (lines.isEmpty ||
+        lines.any(
+          (line) =>
+              line.productId.isEmpty ||
+              line.qty <= 0 ||
+              line.qty % OrderLimits.step != 0,
+        )) {
+      throw const ApiException(
+        kind: ApiErrorKind.validation,
+        message: 'Giỏ hàng cần có sản phẩm và số lượng đúng bước đặt hàng.',
+      );
+    }
+
+    if (lines.map((line) => line.productId).toSet().length != lines.length) {
+      throw const ApiException(
+        kind: ApiErrorKind.validation,
+        message: 'Mỗi sản phẩm chỉ được có một dòng trong draft.',
+      );
+    }
+
     if (!estimate.isComplete || estimate.lines.isEmpty) {
       throw const ApiException(
         kind: ApiErrorKind.validation,
@@ -153,14 +248,9 @@ class OrderRepository {
       );
     }
 
-    final requested = <String, int>{};
-    for (final line in lines) {
-      requested.update(
-        line.sku,
-        (quantity) => quantity + line.qty,
-        ifAbsent: () => line.qty,
-      );
-    }
+    final requested = <String, int>{
+      for (final line in lines) line.sku: line.qty,
+    };
 
     if (estimate.lines.length != requested.length ||
         estimate.lines.any(
@@ -171,6 +261,17 @@ class OrderRepository {
         message: 'Giỏ hàng đã thay đổi. Vui lòng kiểm tra giá lại.',
       );
     }
+  }
+
+  Future<OfflineOrder> createOffline({
+    required Retailer retailer,
+    required List<CartLine> lines,
+    required PriceQuote estimate,
+    required DateTime estimatedAt,
+    required SyncSnapshot? snapshot,
+  }) async {
+    _requireSession(salesOnly: true);
+    _validateEstimate(lines: lines, estimate: estimate);
 
     if (snapshot == null) {
       throw const ApiException(
@@ -179,18 +280,23 @@ class OrderRepository {
       );
     }
 
-    final expectedConditions = OfflineConditionBuilder.capture(
+    final conditions = OfflineConditionBuilder.capture(
       snapshot: snapshot,
       retailerId: retailer.id,
       lines: lines,
       at: estimatedAt,
     );
-    final seq = await _syncState.nextOfflineSeq();
-    final now = AppClock.now();
 
+    final sequence = await _syncState.nextOfflineSeq();
+    _requireSession(salesOnly: true);
+
+    final now = AppClock.now();
     final payload = OfflineOrderPayload(
       clientRequestId: const Uuid().v4(),
-      offlineCode: IdFormat.offlineOrder(_device.deviceCode, seq),
+      offlineCode: IdFormat.offlineOrder(
+        _device.deviceCode,
+        sequence,
+      ),
       retailerId: retailer.id,
       retailerCode: retailer.code,
       retailerName: retailer.name,
@@ -199,11 +305,11 @@ class OrderRepository {
       lines: List<CartLine>.unmodifiable(lines),
       localTotal: estimate.total,
       localDiscount: estimate.discount,
-      localPromoIds: estimate.applied.map((promo) => promo.id).toList(),
+      localPromoIds: estimate.applied.map((promotion) => promotion.id).toList(),
       localQuote: estimate,
       estimatedAt: estimatedAt,
       snapshotVersion: snapshot.version,
-      expectedConditions: expectedConditions,
+      expectedConditions: conditions,
     );
 
     final entry = OfflineOrder(
@@ -213,32 +319,84 @@ class OrderRepository {
       createdAt: now,
     );
 
-    await _queue.insert(entry);
-
-    // Giữ phần bookkeeping hiện có.
-    for (final line in lines) {
-      await _inventory.deduct(line.sku, line.qty);
-    }
-
+    await _queue.insert(entry, ownerId: _ownerId);
     return entry;
   }
 
-  // --------------------------------------------------------------- actions
+  Future<void> editOffline({
+    required OfflineOrder original,
+    required List<CartLine> lines,
+    required PriceQuote estimate,
+    required DateTime estimatedAt,
+    required SyncSnapshot snapshot,
+  }) async {
+    _requireSession(salesOnly: true);
+    _validateEstimate(lines: lines, estimate: estimate);
 
-  Future<Order> cancel(String orderId, int expectedVersion) =>
-      _api.cancel(orderId, expectedVersion);
+    final previous = original.payload;
+    final conditions = OfflineConditionBuilder.capture(
+      snapshot: snapshot,
+      retailerId: previous.retailerId,
+      lines: lines,
+      at: estimatedAt,
+    );
 
-  /// "Xóa khỏi hàng đợi đồng bộ": only for orders not sent yet.
-  Future<void> removeFromQueue(String clientRequestId) =>
-      _queue.delete(clientRequestId);
+    final replacement = OfflineOrderPayload(
+      clientRequestId: previous.clientRequestId,
+      offlineCode: previous.offlineCode,
+      retailerId: previous.retailerId,
+      retailerCode: previous.retailerCode,
+      retailerName: previous.retailerName,
+      createdAt: previous.createdAt,
+      payment: previous.payment,
+      creditTerm: previous.creditTerm,
+      lines: List<CartLine>.unmodifiable(lines),
+      localTotal: estimate.total,
+      localDiscount: estimate.discount,
+      localPromoIds: estimate.applied.map((promotion) => promotion.id).toList(),
+      localQuote: estimate,
+      estimatedAt: estimatedAt,
+      snapshotVersion: snapshot.version,
+      expectedConditions: conditions,
+    );
 
-  Future<List<DeliveryShipment>> deliveryShipments(String orderId) =>
-      _api.deliveryShipments(orderId);
+    await _queue.replaceDraft(
+      ownerId: _ownerId,
+      original: original,
+      replacement: replacement,
+    );
+  }
+
+  Future<void> removeFromQueue(String clientRequestId) {
+    _requireSession(salesOnly: true);
+
+    return _queue.deleteDraft(
+      clientRequestId,
+      ownerId: _ownerId,
+    );
+  }
+
+  Future<Order> cancel(String orderId, int expectedVersion) {
+    _requireSession();
+    return _api.cancel(orderId, expectedVersion);
+  }
+
+  Future<List<DeliveryShipment>> deliveryShipments(String orderId) {
+    _requireSession();
+    return _api.deliveryShipments(orderId);
+  }
 
   Future<Order> confirmShipmentReceipt(
     String orderId,
     DeliveryShipment shipment, {
     required List<String> labelCodes,
-  }) =>
-      _api.confirmShipmentReceipt(orderId, shipment, labelCodes: labelCodes);
+  }) {
+    _requireSession();
+
+    return _api.confirmShipmentReceipt(
+      orderId,
+      shipment,
+      labelCodes: labelCodes,
+    );
+  }
 }
