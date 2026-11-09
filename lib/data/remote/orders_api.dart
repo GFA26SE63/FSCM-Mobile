@@ -9,6 +9,7 @@ import 'package:fscm_mobile/data/models/offline_order.dart';
 import 'package:fscm_mobile/data/models/order.dart';
 import 'package:uuid/uuid.dart';
 import 'package:fscm_mobile/data/models/order_availability.dart';
+import 'package:fscm_mobile/data/models/order_page.dart';
 
 final ordersApiProvider =
     Provider<OrdersApi>((ref) => OrdersApi(ref.watch(apiClientProvider)));
@@ -17,6 +18,16 @@ class OrdersApi {
   OrdersApi(this._client);
 
   final ApiClient _client;
+
+  Future<OrderPage> listPage(
+      {int page = 1, int pageSize = 20, String? search}) async {
+    final data = await _client.get(Endpoints.orders, query: {
+      'page': page,
+      'pageSize': pageSize,
+      if (search != null && search.trim().isNotEmpty) 'search': search.trim(),
+    });
+    return OrderPage.fromJson(asMap(data));
+  }
 
   /// Sales: own + group orders. Retailer: own orders (scoped by the token).
   Future<List<Order>> list({
