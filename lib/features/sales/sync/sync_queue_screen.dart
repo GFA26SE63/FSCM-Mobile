@@ -8,6 +8,8 @@ import 'package:fscm_mobile/data/models/enums.dart';
 import 'package:fscm_mobile/data/models/offline_order.dart';
 import 'package:fscm_mobile/data/repositories/order_repository.dart';
 import 'package:fscm_mobile/features/sales/orders/widgets/offline_draft_actions.dart';
+import 'package:fscm_mobile/features/sales/orders/widgets/price_difference_card.dart';
+import 'package:fscm_mobile/shared/widgets/status_chip.dart';
 import 'package:fscm_mobile/shared/routes.dart';
 import 'package:fscm_mobile/shared/widgets/app_card.dart';
 import 'package:fscm_mobile/shared/widgets/async_body.dart';
@@ -41,7 +43,7 @@ class SyncQueueScreen extends ConsumerWidget {
           bottom: TabBar(
             isScrollable: true,
             tabs: [
-              Tab(text: 'Chưa gửi (${counts['todo']})'),
+              Tab(text: 'Cần xử lý (${counts['todo']})'),
               Tab(text: 'Đang gửi (${counts['doing']})'),
               Tab(text: 'Kết quả (${counts['done']})'),
             ],
@@ -92,7 +94,10 @@ class SyncQueueScreen extends ConsumerWidget {
                     _DraftList(
                       entries: list
                           .where(
-                            (entry) => entry.status == SyncStatus.pending,
+                            (entry) =>
+                                entry.status == SyncStatus.pending ||
+                                entry.status == SyncStatus.failed ||
+                                entry.status == SyncStatus.needsConfirmation,
                           )
                           .toList(),
                     ),
@@ -153,19 +158,6 @@ class _DraftCard extends StatelessWidget {
 
   final OfflineOrder entry;
 
-  String get _status {
-    switch (entry.status) {
-      case SyncStatus.pending:
-        return entry.error.isEmpty ? 'Bản nháp' : 'Chưa gửi được';
-      case SyncStatus.syncing:
-        return 'Đang gửi / chờ kết quả';
-      case SyncStatus.synced:
-        return 'Đã gửi';
-      case SyncStatus.rejected:
-        return 'Kết quả từ chối cũ';
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final payload = entry.payload;
@@ -178,7 +170,11 @@ class _DraftCard extends StatelessWidget {
             entry.localCode,
             style: const TextStyle(fontWeight: FontWeight.w800),
           ),
-          Text(_status),
+          Align(
+            alignment: Alignment.centerLeft,
+            child:
+                StatusChip(label: entry.status.label, tone: entry.status.tone),
+          ),
           const SizedBox(height: 6),
           Text('${payload.retailerName} · ${payload.retailerCode}'),
           Text(
@@ -190,13 +186,17 @@ class _DraftCard extends StatelessWidget {
           ),
           if (entry.serverOrderCode.isNotEmpty)
             Text('Mã server: ${entry.serverOrderCode}'),
+          if (entry.status == SyncStatus.synced && entry.finalAmount != null)
+            PriceDifferenceCard(
+              localAmount: payload.localFinal,
+              serverAmount: entry.finalAmount!,
+              title: 'Kết quả lúc gửi',
+              serverLabel: 'Máy chủ đã trả về',
+            ),
           TextButton(
             onPressed: () => context.push(
               AppRoutes.salesOrderDetail(
-                entry.status == SyncStatus.synced &&
-                        entry.serverOrderCode.isNotEmpty
-                    ? entry.serverOrderCode
-                    : entry.localCode,
+                entry.localCode,
               ),
             ),
             child: const Text('Xem chi tiết'),

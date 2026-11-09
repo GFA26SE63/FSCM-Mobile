@@ -104,22 +104,34 @@ class OrdersApi {
         );
         continue;
       }
-      final data = await _client.post(Endpoints.ordersSync,
-          body: payload.toRequestJson());
-      final order = Order.fromJson(asMap(data));
-      results.add(OrderSyncResult(
-        clientRequestId: payload.clientRequestId,
-        accepted: true,
-        orderCode: order.code,
-        finalAmount: order.finalAmount,
-        promoChanged: order.finalAmount != payload.localFinal,
-        changeReason: order.finalAmount == payload.localFinal
-            ? ''
-            : 'Giá dự kiến được backend tính lại khi nhận đơn. '
-                'Giá sau giảm HSD được xác định khi phân bổ.',
-      ));
+      results.add(await submitOffline(payload));
     }
     return results;
+  }
+
+  Future<OrderSyncResult> submitOffline(
+    OfflineOrderPayload payload, {
+    bool confirmConditionChanges = false,
+  }) async {
+    final data = await _client.post(
+      Endpoints.ordersSync,
+      body: payload.toRequestJson(
+        confirmConditionChanges: confirmConditionChanges,
+      ),
+    );
+    final order = Order.fromJson(asMap(data));
+    return OrderSyncResult(
+      serverOrder: order,
+      clientRequestId: payload.clientRequestId,
+      accepted: true,
+      orderCode: order.code,
+      finalAmount: order.finalAmount,
+      promoChanged: order.finalAmount != payload.localFinal,
+      changeReason: order.finalAmount == payload.localFinal
+          ? ''
+          : 'Giá dự kiến được backend tính lại khi nhận đơn. '
+              'Giá sau giảm HSD được xác định khi phân bổ.',
+    );
   }
 
   Future<List<DeliveryShipment>> deliveryShipments(String orderId) async {

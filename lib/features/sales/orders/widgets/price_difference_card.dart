@@ -13,8 +13,8 @@ class PriceDifferenceCard extends StatelessWidget {
     this.serverLabel = 'Dự kiến từ máy chủ',
   });
 
-  final int localAmount;
-  final int serverAmount;
+  final num localAmount;
+  final num serverAmount;
   final String title;
   final String serverLabel;
 

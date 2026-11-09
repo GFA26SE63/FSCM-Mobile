@@ -8,6 +8,8 @@ import 'package:fscm_mobile/data/local/app_database.dart';
 import 'package:fscm_mobile/data/models/enums.dart';
 import 'package:fscm_mobile/data/models/json_utils.dart';
 import 'package:fscm_mobile/data/models/offline_order.dart';
+import 'package:fscm_mobile/data/models/offline_condition_conflict.dart';
+import 'package:fscm_mobile/data/models/order.dart';
 import 'package:fscm_mobile/sync/sync_queue_logic.dart';
 
 class OfflineOrderDao {
@@ -53,6 +55,13 @@ class OfflineOrderDao {
         'final_amount': order.finalAmount,
         'promo_changed': order.promoChanged ? 1 : 0,
         'change_reason': order.changeReason,
+        'condition_conflict': order.conditionConflict == null
+            ? null
+            : jsonEncode(order.conditionConflict!.toJson()),
+        'conditions_confirmed': order.conditionsConfirmed ? 1 : 0,
+        'server_order_json': order.serverOrder == null
+            ? null
+            : jsonEncode(order.serverOrder!.toJson()),
       },
       conflictAlgorithm: ConflictAlgorithm.abort,
     );
@@ -161,6 +170,7 @@ class OfflineOrderDao {
         Tables.offlineOrderQueue,
         <String, Object?>{
           'payload': jsonEncode(replacement.toJson()),
+          'status': SyncStatus.pending.code,
           'error': '',
         },
         where: 'owner_user_id = ? AND client_request_id = ?',
@@ -207,6 +217,7 @@ class OfflineOrderDao {
     String clientRequestId, {
     required String ownerId,
     required DateTime now,
+    OfflineConditionConflict? confirmedConditions,
   }) async {
     _requireOwner(ownerId);
 
@@ -219,7 +230,20 @@ class OfflineOrderDao {
         throw const ApiException.notFoundLocal();
       }
 
-      if (!SyncQueueLogic.canSend(current, now)) {
+      final confirming = confirmedConditions != null;
+      if (confirmedConditions != null) {
+        final stored = current.conditionConflict;
+        if (current.status != SyncStatus.needsConfirmation ||
+            stored == null ||
+            !stored.sameAs(confirmedConditions) ||
+            !SyncQueueLogic.matchesConflict(current.payload, stored)) {
+          throw const ApiException(
+            kind: ApiErrorKind.conflict,
+            message:
+                'Điều kiện cần xác nhận đã thay đổi. Hãy mở lại đối chiếu.',
+          );
+        }
+      } else if (!SyncQueueLogic.canSend(current, now)) {
         throw const ApiException(
           kind: ApiErrorKind.conflict,
           message: 'Draft đang gửi hoặc đã có kết quả. Hãy tải lại.',
@@ -234,6 +258,7 @@ class OfflineOrderDao {
         lastAttemptAt: now,
         error: '',
         syncMode: 'Sales bấm Gửi',
+        conditionsConfirmed: confirming || current.conditionsConfirmed,
       );
 
       await txn.update(
@@ -243,6 +268,7 @@ class OfflineOrderDao {
           'last_attempt_at': _stamp(now),
           'error': '',
           'sync_mode': sending.syncMode,
+          'conditions_confirmed': sending.conditionsConfirmed ? 1 : 0,
         },
         where: 'owner_user_id = ? AND client_request_id = ?',
         whereArgs: <Object?>[ownerId, clientRequestId],
@@ -250,6 +276,28 @@ class OfflineOrderDao {
 
       return sending;
     });
+  }
+
+  /// Client validation failed before a network attempt started.
+  Future<void> recordPreparationFailure(
+    String clientRequestId, {
+    required String ownerId,
+    required String message,
+  }) async {
+    _requireOwner(ownerId);
+    final db = await _appDb.database;
+    await db.update(
+      Tables.offlineOrderQueue,
+      {'status': SyncStatus.failed.code, 'error': message},
+      where: 'owner_user_id = ? AND client_request_id = ? '
+          'AND status IN (?, ?) AND last_attempt_at IS NULL',
+      whereArgs: [
+        ownerId,
+        clientRequestId,
+        SyncStatus.pending.code,
+        SyncStatus.failed.code
+      ],
+    );
   }
 
   /// A late response from an older attempt cannot overwrite a newer attempt.
@@ -273,6 +321,13 @@ class OfflineOrderDao {
         'final_amount': result.finalAmount,
         'promo_changed': result.promoChanged ? 1 : 0,
         'change_reason': result.changeReason,
+        'condition_conflict': result.conditionConflict == null
+            ? null
+            : jsonEncode(result.conditionConflict!.toJson()),
+        'conditions_confirmed': result.conditionsConfirmed ? 1 : 0,
+        'server_order_json': result.serverOrder == null
+            ? null
+            : jsonEncode(result.serverOrder!.toJson()),
       },
       where: '''
 owner_user_id = ?
@@ -333,6 +388,15 @@ AND last_attempt_at = ?
       finalAmount: (row['final_amount'] as num?)?.toInt(),
       promoChanged: (row['promo_changed'] as num?)?.toInt() == 1,
       changeReason: row['change_reason'] as String? ?? '',
+      conditionConflict: row['condition_conflict'] is String
+          ? OfflineConditionConflict.tryParse(
+              jsonDecode(row['condition_conflict']! as String))
+          : null,
+      conditionsConfirmed: (row['conditions_confirmed'] as num?)?.toInt() == 1,
+      serverOrder: row['server_order_json'] is String
+          ? Order.fromJson(
+              asMap(jsonDecode(row['server_order_json']! as String)))
+          : null,
     );
   }
 }

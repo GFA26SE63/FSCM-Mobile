@@ -120,6 +120,11 @@ class _Detail extends ConsumerWidget {
           style: const TextStyle(color: AppColors.textMuted),
         ),
         const SizedBox(height: 10),
+        if (order.syncStatus == SyncStatus.synced && entry?.serverOrder != null)
+          const InfoBanner(
+            text: 'Đang xem kết quả đã lưu lúc gửi. '
+                'Tải lại khi có mạng để cập nhật tiến trình đơn.',
+          ),
         if (order.status.isRejectedOrCancelled)
           InfoBanner(
             tone: StatusTone.danger,
@@ -129,8 +134,7 @@ class _Detail extends ConsumerWidget {
                 ? 'Hệ thống từ chối đơn hàng.'
                 : order.rejectReason,
           ),
-        if (order.syncStatus == SyncStatus.pending ||
-            order.syncStatus == SyncStatus.syncing)
+        if (order.syncStatus?.isUnsent == true)
           const InfoBanner(
             icon: Icons.save_alt,
             text: 'Đơn đang lưu trên máy. Giá và khuyến mãi là bản '
@@ -150,6 +154,13 @@ class _Detail extends ConsumerWidget {
             serverAmount: order.finalAmount,
             title: 'Đối chiếu với bản offline',
             serverLabel: 'Giá hệ thống hiện tại',
+          ),
+        if (entry?.status == SyncStatus.synced && entry?.finalAmount != null)
+          PriceDifferenceCard(
+            localAmount: entry!.payload.localFinal,
+            serverAmount: entry!.finalAmount!,
+            title: 'Đối chiếu tại thời điểm gửi',
+            serverLabel: 'Kết quả server lúc gửi',
           ),
         if (!localQueued && order.changeReason.isNotEmpty)
           InfoBanner(text: order.changeReason),
@@ -189,6 +200,7 @@ class _Detail extends ConsumerWidget {
                 'Thanh toán',
                 order.payment.labelWithTerm(order.creditTerm),
               ),
+              if (entry != null) KvRow('Trạng thái gửi', entry!.status.label),
               KvRow(
                 'Người tạo',
                 order.createdByName.isEmpty ? '—' : order.createdByName,
@@ -210,6 +222,10 @@ class _Detail extends ConsumerWidget {
                 KvRow('Mã tạm trên máy', order.offlineCode)
               else if (entry != null)
                 KvRow('Mã tạm trên máy', entry!.localCode),
+              if (entry?.serverOrderCode.isNotEmpty == true)
+                KvRow('Mã đơn server', entry!.serverOrderCode)
+              else if (order.code.isNotEmpty)
+                KvRow('Mã đơn server', order.code),
               if (order.syncedAt != null)
                 KvRow(
                   'Đồng bộ lúc',

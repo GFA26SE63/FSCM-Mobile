@@ -166,8 +166,13 @@ class OrderRepository {
 
     final local = entries
         .where((entry) => !remoteOffline.contains(entry.localCode))
+        .where((entry) => !remote.any((order) =>
+            order.code.isNotEmpty && order.code == entry.serverOrderCode))
         .where(
-          (entry) => offlineOnly || entry.status != SyncStatus.synced,
+          (entry) =>
+              offlineOnly ||
+              entry.status != SyncStatus.synced ||
+              entry.serverOrder != null,
         )
         .map(orderFromOffline)
         .toList();
@@ -200,7 +205,15 @@ class OrderRepository {
 
       if (entry.status == SyncStatus.synced &&
           entry.serverOrderCode.isNotEmpty) {
-        return getOrder(entry.serverOrderCode);
+        try {
+          return await getOrder(entry.serverOrderCode);
+        } on ApiException catch (error) {
+          if (!error.isNetwork || entry.serverOrder == null) {
+            rethrow;
+          }
+          _requireSession(salesOnly: true);
+          return orderFromOffline(entry);
+        }
       }
 
       return orderFromOffline(entry);

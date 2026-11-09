@@ -1,5 +1,6 @@
 import 'package:fscm_mobile/data/models/enums.dart';
 import 'package:fscm_mobile/data/models/offline_order.dart';
+import 'package:fscm_mobile/data/models/offline_condition_conflict.dart';
 
 class SyncQueueLogic {
   SyncQueueLogic._();
@@ -9,12 +10,14 @@ class SyncQueueLogic {
   static const Duration interruptedSendDelay = Duration(minutes: 2);
 
   static bool canEdit(OfflineOrder entry) =>
-      entry.status == SyncStatus.pending &&
+      (entry.status == SyncStatus.pending ||
+          entry.status == SyncStatus.failed) &&
       entry.lastAttemptAt == null &&
       entry.retryCount == 0;
 
   static bool canSend(OfflineOrder entry, DateTime now) {
-    if (entry.status == SyncStatus.pending) {
+    if (entry.status == SyncStatus.pending ||
+        entry.status == SyncStatus.failed) {
       return true;
     }
 
@@ -50,7 +53,7 @@ class SyncQueueLogic {
     DateTime now,
   ) =>
       entry.copyWith(
-        status: SyncStatus.pending,
+        status: SyncStatus.failed,
         retryCount: entry.retryCount + 1,
         error: error,
         lastAttemptAt: now,
@@ -66,6 +69,8 @@ class SyncQueueLogic {
     for (final entry in entries) {
       switch (entry.status) {
         case SyncStatus.pending:
+        case SyncStatus.failed:
+        case SyncStatus.needsConfirmation:
           todo++;
         case SyncStatus.syncing:
           doing++;
@@ -80,5 +85,34 @@ class SyncQueueLogic {
       'doing': doing,
       'done': done,
     };
+  }
+
+  /// A generic 409 or a conflict belonging to a different draft is not consentable.
+  static bool matchesConflict(
+    OfflineOrderPayload payload,
+    OfflineConditionConflict conflict,
+  ) {
+    if (payload.clientRequestId.toLowerCase() !=
+            conflict.clientOrderKey.toLowerCase() ||
+        payload.snapshotVersion != conflict.snapshotVersion ||
+        payload.localFinal != conflict.offlineEstimatedAmount ||
+        !payload.hasCompleteExpectedConditions) {
+      return false;
+    }
+    for (final line in conflict.changedLines) {
+      final expected = payload.expectedConditions.where(
+        (item) => item.productId.toLowerCase() == line.productId.toLowerCase(),
+      );
+      if (expected.length != 1) {
+        return false;
+      }
+      final item = expected.single;
+      if (item.expectedBaseUnitPrice != line.expectedBaseUnitPrice ||
+          item.expectedMlorVersion != line.expectedMlorVersion ||
+          item.expectedMlorRatio != line.expectedMlorRatio) {
+        return false;
+      }
+    }
+    return true;
   }
 }

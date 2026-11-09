@@ -98,7 +98,7 @@ void main() {
       createdAt,
     );
 
-    expect(failed.status, SyncStatus.pending);
+    expect(failed.status, SyncStatus.failed);
     expect(failed.retryCount, 1);
     expect(failed.clientRequestId, original.clientRequestId);
     expect(failed.payload.toJson(), original.payload.toJson());
