@@ -3,6 +3,7 @@ import 'package:fscm_mobile/data/models/json_utils.dart';
 /// Published SKU (SPEC section 4, Catalog). Prices are per carton (thùng).
 class Product {
   const Product({
+    this.id = '',
     required this.sku,
     required this.name,
     required this.pack,
@@ -12,14 +13,18 @@ class Product {
   });
 
   factory Product.fromJson(Map<String, dynamic> j) => Product(
+        id: asStr(j['id']),
         sku: asStr(j['sku']),
         name: asStr(j['name']),
-        pack: asStr(j['pack']),
-        category: asStr(j['category']),
-        basePrice: asInt(j['basePrice'] ?? j['price']),
-        shelfLifeDays: asInt(j['shelfLifeDays'], 30),
+        pack: asStr(j['pack'] ?? j['unit']),
+        category: asStr(j['category'] ?? j['categoryName']),
+        basePrice: asInt(j['basePrice'] ?? j['price'] ?? j['currentUnitPrice']),
+        shelfLifeDays: j['shelfLifeDays'] != null
+            ? asInt(j['shelfLifeDays'], 30)
+            : (asInt(j['shelfLifeHours'], 720) / 24).ceil(),
       );
 
+  final String id;
   final String sku;
   final String name;
   final String pack;
@@ -28,6 +33,7 @@ class Product {
   final int shelfLifeDays;
 
   Map<String, dynamic> toJson() => <String, dynamic>{
+        'id': id,
         'sku': sku,
         'name': name,
         'pack': pack,

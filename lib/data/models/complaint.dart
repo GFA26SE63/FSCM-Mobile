@@ -10,6 +10,7 @@ class Complaint {
     required this.name,
     required this.expectedQty,
     required this.actualQty,
+    required this.issueType,
     required this.status,
     this.labelCode = '',
     this.note = '',
@@ -21,9 +22,10 @@ class Complaint {
         code: asStr(j['code']),
         orderCode: asStr(j['orderCode']),
         sku: asStr(j['sku']),
-        name: asStr(j['name']),
-        expectedQty: asInt(j['expectedQty']),
-        actualQty: asInt(j['actualQty']),
+        name: asStr(j['name'] ?? j['productName']),
+        expectedQty: asInt(j['expectedQty'] ?? j['expectedQuantity']),
+        actualQty: asInt(j['actualQty'] ?? j['actualQuantity']),
+        issueType: asStr(j['issueType']),
         status: ComplaintStatus.fromCode(asStrOrNull(j['status'])),
         labelCode: asStr(j['labelCode']),
         note: asStr(j['note']),
@@ -37,6 +39,7 @@ class Complaint {
   final String name;
   final int expectedQty;
   final int actualQty;
+  final String issueType;
   final ComplaintStatus status;
   final String labelCode;
   final String note;
@@ -53,6 +56,7 @@ class NewComplaint {
     required this.sku,
     required this.labelCode,
     required this.actualQty,
+    required this.issueType,
     required this.note,
   });
 
@@ -60,6 +64,7 @@ class NewComplaint {
   final String sku;
   final String labelCode;
   final int actualQty;
+  final String issueType;
   final String note;
 
   Map<String, dynamic> toJson() => <String, dynamic>{
@@ -67,6 +72,7 @@ class NewComplaint {
         'sku': sku,
         'labelCode': labelCode,
         'actualQty': actualQty,
+        'issueType': issueType,
         'note': note,
       };
 }

@@ -16,7 +16,7 @@ import 'package:fscm_mobile/shared/widgets/info_banner.dart';
 import 'package:fscm_mobile/shared/widgets/status_chip.dart';
 
 /// One picking list: lines to pick (FEFO-suggested label), progress and the
-/// "Xác nhận đã xuất" action.
+/// "Hoàn tất soạn" action. Shipment issue and dispatch are separate steps.
 class PickingDetailScreen extends ConsumerWidget {
   const PickingDetailScreen({super.key, required this.code});
 
@@ -61,23 +61,23 @@ class PickingDetailScreen extends ConsumerWidget {
             const SizedBox(height: 14),
             for (final l in p.lines) _LineCard(list: p, line: l),
             const SizedBox(height: 6),
-            if (p.isShipped)
+            if (p.isCompleted)
               InfoBanner(
                 icon: Icons.check_circle_outline,
                 text:
-                    'Đã xuất kho lúc ${AppDates.timeDay(p.shippedAt)}. Các tem chuyển "Đang vận chuyển" - retailer sẽ quét khi nhận hàng.',
+                    'Đã soạn xong lúc ${AppDates.timeDay(p.shippedAt)}. Portal sẽ tạo shipment để xác nhận xuất kho và điều phối giao.',
               )
             else ...<Widget>[
               FilledButton.icon(
-                onPressed: p.allDone ? () => _ship(context, ref, p) : null,
-                icon: const Icon(Icons.local_shipping_outlined),
-                label: const Text('Xác nhận đã xuất'),
+                onPressed: p.allDone ? () => _complete(context, ref, p) : null,
+                icon: const Icon(Icons.inventory_2_outlined),
+                label: const Text('Hoàn tất soạn hàng'),
               ),
               const SizedBox(height: 6),
               Text(
                 p.allDone
-                    ? 'Tồn thực tế sẽ bị trừ, tem chuyển Đang vận chuyển.'
-                    : 'Quét đủ tất cả dòng để xác nhận xuất.',
+                    ? 'Bước này chỉ đóng phiếu soạn; tồn thực tế chỉ trừ khi shipment được xác nhận xuất.'
+                    : 'Quét đủ tất cả dòng để hoàn tất phiếu soạn.',
                 textAlign: TextAlign.center,
                 style:
                     const TextStyle(color: AppColors.textMuted, fontSize: 12.5),
@@ -89,20 +89,20 @@ class PickingDetailScreen extends ConsumerWidget {
     );
   }
 
-  Future<void> _ship(BuildContext context, WidgetRef ref, PickingList p) async {
+  Future<void> _complete(BuildContext context, WidgetRef ref, PickingList p) async {
     final ok = await confirmDialog(
       context,
-      title: 'Xác nhận xuất kho ${p.code}?',
+      title: 'Hoàn tất soạn hàng ${p.code}?',
       message:
-          'Tồn thực tế đã trừ, hàng Reserved được giải phóng. Các tem chuyển Đang vận chuyển.',
-      confirmLabel: 'Xuất kho',
+          'Hệ thống sẽ đóng phiếu soạn và tạo shipment sẵn sàng xuất. Tồn chưa bị trừ ở bước này.',
+      confirmLabel: 'Hoàn tất',
     );
     if (!ok) return;
     try {
-      await ref.read(warehouseRepositoryProvider).ship(p.code);
+      await ref.read(warehouseRepositoryProvider).complete(p.code, p.version);
       ref.invalidate(pickingDetailProvider(p.code));
       ref.read(dataVersionProvider.notifier).state++;
-      if (context.mounted) showAppSnack(context, 'Đã xuất kho ${p.code}.');
+      if (context.mounted) showAppSnack(context, 'Đã hoàn tất soạn ${p.code}.');
     } on ApiException catch (e) {
       if (context.mounted) showAppSnack(context, e.message, error: true);
     }
@@ -134,14 +134,15 @@ class _LineCard extends StatelessWidget {
           const SizedBox(height: 4),
           Text('Batch ${l.batchCode}',
               style: const TextStyle(color: AppColors.textMuted)),
-          Text('HSD ${AppDates.date(l.expiry)} · Vị trí ${l.location}'),
+          Text('HSD ${AppDates.date(l.expiry)}${l.location.isEmpty ? '' : ' · Vị trí ${l.location}'}'),
           Text('Cần lấy: ${l.need} thùng (đã lấy ${l.picked})',
               style: const TextStyle(fontWeight: FontWeight.w700)),
-          Text('Tem gợi ý (FEFO): ${l.suggestedLabel}',
-              style: const TextStyle(
-                  color: AppColors.primary, fontWeight: FontWeight.w600)),
+          if (l.suggestedLabel.isNotEmpty)
+            Text('Tem gợi ý (FEFO): ${l.suggestedLabel}',
+                style: const TextStyle(
+                    color: AppColors.primary, fontWeight: FontWeight.w600)),
           if (l.outLabel.isNotEmpty) Text('Tem mang đi: ${l.outLabel}'),
-          if (!list.isShipped && !l.isDone) ...<Widget>[
+          if (!list.isCompleted && !l.isDone) ...<Widget>[
             const SizedBox(height: 8),
             OutlinedButton.icon(
               onPressed: () =>

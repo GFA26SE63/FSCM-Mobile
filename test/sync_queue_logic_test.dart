@@ -26,7 +26,7 @@ OfflineOrder entry(
       retailerCode: '10004127',
       retailerName: 'Tạp hóa Minh Châu',
       createdAt: createdAt,
-      payment: PaymentMethod.cod,
+      payment: PaymentMethod.unselected,
       creditTerm: 0,
       lines: const <CartLine>[CartLine(sku: 'SKU001', qty: 10)],
       localTotal: 1000000,

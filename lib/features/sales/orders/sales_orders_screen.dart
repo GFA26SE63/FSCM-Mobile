@@ -44,18 +44,19 @@ class _SalesOrdersScreenState extends ConsumerState<SalesOrdersScreen> {
       case _OrderFilter.all:
         return true;
       case _OrderFilter.pending:
-        return o.status == OrderStatus.pending;
+        return o.status == OrderStatus.allocating ||
+            o.status == OrderStatus.quoted ||
+            o.status == OrderStatus.paymentPending;
       case _OrderFilter.inProgress:
-        return o.status == OrderStatus.approved ||
+        return o.status == OrderStatus.convertedToPo ||
             o.status == OrderStatus.picking ||
-            o.status == OrderStatus.shipped ||
+            o.status == OrderStatus.issued ||
             o.status == OrderStatus.delivering;
       case _OrderFilter.delivered:
         return o.status == OrderStatus.delivered ||
             o.status == OrderStatus.completed;
       case _OrderFilter.rejected:
-        return o.status == OrderStatus.rejected ||
-            o.status == OrderStatus.cancelled;
+        return o.status.isRejectedOrCancelled;
       case _OrderFilter.offline:
         return o.isOffline;
     }
@@ -152,7 +153,8 @@ class SalesOrderTile extends StatelessWidget {
     final o = order;
     final code = o.displayCode;
     return AppCard(
-      onTap: () => context.push(AppRoutes.salesOrderDetail(code)),
+      onTap: () => context.push(AppRoutes.salesOrderDetail(
+          o.isOffline || o.id.isEmpty ? code : o.id)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[

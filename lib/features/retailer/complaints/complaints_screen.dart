@@ -54,6 +54,7 @@ class ComplaintsScreen extends ConsumerWidget {
                       ],
                     ),
                     Text('${c.orderCode} · ${c.sku} ${c.name}'),
+                    Text(c.issueType == 'Damaged' ? 'Hàng hỏng' : 'Thiếu hàng'),
                     Text(
                       'Đặt ${c.expectedQty} · thực nhận ${c.actualQty} (thiếu ${c.shortfall})',
                       style: const TextStyle(

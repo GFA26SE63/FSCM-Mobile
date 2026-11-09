@@ -8,6 +8,8 @@ class PickingLine {
     required this.name,
     required this.batchCode,
     required this.need,
+    this.allocationId = '',
+    this.batchId = '',
     this.expiry,
     this.location = '',
     this.picked = 0,
@@ -16,14 +18,16 @@ class PickingLine {
   });
 
   factory PickingLine.fromJson(Map<String, dynamic> j) => PickingLine(
-        index: asInt(j['index']),
+        index: asInt(j['index'] ?? j['lineNumber']),
+        allocationId: asStr(j['allocationId']),
+        batchId: asStr(j['batchId']),
         sku: asStr(j['sku']),
-        name: asStr(j['name']),
+        name: asStr(j['name'] ?? j['productName']),
         batchCode: asStr(j['batchCode']),
-        need: asInt(j['need']),
-        expiry: asDate(j['expiry']),
+        need: asInt(j['need'] ?? j['requestedQuantity']),
+        expiry: asDate(j['expirationDate'] ?? j['expiry']),
         location: asStr(j['location']),
-        picked: asInt(j['picked']),
+        picked: asInt(j['picked'] ?? j['pickedQuantity']),
         suggestedLabel: asStr(j['suggestedLabel']),
         outLabel: asStr(j['outLabel']),
       );
@@ -32,6 +36,8 @@ class PickingLine {
   final String sku;
   final String name;
   final String batchCode;
+  final String allocationId;
+  final String batchId;
   final int need;
   final DateTime? expiry;
   final String location;
@@ -50,6 +56,8 @@ class PickingLine {
         sku: sku,
         name: name,
         batchCode: batchCode,
+        allocationId: allocationId,
+        batchId: batchId,
         need: need,
         expiry: expiry,
         location: location,
@@ -63,6 +71,8 @@ class PickingLine {
         'sku': sku,
         'name': name,
         'batchCode': batchCode,
+        'allocationId': allocationId,
+        'batchId': batchId,
         'need': need,
         'expiry': isoOrNull(expiry),
         'location': location,
@@ -85,20 +95,31 @@ class PickingList {
     this.approvedAt,
     this.shippedAt,
     this.siblingText = '',
+    this.version = 0,
+    this.scanCodes = const <String>[],
   });
 
-  factory PickingList.fromJson(Map<String, dynamic> j) => PickingList(
-        code: asStr(j['code']),
+  factory PickingList.fromJson(Map<String, dynamic> j) {
+    final rawLines = asMapList(j['lines'] ?? j['items']);
+    final lines = <PickingLine>[
+      for (var i = 0; i < rawLines.length; i++)
+        PickingLine.fromJson(<String, dynamic>{...rawLines[i], 'index': i}),
+    ];
+    return PickingList(
+        code: asStr(j['code'] ?? j['pickingCode']),
         orderCode: asStr(j['orderCode']),
         retailerCode: asStr(j['retailerCode']),
         retailerName: asStr(j['retailerName']),
         status: PickingStatus.fromCode(asStrOrNull(j['status'])),
-        lines: mapList(j['lines'], PickingLine.fromJson),
-        warehouseName: asStr(j['warehouseName']),
-        approvedAt: asDate(j['approvedAt']),
-        shippedAt: asDate(j['shippedAt']),
+        lines: lines,
+        warehouseName: asStr(j['warehouseName'] ?? j['warehouseCode']),
+        approvedAt: asDate(j['approvedAt'] ?? j['startedAt']),
+        shippedAt: asDate(j['shippedAt'] ?? j['confirmedAt']),
         siblingText: asStr(j['siblingText']),
+        version: asInt(j['version']),
+        scanCodes: asMapList(j['scans']).map((item) => asStr(item['qrCode'])).where((code) => code.isNotEmpty).toList(),
       );
+  }
 
   final String code;
   final String orderCode;
@@ -110,12 +131,14 @@ class PickingList {
   final DateTime? approvedAt;
   final DateTime? shippedAt;
   final String siblingText;
+  final int version;
+  final List<String> scanCodes;
 
   int get totalNeed => lines.fold<int>(0, (s, l) => s + l.need);
   int get totalPicked => lines.fold<int>(0, (s, l) => s + l.picked);
   int get doneLines => lines.where((l) => l.isDone).length;
   bool get allDone => lines.isNotEmpty && doneLines == lines.length;
-  bool get isShipped => status == PickingStatus.shipped;
+  bool get isCompleted => status == PickingStatus.completed;
 
   PickingList copyWith({
     PickingStatus? status,
@@ -133,6 +156,8 @@ class PickingList {
         approvedAt: approvedAt,
         shippedAt: shippedAt ?? this.shippedAt,
         siblingText: siblingText,
+        version: version,
+        scanCodes: scanCodes,
       );
 
   Map<String, dynamic> toJson() => <String, dynamic>{
@@ -146,6 +171,8 @@ class PickingList {
         'approvedAt': isoOrNull(approvedAt),
         'shippedAt': isoOrNull(shippedAt),
         'siblingText': siblingText,
+        'version': version,
+        'scanCodes': scanCodes,
       };
 }
 

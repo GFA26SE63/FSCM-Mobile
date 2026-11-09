@@ -103,21 +103,39 @@ class OfflineOrderDao {
     return Sqflite.firstIntValue(rows) ?? 0;
   }
 
-  OfflineOrder _fromRow(Map<String, Object?> r) => OfflineOrder(
-        id: (r['id'] as num?)?.toInt(),
-        clientRequestId: r['client_request_id']! as String,
-        payload: OfflineOrderPayload.fromJson(
-            asMap(jsonDecode(r['payload']! as String))),
-        status: SyncStatus.fromCode(r['status'] as String?),
-        createdAt: AppDates.tryParse(r['created_at']) ?? DateTime.now(),
-        retryCount: (r['retry_count'] as num?)?.toInt() ?? 0,
-        error: (r['error'] as String?) ?? '',
-        lastAttemptAt: AppDates.tryParse(r['last_attempt_at']),
-        syncedAt: AppDates.tryParse(r['synced_at']),
-        serverOrderCode: (r['server_order_code'] as String?) ?? '',
-        syncMode: (r['sync_mode'] as String?) ?? '',
-        finalAmount: (r['final_amount'] as num?)?.toInt(),
-        promoChanged: ((r['promo_changed'] as num?)?.toInt() ?? 0) == 1,
-        changeReason: (r['change_reason'] as String?) ?? '',
-      );
+  OfflineOrder _fromRow(Map<String, Object?> row) {
+    final payloadJson = asMap(
+      jsonDecode(row['payload']! as String),
+    );
+
+    payloadJson.putIfAbsent(
+      'clientRequestId',
+      () => row['client_request_id'],
+    );
+    payloadJson.putIfAbsent(
+      'offlineCode',
+      () => row['offline_code'],
+    );
+    payloadJson.putIfAbsent(
+      'createdAt',
+      () => row['created_at'],
+    );
+
+    return OfflineOrder(
+      id: (row['id'] as num?)?.toInt(),
+      clientRequestId: row['client_request_id']! as String,
+      payload: OfflineOrderPayload.fromJson(payloadJson),
+      status: SyncStatus.fromCode(row['status'] as String?),
+      createdAt: AppDates.tryParse(row['created_at']) ?? DateTime.now(),
+      retryCount: (row['retry_count'] as num?)?.toInt() ?? 0,
+      error: (row['error'] as String?) ?? '',
+      lastAttemptAt: AppDates.tryParse(row['last_attempt_at']),
+      syncedAt: AppDates.tryParse(row['synced_at']),
+      serverOrderCode: (row['server_order_code'] as String?) ?? '',
+      syncMode: (row['sync_mode'] as String?) ?? '',
+      finalAmount: (row['final_amount'] as num?)?.toInt(),
+      promoChanged: ((row['promo_changed'] as num?)?.toInt() ?? 0) == 1,
+      changeReason: (row['change_reason'] as String?) ?? '',
+    );
+  }
 }

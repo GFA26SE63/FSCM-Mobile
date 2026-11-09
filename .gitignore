@@ -47,3 +47,6 @@ ios/build/
 !/env/*.example.json
 
 docs/design
+docs/audit
+.agent
+graphify-out

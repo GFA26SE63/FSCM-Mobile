@@ -7,8 +7,8 @@ class TimelineEntry {
       {required this.time, required this.label, this.delta = ''});
 
   factory TimelineEntry.fromJson(Map<String, dynamic> j) => TimelineEntry(
-        time: asDate(j['time']),
-        label: asStr(j['label']),
+        time: asDate(j['time'] ?? j['changedAt']),
+        label: asStr(j['label'] ?? j['reason'] ?? j['toStatus']),
         delta: asStr(j['delta']),
       );
 

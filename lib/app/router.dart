@@ -6,6 +6,7 @@ import 'package:fscm_mobile/app/shell/retailer_shell.dart';
 import 'package:fscm_mobile/app/shell/sales_shell.dart';
 import 'package:fscm_mobile/app/shell/warehouse_shell.dart';
 import 'package:fscm_mobile/core/auth/user_role.dart';
+import 'package:fscm_mobile/data/models/retailer_declaration.dart';
 import 'package:fscm_mobile/data/repositories/auth_repository.dart';
 import 'package:fscm_mobile/features/common/auth/login_screen.dart';
 import 'package:fscm_mobile/features/common/auth/retailer_activation_screen.dart';
@@ -40,9 +41,8 @@ import 'package:fscm_mobile/features/warehouse/picking/pick_line_screen.dart';
 import 'package:fscm_mobile/features/warehouse/picking/picking_detail_screen.dart';
 import 'package:fscm_mobile/features/warehouse/picking/picking_lists_screen.dart';
 import 'package:fscm_mobile/features/warehouse/scan/wk_scan_screen.dart';
-import 'package:fscm_mobile/features/warehouse/transfers/transfer_detail_screen.dart';
-import 'package:fscm_mobile/features/warehouse/transfers/transfers_screen.dart';
 import 'package:fscm_mobile/shared/routes.dart';
+import 'package:fscm_mobile/features/sales/retailers/retailer_detail_screen.dart';
 
 /// First screen of each role after login.
 String homeRouteFor(UserRole role) {
@@ -213,6 +213,12 @@ List<RouteBase> _salesRoutes() => <RouteBase>[
           path: AppRoutes.salesRetailers,
           builder: (c, s) => const RetailerListScreen()),
       GoRoute(
+        path: AppRoutes.salesRetailerDetailPattern,
+        builder: (c, s) => RetailerDetailScreen(
+          code: s.pathParameters['code'] ?? '',
+        ),
+      ),
+      GoRoute(
           path: AppRoutes.salesProducts,
           builder: (c, s) => const ProductListScreen()),
       GoRoute(
@@ -223,7 +229,11 @@ List<RouteBase> _salesRoutes() => <RouteBase>[
       GoRoute(path: AppRoutes.salesKpi, builder: (c, s) => const KpiScreen()),
       GoRoute(
           path: AppRoutes.salesDeclare,
-          builder: (c, s) => const DeclareRetailerScreen()),
+          // `extra` carries the Draft / Rejected declaration being edited.
+          builder: (c, s) => DeclareRetailerScreen(
+              initial: s.extra is RetailerDeclaration
+                  ? s.extra! as RetailerDeclaration
+                  : null)),
       GoRoute(
           path: AppRoutes.salesDeclarations,
           builder: (c, s) => const DeclarationsScreen()),
@@ -255,11 +265,6 @@ List<RouteBase> _warehouseRoutes() => <RouteBase>[
             GoRoute(
                 path: AppRoutes.wkPicking,
                 builder: (c, s) => const PickingListsScreen()),
-          ]),
-          StatefulShellBranch(routes: <RouteBase>[
-            GoRoute(
-                path: AppRoutes.wkTransfers,
-                builder: (c, s) => const TransfersScreen()),
           ]),
           StatefulShellBranch(routes: <RouteBase>[
             GoRoute(
@@ -300,11 +305,6 @@ List<RouteBase> _warehouseRoutes() => <RouteBase>[
         ),
       ),
       GoRoute(
-        path: AppRoutes.wkTransferDetailPattern,
-        builder: (c, s) =>
-            TransferDetailScreen(code: s.pathParameters['code'] ?? ''),
-      ),
-      GoRoute(
         path: AppRoutes.wkLabelPattern,
         builder: (c, s) =>
             LabelDetailScreen(code: s.pathParameters['code'] ?? ''),
@@ -314,6 +314,10 @@ List<RouteBase> _warehouseRoutes() => <RouteBase>[
 // --------------------------------------------------------------- retailer
 
 List<RouteBase> _retailerRoutes() => <RouteBase>[
+      GoRoute(
+        path: '/retailer/order/new',
+        builder: (c, s) => const OrderCreateScreen(),
+      ),
       StatefulShellRoute.indexedStack(
         builder: (context, state, shell) =>
             RetailerShell(navigationShell: shell),

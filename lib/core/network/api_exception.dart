@@ -21,19 +21,22 @@ class ApiException implements Exception {
     this.title,
     this.code,
     this.errors = const <String, List<String>>{},
+    this.details,
   });
 
-  const ApiException.network([String? message])
+  const ApiException.network([String? message, String? details])
       : this(
           kind: ApiErrorKind.network,
           message: message ??
               'Không có kết nối mạng. Kiểm tra wifi / 4G rồi thử lại.',
+          details: details,
         );
 
-  const ApiException.timeout()
+  const ApiException.timeout([String? message, String? details])
       : this(
           kind: ApiErrorKind.timeout,
-          message: 'Máy chủ phản hồi quá lâu. Vui lòng thử lại.',
+          message: message ?? 'Máy chủ phản hồi quá lâu. Vui lòng thử lại.',
+          details: details,
         );
 
   const ApiException.notFoundLocal()
@@ -87,6 +90,7 @@ class ApiException implements Exception {
   final String? title;
   final String? code;
   final Map<String, List<String>> errors;
+  final String? details;
 
   bool get isNetwork =>
       kind == ApiErrorKind.network || kind == ApiErrorKind.timeout;
