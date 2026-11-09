@@ -358,23 +358,27 @@ class ApiClient {
           );
         }
 
+        var refreshed = false;
         try {
-          final refreshed = await _tryRefreshToken();
-          if (refreshed) {
-            return await _send(
-              method,
-              path,
-              body: body,
-              query: query,
-              extraHeaders: extraHeaders,
-              isRetry: true,
-            );
-          }
+          refreshed = await _tryRefreshToken();
         } on ApiException catch (e) {
           if (e.kind == ApiErrorKind.network ||
               e.kind == ApiErrorKind.timeout) {
             rethrow;
           }
+        }
+
+        // The retry handles its own unauthorized event.
+        // Its error must propagate without being caught by the refresh block.
+        if (refreshed) {
+          return await _send(
+            method,
+            path,
+            body: body,
+            query: query,
+            extraHeaders: extraHeaders,
+            isRetry: true,
+          );
         }
       }
 
