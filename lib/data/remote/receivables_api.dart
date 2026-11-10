@@ -4,7 +4,6 @@ import 'package:fscm_mobile/core/network/api_client.dart';
 import 'package:fscm_mobile/core/network/endpoints.dart';
 import 'package:fscm_mobile/data/models/json_utils.dart';
 import 'package:fscm_mobile/data/models/receivable.dart';
-import 'package:uuid/uuid.dart';
 
 final receivablesApiProvider = Provider<ReceivablesApi>(
     (ref) => ReceivablesApi(ref.watch(apiClientProvider)));
@@ -25,6 +24,7 @@ class ReceivablesApi {
 
   /// Single full collection (no partial payments, SPEC section 4).
   Future<Receivable> collect(Receivable receivable) async {
+    if (receivable.isPaid) return receivable;
     final data = await _client.post(
       Endpoints.receivableCollect(receivable.orderId),
       body: <String, dynamic>{
@@ -32,7 +32,10 @@ class ReceivablesApi {
         'expectedVersion': receivable.version,
         'note': 'Sales confirmed full cash collection on mobile.',
       },
-      headers: <String, String>{'Idempotency-Key': const Uuid().v4()},
+      headers: <String, String>{
+        // Reuse the operation after a lost response for this payment version.
+        'Idempotency-Key': 'cash:${receivable.orderId}:${receivable.version}'
+      },
     );
     return Receivable.fromJson(asMap(data));
   }
