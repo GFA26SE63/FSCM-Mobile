@@ -10,12 +10,9 @@ class Tables {
 
   static const String syncState = 'local_sync_state';
   static const String retailer = 'local_retailer';
-  static const String category = 'local_category';
   static const String product = 'local_product';
   static const String price = 'local_price';
   static const String promotion = 'local_promotion';
-  static const String mlor = 'local_mlor';
-  static const String defaultMlor = 'local_default_mlor';
   static const String inventorySnapshot = 'local_inventory_snapshot';
   static const String offlineOrderQueue = 'offline_order_queue';
 }
@@ -114,35 +111,6 @@ ON ${Tables.offlineOrderQueue}(owner_user_id, status, id)
       'ALTER TABLE ${Tables.offlineOrderQueue} ADD COLUMN conditions_confirmed INTEGER NOT NULL DEFAULT 0',
       "UPDATE ${Tables.offlineOrderQueue} SET status = 'failed' WHERE status = 'pending' AND (last_attempt_at IS NOT NULL OR retry_count > 0)",
     ],
-    // v4 - normalized F29-MB category and MLOR cache for offline advice.
-    <String>[
-      '''
-CREATE TABLE ${Tables.category} (
-  id TEXT PRIMARY KEY,
-  parent_category_id TEXT,
-  code TEXT NOT NULL,
-  name TEXT NOT NULL,
-  json TEXT NOT NULL
-)''',
-      '''
-CREATE TABLE ${Tables.mlor} (
-  id TEXT PRIMARY KEY,
-  retailer_id TEXT NOT NULL,
-  category_id TEXT,
-  product_id TEXT,
-  version INTEGER NOT NULL,
-  minimum_life_ratio REAL NOT NULL,
-  json TEXT NOT NULL
-)''',
-      'CREATE INDEX idx_local_mlor_retailer ON ${Tables.mlor}(retailer_id)',
-      '''
-CREATE TABLE ${Tables.defaultMlor} (
-  singleton_id INTEGER PRIMARY KEY CHECK (singleton_id = 1),
-  version INTEGER NOT NULL,
-  minimum_life_ratio REAL NOT NULL,
-  json TEXT NOT NULL
-)''',
-    ],
   ];
 
   Future<Database> get database async => _db ??= await _open();
@@ -180,12 +148,9 @@ CREATE TABLE ${Tables.defaultMlor} (
     );
     for (final t in <String>[
       Tables.retailer,
-      Tables.category,
       Tables.product,
       Tables.price,
       Tables.promotion,
-      Tables.mlor,
-      Tables.defaultMlor,
       Tables.inventorySnapshot,
       if (!keepQueue) Tables.offlineOrderQueue,
     ]) {

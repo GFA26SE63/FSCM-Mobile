@@ -24,7 +24,6 @@ Map<String, dynamic> mobileSnapshotFixture() {
     'categories': [
       {
         'id': 'category-1',
-        'code': 'CAT-01',
         'name': 'Sữa',
         'isActive': true,
       },
