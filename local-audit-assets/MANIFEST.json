@@ -1,0 +1,149 @@
+{
+  "source_branch": "fix/review2-order-flow",
+  "source_commit": "bdc22c12065b6f6f1f92e8900126c1012d7e6a7b",
+  "purpose": "Archive of local review2 edits and local demo assets; not a develop integration.",
+  "validation": "This archive has not been build/test validated as a combined release.",
+  "excluded": [
+    "credentials",
+    "runtime secrets/configuration",
+    "logs",
+    "PostgreSQL data"
+  ],
+  "files": [
+    {
+      "path": "lib/app/router.dart",
+      "source": "review2 working tree",
+      "sha256": "6aaf7ce7345f886a37d443e8c31e4756a1f4ce26216dd6fe4d5bb88dc5ed455c"
+    },
+    {
+      "path": "lib/app/shell/warehouse_shell.dart",
+      "source": "review2 working tree",
+      "sha256": "908ad28fde605d691afce2aa91cb2e3d86b782f55aba03356c186fcdc5ba89cd"
+    },
+    {
+      "path": "lib/core/network/api_client.dart",
+      "source": "review2 working tree",
+      "sha256": "321f3900fbde56c1d1f5a06390c2d7680e23dbb597b43c76e58ff75774f78f6d"
+    },
+    {
+      "path": "lib/core/network/endpoints.dart",
+      "source": "review2 working tree",
+      "sha256": "bc69814f51627499e35d587b8e9e98b564fc0317a1f87ef79249ca9744b1b06b"
+    },
+    {
+      "path": "lib/data/models/app_notification.dart",
+      "source": "review2 working tree",
+      "sha256": "06f6ead9326659a83c63b9c85bcf37c632843d7bc280cb65e148b375b557ddfb"
+    },
+    {
+      "path": "lib/data/models/picking.dart",
+      "source": "review2 working tree",
+      "sha256": "c773abe843cb9bfd969f0f53ba8f0680235248d1d37a3d30f52ef84abb33ce0e"
+    },
+    {
+      "path": "lib/data/models/receivable.dart",
+      "source": "review2 working tree",
+      "sha256": "81e4f0239dd428a1060e5c9269cb1ec96e8a3989f4567348f1942edd0e7da5d0"
+    },
+    {
+      "path": "lib/data/remote/notifications_api.dart",
+      "source": "review2 working tree",
+      "sha256": "5347e024785ade2b9d0e2ff6f4dfeaaf65e1a5020ffe2e2d719044aadbff09e5"
+    },
+    {
+      "path": "lib/data/remote/receivables_api.dart",
+      "source": "review2 working tree",
+      "sha256": "5988206ec542372ec185cfe35365af227c834a416f951f76c17449ab8d7a83ed"
+    },
+    {
+      "path": "lib/data/repositories/finance_repository.dart",
+      "source": "review2 working tree",
+      "sha256": "d7f14375ec19ca3a382c1aa43f02bcf31a0cfc46f37ac01592ed514621588a78"
+    },
+    {
+      "path": "lib/data/repositories/notification_repository.dart",
+      "source": "review2 working tree",
+      "sha256": "824d7dc012f7f6d185fb5ad60ef15040d72f824e2d00c3454c9e31117f5d636a"
+    },
+    {
+      "path": "lib/data/repositories/warehouse_repository.dart",
+      "source": "review2 working tree",
+      "sha256": "67ca4c7a2a5d4c8b342fc582ae385e9276d1ab2e2cde80b2fa644201a5b1636d"
+    },
+    {
+      "path": "lib/features/common/notifications/notifications_screen.dart",
+      "source": "review2 working tree",
+      "sha256": "428c35c116f7bc057dc753e16b39ad79f15e546714171524d3c4d1de55e805d2"
+    },
+    {
+      "path": "lib/features/sales/debts/debts_screen.dart",
+      "source": "review2 working tree",
+      "sha256": "baeb5ddd45310c18150084588e1e913d0d4aa318451b08436414bd33cea84276"
+    },
+    {
+      "path": "lib/features/warehouse/home/wk_home_screen.dart",
+      "source": "review2 working tree",
+      "sha256": "bfdbd3e1e5686fa716c48ca1704c1a091ea1fcb3877a55ca07056ea9129465f4"
+    },
+    {
+      "path": "lib/features/warehouse/picking/picking_detail_screen.dart",
+      "source": "review2 working tree",
+      "sha256": "06b5245a885f547a3003117058dd58c82cf54cf84eb8664219fd4c600ca5f14a"
+    },
+    {
+      "path": "lib/features/warehouse/scan/wk_scan_screen.dart",
+      "source": "review2 working tree",
+      "sha256": "9afa1976b23c2a447667589f6910b757d0b78384fcd0c4cca071ee83bf7c6eed"
+    },
+    {
+      "path": "lib/shared/routes.dart",
+      "source": "review2 working tree",
+      "sha256": "b57616e8b7690c8ab24582f86845210b77f13c6e6b57a2f96c09cbda90e53632"
+    },
+    {
+      "path": "local-audit-assets/primary-checkout/macos/Flutter/GeneratedPluginRegistrant.swift",
+      "source": "PackageCode/FSCM-Mobile/macos/Flutter/GeneratedPluginRegistrant.swift",
+      "sha256": "e4f3300d4cbf811b2bd93781cf45b9f7dfa8e3a25212b32e044eb751ddbe3035"
+    },
+    {
+      "path": "local-audit-assets/primary-checkout/pubspec.lock",
+      "source": "PackageCode/FSCM-Mobile/pubspec.lock",
+      "sha256": "69abd9d39247ae5a62842c1603c01912161dbc9b63b3be0eac6c028ffc9ee7c6"
+    },
+    {
+      "path": "local-audit-assets/verify-checkout/pr-order-display.md",
+      "source": "PackageCode/_verify_merged_Mobile/pr-order-display.md",
+      "sha256": "190efe19b871475a61574fd548daafa42ba09b64a9b5d55573cef41691b0f11c"
+    },
+    {
+      "path": "local-audit-assets/verify-checkout/pr-payment-fallback.md",
+      "source": "PackageCode/_verify_merged_Mobile/pr-payment-fallback.md",
+      "sha256": "2f6e2f93ded527cef602ef569d12b40ce581ce1556f386fb411af46e36b53919"
+    },
+    {
+      "path": "local-audit-assets/verify-checkout/pr-product-search.md",
+      "source": "PackageCode/_verify_merged_Mobile/pr-product-search.md",
+      "sha256": "c3092e36b53118803eb1197974ae57461d30ec43668175b74fb76919536aacca"
+    },
+    {
+      "path": "local-audit-assets/verify-checkout/pr-prototype-promos.md",
+      "source": "PackageCode/_verify_merged_Mobile/pr-prototype-promos.md",
+      "sha256": "ca949393a25c576ecd72f8f5ee7adea4bd3460740af623edceba145a9350264d"
+    },
+    {
+      "path": "local-audit-assets/verify-checkout/pr-warehouse-stock.md",
+      "source": "PackageCode/_verify_merged_Mobile/pr-warehouse-stock.md",
+      "sha256": "81e519c1e70db56372167ddcba47b101882de2ac5ac3c25498a337cf56e961cf"
+    },
+    {
+      "path": "local-audit-assets/verify-checkout/pubspec.lock",
+      "source": "PackageCode/_verify_merged_Mobile/pubspec.lock",
+      "sha256": "69abd9d39247ae5a62842c1603c01912161dbc9b63b3be0eac6c028ffc9ee7c6"
+    },
+    {
+      "path": "local-audit-assets/stash/pubspec.lock",
+      "source": "preserved local stash",
+      "sha256": "dce4d73d265b3d30cbd1b9fc84051256634f02b4e35decdfa3ee54e727344a92"
+    }
+  ]
+}

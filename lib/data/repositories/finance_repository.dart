@@ -24,5 +24,5 @@ class FinanceRepository {
   Future<List<Receivable>> receivables({String? status}) =>
       _api.list(status: status);
 
-  Future<Receivable> collect(String orderCode) => _api.collect(orderCode);
+  Future<Receivable> collect(Receivable receivable) => _api.collect(receivable);
 }

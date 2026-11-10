@@ -28,7 +28,7 @@ class NotificationsScreen extends ConsumerWidget {
         actions: <Widget>[
           TextButton(
             onPressed: () =>
-                _markAll(ref, value.valueOrNull ?? const <AppNotification>[]),
+                _markAll(ref),
             child: const Text('Đánh dấu đã đọc'),
           ),
         ],
@@ -81,6 +81,11 @@ class NotificationsScreen extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
+                if (n.title.isNotEmpty) ...<Widget>[
+                  Text(n.title,
+                      style: const TextStyle(fontWeight: FontWeight.w700)),
+                  const SizedBox(height: 2),
+                ],
                 Text(n.text, style: const TextStyle(height: 1.35)),
                 const SizedBox(height: 4),
                 Text(
@@ -96,16 +101,15 @@ class NotificationsScreen extends ConsumerWidget {
     );
   }
 
-  Future<void> _markAll(WidgetRef ref, List<AppNotification> list) async {
-    final repo = ref.read(notificationRepositoryProvider);
-    for (final n in list.where((x) => x.unread)) {
-      await repo.markRead(n);
-    }
+  Future<void> _markAll(WidgetRef ref) async {
+    await ref.read(notificationRepositoryProvider).markAllRead();
     ref.invalidate(notificationsProvider);
   }
 
   /// Deep link for a notification, per role.
   String? _target(UserRole? role, AppNotification n) {
+    final serverTarget = _serverDeepLink(role, n.deepLink);
+    if (serverTarget != null) return serverTarget;
     switch (role) {
       case UserRole.sales:
         if (n.kind == 'debt') return AppRoutes.salesDebts;
@@ -117,9 +121,6 @@ class NotificationsScreen extends ConsumerWidget {
         if (n.orderCode.isEmpty) return null;
         if (n.kind == 'picking') return AppRoutes.wkPickingDetail(n.orderCode);
         if (n.kind == 'label') return AppRoutes.wkLabel(n.orderCode);
-        if (n.kind == 'transfer') {
-          return AppRoutes.wkTransferDetail(n.orderCode);
-        }
         return null;
       case UserRole.retailer:
         if (n.orderCode.isNotEmpty) return AppRoutes.rtOrderDetail(n.orderCode);
@@ -127,5 +128,31 @@ class NotificationsScreen extends ConsumerWidget {
       default:
         return null;
     }
+  }
+
+  String? _serverDeepLink(UserRole? role, String link) {
+    if (link.isEmpty) return null;
+    if (link == '/retailer/complaints') return AppRoutes.rtComplaints;
+
+    const retailerOrders = '/retailer/orders/';
+    if (link.startsWith(retailerOrders)) {
+      final id = link.substring(retailerOrders.length);
+      return role == UserRole.retailer && id.isNotEmpty
+          ? AppRoutes.rtOrderDetail(Uri.encodeComponent(id))
+          : null;
+    }
+
+    const orders = '/orders/';
+    if (link.startsWith(orders)) {
+      final id = link.substring(orders.length);
+      if (id.isEmpty) return null;
+      if (role == UserRole.retailer) {
+        return AppRoutes.rtOrderDetail(Uri.encodeComponent(id));
+      }
+      if (role == UserRole.sales) {
+        return AppRoutes.salesOrderDetail(id);
+      }
+    }
+    return null;
   }
 }
