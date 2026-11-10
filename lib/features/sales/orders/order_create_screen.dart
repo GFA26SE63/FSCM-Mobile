@@ -340,6 +340,7 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
   Widget _productRow(Product product, CatalogData data, Retailer retailer,
       PriceQuote quote, ProductAvailability? availability,
       {required bool online}) {
+    final viewerRole = ref.watch(currentUserProvider)?.role;
     // Snapshot stock must not limit a Sales draft. Unknown online availability
     // is not zero; allow browsing, but wait for a verified result to add stock.
     final maximum = online
@@ -368,6 +369,7 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
             product: product,
             unitPrice: price,
             availability: availability,
+            viewerRole: viewerRole,
             promotions: promotions,
           ),
         ),
@@ -407,6 +409,7 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
           if (availability != null)
             OrderStockSummary(
               availability: availability,
+              viewerRole: viewerRole,
               onViewAll: _busy ? null : openDetail,
             ),
           Row(
