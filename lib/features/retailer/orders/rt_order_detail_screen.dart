@@ -158,7 +158,7 @@ class RtOrderDetailScreen extends ConsumerWidget {
                   order.status == OrderStatus.completed)
                 OutlinedButton.icon(
                   onPressed: () =>
-                      context.push(AppRoutes.rtComplaintFor(order.id)),
+                      context.push(AppRoutes.rtComplaintFor(order.code)),
                   icon: const Icon(Icons.report_gmailerrorred_outlined),
                   label: const Text('Khiếu nại đơn hàng'),
                 ),

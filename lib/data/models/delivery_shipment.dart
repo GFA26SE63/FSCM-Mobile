@@ -5,6 +5,7 @@ class DeliveryShipmentLine {
     required this.orderLineId,
     required this.batchId,
     required this.sku,
+    required this.productName,
     required this.batchCode,
     required this.quantity,
   });
@@ -14,6 +15,7 @@ class DeliveryShipmentLine {
         orderLineId: asStr(json['orderLineId']),
         batchId: asStr(json['batchId']),
         sku: asStr(json['sku']),
+        productName: asStr(json['productName']),
         batchCode: asStr(json['batchCode']),
         quantity: asDouble(json['quantity']),
       );
@@ -21,6 +23,7 @@ class DeliveryShipmentLine {
   final String orderLineId;
   final String batchId;
   final String sku;
+  final String productName;
   final String batchCode;
   final double quantity;
 }

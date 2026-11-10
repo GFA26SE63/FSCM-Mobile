@@ -119,6 +119,67 @@ void main() {
     expect(restored.finalPricePendingAllocation, isTrue);
   });
 
+  test('receipt sends actual batch quantities and keeps its idempotency key',
+      () async {
+    final transport = _OrdersTransport((request) {
+      if (request.method == 'POST') {
+        return const ApiResponse(statusCode: 200, data: {});
+      }
+      return const ApiResponse(statusCode: 200, data: {
+        'id': 'order-1',
+        'orderCode': 'DH-1',
+        'status': 'Delivering',
+      });
+    });
+    final client =
+        ApiClient(transport: transport, tokenReader: () => 'retailer-token');
+    addTearDown(client.dispose);
+    final shipment = DeliveryShipment.fromJson({
+      'id': 'shipment-1',
+      'shipmentCode': 'GH-1',
+      'status': 'Delivering',
+      'version': 7,
+      'lines': [
+        {
+          'orderLineId': 'line-1',
+          'batchId': 'batch-1',
+          'sku': 'SKU-1',
+          'batchCode': 'LO-1',
+          'quantity': 10,
+        }
+      ],
+    });
+
+    await OrdersApi(client).confirmShipmentReceipt(
+      'order-1',
+      shipment,
+      labelCodes: const ['TEM-000001'],
+      operationKey: 'receipt-key-1',
+      note: '2 thùng bị móp',
+      lines: const [
+        ShipmentReceiptLineInput(
+          orderLineId: 'line-1',
+          batchId: 'batch-1',
+          receivedQuantity: 8,
+          damagedQuantity: 2,
+        ),
+      ],
+    );
+
+    final receipt = transport.requests.first;
+    final body = receipt.body as Map<String, dynamic>;
+    expect(receipt.headers['Idempotency-Key'], 'receipt-key-1');
+    expect(body['note'], '2 thùng bị móp');
+    expect(body['lines'], [
+      {
+        'orderLineId': 'line-1',
+        'batchId': 'batch-1',
+        'receivedQuantity': 8.0,
+        'damagedQuantity': 2.0,
+      }
+    ]);
+  });
+
   testWidgets(
       'each warehouse shipment retains its own delivery and receipt progress',
       (tester) async {
