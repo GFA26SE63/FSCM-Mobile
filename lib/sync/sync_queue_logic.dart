@@ -10,6 +10,7 @@ class SyncQueueLogic {
   static const Duration interruptedSendDelay = Duration(minutes: 2);
 
   static bool canEdit(OfflineOrder entry) =>
+      entry.payload.pendingOnlineRequest == null &&
       (entry.status == SyncStatus.pending ||
           entry.status == SyncStatus.failed) &&
       entry.lastAttemptAt == null &&
