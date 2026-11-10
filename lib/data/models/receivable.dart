@@ -17,6 +17,8 @@ class Receivable {
     this.term = 0,
     this.paidAt,
     this.version = 0,
+    this.method = 'Credit',
+    this.confirmedAmount = 0,
   });
 
   factory Receivable.fromJson(Map<String, dynamic> j) => Receivable(
@@ -33,6 +35,8 @@ class Receivable {
         term: asInt(j['creditTermDays'] ?? j['term']),
         paidAt: asDate(j['paidDate'] ?? j['paidAt']),
         version: asInt(j['version']),
+        method: asStr(j['method']),
+        confirmedAmount: asInt(j['confirmedAmount']),
       );
 
   final String orderId;
@@ -47,8 +51,11 @@ class Receivable {
   final int term;
   final DateTime? paidAt;
   final int version;
+  final String method;
+  final int confirmedAmount;
 
   bool get isPaid => status == ReceivableStatus.paid;
+  bool get isCancelled => status == ReceivableStatus.cancelled;
   bool get isOverdue => status == ReceivableStatus.overdue;
 
   /// Days past due (positive) or until due (negative) relative to [now].
@@ -74,6 +81,8 @@ class Receivable {
         term: term,
         paidAt: paidAt ?? this.paidAt,
         version: version,
+        method: method,
+        confirmedAmount: confirmedAmount,
       );
 
   Map<String, dynamic> toJson() => <String, dynamic>{
@@ -89,5 +98,7 @@ class Receivable {
         'term': term,
         'paidAt': isoOrNull(paidAt),
         'version': version,
+        'method': method,
+        'confirmedAmount': confirmedAmount,
       };
 }
