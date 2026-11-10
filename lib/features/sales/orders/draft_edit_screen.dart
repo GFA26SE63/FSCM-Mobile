@@ -5,7 +5,7 @@ import 'package:fscm_mobile/core/network/api_exception.dart';
 import 'package:fscm_mobile/core/utils/clock.dart';
 import 'package:fscm_mobile/data/models/offline_order.dart';
 import 'package:fscm_mobile/data/models/order.dart';
-import 'package:fscm_mobile/data/pricing/order_limits.dart';
+import 'package:fscm_mobile/data/repositories/order_configuration_repository.dart';
 import 'package:fscm_mobile/data/repositories/catalog_repository.dart';
 import 'package:fscm_mobile/data/repositories/data_version.dart';
 import 'package:fscm_mobile/data/repositories/order_repository.dart';
@@ -50,13 +50,17 @@ class _DraftEditScreenState extends ConsumerState<DraftEditScreen> {
         body: AsyncBody<CatalogData>(
           value: catalog,
           onRetry: () => ref.invalidate(catalogProvider),
-          builder: _body,
+          builder: (data) => AsyncBody<int>(
+            value: ref.watch(orderStepProvider),
+            onRetry: () => ref.invalidate(orderStepProvider),
+            builder: (step) => _body(data, step),
+          ),
         ),
       ),
     );
   }
 
-  Widget _body(CatalogData data) {
+  Widget _body(CatalogData data, int step) {
     final remaining = data.products
         .where(
           (product) =>
@@ -89,7 +93,7 @@ class _DraftEditScreenState extends ConsumerState<DraftEditScreen> {
               ),
               const SizedBox(height: 12),
               for (var index = 0; index < _lines.length; index++)
-                _line(data, index),
+                _line(data, index, step),
               if (_lines.isEmpty)
                 const Padding(
                   padding: EdgeInsets.symmetric(vertical: 16),
@@ -130,7 +134,7 @@ class _DraftEditScreenState extends ConsumerState<DraftEditScreen> {
                             CartLine(
                               productId: product.id,
                               sku: product.sku,
-                              qty: OrderLimits.step,
+                              qty: step,
                             ),
                           );
                           _selectedSku = null;
@@ -161,7 +165,7 @@ class _DraftEditScreenState extends ConsumerState<DraftEditScreen> {
     );
   }
 
-  Widget _line(CatalogData data, int index) {
+  Widget _line(CatalogData data, int index, int step) {
     final line = _lines[index];
     final name = data.product(line.sku)?.name ?? line.sku;
 
@@ -179,12 +183,12 @@ class _DraftEditScreenState extends ConsumerState<DraftEditScreen> {
               children: [
                 const Expanded(child: Text('Số lượng')),
                 IconButton(
-                  onPressed: _saving || line.qty <= OrderLimits.step
+                  onPressed: _saving || line.qty <= step
                       ? null
                       : () {
                           setState(() {
                             _lines[index] = line.withQty(
-                              line.qty - OrderLimits.step,
+                              line.qty - step,
                             );
                           });
                         },
@@ -197,7 +201,7 @@ class _DraftEditScreenState extends ConsumerState<DraftEditScreen> {
                       : () {
                           setState(() {
                             _lines[index] = line.withQty(
-                              line.qty + OrderLimits.step,
+                              line.qty + step,
                             );
                           });
                         },
@@ -224,6 +228,15 @@ class _DraftEditScreenState extends ConsumerState<DraftEditScreen> {
     setState(() => _saving = true);
 
     try {
+      final step = await ref.read(orderStepProvider.future);
+      if (!mounted) {
+        return;
+      }
+      if (_lines.any((line) => line.qty <= 0 || line.qty % step != 0)) {
+        throw ApiException(
+            kind: ApiErrorKind.validation,
+            message: 'Số lượng phải là số thùng nguyên dương theo bước $step.');
+      }
       final snapshot = data.snapshot;
       final retailer = data.retailer(
         widget.entry.payload.retailerCode,
@@ -290,6 +303,7 @@ class _DraftEditScreenState extends ConsumerState<DraftEditScreen> {
       }
 
       await repository.editOffline(
+        orderStep: step,
         original: widget.entry,
         lines: lines,
         estimate: estimate,

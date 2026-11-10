@@ -4,7 +4,7 @@ import 'package:fscm_mobile/data/models/order_availability.dart';
 import 'package:fscm_mobile/data/models/product.dart';
 import 'package:fscm_mobile/data/models/promotion.dart';
 import 'package:fscm_mobile/shared/widgets/app_card.dart';
-import 'package:fscm_mobile/shared/widgets/warehouse_stock_list.dart';
+import 'package:fscm_mobile/shared/widgets/order_stock_summary.dart';
 
 class ProductDetailScreen extends StatelessWidget {
   const ProductDetailScreen(
@@ -38,8 +38,8 @@ class ProductDetailScreen extends StatelessWidget {
               ])),
           if (availability != null) ...[
             AppCard(
-                child: WarehouseStockList(
-                    warehouses: availability!.warehouses, maxItems: null)),
+                child: OrderStockSummary(
+                    availability: availability!, maxWarehouses: null)),
             const Padding(
                 padding: EdgeInsets.only(bottom: 16),
                 child: Text(

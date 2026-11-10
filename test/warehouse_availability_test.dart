@@ -29,8 +29,7 @@ void main() {
     expect((await api.availability('retailer-1', ['product-1']))['SKU001'], 40);
   });
 
-  testWidgets(
-      'shows each warehouse separately and allows selecting the remaining ten cartons',
+  testWidgets('shows each warehouse separately and allows selecting one carton',
       (tester) async {
     tester.view.physicalSize = const Size(360, 800);
     tester.view.devicePixelRatio = 1;
@@ -59,7 +58,7 @@ void main() {
     expect(find.text('Ngoài phạm vi phục vụ'), findsNothing);
     expect(find.text('Kho Củ Chi · WH-HCM-01'), findsNothing);
     await tester.tap(find.byIcon(Icons.add));
-    expect(selected, 10);
+    expect(selected, 1);
     expect(tester.takeException(), isNull);
   });
 
@@ -152,7 +151,11 @@ void main() {
     ]) {
       await tester.pumpWidget(MaterialApp(
           home: Scaffold(body: WarehouseStockList(warehouses: warehouses))));
-      expect(find.text('Không có hàng đủ điều kiện để giao.'), findsOneWidget);
+      expect(find.text('Không có hàng đủ điều kiện để giao.'),
+          warehouses.isEmpty ? findsNothing : findsOneWidget);
+      if (warehouses.isEmpty) {
+        expect(find.text('Chưa có dữ liệu chi tiết theo kho.'), findsOneWidget);
+      }
       expect(find.textContaining('quá xa'), findsNothing);
       expect(tester.takeException(), isNull);
     }
