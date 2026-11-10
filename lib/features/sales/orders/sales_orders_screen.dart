@@ -94,7 +94,7 @@ class _SalesOrdersScreenState extends ConsumerState<SalesOrdersScreen> {
           ChipFilterBar<_OrderFilter>(
             options: const <ChipOption<_OrderFilter>>[
               ChipOption<_OrderFilter>(_OrderFilter.all, 'Tất cả'),
-              ChipOption<_OrderFilter>(_OrderFilter.pending, 'Chờ duyệt'),
+              ChipOption<_OrderFilter>(_OrderFilter.pending, 'Chờ xử lý'),
               ChipOption<_OrderFilter>(_OrderFilter.inProgress, 'Đang xử lý'),
               ChipOption<_OrderFilter>(_OrderFilter.delivered, 'Đã giao'),
               ChipOption<_OrderFilter>(_OrderFilter.rejected, 'Từ chối / hủy'),

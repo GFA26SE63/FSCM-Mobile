@@ -8,6 +8,7 @@ import 'package:fscm_mobile/data/models/order.dart';
 import 'package:fscm_mobile/data/models/price_quote.dart';
 import 'package:fscm_mobile/shared/theme/app_colors.dart';
 import 'package:fscm_mobile/shared/widgets/app_card.dart';
+import 'package:fscm_mobile/shared/widgets/batch_price_breakdown.dart';
 import 'package:fscm_mobile/shared/widgets/kv_row.dart';
 import 'package:fscm_mobile/shared/widgets/status_chip.dart';
 
@@ -112,22 +113,7 @@ class OrderLinesCard extends StatelessWidget {
               ),
             ),
         ],
-        if (showBatches)
-          for (final batch in line.batches)
-            Padding(
-              padding: const EdgeInsets.only(top: 4),
-              child: Text(
-                '• ${batch.batchCode} · ${batch.qty} thùng'
-                ' · HSD ${AppDates.date(batch.expiry)}'
-                '${batch.warehouseName.isEmpty ? '' : ' · ${batch.warehouseName}'}'
-                '${batch.labelCode.isEmpty ? '' : ' · tem ${batch.labelCode}'}',
-                style: const TextStyle(
-                  fontSize: 12.5,
-                  color: AppColors.textMuted,
-                  height: 1.3,
-                ),
-              ),
-            ),
+        if (showBatches) BatchPriceBreakdown(batches: line.batches),
       ],
     );
   }

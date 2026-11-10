@@ -108,7 +108,7 @@ class SalesHomeScreen extends ConsumerWidget {
                 const SizedBox(width: 10),
                 Expanded(
                     child: _Stat(
-                        label: 'Chờ duyệt',
+                        label: 'Chờ xử lý',
                         value: '$waiting',
                         tone: StatusTone.info)),
                 const SizedBox(width: 10),
