@@ -488,6 +488,15 @@ class Order {
 
 /// Request body of `POST /orders` (online order creation).
 class NewOrderRequest {
+  factory NewOrderRequest.fromJson(Map<String, dynamic> json) =>
+      NewOrderRequest(
+        clientOrderKey: asStr(json['clientOrderKey']),
+        retailerId: asStr(json['retailerId']),
+        lines: mapList(json['lines'], CartLine.fromJson),
+        deliveryAddress: asStrOrNull(json['deliveryAddress']),
+        note: asStrOrNull(json['note']),
+      );
+
   const NewOrderRequest({
     required this.clientOrderKey,
     required this.retailerId,

@@ -28,6 +28,7 @@ class OfflineOrderPayload {
     this.estimatedAt,
     this.snapshotVersion,
     this.expectedConditions = const <OfflineExpectedCondition>[],
+    this.pendingOnlineRequest,
   });
 
   factory OfflineOrderPayload.fromJson(Map<String, dynamic> json) {
@@ -57,6 +58,9 @@ class OfflineOrderPayload {
         json['expectedConditions'],
         OfflineExpectedCondition.fromJson,
       ),
+      pendingOnlineRequest: json['pendingOnlineRequest'] is Map
+          ? NewOrderRequest.fromJson(asMap(json['pendingOnlineRequest']))
+          : null,
     );
   }
 
@@ -76,6 +80,9 @@ class OfflineOrderPayload {
   final DateTime? estimatedAt;
   final String? snapshotVersion;
   final List<OfflineExpectedCondition> expectedConditions;
+
+  /// An online POST with an unknown result must replay its original endpoint/body.
+  final NewOrderRequest? pendingOnlineRequest;
 
   int get localFinal => localTotal - localDiscount;
 
@@ -110,9 +117,25 @@ class OfflineOrderPayload {
         'snapshotVersion': snapshotVersion,
         'expectedConditions':
             expectedConditions.map((item) => item.toJson()).toList(),
+        if (pendingOnlineRequest != null)
+          'pendingOnlineRequest': pendingOnlineRequest!.toJson(),
       };
 
   Map<String, dynamic> toRequestJson({bool confirmConditionChanges = false}) {
+    final online = pendingOnlineRequest;
+    if (online != null) {
+      final quantities = {for (final line in lines) line.productId: line.qty};
+      if (online.clientOrderKey != clientRequestId ||
+          online.retailerId != retailerId ||
+          online.lines.length != lines.length ||
+          online.lines.any((line) => quantities[line.productId] != line.qty)) {
+        throw const ApiException(
+          kind: ApiErrorKind.validation,
+          message: 'Yêu cầu online đang chờ kết quả đã bị thay đổi.',
+        );
+      }
+      return online.toJson();
+    }
     if (!hasCompleteExpectedConditions) {
       throw const ApiException(
         kind: ApiErrorKind.validation,

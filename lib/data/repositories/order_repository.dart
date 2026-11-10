@@ -12,6 +12,7 @@ import 'package:fscm_mobile/data/local/local_providers.dart';
 import 'package:fscm_mobile/data/models/delivery_shipment.dart';
 import 'package:fscm_mobile/data/models/enums.dart';
 import 'package:fscm_mobile/data/models/offline_order.dart';
+import 'package:fscm_mobile/data/models/offline_expected_condition.dart';
 import 'package:fscm_mobile/data/models/order.dart';
 import 'package:fscm_mobile/data/models/price_quote.dart';
 import 'package:fscm_mobile/data/models/retailer.dart';
@@ -285,30 +286,34 @@ class OrderRepository {
     required PriceQuote estimate,
     required DateTime estimatedAt,
     required SyncSnapshot? snapshot,
+    NewOrderRequest? pendingOnlineRequest,
   }) async {
     _requireSession(salesOnly: true);
     _validateEstimate(lines: lines, estimate: estimate, orderStep: orderStep);
 
-    if (snapshot == null) {
+    if (snapshot == null && pendingOnlineRequest == null) {
       throw const ApiException(
         kind: ApiErrorKind.validation,
         message: 'Chưa có snapshot để lưu điều kiện giá/MLOR.',
       );
     }
 
-    final conditions = OfflineConditionBuilder.capture(
-      snapshot: snapshot,
-      retailerId: retailer.id,
-      lines: lines,
-      at: estimatedAt,
-    );
+    final conditions = snapshot == null || pendingOnlineRequest != null
+        ? const <OfflineExpectedCondition>[]
+        : OfflineConditionBuilder.capture(
+            snapshot: snapshot,
+            retailerId: retailer.id,
+            lines: lines,
+            at: estimatedAt,
+          );
 
     final sequence = await _syncState.nextOfflineSeq();
     _requireSession(salesOnly: true);
 
     final now = AppClock.now();
     final payload = OfflineOrderPayload(
-      clientRequestId: const Uuid().v4(),
+      clientRequestId:
+          pendingOnlineRequest?.clientOrderKey ?? const Uuid().v4(),
       offlineCode: IdFormat.offlineOrder(
         _device.deviceCode,
         sequence,
@@ -324,9 +329,11 @@ class OrderRepository {
       localPromoIds: estimate.applied.map((promotion) => promotion.id).toList(),
       localQuote: estimate,
       estimatedAt: estimatedAt,
-      snapshotVersion: snapshot.version,
+      snapshotVersion: snapshot?.version,
       expectedConditions: conditions,
+      pendingOnlineRequest: pendingOnlineRequest,
     );
+    payload.toRequestJson();
 
     final entry = OfflineOrder(
       clientRequestId: payload.clientRequestId,
