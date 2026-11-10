@@ -340,6 +340,7 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
   Widget _productRow(Product product, CatalogData data, Retailer retailer,
       PriceQuote quote, ProductAvailability? availability,
       {required bool online}) {
+    final viewerRole = ref.watch(currentUserProvider)?.role;
     // Snapshot stock must not limit a Sales draft. Unknown online availability
     // is not zero; allow browsing, but wait for a verified result to add stock.
     final maximum = online
@@ -368,6 +369,7 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
             product: product,
             unitPrice: price,
             availability: availability,
+            viewerRole: viewerRole,
             promotions: promotions,
           ),
         ),
@@ -407,6 +409,7 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
           if (availability != null)
             OrderStockSummary(
               availability: availability,
+              viewerRole: viewerRole,
               onViewAll: _busy ? null : openDetail,
             ),
           Row(
@@ -733,6 +736,7 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
       await _submit(
         data,
         retailer,
+        confirmedQuote: quote,
         localEstimate: localEstimate.isComplete ? localEstimate : null,
         estimatedAt: estimatedAt,
       );
@@ -754,6 +758,7 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
   Future<void> _submit(
     CatalogData data,
     Retailer retailer, {
+    required PriceQuote confirmedQuote,
     required PriceQuote? localEstimate,
     required DateTime estimatedAt,
   }) async {
@@ -810,6 +815,7 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
       _validateQuantities(step);
       var code = '';
       var message = '';
+      NewOrderRequest? attemptedOnlineRequest;
 
       Future<void> saveOffline(String notice) async {
         if (!mounted || !_isCurrentUser(user.id)) {
@@ -819,7 +825,8 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
           );
         }
 
-        final estimate = localEstimate;
+        final estimate =
+            attemptedOnlineRequest != null ? confirmedQuote : localEstimate;
 
         if (estimate == null || !estimate.isComplete) {
           throw const ApiException(
@@ -836,6 +843,7 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
           estimate: estimate,
           estimatedAt: estimatedAt,
           snapshot: data.snapshot,
+          pendingOnlineRequest: attemptedOnlineRequest,
         );
 
         code = entry.localCode;
@@ -880,14 +888,13 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
             return;
           }
 
-          final order = await repository.createOnline(
-            NewOrderRequest(
-              clientOrderKey: _clientOrderKey,
-              retailerId: retailer.id,
-              lines: lines,
-              deliveryAddress: retailer.address,
-            ),
+          attemptedOnlineRequest = NewOrderRequest(
+            clientOrderKey: _clientOrderKey,
+            retailerId: retailer.id,
+            lines: lines,
+            deliveryAddress: retailer.address,
           );
+          final order = await repository.createOnline(attemptedOnlineRequest);
 
           code = order.id;
           message = order.status.isRejectedOrCancelled
@@ -900,8 +907,10 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
           }
 
           await saveOffline(
-            'Mất kết nối — đã lưu đơn và bản tạm tính trên máy. '
-            'Mở draft và chủ động gửi lại khi kết nối được máy chủ.',
+            attemptedOnlineRequest == null
+                ? 'Mất kết nối — đã lưu draft trên máy. Mở draft để chủ động gửi lại.'
+                : 'Chưa nhận được kết quả gửi online. Đã giữ nguyên yêu cầu trên máy; '
+                    'mở draft và bấm Gửi để kiểm tra hoặc hoàn tất cùng yêu cầu.',
           );
         }
       } else {
