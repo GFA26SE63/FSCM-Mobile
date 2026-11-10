@@ -17,7 +17,6 @@ import 'package:fscm_mobile/data/models/price_quote.dart';
 import 'package:fscm_mobile/data/models/retailer.dart';
 import 'package:fscm_mobile/data/models/sync_snapshot.dart';
 import 'package:fscm_mobile/data/pricing/offline_condition_builder.dart';
-import 'package:fscm_mobile/data/pricing/order_limits.dart';
 import 'package:fscm_mobile/data/remote/orders_api.dart';
 import 'package:fscm_mobile/data/repositories/auth_repository.dart';
 import 'package:fscm_mobile/data/repositories/data_version.dart';
@@ -233,17 +232,20 @@ class OrderRepository {
   void _validateEstimate({
     required List<CartLine> lines,
     required PriceQuote estimate,
+    required int orderStep,
   }) {
-    if (lines.isEmpty ||
+    if (orderStep <= 0 ||
+        lines.isEmpty ||
         lines.any(
           (line) =>
               line.productId.isEmpty ||
               line.qty <= 0 ||
-              line.qty % OrderLimits.step != 0,
+              line.qty % orderStep != 0,
         )) {
-      throw const ApiException(
+      throw ApiException(
         kind: ApiErrorKind.validation,
-        message: 'Giỏ hàng cần có sản phẩm và số lượng đúng bước đặt hàng.',
+        message: 'Giỏ hàng cần có sản phẩm và số lượng thùng nguyên dương '
+            'theo bước $orderStep.',
       );
     }
 
@@ -277,6 +279,7 @@ class OrderRepository {
   }
 
   Future<OfflineOrder> createOffline({
+    required int orderStep,
     required Retailer retailer,
     required List<CartLine> lines,
     required PriceQuote estimate,
@@ -284,7 +287,7 @@ class OrderRepository {
     required SyncSnapshot? snapshot,
   }) async {
     _requireSession(salesOnly: true);
-    _validateEstimate(lines: lines, estimate: estimate);
+    _validateEstimate(lines: lines, estimate: estimate, orderStep: orderStep);
 
     if (snapshot == null) {
       throw const ApiException(
@@ -337,6 +340,7 @@ class OrderRepository {
   }
 
   Future<void> editOffline({
+    required int orderStep,
     required OfflineOrder original,
     required List<CartLine> lines,
     required PriceQuote estimate,
@@ -344,7 +348,7 @@ class OrderRepository {
     required SyncSnapshot snapshot,
   }) async {
     _requireSession(salesOnly: true);
-    _validateEstimate(lines: lines, estimate: estimate);
+    _validateEstimate(lines: lines, estimate: estimate, orderStep: orderStep);
 
     final previous = original.payload;
     final conditions = OfflineConditionBuilder.capture(

@@ -58,12 +58,29 @@ class OrdersApi {
       String retailerId, List<String> productIds) async {
     final quantities = <String, ProductAvailability>{};
     for (var offset = 0; offset < productIds.length; offset += 100) {
+      final requestedIds = productIds.skip(offset).take(100).toSet().toList();
       final data = asMap(await _client.post('/orders/availability', body: {
         'retailerId': retailerId,
-        'productIds': productIds.skip(offset).take(100).toList(),
+        'productIds': requestedIds,
       }));
+      if (data['items'] is! List ||
+          unwrapItems(data).length != requestedIds.length) {
+        throw const ApiException(
+            kind: ApiErrorKind.server,
+            message: 'Phản hồi kiểm tra tồn thiếu dữ liệu sản phẩm.');
+      }
       for (final item in unwrapItems(data)) {
-        final availability = ProductAvailability.fromJson(item);
+        final quantity = item['eligibleQuantity'];
+        if (asStr(item['sku']).isEmpty ||
+            quantity is! num ||
+            !quantity.isFinite ||
+            quantity < 0) {
+          throw const ApiException(
+              kind: ApiErrorKind.server,
+              message: 'Phản hồi kiểm tra tồn có số lượng không hợp lệ.');
+        }
+        final availability = ProductAvailability.fromJson(item,
+            checkedAt: asDate(data['checkedAt']));
         quantities[availability.sku] = availability;
       }
     }

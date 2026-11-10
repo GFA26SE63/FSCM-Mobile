@@ -16,7 +16,7 @@ import 'package:fscm_mobile/core/utils/status_tone.dart';
 import 'package:fscm_mobile/data/models/json_utils.dart';
 import 'package:fscm_mobile/data/models/order.dart';
 import 'package:fscm_mobile/data/models/order_availability.dart';
-import 'package:fscm_mobile/shared/widgets/warehouse_stock_list.dart';
+import 'package:fscm_mobile/shared/widgets/order_stock_summary.dart';
 import 'package:fscm_mobile/data/models/price_quote.dart';
 import 'package:fscm_mobile/data/models/product.dart';
 import 'package:fscm_mobile/data/models/retailer.dart';
@@ -27,6 +27,7 @@ import 'package:fscm_mobile/data/repositories/auth_repository.dart';
 import 'package:fscm_mobile/data/repositories/catalog_repository.dart';
 import 'package:fscm_mobile/data/repositories/data_version.dart';
 import 'package:fscm_mobile/data/repositories/order_repository.dart';
+import 'package:fscm_mobile/data/repositories/order_configuration_repository.dart';
 import 'package:fscm_mobile/features/sales/orders/order_confirm_sheet.dart';
 import 'package:fscm_mobile/features/sales/products/product_detail_screen.dart';
 import 'package:fscm_mobile/shared/routes.dart';
@@ -72,6 +73,7 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
 
   String _query = '';
   bool _busy = false;
+  int get _step => ref.read(orderStepProvider).requireValue;
 
   @override
   void initState() {
@@ -157,36 +159,31 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
             );
           }
 
-          if (!online) {
-            return _body(context, data, retailer, online);
-          }
-
-          // Giữ phần availability hiện có theo phạm vi đã thống nhất.
-          final availability = ref.watch(
-            _orderAvailabilityProvider(retailer.id),
-          );
-
-          return AsyncBody<Map<String, ProductAvailability>>(
-            value: availability,
-            onRetry: () {
-              ref.invalidate(_orderAvailabilityProvider(retailer.id));
+          return AsyncBody<int>(
+            value: ref.watch(orderStepProvider),
+            onRetry: () => ref.invalidate(orderStepProvider),
+            builder: (_) {
+              if (!online) {
+                return _body(context, data, retailer, online);
+              }
+              final availability = ref.watch(
+                _orderAvailabilityProvider(retailer.id),
+              );
+              final error = availability.error;
+              final serverUnavailable =
+                  error is ApiException && error.isNetwork;
+              // Connectivity can stay online while the backend is unreachable.
+              // Sales can still prepare a draft; Retailer submission stays online-only.
+              return _body(
+                  context, data, retailer, online && !serverUnavailable,
+                  availability: availability.hasError || availability.isLoading
+                      ? null
+                      : availability.valueOrNull,
+                  availabilityLoading: availability.isLoading,
+                  availabilityError: availability.hasError
+                      ? ApiException.describe(availability.error!)
+                      : null);
             },
-            builder: (quantities) => _body(
-              context,
-              CatalogData(
-                retailers: data.retailers,
-                products: data.products,
-                prices: data.prices,
-                promotions: data.promotions,
-                stock: quantities
-                    .map((sku, stock) => MapEntry(sku, stock.quantity)),
-                lastSyncAt: data.lastSyncAt,
-                snapshot: data.snapshot,
-              ),
-              retailer,
-              online,
-              availability: quantities,
-            ),
           );
         },
       ),
@@ -199,6 +196,8 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
     Retailer retailer,
     bool online, {
     Map<String, ProductAvailability>? availability,
+    bool availabilityLoading = false,
+    String? availabilityError,
   }) {
     final isRetailer =
         ref.watch(currentUserProvider)?.role == UserRole.retailer;
@@ -265,6 +264,14 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
                     'Giá và khuyến mãi trên giỏ được tính từ dữ liệu '
                     'đã lưu; chưa phải báo giá cuối sau phân bổ.',
               ),
+              if (availabilityLoading) const LinearProgressIndicator(),
+              if (availabilityError != null) ...[
+                InfoBanner(tone: StatusTone.warning, text: availabilityError),
+                TextButton(
+                    onPressed: () =>
+                        ref.invalidate(_orderAvailabilityProvider(retailer.id)),
+                    child: const Text('Kiểm tra lại tồn đủ điều kiện')),
+              ],
               InfoBanner(
                 text: online
                     ? 'Đang dùng kết quả kiểm tra availability '
@@ -303,6 +310,7 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
                     retailer,
                     quote,
                     availability?[product.sku],
+                    online: online,
                   ),
             ],
           ),
@@ -320,14 +328,23 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
     return AppDates.timeDay(value.toLocal());
   }
 
-  Widget _productRow(
-    Product product,
-    CatalogData data,
-    Retailer retailer,
-    PriceQuote quote,
-    ProductAvailability? availability,
-  ) {
-    final maximum = data.maxQty(product.sku);
+  void _validateQuantities(int step) {
+    if (_lines.any((line) => line.qty <= 0 || line.qty % step != 0)) {
+      throw ApiException(
+          kind: ApiErrorKind.validation,
+          message: 'Số lượng phải là số thùng nguyên dương theo bước $step. '
+              'Hãy kiểm tra lại giỏ hàng.');
+    }
+  }
+
+  Widget _productRow(Product product, CatalogData data, Retailer retailer,
+      PriceQuote quote, ProductAvailability? availability,
+      {required bool online}) {
+    // Snapshot stock must not limit a Sales draft. Unknown online availability
+    // is not zero; allow browsing, but wait for a verified result to add stock.
+    final maximum = online
+        ? OrderLimits.maxQty(availability?.quantity ?? 0, step: _step)
+        : 2147483647;
     final quantity = _cart[product.sku] ?? 0;
     final price = data.displayPrice(product);
     final pricedLines =
@@ -388,8 +405,8 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
           ),
           const SizedBox(height: 6),
           if (availability != null)
-            WarehouseStockList(
-              warehouses: availability.warehouses,
+            OrderStockSummary(
+              availability: availability,
               onViewAll: _busy ? null : openDetail,
             ),
           Row(
@@ -398,11 +415,13 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
                 child: Text(
                   maximum == 0
                       ? (availability == null
-                          ? 'Chưa có số lượng có thể chọn từ snapshot'
+                          ? 'Chưa kiểm tra được tồn đủ điều kiện'
                           : availability.quantity <= 0
                               ? 'Không có hàng đủ điều kiện để giao'
-                              : 'Chưa đủ hàng để đặt theo bội ${OrderLimits.step} thùng')
-                      : 'Chọn số lượng · bội ${OrderLimits.step} thùng',
+                              : 'Chưa đủ hàng theo bước $_step thùng')
+                      : _step == 1
+                          ? 'Chọn số lượng thùng'
+                          : 'Chọn số lượng · bội $_step thùng',
                   style: TextStyle(
                     color:
                         maximum == 0 ? AppColors.warning : AppColors.textMuted,
@@ -410,11 +429,11 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
                   ),
                 ),
               ),
-              if (maximum > 0)
+              if (maximum > 0 || quantity > 0)
                 QuantityStepper(
                   value: quantity,
-                  step: OrderLimits.step,
-                  max: maximum,
+                  step: _step,
+                  max: quantity > maximum ? quantity : maximum,
                   onChanged: (value) {
                     if (_busy) {
                       return;
@@ -422,6 +441,13 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
                     setState(() => _cart[product.sku] = value);
                   },
                 ),
+              if (quantity > 0)
+                IconButton(
+                    tooltip: 'Bỏ sản phẩm khỏi giỏ',
+                    onPressed: _busy
+                        ? null
+                        : () => setState(() => _cart.remove(product.sku)),
+                    icon: const Icon(Icons.close)),
             ],
           ),
           if (pricedLines.isNotEmpty && pricedLines.first.hasDiscount)
@@ -638,6 +664,11 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
     setState(() => _busy = true);
 
     try {
+      final step = await ref.read(orderStepProvider.future);
+      if (!mounted || !_isCurrentUser(user.id)) {
+        return;
+      }
+      _validateQuantities(step);
       if (online) {
         await _ensureSalesOrderEligibility(retailer);
 
@@ -772,6 +803,11 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
     setState(() => _busy = true);
 
     try {
+      final step = await ref.read(orderStepProvider.future);
+      if (!mounted || !_isCurrentUser(user.id)) {
+        return;
+      }
+      _validateQuantities(step);
       var code = '';
       var message = '';
 
@@ -794,6 +830,7 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
         }
 
         final entry = await repository.createOffline(
+          orderStep: step,
           retailer: retailer,
           lines: lines,
           estimate: estimate,
@@ -823,29 +860,21 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
             return;
           }
 
-          if (lines.any(
-            (line) => line.qty > OrderLimits.maxQty(quantities[line.sku] ?? 0),
-          )) {
+          final shortages = lines
+              .where((line) =>
+                  line.qty >
+                  OrderLimits.maxQty(quantities[line.sku] ?? 0, step: step))
+              .toList();
+          if (shortages.isNotEmpty) {
             ref.invalidate(
               _orderAvailabilityProvider(retailer.id),
             );
 
-            setState(() {
-              for (final entry in _cart.entries.toList()) {
-                final maximum = OrderLimits.maxQty(
-                  quantities[entry.key] ?? 0,
-                );
-
-                if (entry.value > maximum) {
-                  _cart[entry.key] = maximum;
-                }
-              }
-            });
-
             showAppSnack(
               context,
-              'Số lượng đáp ứng vừa thay đổi. '
-              'Hãy kiểm tra lại giỏ hàng.',
+              'Tồn đủ điều kiện thay đổi: '
+              '${shortages.map((line) => '${line.sku}: chọn ${line.qty}, hiện có ${quantities[line.sku] ?? 0} thùng').join('; ')}. '
+              'Giỏ hàng được giữ nguyên. Hãy điều chỉnh số lượng rồi gửi lại.',
               error: true,
             );
             return;
@@ -872,7 +901,7 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
 
           await saveOffline(
             'Mất kết nối — đã lưu đơn và bản tạm tính trên máy. '
-            'Đơn sẽ được gửi theo cơ chế đồng bộ hiện tại.',
+            'Mở draft và chủ động gửi lại khi kết nối được máy chủ.',
           );
         }
       } else {
