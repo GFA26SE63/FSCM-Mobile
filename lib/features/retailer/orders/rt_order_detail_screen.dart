@@ -9,6 +9,7 @@ import 'package:fscm_mobile/data/models/order.dart';
 import 'package:fscm_mobile/data/remote/quotes_api.dart';
 import 'package:fscm_mobile/data/repositories/order_repository.dart';
 import 'package:fscm_mobile/data/repositories/retailer_order_repository.dart';
+import 'package:fscm_mobile/data/repositories/retailer_orders_controller.dart';
 import 'package:fscm_mobile/features/retailer/orders/widgets/retailer_delivery_progress.dart';
 import 'package:fscm_mobile/features/retailer/orders/widgets/retailer_prepaid_payment.dart';
 import 'package:fscm_mobile/features/retailer/orders/widgets/retailer_quote_panel.dart';
@@ -40,6 +41,7 @@ class RtOrderDetailScreen extends ConsumerWidget {
         ref.invalidate(retailerCreditProvider(retailerId));
       }
       ref.invalidate(ordersProvider);
+      ref.invalidate(retailerOrdersProvider);
       ref.invalidate(orderDetailProvider(code));
       await ref.read(orderDetailProvider(code).future);
     }
@@ -130,7 +132,7 @@ class RtOrderDetailScreen extends ConsumerWidget {
                 KvRow(
                     'Trạng thái',
                     order.payment == PaymentMethod.unselected
-                        ? 'Chọn sau khi chấp nhận báo giá'
+                        ? 'Chọn khi chấp nhận báo giá'
                         : order.paid
                             ? 'Đã thanh toán${order.paidAt == null ? '' : ' ${AppDates.timeDay(order.paidAt!.toLocal())}'}'
                             : 'Chưa thanh toán'),

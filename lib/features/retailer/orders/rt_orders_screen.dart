@@ -51,13 +51,6 @@ class _RtOrdersScreenState extends ConsumerState<RtOrdersScreen> {
     }
   }
 
-  bool _matches(Order o) {
-    if (!_inSpan(o)) return false;
-    if (_query.isEmpty) return true;
-    final hay = '${o.code} ${o.itemsSummary}'.toLowerCase();
-    return hay.contains(_query);
-  }
-
   @override
   Widget build(BuildContext context) {
     final value = ref.watch(retailerOrdersProvider(_query));
@@ -111,7 +104,9 @@ class _RtOrdersScreenState extends ConsumerState<RtOrdersScreen> {
                 onRetry: () =>
                     ref.read(retailerOrdersProvider(_query).notifier).refresh(),
                 builder: (result) {
-                  final all = result.orders.where(_matches).toList();
+                  // Search is performed by the server. Only the time range and
+                  // status tabs filter the pages currently loaded on the device.
+                  final all = result.orders.where(_inSpan).toList();
                   final active = all.where((o) => o.status.isActive).toList();
                   final history = all.where((o) => !o.status.isActive).toList();
                   return TabBarView(
@@ -160,8 +155,13 @@ class _OrderList extends ConsumerWidget {
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.all(16),
         children: [
-          Text(
-              'Đã tải ${state.orders.length}/${state.totalCount} đơn. Bộ lọc áp dụng trên dữ liệu đã tải.'),
+          Text('Đã tải ${state.orders.length}/${state.totalCount} đơn'
+              '${search.isEmpty ? '' : ' khớp mã tìm kiếm'}. '
+              'Tab trạng thái và bộ lọc thời gian chỉ áp dụng trên các đơn đã tải.'),
+          if (state.hasMore && orders.isEmpty)
+            const InfoBanner(
+                text: 'Vẫn còn đơn chưa tải. Chọn "Tải thêm đơn" để tiếp tục '
+                    'kiểm tra kết quả trong tab và khoảng thời gian này.'),
           if (orders.isEmpty) EmptyState(title: empty),
           for (final order in orders) RtOrderTile(order: order),
           if (state.moreError != null) InfoBanner(text: state.moreError!),
