@@ -120,7 +120,8 @@ class OrdersApi {
       List<OfflineOrderPayload> orders) async {
     final results = <OrderSyncResult>[];
     for (final payload in orders) {
-      if (!payload.hasCompleteExpectedConditions) {
+      if (payload.pendingOnlineRequest == null &&
+          !payload.hasCompleteExpectedConditions) {
         results.add(
           OrderSyncResult(
             clientRequestId: payload.clientRequestId,
@@ -142,7 +143,9 @@ class OrdersApi {
     bool confirmConditionChanges = false,
   }) async {
     final data = await _client.post(
-      Endpoints.ordersSync,
+      payload.pendingOnlineRequest == null
+          ? Endpoints.ordersSync
+          : Endpoints.orders,
       body: payload.toRequestJson(
         confirmConditionChanges: confirmConditionChanges,
       ),
