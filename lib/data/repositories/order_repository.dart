@@ -161,6 +161,8 @@ class OrderRepository {
   /// Stores an order locally (no network). It keeps `OFF-{device}-{0000}`
   /// and a UUID idempotency key until the sync service pushes it.
   Future<OfflineOrder> createOffline({
+    String? clientOrderKey,
+    bool onlineAttempt = false,
     required Retailer retailer,
     required List<CartLine> lines,
     required PaymentMethod payment,
@@ -170,7 +172,8 @@ class OrderRepository {
     final quote = catalog.quote(lines, retailer.code);
     final now = AppClock.now();
     final payload = OfflineOrderPayload(
-      clientRequestId: const Uuid().v4(),
+      onlineAttempt: onlineAttempt,
+      clientRequestId: clientOrderKey ?? const Uuid().v4(),
       offlineCode: IdFormat.offlineOrder(_device.deviceCode, seq),
       retailerCode: retailer.code,
       retailerName: retailer.name,

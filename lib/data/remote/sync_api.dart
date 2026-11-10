@@ -1,3 +1,4 @@
+import 'package:fscm_mobile/core/config/env.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:fscm_mobile/core/network/api_client.dart';
@@ -10,19 +11,22 @@ final syncApiProvider =
     Provider<SyncApi>((ref) => SyncApi(ref.watch(apiClientProvider)));
 
 class SyncApi {
-  SyncApi(this._client);
+  SyncApi(this._client, {bool useMock = Env.useMock}) : _useMock = useMock;
 
   final ApiClient _client;
+  final bool _useMock;
 
   /// `GET /sync/snapshot?since=` - retailers in area, products, prices,
   /// promotions and the available stock summary.
   Future<SyncSnapshot> snapshot({DateTime? since}) async {
     final data = await _client.get(
-      Endpoints.syncSnapshot,
+      _useMock ? Endpoints.syncSnapshot : '/mobile/snapshot',
       query: <String, dynamic>{
         'since': since == null ? null : AppDates.iso(since)
       },
     );
-    return SyncSnapshot.fromJson(asMap(data));
+    return _useMock
+        ? SyncSnapshot.fromJson(asMap(data))
+        : SyncSnapshot.fromBackendJson(asMap(data));
   }
 }

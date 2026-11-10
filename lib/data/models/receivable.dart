@@ -22,10 +22,10 @@ class Receivable {
         retailerName: asStr(j['retailerName']),
         amount: asInt(j['amount']),
         status: ReceivableStatus.fromCode(asStrOrNull(j['status'])),
-        deliveredAt: asDate(j['deliveredAt']),
+        deliveredAt: asDate(j['deliveredDate'] ?? j['deliveredAt']),
         dueDate: asDate(j['dueDate']),
-        term: asInt(j['term']),
-        paidAt: asDate(j['paidAt']),
+        term: asInt(j['creditTermDays'] ?? j['term']),
+        paidAt: asDate(j['paidDate'] ?? j['paidAt']),
       );
 
   final String orderCode;

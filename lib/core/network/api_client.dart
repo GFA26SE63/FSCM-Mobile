@@ -159,7 +159,7 @@ class ApiClient {
         path: path,
         query: cleanQuery,
         body: body,
-        headers: _buildHeaders(),
+        headers: _buildHeaders(requestHeaders),
       ),
     );
 
@@ -172,7 +172,7 @@ class ApiClient {
             path: path,
             query: cleanQuery,
             body: body,
-            headers: _buildHeaders(),
+            headers: _buildHeaders(requestHeaders),
           ),
         );
       }
@@ -192,7 +192,7 @@ class ApiClient {
     throw error;
   }
 
-  Map<String, String> _buildHeaders() {
+  Map<String, String> _buildHeaders([Map<String, String>? requestHeaders]) {
     final headers = <String, String>{'Accept': 'application/json'};
     if (requestHeaders != null) headers.addAll(requestHeaders);
     final token = _tokenReader();

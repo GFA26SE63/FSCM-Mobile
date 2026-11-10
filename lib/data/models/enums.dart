@@ -31,7 +31,8 @@ enum OrderStatus {
   bool get canConfirmReceipt => this == delivering || this == shipped;
 
   static OrderStatus fromCode(String? code) {
-    final c = (code ?? '').toLowerCase();
+    final raw = (code ?? '').toLowerCase();
+    final c = raw == 'issued' ? 'shipped' : (raw == 'pendingapproval' || raw == 'pendingallocation' ? 'pending' : raw);
     for (final s in OrderStatus.values) {
       if (s.code.toLowerCase() == c) return s;
     }
