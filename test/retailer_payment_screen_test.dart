@@ -44,6 +44,7 @@ void main() {
     await tester.pumpWidget(ProviderScope(
       overrides: [
         orderDetailProvider('order-2').overrideWith((ref) async => order),
+        deliveryShipmentsProvider('order-2').overrideWith((ref) async => []),
       ],
       child: const MaterialApp(home: RtOrderDetailScreen(code: 'order-2')),
     ));
@@ -96,12 +97,8 @@ void main() {
     expect(
         find.textContaining('Kênh PayOS hiện chưa sẵn sàng'), findsOneWidget);
     expect(checkout, findsOneWidget);
-    await tester.ensureVisible(find.text('Đổi sang công nợ'));
-    await tester.tap(find.text('Đổi sang công nợ'));
-    await tester.pumpAndSettle();
-    expect(find.text('Đổi sang công nợ?'), findsOneWidget);
-    await tester.tap(find.text('Giữ trả trước'));
-    await tester.pumpAndSettle();
+    // Current develop has no switch-to-credit endpoint after acceptance.
+    expect(find.text('Đổi sang công nợ'), findsNothing);
     expect(transport.requests.map((request) => request.toString()), [
       'GET /payments/orders/order-1',
       'POST /payments/orders/order-1/payos-checkout',

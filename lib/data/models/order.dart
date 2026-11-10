@@ -141,6 +141,12 @@ class OrderLine {
 class Order {
   const Order({
     this.id = '',
+    this.retailerId = '',
+    this.allocationState = '',
+    this.allocationResult,
+    this.finalPricePendingAllocation = false,
+    this.lineCount = 0,
+    this.totalCartons = 0,
     required this.code,
     required this.retailerCode,
     required this.retailerName,
@@ -180,6 +186,12 @@ class Order {
     final legacyMethod = j['payment'] is String ? j['payment'] : null;
     return Order(
       id: asStr(j['id']),
+      retailerId: asStr(j['retailerId']),
+      allocationState: asStr(j['allocationState']),
+      allocationResult: asStrOrNull(j['allocationResult']),
+      finalPricePendingAllocation: asBool(j['finalPricePendingAllocation']),
+      lineCount: asInt(j['lineCount']),
+      totalCartons: asInt(j['totalCartons']),
       code: asStr(j['code'] ?? j['orderCode']),
       retailerCode: asStr(j['retailerCode']),
       retailerName: asStr(j['retailerName']),
@@ -235,6 +247,12 @@ class Order {
       !paid;
 
   final String id;
+  final String retailerId;
+  final String allocationState;
+  final String? allocationResult;
+  final bool finalPricePendingAllocation;
+  final int lineCount;
+  final int totalCartons;
   final String code;
   final String retailerCode;
   final String retailerName;
@@ -286,8 +304,9 @@ class Order {
 
   String get displayCode => code.isNotEmpty ? code : offlineCode;
 
-  String get itemsSummary =>
-      lines.map((l) => '${l.name} ×${l.qty}').join(' · ');
+  String get itemsSummary => lines.isEmpty
+      ? '$lineCount SKU · $totalCartons thùng'
+      : lines.map((l) => '${l.name} ×${l.qty}').join(' · ');
 
   /// Keep campaign names separate from the shared shelf-life table/version.
   List<AppliedPromo> get appliedPromos {
@@ -327,6 +346,12 @@ class Order {
   }) =>
       Order(
         id: id,
+        retailerId: retailerId,
+        allocationState: allocationState,
+        allocationResult: allocationResult,
+        finalPricePendingAllocation: finalPricePendingAllocation,
+        lineCount: lineCount,
+        totalCartons: totalCartons,
         code: code,
         retailerCode: retailerCode,
         retailerName: retailerName,
@@ -363,6 +388,12 @@ class Order {
 
   Map<String, dynamic> toJson() => <String, dynamic>{
         'id': id,
+        'retailerId': retailerId,
+        'allocationState': allocationState,
+        'allocationResult': allocationResult,
+        'finalPricePendingAllocation': finalPricePendingAllocation,
+        'lineCount': lineCount,
+        'totalCartons': totalCartons,
         'code': code,
         'retailerCode': retailerCode,
         'retailerName': retailerName,
