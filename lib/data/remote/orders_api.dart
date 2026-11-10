@@ -7,6 +7,7 @@ import 'package:fscm_mobile/data/models/json_utils.dart';
 import 'package:fscm_mobile/data/models/delivery_shipment.dart';
 import 'package:fscm_mobile/data/models/offline_order.dart';
 import 'package:fscm_mobile/data/models/order.dart';
+import 'package:uuid/uuid.dart';
 import 'package:fscm_mobile/data/models/order_availability.dart';
 import 'package:fscm_mobile/data/models/order_page.dart';
 
@@ -174,9 +175,6 @@ class OrdersApi {
     String orderId,
     DeliveryShipment shipment, {
     required List<String> labelCodes,
-    required List<ShipmentReceiptLineInput> lines,
-    required String operationKey,
-    String? note,
   }) async {
     if (!shipment.canReceive) {
       throw const ApiException(
@@ -184,57 +182,24 @@ class OrdersApi {
         message: 'Không có phần giao nào đang vận chuyển để xác nhận.',
       );
     }
-    if (lines.length != shipment.lines.length) {
-      throw const ApiException(
-        kind: ApiErrorKind.validation,
-        message: 'Cần nhập kết quả cho toàn bộ batch của phần giao.',
-      );
-    }
-    final expected = <String>{
-      for (final line in shipment.lines) '${line.orderLineId}:${line.batchId}',
-    };
-    final submitted = <String>{
-      for (final line in lines) '${line.orderLineId}:${line.batchId}',
-    };
-    if (expected.length != submitted.length ||
-        !expected.containsAll(submitted)) {
-      throw const ApiException(
-        kind: ApiErrorKind.validation,
-        message: 'Batch xác nhận không khớp với phần giao đã chọn.',
-      );
-    }
-    final payloadLines = lines
+    final lines = shipment.lines
         .map((line) => <String, dynamic>{
               'orderLineId': line.orderLineId,
               'batchId': line.batchId,
-              'receivedQuantity': line.receivedQuantity,
-              'damagedQuantity': line.damagedQuantity,
+              'receivedQuantity': line.quantity,
+              'damagedQuantity': 0,
             })
         .toList();
     await _client.post(
       Endpoints.shipmentReceipt(shipment.id),
       body: <String, dynamic>{
         'qrCodes': labelCodes,
-        'lines': payloadLines,
+        'lines': lines,
         'expectedVersion': shipment.version,
-        'note': note?.trim().isEmpty ?? true ? null : note!.trim(),
+        'note': 'Retailer confirmed full receipt on mobile.',
       },
-      headers: <String, String>{'Idempotency-Key': operationKey},
+      headers: <String, String>{'Idempotency-Key': const Uuid().v4()},
     );
     return get(orderId);
   }
-}
-
-class ShipmentReceiptLineInput {
-  const ShipmentReceiptLineInput({
-    required this.orderLineId,
-    required this.batchId,
-    required this.receivedQuantity,
-    required this.damagedQuantity,
-  });
-
-  final String orderLineId;
-  final String batchId;
-  final double receivedQuantity;
-  final double damagedQuantity;
 }

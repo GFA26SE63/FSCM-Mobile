@@ -407,9 +407,6 @@ class OrderRepository {
     String orderId,
     DeliveryShipment shipment, {
     required List<String> labelCodes,
-    required List<ShipmentReceiptLineInput> lines,
-    required String operationKey,
-    String? note,
   }) {
     _requireSession();
 
@@ -417,9 +414,6 @@ class OrderRepository {
       orderId,
       shipment,
       labelCodes: labelCodes,
-      lines: lines,
-      operationKey: operationKey,
-      note: note,
     );
   }
 }
