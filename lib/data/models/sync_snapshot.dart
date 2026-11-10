@@ -284,6 +284,44 @@ class SyncSnapshot {
     return null;
   }
 
+  List<MlorSummary> mlorSummariesForRetailer(String retailerId) {
+    final categories = {
+      for (final row in _rows(raw, 'categories'))
+        asStr(row['id']): asStr(row['name']),
+    };
+    final products = {
+      for (final row in _rows(raw, 'products'))
+        asStr(row['id']): asStr(row['sku']),
+    };
+    final result = _rows(raw, 'mlors')
+        .where((row) => asStr(row['retailerId']) == retailerId)
+        .map((row) {
+      final productId = asStr(row['productId']);
+      final categoryId = asStr(row['categoryId']);
+      return MlorSummary(
+        source: productId.isNotEmpty
+            ? 'SKU ${products[productId] ?? productId}'
+            : 'Ngành hàng ${categories[categoryId] ?? categoryId}',
+        minimumLifeRatio: _number(row, 'minimumLifeRatio').toDouble(),
+        minimumLifeHours: row['minimumLifeHours'] is num
+            ? (row['minimumLifeHours'] as num).toInt()
+            : null,
+        version: (row['version'] as num).toInt(),
+      );
+    }).toList()
+      ..sort((a, b) => a.source.compareTo(b.source));
+
+    final fallback = asMap(raw['defaultMlor']);
+    if (fallback.isNotEmpty) {
+      result.add(MlorSummary(
+        source: 'Mặc định hệ thống',
+        minimumLifeRatio: _number(fallback, 'minimumLifeRatio').toDouble(),
+        version: (fallback['version'] as num).toInt(),
+      ));
+    }
+    return List.unmodifiable(result);
+  }
+
   Map<String, dynamic> toJson() => _copyJson(raw);
 
   static Map<String, dynamic> _copyJson(
@@ -347,4 +385,18 @@ class SyncSnapshot {
 
     return value;
   }
+}
+
+class MlorSummary {
+  const MlorSummary({
+    required this.source,
+    required this.minimumLifeRatio,
+    required this.version,
+    this.minimumLifeHours,
+  });
+
+  final String source;
+  final double minimumLifeRatio;
+  final int? minimumLifeHours;
+  final int version;
 }

@@ -1,7 +1,9 @@
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:sqflite/sqflite.dart';
 
+import 'package:fscm_mobile/data/local/app_database.dart';
 import 'package:fscm_mobile/data/models/sync_snapshot.dart';
 import 'package:fscm_mobile/data/repositories/catalog_repository.dart';
 
@@ -88,6 +90,47 @@ void main() {
     expect(catalog.priceDisclaimer, 'Giá chốt sau allocation.');
   });
 
+  test('exposes inherited retailer MLOR in priority guidance order', () {
+    final snapshot = SyncSnapshot.fromJson(_fixtureWithMlor());
+    final summaries = snapshot.mlorSummariesForRetailer('retailer-1');
+
+    expect(summaries, hasLength(2));
+    expect(summaries.first.source, 'Ngành hàng Sữa');
+    expect(summaries.first.minimumLifeRatio, 0.4);
+    expect(summaries.first.version, 3);
+    expect(summaries.last.source, 'Mặc định hệ thống');
+    expect(summaries.last.minimumLifeRatio, 0.25);
+  });
+
+  test('persists category and MLOR rows in normalized SQLite cache', () async {
+    final databaseName =
+        'f29_snapshot_${DateTime.now().microsecondsSinceEpoch}.db';
+    final database = AppDatabase(databaseName: databaseName);
+    final repository = CatalogRepository(
+      database: database,
+      ownerId: 'sales-1',
+      isCurrentUser: () => true,
+    );
+
+    try {
+      await repository.applySnapshot(
+        SyncSnapshot.fromJson(_fixtureWithMlor()),
+      );
+      final db = await database.database;
+
+      expect(await db.query(Tables.category), hasLength(1));
+      expect(await db.query(Tables.mlor), hasLength(1));
+      final defaults = await db.query(Tables.defaultMlor);
+      expect(defaults, hasLength(1));
+      expect(defaults.single['minimum_life_ratio'], 0.25);
+    } finally {
+      final db = await database.database;
+      final path = db.path;
+      await database.close();
+      await deleteDatabase(path);
+    }
+  });
+
   test('malformed payload is rejected instead of empty success', () {
     for (final key in ['version', 'generatedAt', 'prices']) {
       final invalid = mobileSnapshotFixture()..remove(key);
@@ -132,4 +175,29 @@ void main() {
       isFalse,
     );
   });
+}
+
+Map<String, dynamic> _fixtureWithMlor() {
+  final fixture = mobileSnapshotFixture();
+  fixture['mlors'] = [
+    {
+      'id': 'mlor-1',
+      'retailerId': 'retailer-1',
+      'categoryId': 'category-1',
+      'productId': null,
+      'minimumLifeRatio': 0.4,
+      'minimumLifeHours': null,
+      'version': 3,
+      'effectiveFrom': '2026-11-01T00:00:00Z',
+      'effectiveTo': null,
+      'isActive': true,
+    },
+  ];
+  fixture['defaultMlor'] = {
+    'minimumLifeRatio': 0.25,
+    'version': 2,
+    'effectiveFrom': '2026-11-01T00:00:00Z',
+    'updatedAt': '2026-11-01T00:00:00Z',
+  };
+  return fixture;
 }

@@ -43,6 +43,7 @@ class RetailerDetailScreen extends ConsumerWidget {
           }
 
           final timestamp = data.lastSyncAt?.toLocal();
+          final mlors = data.snapshot!.mlorSummariesForRetailer(retailer.id);
 
           return ListView(
             padding: const EdgeInsets.all(16),
@@ -56,6 +57,30 @@ class RetailerDetailScreen extends ConsumerWidget {
                         'Trạng thái và công nợ có thể đã thay đổi; '
                         'xem kết quả kiểm tra bên dưới trước khi đặt hàng.',
               ),
+              const SizedBox(height: 12),
+              Text(
+                'MLOR dùng khi tư vấn offline',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Ưu tiên áp dụng: SKU → ngành hàng → mặc định hệ thống. '
+                'Máy chủ sẽ kiểm tra lại khi gửi đơn.',
+              ),
+              const SizedBox(height: 8),
+              for (final mlor in mlors)
+                ListTile(
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.timelapse_outlined),
+                  title: Text(mlor.source),
+                  subtitle: Text(
+                    'Còn tối thiểu '
+                    '${(mlor.minimumLifeRatio * 100).toStringAsFixed(0)}% HSD'
+                    '${mlor.minimumLifeHours == null ? '' : ' · ${mlor.minimumLifeHours} giờ'} '
+                    '· phiên bản ${mlor.version}',
+                  ),
+                ),
               const SizedBox(height: 8),
               Text(
                 'Đặt hàng',

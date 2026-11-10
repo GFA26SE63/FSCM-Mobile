@@ -232,9 +232,12 @@ class CatalogRepository {
 
       for (final table in [
         Tables.retailer,
+        Tables.category,
         Tables.product,
         Tables.price,
         Tables.promotion,
+        Tables.mlor,
+        Tables.defaultMlor,
         Tables.inventorySnapshot,
       ]) {
         batch.delete(table);
@@ -248,6 +251,20 @@ class CatalogRepository {
             'name': retailer.name,
             'area_code': retailer.areaCode,
             'json': jsonEncode(retailer.toJson()),
+          },
+          conflictAlgorithm: ConflictAlgorithm.replace,
+        );
+      }
+
+      for (final category in _snapshotRows(snapshot, 'categories')) {
+        batch.insert(
+          Tables.category,
+          {
+            'id': asStr(category['id']),
+            'parent_category_id': category['parentCategoryId'],
+            'code': asStr(category['code']),
+            'name': asStr(category['name']),
+            'json': jsonEncode(category),
           },
           conflictAlgorithm: ConflictAlgorithm.replace,
         );
@@ -284,6 +301,36 @@ class CatalogRepository {
             'id': promotion.id,
             'active': promotion.active ? 1 : 0,
             'json': jsonEncode(promotion.toJson()),
+          },
+          conflictAlgorithm: ConflictAlgorithm.replace,
+        );
+      }
+
+      for (final mlor in _snapshotRows(snapshot, 'mlors')) {
+        batch.insert(
+          Tables.mlor,
+          {
+            'id': asStr(mlor['id']),
+            'retailer_id': asStr(mlor['retailerId']),
+            'category_id': mlor['categoryId'],
+            'product_id': mlor['productId'],
+            'version': asInt(mlor['version']),
+            'minimum_life_ratio': asDouble(mlor['minimumLifeRatio']),
+            'json': jsonEncode(mlor),
+          },
+          conflictAlgorithm: ConflictAlgorithm.replace,
+        );
+      }
+
+      final defaultMlor = asMap(snapshot.raw['defaultMlor']);
+      if (defaultMlor.isNotEmpty) {
+        batch.insert(
+          Tables.defaultMlor,
+          {
+            'singleton_id': 1,
+            'version': asInt(defaultMlor['version']),
+            'minimum_life_ratio': asDouble(defaultMlor['minimumLifeRatio']),
+            'json': jsonEncode(defaultMlor),
           },
           conflictAlgorithm: ConflictAlgorithm.replace,
         );
@@ -340,5 +387,17 @@ class CatalogRepository {
         message: 'Phiên đăng nhập đã thay đổi. Vui lòng tải lại dữ liệu.',
       );
     }
+  }
+
+  static List<Map<String, dynamic>> _snapshotRows(
+    SyncSnapshot snapshot,
+    String key,
+  ) {
+    final value = snapshot.raw[key];
+    if (value is! List) return const [];
+    return value
+        .whereType<Map<String, dynamic>>()
+        .map(Map<String, dynamic>.from)
+        .toList();
   }
 }
