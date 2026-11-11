@@ -1,9 +1,5 @@
 /// REST endpoints used by the mobile app (SPEC section 8, prefix `/api/v1`
 /// is part of `Env.apiBaseUrl`). Paging: `?page=&size=&search=`.
-///
-/// GraphQL is intentionally outside that REST prefix, so its URL is derived
-/// from the configured REST base instead of being passed to Dio as a relative
-/// path.
 class Endpoints {
   Endpoints._();
 
@@ -111,33 +107,6 @@ class Endpoints {
   static const String notifications = '/notifications';
   static String notificationRead(String id) => '/notifications/$id/read';
   static const String notificationsReadAll = '/notifications/read-all';
-
-  /// Absolute GraphQL endpoint corresponding to a REST base ending in
-  /// `/api/v1`. Keeping this separate prevents Dio from composing it as
-  /// `/api/v1/graphql` while REST calls continue to use the versioned base.
-  static String graphQlForRestBase(String restBaseUrl) {
-    final restBase = Uri.parse(restBaseUrl);
-    final segments = restBase.pathSegments
-        .where((segment) => segment.isNotEmpty)
-        .toList(growable: false);
-    if (segments.length < 2 ||
-        segments[segments.length - 2] != 'api' ||
-        segments.last != 'v1') {
-      throw ArgumentError.value(
-        restBaseUrl,
-        'restBaseUrl',
-        'The API base URL must end with /api/v1.',
-      );
-    }
-
-    return Uri(
-      scheme: restBase.scheme,
-      userInfo: restBase.userInfo,
-      host: restBase.host,
-      port: restBase.hasPort ? restBase.port : null,
-      pathSegments: <String>[...segments.take(segments.length - 2), 'graphql'],
-    ).toString();
-  }
 
   // ---------------------------------------------------------- mobile sync
   /// `GET /sync/snapshot?since=` - retailers in area, products, prices,

@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fscm_mobile/core/network/api_client.dart';
 import 'package:fscm_mobile/core/network/api_transport.dart';
-import 'package:fscm_mobile/core/network/endpoints.dart';
+import 'package:fscm_mobile/core/config/env.dart';
 import 'package:fscm_mobile/data/remote/receivables_api.dart';
 import 'package:fscm_mobile/data/models/receivable.dart';
 import 'package:fscm_mobile/data/repositories/finance_repository.dart';
@@ -24,13 +24,16 @@ void main() {
     expect((request.body as Map)['query'], contains('retailerReceivables'));
   });
 
-  test('GraphQL URL is outside the REST version prefix', () {
+  test('GraphQL configuration is separate from the REST version prefix', () {
     expect(
-      Endpoints.graphQlForRestBase('https://localhost:7027/api/v1'),
+      Env.graphQlEndpointFor(
+        'https://localhost:7027/api/v1',
+        configuredEndpoint: 'https://localhost:7027/graphql',
+      ),
       'https://localhost:7027/graphql',
     );
     expect(
-      Endpoints.graphQlForRestBase('https://example.test/fscm/api/v1/'),
+      Env.graphQlEndpointFor('https://example.test/fscm/api/v1/'),
       'https://example.test/fscm/graphql',
     );
   });

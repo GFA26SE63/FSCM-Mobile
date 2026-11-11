@@ -41,7 +41,7 @@ class ReceivablesApi {
           }
         ''';
     final response = asMap(await _client.post(
-      Endpoints.graphQlForRestBase(Env.effectiveApiBaseUrl),
+      Env.effectiveGraphQlEndpoint,
       body: <String, dynamic>{
         'query': query,
         'variables': retailer
