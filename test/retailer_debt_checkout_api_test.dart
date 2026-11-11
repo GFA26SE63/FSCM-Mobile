@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -153,6 +155,35 @@ void main() {
     ));
 
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('cancelled checkout returns to refreshed receivables screen',
+      (tester) async {
+    await tester.pumpWidget(ProviderScope(
+      overrides: [
+        receivablesProvider.overrideWith((ref) async => const <Receivable>[]),
+      ],
+      child: const MaterialApp(home: PaymentsScreen()),
+    ));
+    await tester.pumpAndSettle();
+    final context = tester.element(find.byType(PaymentsScreen));
+    unawaited(Navigator.of(context).push(MaterialPageRoute<void>(
+      builder: (_) => const DebtCheckoutResultScreen(
+        initial: DebtCheckout(
+          id: 'checkout-1',
+          status: 'Cancelled',
+          amount: 100000,
+          checkoutUrl: 'https://pay.payos.vn/checkout-1',
+          allocations: <DebtCheckoutAllocation>[],
+        ),
+      ),
+    )));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Xem lại công nợ'));
+    await tester.pumpAndSettle();
+    expect(find.byType(DebtCheckoutResultScreen), findsNothing);
+    expect(find.byType(PaymentsScreen), findsOneWidget);
   });
 
   testWidgets('payment debts can be searched, filtered and sorted locally',

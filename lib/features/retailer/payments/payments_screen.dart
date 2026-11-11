@@ -521,11 +521,21 @@ class _DebtCheckoutResultScreenState
               SizedBox(
                   width: double.infinity,
                   child: OutlinedButton(
-                      onPressed: () => context.go(AppRoutes.rtPayments),
+                      onPressed: _viewReceivables,
                       child: const Text('Xem lại công nợ'))),
             ]),
       ),
     );
+  }
+
+  void _viewReceivables() {
+    ref.invalidate(receivablesProvider);
+    final navigator = Navigator.of(context);
+    if (navigator.canPop()) {
+      navigator.pop();
+    } else {
+      context.go(AppRoutes.rtPayments);
+    }
   }
 }
 
