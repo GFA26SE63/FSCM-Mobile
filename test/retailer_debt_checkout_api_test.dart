@@ -106,7 +106,7 @@ void main() {
     expect(partial.onPressed, isNotNull);
   });
 
-  testWidgets('payment status filters support horizontal scrolling',
+  testWidgets('payment status filters stay fully visible on narrow screens',
       (tester) async {
     await tester.pumpWidget(MaterialApp(
       home: Scaffold(
@@ -115,6 +115,7 @@ void main() {
             width: 320,
             child: ChipFilterBar<int>(
               padding: EdgeInsets.zero,
+              wrap: true,
               selected: 0,
               onSelected: (_) {},
               options: const <ChipOption<int>>[
@@ -130,12 +131,8 @@ void main() {
       ),
     ));
 
-    final scrollable = find.byType(SingleChildScrollView);
-    await tester.drag(scrollable, const Offset(-180, 0));
-    await tester.pumpAndSettle();
-    final state = tester.state<ScrollableState>(
-        find.descendant(of: scrollable, matching: find.byType(Scrollable)));
-    expect(state.position.pixels, greaterThan(0));
+    expect(find.text('Trả trước'), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('compact empty states do not overflow', (tester) async {

@@ -16,15 +16,36 @@ class ChipFilterBar<T> extends StatelessWidget {
     required this.selected,
     required this.onSelected,
     this.padding = const EdgeInsets.symmetric(horizontal: 16),
+    this.wrap = false,
   });
 
   final List<ChipOption<T>> options;
   final T selected;
   final ValueChanged<T> onSelected;
   final EdgeInsetsGeometry padding;
+  final bool wrap;
+
+  List<Widget> _chips() => List<Widget>.generate(options.length, (index) {
+        final option = options[index];
+        return _FilterChip(
+          option: option,
+          selected: option.value == selected,
+          onSelected: onSelected,
+        );
+      });
 
   @override
   Widget build(BuildContext context) {
+    if (wrap) {
+      return Padding(
+        padding: padding,
+        child: Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: _chips(),
+        ),
+      );
+    }
     return SizedBox(
       height: 44,
       child: SingleChildScrollView(
@@ -34,13 +55,9 @@ class ChipFilterBar<T> extends StatelessWidget {
         padding: padding,
         child: Row(
           children: <Widget>[
-            for (var i = 0; i < options.length; i++) ...<Widget>[
+            for (var i = 0; i < _chips().length; i++) ...<Widget>[
               if (i > 0) const SizedBox(width: 8),
-              _FilterChip(
-                option: options[i],
-                selected: options[i].value == selected,
-                onSelected: onSelected,
-              ),
+              _chips()[i],
             ],
           ],
         ),
