@@ -37,6 +37,10 @@ final complaintsProvider = FutureProvider.autoDispose<List<Complaint>>((ref) {
   return ref.watch(loyaltyRepositoryProvider).complaints();
 });
 
+final complaintEvidenceProvider = FutureProvider.autoDispose
+    .family<List<ComplaintEvidence>, String>((ref, id) {
+  return ref.watch(loyaltyRepositoryProvider).complaintEvidence(id);
+});
 final receivedComplaintLabelsProvider =
     FutureProvider.autoDispose.family<List<String>, String>((ref, orderId) {
   if (orderId.isEmpty) return Future.value(const <String>[]);
@@ -72,6 +76,17 @@ class LoyaltyRepository {
   Future<GiftRedemption> redeem(Gift gift) => _loyalty.redeem(gift);
 
   Future<List<Complaint>> complaints() => _complaints.list();
+
+  Future<void> addComplaintEvidence(String id, String path) =>
+      _complaints.addEvidence(id, path);
+
+  Future<List<ComplaintEvidence>> complaintEvidence(String id) =>
+      _complaints.evidence(id);
+
+  Future<void> removeComplaintEvidence(String id, String evidenceId) =>
+      _complaints.removeEvidence(id, evidenceId);
+
+  Future<void> cancelComplaint(String id) => _complaints.cancel(id);
 
   Future<Complaint> complain(NewComplaint request) =>
       _complaints.create(request);

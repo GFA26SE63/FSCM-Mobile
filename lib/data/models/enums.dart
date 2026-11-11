@@ -265,7 +265,8 @@ enum ComplaintStatus {
   inProgress('InProgress', 'Đang xử lý', StatusTone.purple),
   approved('Approved', 'Đã chấp nhận', StatusTone.success),
   resolved('Resolved', 'Đã xử lý', StatusTone.success),
-  rejected('Rejected', 'Từ chối', StatusTone.danger);
+  rejected('Rejected', 'Từ chối', StatusTone.danger),
+  cancelled('Cancelled', 'Đã hủy', StatusTone.neutral);
 
   const ComplaintStatus(this.code, this.label, this.tone);
   final String code;

@@ -274,6 +274,7 @@ List<RouteBase> _warehouseRoutes() => <RouteBase>[
                     label: 'Phiếu đã xuất kho',
                     icon: Icons.outbox_outlined,
                     route: AppRoutes.wkShipped),
+
                 ProfileAction(
                     label: 'Tra cứu tem',
                     icon: Icons.qr_code_2,
@@ -288,6 +289,7 @@ List<RouteBase> _warehouseRoutes() => <RouteBase>[
         path: AppRoutes.wkShipped,
         builder: (c, s) => const PickingListsScreen(shippedOnly: true),
       ),
+
       GoRoute(
         path: AppRoutes.wkLabelLookup,
         builder: (c, s) => const WkScanScreen(labelsOnly: true),
