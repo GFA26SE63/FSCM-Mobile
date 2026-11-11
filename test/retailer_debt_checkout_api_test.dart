@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fscm_mobile/core/network/api_client.dart';
 import 'package:fscm_mobile/core/network/api_transport.dart';
+import 'package:fscm_mobile/core/network/endpoints.dart';
 import 'package:fscm_mobile/data/remote/receivables_api.dart';
 import 'package:fscm_mobile/data/models/receivable.dart';
 import 'package:fscm_mobile/data/repositories/finance_repository.dart';
@@ -19,8 +20,19 @@ void main() {
     expect(rows.single.paymentId, 'payment-1');
     expect(rows.single.collectibleAmount, 750000);
     final request = transport.requests.single;
-    expect(request.path, '/graphql');
+    expect(request.path, 'http://10.0.2.2:5080/graphql');
     expect((request.body as Map)['query'], contains('retailerReceivables'));
+  });
+
+  test('GraphQL URL is outside the REST version prefix', () {
+    expect(
+      Endpoints.graphQlForRestBase('https://localhost:7027/api/v1'),
+      'https://localhost:7027/graphql',
+    );
+    expect(
+      Endpoints.graphQlForRestBase('https://example.test/fscm/api/v1/'),
+      'https://example.test/fscm/graphql',
+    );
   });
 
   test(
@@ -83,7 +95,7 @@ class _FinanceTransport implements ApiTransport {
   @override
   Future<ApiResponse> send(ApiRequest request) async {
     requests.add(request);
-    if (request.path == '/graphql') {
+    if (request.path == 'http://10.0.2.2:5080/graphql') {
       return const ApiResponse(statusCode: 200, data: <String, dynamic>{
         'data': <String, dynamic>{
           'retailerReceivables': <String, dynamic>{
