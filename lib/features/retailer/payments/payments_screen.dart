@@ -188,7 +188,6 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
                 ),
                 ChipFilterBar<_PaymentFilter>(
                   padding: EdgeInsets.zero,
-                  wrap: true,
                   selected: _filter,
                   onSelected: (value) => setState(() => _filter = value),
                   options: const <ChipOption<_PaymentFilter>>[

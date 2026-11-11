@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
 import 'package:fscm_mobile/shared/theme/app_colors.dart';
@@ -9,7 +10,7 @@ class ChipOption<T> {
 }
 
 /// Horizontal single-select filter chips ("Tất cả / Chờ duyệt / ...").
-class ChipFilterBar<T> extends StatelessWidget {
+class ChipFilterBar<T> extends StatefulWidget {
   const ChipFilterBar({
     super.key,
     required this.options,
@@ -25,20 +26,34 @@ class ChipFilterBar<T> extends StatelessWidget {
   final EdgeInsetsGeometry padding;
   final bool wrap;
 
-  List<Widget> _chips() => List<Widget>.generate(options.length, (index) {
-        final option = options[index];
+  @override
+  State<ChipFilterBar<T>> createState() => _ChipFilterBarState<T>();
+}
+
+class _ChipFilterBarState<T> extends State<ChipFilterBar<T>> {
+  final ScrollController _scrollController = ScrollController();
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  List<Widget> _chips() =>
+      List<Widget>.generate(widget.options.length, (index) {
+        final option = widget.options[index];
         return _FilterChip(
           option: option,
-          selected: option.value == selected,
-          onSelected: onSelected,
+          selected: option.value == widget.selected,
+          onSelected: widget.onSelected,
         );
       });
 
   @override
   Widget build(BuildContext context) {
-    if (wrap) {
+    if (widget.wrap) {
       return Padding(
-        padding: padding,
+        padding: widget.padding,
         child: Wrap(
           spacing: 8,
           runSpacing: 8,
@@ -46,20 +61,29 @@ class ChipFilterBar<T> extends StatelessWidget {
         ),
       );
     }
+    final chips = _chips();
     return SizedBox(
       height: 44,
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        primary: false,
-        physics: const AlwaysScrollableScrollPhysics(),
-        padding: padding,
-        child: Row(
-          children: <Widget>[
-            for (var i = 0; i < _chips().length; i++) ...<Widget>[
-              if (i > 0) const SizedBox(width: 8),
-              _chips()[i],
+      child: Scrollbar(
+        controller: _scrollController,
+        thumbVisibility: true,
+        trackVisibility: true,
+        interactive: true,
+        child: SingleChildScrollView(
+          controller: _scrollController,
+          scrollDirection: Axis.horizontal,
+          primary: false,
+          dragStartBehavior: DragStartBehavior.down,
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: widget.padding,
+          child: Row(
+            children: <Widget>[
+              for (var i = 0; i < chips.length; i++) ...<Widget>[
+                if (i > 0) const SizedBox(width: 8),
+                chips[i],
+              ],
             ],
-          ],
+          ),
         ),
       ),
     );
