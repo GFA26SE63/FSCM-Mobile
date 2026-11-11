@@ -106,19 +106,22 @@ class PickingList {
         PickingLine.fromJson(<String, dynamic>{...rawLines[i], 'index': i}),
     ];
     return PickingList(
-        code: asStr(j['code'] ?? j['pickingCode']),
-        orderCode: asStr(j['orderCode']),
-        retailerCode: asStr(j['retailerCode']),
-        retailerName: asStr(j['retailerName']),
-        status: PickingStatus.fromCode(asStrOrNull(j['status'])),
-        lines: lines,
-        warehouseName: asStr(j['warehouseName'] ?? j['warehouseCode']),
-        approvedAt: asDate(j['approvedAt'] ?? j['startedAt']),
-        shippedAt: asDate(j['shippedAt'] ?? j['confirmedAt']),
-        siblingText: asStr(j['siblingText']),
-        version: asInt(j['version']),
-        scanCodes: asMapList(j['scans']).map((item) => asStr(item['qrCode'])).where((code) => code.isNotEmpty).toList(),
-      );
+      code: asStr(j['code'] ?? j['pickingCode']),
+      orderCode: asStr(j['orderCode']),
+      retailerCode: asStr(j['retailerCode']),
+      retailerName: asStr(j['retailerName']),
+      status: PickingStatus.fromCode(asStrOrNull(j['status'])),
+      lines: lines,
+      warehouseName: asStr(j['warehouseName'] ?? j['warehouseCode']),
+      approvedAt: asDate(j['approvedAt'] ?? j['startedAt']),
+      shippedAt: asDate(j['shippedAt'] ?? j['confirmedAt']),
+      siblingText: asStr(j['siblingText']),
+      version: asInt(j['version']),
+      scanCodes: asMapList(j['scans'])
+          .map((item) => asStr(item['qrCode']))
+          .where((code) => code.isNotEmpty)
+          .toList(),
+    );
   }
 
   final String code;
@@ -184,6 +187,7 @@ class PickScanResult {
     required this.remainingLabel,
     required this.remainingQty,
     required this.pickedQty,
+    this.sourceLabel = '',
   });
 
   factory PickScanResult.fromJson(Map<String, dynamic> j) => PickScanResult(
@@ -192,6 +196,7 @@ class PickScanResult {
         remainingLabel: asStr(j['remainingLabel']),
         remainingQty: asInt(j['remainingQty']),
         pickedQty: asInt(j['pickedQty']),
+        sourceLabel: asStr(j['sourceLabel']),
       );
 
   final PickingList list;
@@ -199,8 +204,9 @@ class PickScanResult {
   /// New child TEM that travels with the order ("tem con").
   final String childLabel;
 
-  /// Parent label that stays on the shelf and its remaining quantity.
+  /// New replacement label C for the stock left on the shelf. Source A is retired.
   final String remainingLabel;
+  final String sourceLabel;
   final int remainingQty;
   final int pickedQty;
 }

@@ -3,10 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:fscm_mobile/core/network/api_exception.dart';
+import 'package:fscm_mobile/core/printing/label_printer.dart';
 import 'package:fscm_mobile/core/utils/dates.dart';
 import 'package:fscm_mobile/core/utils/id_format.dart';
 import 'package:fscm_mobile/core/utils/status_tone.dart';
 import 'package:fscm_mobile/data/models/label_info.dart';
+import 'package:fscm_mobile/data/models/enums.dart';
 import 'package:fscm_mobile/data/models/picking.dart';
 import 'package:fscm_mobile/data/repositories/data_version.dart';
 import 'package:fscm_mobile/data/repositories/warehouse_repository.dart';
@@ -36,7 +38,36 @@ class _PickLineScreenState extends ConsumerState<PickLineScreen> {
   String _error = '';
   int _qty = 0;
   bool _busy = false;
+  bool _printing = false;
   PickScanResult? _result;
+
+  Future<void> _print(String code) async {
+    if (_printing) return;
+    setState(() => _printing = true);
+    try {
+      await ref.read(labelPrinterProvider).printLabel(code);
+      if (mounted) {
+        showAppSnack(context,
+            'Đã mở hộp thoại in tem $code. Chọn máy in và xác nhận in.');
+      }
+    } on ApiException catch (error) {
+      if (mounted) showAppSnack(context, error.message, error: true);
+    } on UnsupportedError catch (error) {
+      if (mounted) {
+        showAppSnack(
+            context, error.message ?? 'Chưa hỗ trợ in trên thiết bị này.',
+            error: true);
+      }
+    } catch (_) {
+      if (mounted) {
+        showAppSnack(context,
+            'Không mở được hộp thoại in. Thử lại hoặc in các tem mới từ Portal.',
+            error: true);
+      }
+    } finally {
+      if (mounted) setState(() => _printing = false);
+    }
+  }
 
   Future<void> _onScan(PickingLine line, String raw) async {
     final code = raw.trim().toUpperCase();
@@ -47,6 +78,14 @@ class _PickLineScreenState extends ConsumerState<PickLineScreen> {
     try {
       final label = await ref.read(warehouseRepositoryProvider).label(code);
       if (!mounted) return;
+      if (label.status != LabelStatus.available) {
+        setState(() {
+          _label = null;
+          _error =
+              'Tem $code không còn sẵn sàng. Nếu đã tách, hãy quét tem thay thế mới.';
+        });
+        return;
+      }
       if (label.sku != line.sku || label.batchCode != line.batchCode) {
         setState(() {
           _label = null;
@@ -68,7 +107,7 @@ class _PickLineScreenState extends ConsumerState<PickLineScreen> {
 
   Future<void> _confirm(PickingLine line) async {
     final label = _label;
-    if (label == null || _qty <= 0) return;
+    if (label == null || _qty <= 0 || _busy) return;
     setState(() => _busy = true);
     try {
       final result = await ref.read(warehouseRepositoryProvider).pick(
@@ -77,7 +116,11 @@ class _PickLineScreenState extends ConsumerState<PickLineScreen> {
             labelCode: label.code,
             qty: _qty,
             sourceLabelQty: label.qty,
-            pickingVersion: ref.read(pickingDetailProvider(widget.code)).valueOrNull?.version ?? 0,
+            pickingVersion: ref
+                    .read(pickingDetailProvider(widget.code))
+                    .valueOrNull
+                    ?.version ??
+                0,
             labelVersion: label.version,
           );
       ref.invalidate(pickingDetailProvider(widget.code));
@@ -180,7 +223,7 @@ class _PickLineScreenState extends ConsumerState<PickLineScreen> {
           title: 'Kết quả sau khi xác nhận',
           text: whole
               ? 'Lấy nguyên tem ${label.code} (${label.qty} thùng) mang đi.'
-              : 'Tách tem con mới $_qty thùng (mang đi). Tem gốc ${label.code} còn ${label.qty - _qty} thùng ở lại kệ. QR chỉ chứa mã tem nên tem gốc không cần in lại.',
+              : 'Tạo hai tem mới: tem giao $_qty thùng và tem thay thế ${label.qty - _qty} thùng cho hàng ở lại kệ. Tem ${label.code} giữ lịch sử ${label.qty} thùng và không dùng lại. In cả hai tem mới.',
         ),
         FilledButton(
             onPressed: _busy ? null : () => _confirm(line),
@@ -203,27 +246,26 @@ class _PickLineScreenState extends ConsumerState<PickLineScreen> {
           title: 'Đã lấy ${r.pickedQty} thùng',
           text: r.remainingLabel.isEmpty
               ? 'Tem mang đi: ${r.childLabel} (nguyên tem).'
-              : 'Tem con mới (mang đi): ${r.childLabel}. Tem gốc ở lại kệ: ${r.remainingLabel} còn ${r.remainingQty} thùng.',
+              : 'Tem giao: ${r.childLabel} · ${r.pickedQty} thùng. Tem thay thế: ${r.remainingLabel} · ${r.remainingQty} thùng. Tem gốc ${r.sourceLabel} đã tách, không dùng lại.',
         ),
         AppCard(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
-              const Text('Máy in tem XP-P323B · đã kết nối Bluetooth',
+              const Text(
+                  'In tem chính thức từ máy chủ. Chọn máy in trong hộp thoại in.',
                   style: TextStyle(color: AppColors.textMuted)),
               const SizedBox(height: 8),
               OutlinedButton.icon(
-                onPressed: () => showAppSnack(
-                    context, 'Đã gửi lệnh in tem ${r.childLabel}.'),
+                onPressed: _printing ? null : () => _print(r.childLabel),
                 icon: const Icon(Icons.print_outlined),
-                label: const Text('In tem con'),
+                label: Text('In tem giao ${r.childLabel}'),
               ),
               if (r.remainingLabel.isNotEmpty)
                 OutlinedButton.icon(
-                  onPressed: () => showAppSnack(
-                      context, 'Đã gửi lệnh in lại tem ${r.remainingLabel}.'),
+                  onPressed: _printing ? null : () => _print(r.remainingLabel),
                   icon: const Icon(Icons.print_outlined),
-                  label: const Text('In lại tem gốc'),
+                  label: Text('In tem thay thế ${r.remainingLabel}'),
                 ),
             ],
           ),

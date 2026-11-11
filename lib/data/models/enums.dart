@@ -155,6 +155,7 @@ enum LabelStatus {
   inTransit('InTransit', 'Đang vận chuyển', StatusTone.warning),
   delivered('Delivered', 'Đã giao', StatusTone.success),
   invalidated('Invalidated', 'Đã vô hiệu hóa', StatusTone.danger),
+  split('Split', 'Đã tách · không dùng lại', StatusTone.neutral),
   expired('Expired', 'Hết hạn', StatusTone.danger),
   cancelled('Cancelled', 'Đã hủy', StatusTone.neutral),
   unknown('Unknown', 'Không xác định', StatusTone.neutral);
