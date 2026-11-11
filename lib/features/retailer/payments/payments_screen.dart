@@ -194,13 +194,25 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
                 ]),
               ],
             )),
+        actionsPadding: const EdgeInsets.fromLTRB(24, 0, 24, 20),
         actions: <Widget>[
-          TextButton(
-              onPressed: () => Navigator.pop(dialogContext, false),
-              child: const Text('Quay lại')),
-          FilledButton(
-              onPressed: () => Navigator.pop(dialogContext, true),
-              child: const Text('Thanh toán với PayOS')),
+          SizedBox(
+            width: double.infinity,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                FilledButton(
+                  onPressed: () => Navigator.pop(dialogContext, true),
+                  child: const Text('Thanh toán với PayOS'),
+                ),
+                const SizedBox(height: 10),
+                OutlinedButton(
+                  onPressed: () => Navigator.pop(dialogContext, false),
+                  child: const Text('Quay lại'),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );

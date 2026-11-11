@@ -103,6 +103,36 @@ void main() {
         find.widgetWithText(OutlinedButton, 'Thanh toán một phần'));
     expect(partial.onPressed, isNotNull);
   });
+
+  testWidgets(
+      'payment confirmation keeps the back action full-width below PayOS',
+      (tester) async {
+    final receivable = Receivable.fromJson(<String, dynamic>{
+      'id': 'payment-1',
+      'orderId': 'order-1',
+      'orderCode': 'DH-000001',
+      'status': 'Unpaid',
+      'adjustedAmount': 1000000,
+      'outstandingAmount': 1000000,
+      'collectibleAmount': 1000000,
+    });
+    await tester.pumpWidget(ProviderScope(
+      overrides: [
+        receivablesProvider
+            .overrideWith((ref) async => <Receivable>[receivable]),
+      ],
+      child: const MaterialApp(home: PaymentsScreen()),
+    ));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Thanh toán hết'));
+    await tester.pumpAndSettle();
+
+    final pay = find.widgetWithText(FilledButton, 'Thanh toán với PayOS');
+    final back = find.widgetWithText(OutlinedButton, 'Quay lại');
+    expect(tester.getSize(pay).width, tester.getSize(back).width);
+    expect(tester.getTopLeft(back).dy, greaterThan(tester.getTopLeft(pay).dy));
+  });
 }
 
 class _FinanceTransport implements ApiTransport {
