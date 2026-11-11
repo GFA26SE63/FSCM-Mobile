@@ -8,6 +8,7 @@ import 'package:uuid/uuid.dart';
 
 import 'package:fscm_mobile/core/utils/dates.dart';
 import 'package:fscm_mobile/core/utils/money.dart';
+import 'package:fscm_mobile/core/utils/status_tone.dart';
 import 'package:fscm_mobile/data/models/debt_checkout.dart';
 import 'package:fscm_mobile/data/models/receivable.dart';
 import 'package:fscm_mobile/data/repositories/finance_repository.dart';
@@ -16,6 +17,7 @@ import 'package:fscm_mobile/shared/theme/app_colors.dart';
 import 'package:fscm_mobile/shared/widgets/app_card.dart';
 import 'package:fscm_mobile/shared/widgets/async_body.dart';
 import 'package:fscm_mobile/shared/widgets/empty_state.dart';
+import 'package:fscm_mobile/shared/widgets/info_banner.dart';
 import 'package:fscm_mobile/shared/widgets/section_title.dart';
 import 'package:fscm_mobile/shared/widgets/status_chip.dart';
 
@@ -39,7 +41,11 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
         onRetry: () => ref.invalidate(receivablesProvider),
         builder: (all) {
           final open = all
-              .where((r) => !r.isPaid && r.collectibleAmount > 0)
+              .where((r) =>
+                  r.method == 'Credit' &&
+                  !r.isPaid &&
+                  !r.isCancelled &&
+                  r.collectibleAmount > 0)
               .toList()
             ..sort((a, b) => (a.dueDate ?? DateTime(2100))
                 .compareTo(b.dueDate ?? DateTime(2100)));
@@ -49,6 +55,14 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
           final selectedTotal = open
               .where((r) => _selected.contains(r.paymentId))
               .fold<int>(0, (sum, r) => sum + r.collectibleAmount);
+          final prepaid = all
+              .where((r) =>
+                  r.method == 'Prepaid' &&
+                  !r.isPaid &&
+                  !r.isCancelled &&
+                  r.outstandingAmount > 0)
+              .toList();
+          final overdue = open.where((r) => r.isOverdue).toList();
           return RefreshIndicator(
             onRefresh: () async => ref.refresh(receivablesProvider.future),
             child: ListView(
@@ -59,7 +73,9 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
                       child: _Summary(
                           label: 'Còn có thể trả',
                           value: Money.format(openTotal),
-                          color: AppColors.text)),
+                          color: overdue.isEmpty
+                              ? AppColors.text
+                              : AppColors.danger)),
                   const SizedBox(width: 10),
                   Expanded(
                       child: _Summary(
@@ -67,6 +83,14 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
                           value: Money.format(selectedTotal),
                           color: AppColors.primary)),
                 ]),
+                if (overdue.isNotEmpty)
+                  InfoBanner(
+                    tone: StatusTone.danger,
+                    icon: Icons.warning_amber_rounded,
+                    title: '${overdue.length} khoản quá hạn',
+                    text:
+                        'Vui lòng thanh toán để tiếp tục đặt hàng công nợ và nhận điểm tích lũy.',
+                  ),
                 const SectionTitle('Công nợ cần thanh toán'),
                 if (open.isEmpty)
                   const SizedBox(
@@ -90,6 +114,10 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
                 if (paid.isNotEmpty) ...<Widget>[
                   const SectionTitle('Đã thanh toán'),
                   for (final item in paid) _ReceivableTile(receivable: item),
+                ],
+                if (prepaid.isNotEmpty) ...<Widget>[
+                  const SectionTitle('Đơn trả trước đang chờ thanh toán'),
+                  for (final item in prepaid) _ReceivableTile(receivable: item),
                 ],
               ],
             ),
@@ -385,6 +413,12 @@ class _ReceivableTile extends StatelessWidget {
                       color:
                           r.isOverdue ? AppColors.danger : AppColors.textMuted,
                       fontSize: 13)),
+              Text(
+                  r.method == 'Prepaid'
+                      ? 'Trả trước'
+                      : 'Công nợ ${r.term} ngày',
+                  style: const TextStyle(
+                      color: AppColors.textMuted, fontSize: 12)),
               if (r.collectibleAmount != r.outstandingAmount)
                 Text(
                     'Đang tranh chấp: ${Money.format(r.outstandingAmount - r.collectibleAmount)}',
@@ -392,7 +426,12 @@ class _ReceivableTile extends StatelessWidget {
                         color: AppColors.textMuted, fontSize: 12)),
             ])),
         Column(crossAxisAlignment: CrossAxisAlignment.end, children: <Widget>[
-          Text(Money.format(r.collectibleAmount),
+          Text(
+              Money.format(r.isPaid
+                  ? r.confirmedAmount
+                  : r.method == 'Prepaid'
+                      ? r.outstandingAmount
+                      : r.collectibleAmount),
               style: const TextStyle(fontWeight: FontWeight.w800)),
           const SizedBox(height: 4),
           StatusChip(label: r.status.label, tone: r.status.tone),

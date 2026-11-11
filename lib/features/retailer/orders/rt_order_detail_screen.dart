@@ -17,6 +17,7 @@ import 'package:fscm_mobile/shared/routes.dart';
 import 'package:fscm_mobile/shared/theme/app_colors.dart';
 import 'package:fscm_mobile/shared/widgets/app_card.dart';
 import 'package:fscm_mobile/shared/widgets/async_body.dart';
+import 'package:fscm_mobile/shared/widgets/allocation_retry_button.dart';
 import 'package:fscm_mobile/shared/widgets/info_banner.dart';
 import 'package:fscm_mobile/shared/widgets/kv_row.dart';
 import 'package:fscm_mobile/shared/widgets/order_widgets.dart';
@@ -95,6 +96,7 @@ class RtOrderDetailScreen extends ConsumerWidget {
                         : order.rejectReason),
               if (order.status == OrderStatus.quoted)
                 RetailerQuotePanel(key: ValueKey(order.id), order: order),
+              AllocationRetryButton(order: order),
               if (order.canPayOnline)
                 RetailerPrepaidPayment(key: ValueKey(order.id), order: order),
               if (order.hasDelivery) DeliveryInfoCard(order),

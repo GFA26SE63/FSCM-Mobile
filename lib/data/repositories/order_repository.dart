@@ -134,11 +134,16 @@ class OrderRepository {
   }) async {
     _requireSession();
 
-    var remote = <Order>[];
+    final remote = <Order>[];
     var offlineOnly = false;
 
     try {
-      remote = await _api.list(size: 100);
+      for (var page = 1;; page++) {
+        final result = await _api.listPage(page: page, pageSize: 100);
+        _requireSession();
+        remote.addAll(result.items);
+        if (!result.hasMore || result.items.isEmpty) break;
+      }
     } on ApiException catch (error) {
       if (!error.isNetwork) {
         rethrow;
