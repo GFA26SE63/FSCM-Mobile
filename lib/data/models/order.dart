@@ -4,6 +4,10 @@ import 'package:fscm_mobile/data/models/price_quote.dart';
 import 'package:fscm_mobile/data/models/timeline_entry.dart';
 
 /// Batch allocation of an order line (result of the FEFO allocation engine).
+///
+/// F98: when the server sends a price snapshot (`allocationFragments`) the
+/// per-batch prices below are copied as-is. They are never recomputed on the
+/// device; `hasPriceSnapshot` tells the UI whether they can be shown.
 class BatchAllocation {
   const BatchAllocation({
     required this.batchCode,
@@ -11,21 +15,64 @@ class BatchAllocation {
     this.expiry,
     this.warehouseName = '',
     this.labelCode = '',
+    this.hasPriceSnapshot = false,
+    this.listUnitPrice = 0,
+    this.promotionDiscountPerUnit = 0,
+    this.baseUnitPrice = 0,
+    this.remainingShelfLifePercent = 0,
+    this.shelfLifeDiscountPerUnit = 0,
+    this.finalUnitPrice = 0,
+    this.netAmount = 0,
+    this.discountReason = '',
+    this.estimatedArrivalAt,
   });
 
-  factory BatchAllocation.fromJson(Map<String, dynamic> j) => BatchAllocation(
-        batchCode: asStr(j['batchCode']),
-        qty: asInt(j['qty'] ?? j['quantity'] ?? j['allocatedQuantity']),
-        expiry: asDate(j['expiry'] ?? j['batchExpirationDate']),
-        warehouseName: asStr(j['warehouseName'] ?? j['warehouseCode']),
-        labelCode: asStr(j['labelCode']),
-      );
+  factory BatchAllocation.fromJson(Map<String, dynamic> j) {
+    final snapshot = j['finalUnitPrice'] != null && j['netAmount'] != null;
+    return BatchAllocation(
+      batchCode: asStr(j['batchCode']),
+      qty: asInt(j['qty'] ?? j['quantity'] ?? j['allocatedQuantity']),
+      expiry: asDate(j['expiry'] ?? j['batchExpirationDate']),
+      warehouseName: asStr(j['warehouseName'] ?? j['warehouseCode']),
+      labelCode: asStr(j['labelCode']),
+      hasPriceSnapshot: snapshot,
+      listUnitPrice: asDouble(j['listUnitPrice']),
+      promotionDiscountPerUnit:
+          asDouble(j['ordinaryPromotionDiscountPerUnit']),
+      baseUnitPrice: asDouble(j['baseUnitPrice']),
+      remainingShelfLifePercent: asDouble(j['remainingShelfLifePercent']),
+      shelfLifeDiscountPerUnit: asDouble(j['shelfLifeDiscountPerUnit']),
+      finalUnitPrice: asDouble(j['finalUnitPrice']),
+      netAmount: asDouble(j['netAmount']),
+      discountReason: asStr(j['discountReason']),
+      estimatedArrivalAt: asDate(j['estimatedArrivalAt']),
+    );
+  }
 
   final String batchCode;
   final int qty;
   final DateTime? expiry;
   final String warehouseName;
   final String labelCode;
+  final bool hasPriceSnapshot;
+  final double listUnitPrice;
+  final double promotionDiscountPerUnit;
+
+  /// Unit price after the quantity promotion (before the shelf-life discount).
+  final double baseUnitPrice;
+
+  /// Remaining shelf life of this batch at the estimated arrival, in percent.
+  final double remainingShelfLifePercent;
+  final double shelfLifeDiscountPerUnit;
+  final double finalUnitPrice;
+  final double netAmount;
+  final String discountReason;
+  final DateTime? estimatedArrivalAt;
+
+  /// Shelf-life discount as a percentage of the post-promotion price.
+  double get shelfLifeDiscountPercent => baseUnitPrice <= 0
+      ? 0
+      : shelfLifeDiscountPerUnit / baseUnitPrice * 100;
 
   Map<String, dynamic> toJson() => <String, dynamic>{
         'batchCode': batchCode,
@@ -33,9 +80,19 @@ class BatchAllocation {
         'expiry': isoOrNull(expiry),
         'warehouseName': warehouseName,
         'labelCode': labelCode,
+        if (hasPriceSnapshot) ...<String, dynamic>{
+          'listUnitPrice': listUnitPrice,
+          'ordinaryPromotionDiscountPerUnit': promotionDiscountPerUnit,
+          'baseUnitPrice': baseUnitPrice,
+          'remainingShelfLifePercent': remainingShelfLifePercent,
+          'shelfLifeDiscountPerUnit': shelfLifeDiscountPerUnit,
+          'finalUnitPrice': finalUnitPrice,
+          'netAmount': netAmount,
+          'discountReason': discountReason,
+          'estimatedArrivalAt': isoOrNull(estimatedArrivalAt),
+        },
       };
 }
-
 class OrderLine {
   const OrderLine({
     required this.sku,
