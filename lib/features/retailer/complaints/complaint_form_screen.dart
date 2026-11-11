@@ -1,6 +1,9 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:fscm_mobile/core/network/api_exception.dart';
 import 'package:fscm_mobile/data/models/complaint.dart';
 import 'package:fscm_mobile/data/models/enums.dart';
@@ -23,6 +26,10 @@ class _ComplaintFormScreenState extends ConsumerState<ComplaintFormScreen> {
   String _issueType = 'Shortage';
   final _actual = TextEditingController(), _note = TextEditingController();
   bool _busy = false;
+  static const int _maxImages = 5;
+
+  /// Images picked but not uploaded yet; bytes are kept so they can be previewed on any platform.
+  final List<_PickedImage> _images = <_PickedImage>[];
   @override
   void initState() {
     super.initState();
@@ -36,6 +43,23 @@ class _ComplaintFormScreenState extends ConsumerState<ComplaintFormScreen> {
     super.dispose();
   }
 
+  Future<void> _pickImages() async {
+    final room = _maxImages - _images.length;
+    if (room <= 0) {
+      showAppSnack(context, 'Tối đa $_maxImages ảnh. Hãy xóa bớt ảnh trước khi chọn thêm.',
+          error: true);
+      return;
+    }
+    final picked =
+        await ImagePicker().pickMultiImage(imageQuality: 85, limit: room);
+    if (picked.isEmpty) return;
+    final added = <_PickedImage>[];
+    for (final file in picked.take(room)) {
+      added.add(_PickedImage(file, await file.readAsBytes()));
+    }
+    if (!mounted) return;
+    setState(() => _images.addAll(added));
+  }
   Future<void> _submit(Order order, ComplaintTarget target) async {
     final actual = int.tryParse(_actual.text.trim());
     if (actual == null || actual < 0 || actual >= target.expectedQuantity) {
@@ -56,10 +80,26 @@ class _ComplaintFormScreenState extends ConsumerState<ComplaintFormScreen> {
               note: _note.text.trim(),
               shipmentId: target.shipmentId,
               allocationId: target.allocationId));
+      // The claim exists once created; images are attached to it afterwards.
+      var failed = 0;
+      for (final image in _images) {
+        try {
+          await ref
+              .read(loyaltyRepositoryProvider)
+              .addComplaintEvidence(result.id, image.file.path);
+        } on ApiException {
+          failed++;
+        }
+      }
       ref.invalidate(complaintsProvider);
       ref.invalidate(complaintTargetsProvider(order.id));
       if (!mounted) return;
-      showAppSnack(context, 'Đã gửi khiếu nại ${result.code}.');
+      showAppSnack(
+          context,
+          failed == 0
+              ? 'Đã gửi khiếu nại ${result.code}.'
+              : 'Đã gửi khiếu nại ${result.code} nhưng $failed ảnh chưa tải lên được. Hãy bổ sung ảnh trong danh sách khiếu nại.',
+          error: failed > 0);
       context.pop();
     } on ApiException catch (e) {
       if (mounted) showAppSnack(context, e.message, error: true);
@@ -175,6 +215,27 @@ class _ComplaintFormScreenState extends ConsumerState<ComplaintFormScreen> {
                                   maxLines: 3,
                                   decoration: const InputDecoration(
                                       labelText: 'Mô tả thiếu / hư hỏng')),
+                              if (_images.isNotEmpty)
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 8),
+                                  child: Wrap(spacing: 8, runSpacing: 8, children: <Widget>[
+                                    for (var i = 0; i < _images.length; i++)
+                                      _ImagePreview(
+                                        bytes: _images[i].bytes,
+                                        onRemove: _busy
+                                            ? null
+                                            : () => setState(() => _images.removeAt(i)),
+                                      ),
+                                  ]),
+                                ),
+                              OutlinedButton.icon(
+                                  onPressed: _busy || _images.length >= _maxImages
+                                      ? null
+                                      : _pickImages,
+                                  icon: const Icon(Icons.add_a_photo_outlined),
+                                  label: Text(_images.isEmpty
+                                      ? 'Thêm ảnh bằng chứng (tối đa $_maxImages)'
+                                      : 'Thêm ảnh · ${_images.length}/$_maxImages')),
                               const SizedBox(height: 16),
                               FilledButton(
                                   onPressed: _busy
@@ -187,4 +248,38 @@ class _ComplaintFormScreenState extends ConsumerState<ComplaintFormScreen> {
                     }),
             ]);
           }));
+}
+
+class _PickedImage {
+  const _PickedImage(this.file, this.bytes);
+  final XFile file;
+  final Uint8List bytes;
+}
+
+/// Local preview of a picked image with a remove button.
+class _ImagePreview extends StatelessWidget {
+  const _ImagePreview({required this.bytes, required this.onRemove});
+  final Uint8List bytes;
+  final VoidCallback? onRemove;
+
+  @override
+  Widget build(BuildContext context) => Stack(children: <Widget>[
+        ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: Image.memory(bytes, width: 84, height: 84, fit: BoxFit.cover),
+        ),
+        Positioned(
+          top: 2,
+          right: 2,
+          child: InkWell(
+            onTap: onRemove,
+            child: Container(
+              decoration:
+                  const BoxDecoration(color: Colors.black54, shape: BoxShape.circle),
+              padding: const EdgeInsets.all(3),
+              child: const Icon(Icons.close, size: 16, color: Colors.white),
+            ),
+          ),
+        ),
+      ]);
 }
