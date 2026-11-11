@@ -490,6 +490,21 @@ class _DebtCheckoutResultScreenState
                       fontSize: 22, fontWeight: FontWeight.w800)),
               Text('${_checkout.allocations.length} khoản công nợ',
                   style: const TextStyle(color: AppColors.textMuted)),
+              const SizedBox(height: 16),
+              const Align(
+                alignment: Alignment.centerLeft,
+                child: Text('Đơn hàng thanh toán',
+                    style: TextStyle(fontWeight: FontWeight.w700)),
+              ),
+              const SizedBox(height: 6),
+              ..._checkout.allocations.map((allocation) => Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 2),
+                    child: Row(children: <Widget>[
+                      Expanded(child: Text(allocation.orderCode)),
+                      Text(Money.format(allocation.amount),
+                          style: const TextStyle(fontWeight: FontWeight.w600)),
+                    ]),
+                  )),
               if (!paid && !failed) ...<Widget>[
                 const SizedBox(height: 20),
                 const CircularProgressIndicator(),
