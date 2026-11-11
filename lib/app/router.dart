@@ -274,7 +274,6 @@ List<RouteBase> _warehouseRoutes() => <RouteBase>[
                     label: 'Phiếu đã xuất kho',
                     icon: Icons.outbox_outlined,
                     route: AppRoutes.wkShipped),
-
                 ProfileAction(
                     label: 'Tra cứu tem',
                     icon: Icons.qr_code_2,
@@ -289,7 +288,6 @@ List<RouteBase> _warehouseRoutes() => <RouteBase>[
         path: AppRoutes.wkShipped,
         builder: (c, s) => const PickingListsScreen(shippedOnly: true),
       ),
-
       GoRoute(
         path: AppRoutes.wkLabelLookup,
         builder: (c, s) => const WkScanScreen(labelsOnly: true),
@@ -364,7 +362,10 @@ List<RouteBase> _retailerRoutes() => <RouteBase>[
           builder: (c, s) => const PaymentsScreen()),
       GoRoute(
           path: AppRoutes.rtLoyalty, builder: (c, s) => const LoyaltyScreen()),
-      GoRoute(path: AppRoutes.rtGifts, builder: (c, s) => const GiftsScreen()),
+      GoRoute(
+          path: AppRoutes.rtGifts,
+          builder: (c, s) =>
+              GiftsScreen(redemptionId: s.uri.queryParameters['redemptionId'])),
       GoRoute(
           path: AppRoutes.rtComplaints,
           builder: (c, s) => const ComplaintsScreen()),

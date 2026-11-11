@@ -1,4 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:fscm_mobile/core/auth/user_role.dart';
+import 'package:fscm_mobile/core/network/api_exception.dart';
 
 import 'package:fscm_mobile/data/models/complaint.dart';
 import 'package:fscm_mobile/data/models/loyalty.dart';
@@ -15,10 +17,29 @@ final loyaltyRepositoryProvider = Provider<LoyaltyRepository>((ref) {
 });
 
 final loyaltyAccountProvider =
-    FutureProvider.autoDispose<LoyaltyAccount>((ref) {
+    FutureProvider.autoDispose<LoyaltyAccount>((ref) async {
   ref.watch(dataVersionProvider);
-  ref.watch(currentUserProvider);
-  return ref.watch(loyaltyRepositoryProvider).account();
+  final user = ref.watch(currentUserProvider);
+  if (user == null || user.role != UserRole.retailer) {
+    throw const ApiException(
+        kind: ApiErrorKind.forbidden,
+        message: 'Cần đăng nhập Retailer để xem thẻ tích điểm của mình.');
+  }
+  var disposed = false;
+  ref.onDispose(() => disposed = true);
+  final result = await ref.watch(loyaltyRepositoryProvider).account();
+  if (disposed || ref.read(currentUserProvider)?.id != user.id) {
+    throw const ApiException(
+        kind: ApiErrorKind.unauthorized,
+        message: 'Phiên đăng nhập đã thay đổi.');
+  }
+  final code = user.retailerCode;
+  if (code != null && code.isNotEmpty && code != result.retailerCode) {
+    throw const ApiException(
+        kind: ApiErrorKind.forbidden,
+        message: 'Thẻ tích điểm không thuộc điểm bán của tài khoản này.');
+  }
+  return result;
 });
 
 final giftsProvider = FutureProvider.autoDispose<List<Gift>>((ref) {
