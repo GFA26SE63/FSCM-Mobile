@@ -6,10 +6,8 @@ import 'package:fscm_mobile/core/utils/clock.dart';
 import 'package:fscm_mobile/core/utils/dates.dart';
 import 'package:fscm_mobile/core/utils/money.dart';
 import 'package:fscm_mobile/core/utils/status_tone.dart';
-import 'package:fscm_mobile/data/models/order.dart';
 import 'package:fscm_mobile/data/models/receivable.dart';
 import 'package:fscm_mobile/data/repositories/finance_repository.dart';
-import 'package:fscm_mobile/data/repositories/order_repository.dart';
 import 'package:fscm_mobile/shared/routes.dart';
 import 'package:fscm_mobile/shared/theme/app_colors.dart';
 import 'package:fscm_mobile/shared/widgets/app_card.dart';
@@ -26,21 +24,33 @@ class PaymentsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final receivables = ref.watch(receivablesProvider);
-    final orders =
-        ref.watch(ordersProvider).valueOrNull?.orders ?? const <Order>[];
-    final paidTotal =
-        orders.where((o) => o.paid).fold<int>(0, (s, o) => s + o.finalAmount);
     return Scaffold(
       appBar: AppBar(title: const Text('Thanh toán & công nợ')),
       body: AsyncBody<List<Receivable>>(
         value: receivables,
         onRetry: () => ref.invalidate(receivablesProvider),
         builder: (all) {
-          final open = all.where((r) => !r.isPaid).toList()
+          final paidTotal =
+              all.fold<int>(0, (sum, r) => sum + r.confirmedAmount);
+          final open = all
+              .where((r) =>
+                  r.method == 'Credit' &&
+                  !r.isPaid &&
+                  !r.isCancelled &&
+                  r.outstandingAmount > 0)
+              .toList()
             ..sort((a, b) => (a.dueDate ?? DateTime(2100))
                 .compareTo(b.dueDate ?? DateTime(2100)));
           final paid = all.where((r) => r.isPaid).toList();
-          final openTotal = open.fold<int>(0, (s, r) => s + r.amount);
+          final openTotal =
+              open.fold<int>(0, (s, r) => s + r.outstandingAmount);
+          final prepaid = all
+              .where((r) =>
+                  r.method == 'Prepaid' &&
+                  !r.isPaid &&
+                  !r.isCancelled &&
+                  r.outstandingAmount > 0)
+              .toList();
           final overdue = open.where((r) => r.isOverdue).toList();
           return ListView(
             padding: const EdgeInsets.all(16),
@@ -82,6 +92,10 @@ class PaymentsScreen extends ConsumerWidget {
               if (paid.isNotEmpty) ...<Widget>[
                 const SectionTitle('Đã thanh toán'),
                 for (final r in paid) _ReceivableTile(receivable: r),
+              ],
+              if (prepaid.isNotEmpty) ...<Widget>[
+                const SectionTitle('Đơn trả trước đang chờ thanh toán'),
+                for (final r in prepaid) _ReceivableTile(receivable: r),
               ],
             ],
           );
@@ -151,7 +165,10 @@ class _ReceivableTile extends StatelessWidget {
                             ? AppColors.danger
                             : AppColors.textMuted,
                         fontSize: 13)),
-                Text('Công nợ ${r.term} ngày',
+                Text(
+                    r.method == 'Prepaid'
+                        ? 'Trả trước'
+                        : 'Công nợ ${r.term} ngày',
                     style: const TextStyle(
                         color: AppColors.textMuted, fontSize: 12)),
               ],
@@ -160,7 +177,9 @@ class _ReceivableTile extends StatelessWidget {
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: <Widget>[
-              Text(Money.format(r.amount),
+              Text(
+                  Money.format(
+                      r.isPaid ? r.confirmedAmount : r.outstandingAmount),
                   style: const TextStyle(fontWeight: FontWeight.w800)),
               const SizedBox(height: 4),
               StatusChip(label: r.status.label, tone: r.status.tone),

@@ -43,6 +43,12 @@ final receivedComplaintLabelsProvider =
   return ref.watch(loyaltyRepositoryProvider).receivedLabels(orderId);
 });
 
+final complaintTargetsProvider = FutureProvider.autoDispose
+    .family<List<ComplaintTarget>, String>((ref, orderId) {
+  ref.watch(currentUserProvider);
+  return ref.watch(loyaltyRepositoryProvider).targets(orderId);
+});
+
 /// Retailer side: points, gifts, redemptions and complaints.
 class LoyaltyRepository {
   LoyaltyRepository(
@@ -52,6 +58,9 @@ class LoyaltyRepository {
 
   final LoyaltyApi _loyalty;
   final ComplaintsApi _complaints;
+
+  Future<List<ComplaintTarget>> targets(String orderId) =>
+      _complaints.targets(orderId);
 
   Future<LoyaltyAccount> account() => _loyalty.account();
 

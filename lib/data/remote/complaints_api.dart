@@ -13,6 +13,11 @@ class ComplaintsApi {
 
   final ApiClient _client;
 
+  Future<List<ComplaintTarget>> targets(String orderId) async =>
+      unwrapItems(await _client.get('/complaints/orders/$orderId/targets'))
+          .map(ComplaintTarget.fromJson)
+          .toList();
+
   Future<List<Complaint>> list() async {
     final data = await _client.get(Endpoints.complaints);
     return unwrapItems(data).map(Complaint.fromJson).toList();

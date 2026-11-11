@@ -107,6 +107,7 @@ enum SyncStatus {
 
 enum ReceivableStatus {
   unpaid('Unpaid', 'Chưa thu', StatusTone.info),
+  partiallyPaid('PartiallyPaid', 'Đã thu một phần', StatusTone.warning),
   paid('Paid', 'Đã thu đủ', StatusTone.success),
   overdue('Overdue', 'Quá hạn', StatusTone.danger),
   cancelled('Cancelled', 'Đã hủy', StatusTone.neutral);

@@ -58,6 +58,8 @@ class NewComplaint {
     required this.actualQty,
     required this.issueType,
     required this.note,
+    this.shipmentId,
+    this.allocationId,
   });
 
   final String orderCode;
@@ -67,6 +69,9 @@ class NewComplaint {
   final String issueType;
   final String note;
 
+  final String? shipmentId;
+  final String? allocationId;
+
   Map<String, dynamic> toJson() => <String, dynamic>{
         'orderCode': orderCode,
         'sku': sku,
@@ -74,5 +79,36 @@ class NewComplaint {
         'actualQty': actualQty,
         'issueType': issueType,
         'note': note,
+        if (shipmentId != null) 'shipmentId': shipmentId,
+        if (allocationId != null) 'allocationId': allocationId,
       };
+}
+
+class ComplaintTarget {
+  const ComplaintTarget(
+      {required this.shipmentId,
+      required this.shipmentCode,
+      required this.allocationId,
+      required this.sku,
+      required this.productName,
+      required this.batchCode,
+      required this.labelCode,
+      required this.expectedQuantity});
+  factory ComplaintTarget.fromJson(Map<String, dynamic> j) => ComplaintTarget(
+      shipmentId: asStr(j['shipmentId']),
+      shipmentCode: asStr(j['shipmentCode']),
+      allocationId: asStr(j['allocationId']),
+      sku: asStr(j['sku']),
+      productName: asStr(j['productName']),
+      batchCode: asStr(j['batchCode']),
+      labelCode: asStr(j['labelCode']),
+      expectedQuantity: asInt(j['expectedQuantity']));
+  final String shipmentId,
+      shipmentCode,
+      allocationId,
+      sku,
+      productName,
+      batchCode,
+      labelCode;
+  final int expectedQuantity;
 }

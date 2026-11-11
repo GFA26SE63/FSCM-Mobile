@@ -18,6 +18,9 @@ class OrdersApi {
   OrdersApi(this._client);
 
   final ApiClient _client;
+  Future<Order> retryAllocation(String id, int version) async =>
+      Order.fromJson(asMap(await _client.post('/orders/$id/allocation/retry',
+          body: {'expectedVersion': version})));
 
   Future<OrderPage> listPage(
       {int page = 1, int pageSize = 20, String? search}) async {
@@ -42,7 +45,7 @@ class OrdersApi {
         'status': status,
         'search': search,
         'page': page,
-        'size': size,
+        'pageSize': size,
       },
     );
     return unwrapItems(data).map(Order.fromJson).toList();
