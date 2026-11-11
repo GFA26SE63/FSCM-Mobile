@@ -136,9 +136,7 @@ void main() {
     final state = tester.state<ScrollableState>(
         find.descendant(of: scrollable, matching: find.byType(Scrollable)));
     expect(state.position.pixels, greaterThan(0));
-    final scrollbar = tester.widget<Scrollbar>(find.byType(Scrollbar));
-    expect(scrollbar.thumbVisibility, isFalse);
-    expect(scrollbar.trackVisibility, isFalse);
+    expect(find.byType(Scrollbar), findsNothing);
   });
 
   testWidgets('compact empty states do not overflow', (tester) async {

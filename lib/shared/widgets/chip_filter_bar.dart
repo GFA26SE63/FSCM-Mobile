@@ -1,4 +1,3 @@
-import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
 import 'package:fscm_mobile/shared/theme/app_colors.dart';
@@ -32,6 +31,8 @@ class ChipFilterBar<T> extends StatefulWidget {
 
 class _ChipFilterBarState<T> extends State<ChipFilterBar<T>> {
   final ScrollController _scrollController = ScrollController();
+  Offset? _lastPointerPosition;
+  bool _isHorizontalDrag = false;
 
   @override
   void dispose() {
@@ -49,6 +50,33 @@ class _ChipFilterBarState<T> extends State<ChipFilterBar<T>> {
         );
       });
 
+  void _onPointerDown(PointerDownEvent event) {
+    _lastPointerPosition = event.position;
+    _isHorizontalDrag = false;
+  }
+
+  void _onPointerMove(PointerMoveEvent event) {
+    final lastPosition = _lastPointerPosition;
+    if (lastPosition == null) return;
+    final delta = event.position - lastPosition;
+    if (!_isHorizontalDrag && delta.dx.abs() > delta.dy.abs()) {
+      _isHorizontalDrag = true;
+    }
+    if (_isHorizontalDrag && _scrollController.hasClients) {
+      final position = _scrollController.position;
+      _scrollController.jumpTo(
+        (position.pixels - delta.dx)
+            .clamp(position.minScrollExtent, position.maxScrollExtent),
+      );
+    }
+    _lastPointerPosition = event.position;
+  }
+
+  void _resetPointer(PointerEvent _) {
+    _lastPointerPosition = null;
+    _isHorizontalDrag = false;
+  }
+
   @override
   Widget build(BuildContext context) {
     if (widget.wrap) {
@@ -64,17 +92,17 @@ class _ChipFilterBarState<T> extends State<ChipFilterBar<T>> {
     final chips = _chips();
     return SizedBox(
       height: 44,
-      child: Scrollbar(
-        controller: _scrollController,
-        thumbVisibility: false,
-        trackVisibility: false,
-        interactive: true,
+      child: Listener(
+        behavior: HitTestBehavior.translucent,
+        onPointerDown: _onPointerDown,
+        onPointerMove: _onPointerMove,
+        onPointerUp: _resetPointer,
+        onPointerCancel: _resetPointer,
         child: SingleChildScrollView(
           controller: _scrollController,
           scrollDirection: Axis.horizontal,
           primary: false,
-          dragStartBehavior: DragStartBehavior.down,
-          physics: const AlwaysScrollableScrollPhysics(),
+          physics: const NeverScrollableScrollPhysics(),
           padding: widget.padding,
           child: Row(
             children: <Widget>[
