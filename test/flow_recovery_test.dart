@@ -111,6 +111,8 @@ void main() {
         overrides: [receivablesProvider.overrideWith((ref) async => rows)],
         child: const MaterialApp(home: PaymentsScreen())));
     await tester.pumpAndSettle();
+    await tester.drag(find.byType(ListView).first, const Offset(0, -500));
+    await tester.pumpAndSettle();
     expect(find.text(Money.format(90000)),
         findsWidgets); // Actual cash collected, and separate prepaid row.
     expect(find.text(Money.format(40000)), findsWidgets);

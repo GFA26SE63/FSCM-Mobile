@@ -15,11 +15,13 @@ class ChipFilterBar<T> extends StatelessWidget {
     required this.options,
     required this.selected,
     required this.onSelected,
+    this.padding = const EdgeInsets.symmetric(horizontal: 16),
   });
 
   final List<ChipOption<T>> options;
   final T selected;
   final ValueChanged<T> onSelected;
+  final EdgeInsetsGeometry padding;
 
   @override
   Widget build(BuildContext context) {
@@ -27,7 +29,7 @@ class ChipFilterBar<T> extends StatelessWidget {
       height: 44,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
+        padding: padding,
         itemCount: options.length,
         separatorBuilder: (_, __) => const SizedBox(width: 8),
         itemBuilder: (context, i) {

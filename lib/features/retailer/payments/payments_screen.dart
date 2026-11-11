@@ -16,10 +16,20 @@ import 'package:fscm_mobile/shared/routes.dart';
 import 'package:fscm_mobile/shared/theme/app_colors.dart';
 import 'package:fscm_mobile/shared/widgets/app_card.dart';
 import 'package:fscm_mobile/shared/widgets/async_body.dart';
+import 'package:fscm_mobile/shared/widgets/chip_filter_bar.dart';
 import 'package:fscm_mobile/shared/widgets/empty_state.dart';
 import 'package:fscm_mobile/shared/widgets/info_banner.dart';
 import 'package:fscm_mobile/shared/widgets/section_title.dart';
 import 'package:fscm_mobile/shared/widgets/status_chip.dart';
+
+enum _PaymentFilter { all, payable, overdue, paid, prepaid }
+
+enum _PaymentSort {
+  dueSoonest,
+  dueLatest,
+  amountHighToLow,
+  amountLowToHigh,
+}
 
 class PaymentsScreen extends ConsumerStatefulWidget {
   const PaymentsScreen({super.key});
@@ -29,7 +39,65 @@ class PaymentsScreen extends ConsumerStatefulWidget {
 
 class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
   final Set<String> _selected = <String>{};
+  final TextEditingController _searchController = TextEditingController();
+  String _query = '';
+  _PaymentFilter _filter = _PaymentFilter.all;
+  _PaymentSort _sort = _PaymentSort.dueSoonest;
   bool _busy = false;
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  bool _matches(Receivable receivable) {
+    final query = _query.trim().toLowerCase();
+    if (query.isNotEmpty &&
+        !receivable.orderCode.toLowerCase().contains(query)) {
+      return false;
+    }
+
+    switch (_filter) {
+      case _PaymentFilter.all:
+        return true;
+      case _PaymentFilter.payable:
+        return receivable.method == 'Credit' &&
+            !receivable.isPaid &&
+            !receivable.isCancelled &&
+            receivable.collectibleAmount > 0;
+      case _PaymentFilter.overdue:
+        return receivable.isOverdue;
+      case _PaymentFilter.paid:
+        return receivable.isPaid;
+      case _PaymentFilter.prepaid:
+        return receivable.method == 'Prepaid' &&
+            !receivable.isPaid &&
+            !receivable.isCancelled &&
+            receivable.outstandingAmount > 0;
+    }
+  }
+
+  int _compare(Receivable a, Receivable b) {
+    switch (_sort) {
+      case _PaymentSort.dueSoonest:
+        return (a.dueDate ?? DateTime(2100))
+            .compareTo(b.dueDate ?? DateTime(2100));
+      case _PaymentSort.dueLatest:
+        return (b.dueDate ?? DateTime(1900))
+            .compareTo(a.dueDate ?? DateTime(1900));
+      case _PaymentSort.amountHighToLow:
+        return _displayAmount(b).compareTo(_displayAmount(a));
+      case _PaymentSort.amountLowToHigh:
+        return _displayAmount(a).compareTo(_displayAmount(b));
+    }
+  }
+
+  int _displayAmount(Receivable receivable) => receivable.isPaid
+      ? receivable.confirmedAmount
+      : receivable.method == 'Prepaid'
+          ? receivable.outstandingAmount
+          : receivable.collectibleAmount;
 
   @override
   Widget build(BuildContext context) {
@@ -40,29 +108,35 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
         value: receivables,
         onRetry: () => ref.invalidate(receivablesProvider),
         builder: (all) {
-          final open = all
+          final payable = all
               .where((r) =>
                   r.method == 'Credit' &&
                   !r.isPaid &&
                   !r.isCancelled &&
                   r.collectibleAmount > 0)
-              .toList()
-            ..sort((a, b) => (a.dueDate ?? DateTime(2100))
-                .compareTo(b.dueDate ?? DateTime(2100)));
-          final paid = all.where((r) => r.isPaid).toList();
+              .toList();
+          final visible = all.where(_matches).toList()..sort(_compare);
+          final open = visible
+              .where((r) =>
+                  r.method == 'Credit' &&
+                  !r.isPaid &&
+                  !r.isCancelled &&
+                  r.collectibleAmount > 0)
+              .toList();
+          final paid = visible.where((r) => r.isPaid).toList();
           final openTotal =
-              open.fold<int>(0, (sum, r) => sum + r.collectibleAmount);
-          final selectedTotal = open
+              payable.fold<int>(0, (sum, r) => sum + r.collectibleAmount);
+          final selectedTotal = payable
               .where((r) => _selected.contains(r.paymentId))
               .fold<int>(0, (sum, r) => sum + r.collectibleAmount);
-          final prepaid = all
+          final prepaid = visible
               .where((r) =>
                   r.method == 'Prepaid' &&
                   !r.isPaid &&
                   !r.isCancelled &&
                   r.outstandingAmount > 0)
               .toList();
-          final overdue = open.where((r) => r.isOverdue).toList();
+          final overdue = payable.where((r) => r.isOverdue).toList();
           return RefreshIndicator(
             onRefresh: () async => ref.refresh(receivablesProvider.future),
             child: ListView(
@@ -91,14 +165,80 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
                     text:
                         'Vui lòng thanh toán để tiếp tục đặt hàng công nợ và nhận điểm tích lũy.',
                   ),
-                const SectionTitle('Công nợ cần thanh toán'),
-                if (open.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(0, 12, 0, 8),
+                  child: TextField(
+                    controller: _searchController,
+                    decoration: InputDecoration(
+                      hintText: 'Tìm mã đơn công nợ',
+                      prefixIcon: const Icon(Icons.search),
+                      suffixIcon: _query.isEmpty
+                          ? null
+                          : IconButton(
+                              tooltip: 'Xóa tìm kiếm',
+                              icon: const Icon(Icons.clear),
+                              onPressed: () => setState(() {
+                                _searchController.clear();
+                                _query = '';
+                              }),
+                            ),
+                    ),
+                    onChanged: (value) => setState(() => _query = value),
+                  ),
+                ),
+                ChipFilterBar<_PaymentFilter>(
+                  padding: EdgeInsets.zero,
+                  selected: _filter,
+                  onSelected: (value) => setState(() => _filter = value),
+                  options: const <ChipOption<_PaymentFilter>>[
+                    ChipOption(_PaymentFilter.all, 'Tất cả'),
+                    ChipOption(_PaymentFilter.payable, 'Cần trả'),
+                    ChipOption(_PaymentFilter.overdue, 'Quá hạn'),
+                    ChipOption(_PaymentFilter.paid, 'Đã trả'),
+                    ChipOption(_PaymentFilter.prepaid, 'Trả trước'),
+                  ],
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: DropdownButtonFormField<_PaymentSort>(
+                    value: _sort,
+                    isExpanded: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Sắp xếp',
+                      prefixIcon: Icon(Icons.sort),
+                    ),
+                    items: const <DropdownMenuItem<_PaymentSort>>[
+                      DropdownMenuItem(
+                        value: _PaymentSort.dueSoonest,
+                        child: Text('Hạn thanh toán gần nhất'),
+                      ),
+                      DropdownMenuItem(
+                        value: _PaymentSort.dueLatest,
+                        child: Text('Hạn thanh toán xa nhất'),
+                      ),
+                      DropdownMenuItem(
+                        value: _PaymentSort.amountHighToLow,
+                        child: Text('Số tiền cao đến thấp'),
+                      ),
+                      DropdownMenuItem(
+                        value: _PaymentSort.amountLowToHigh,
+                        child: Text('Số tiền thấp đến cao'),
+                      ),
+                    ],
+                    onChanged: (value) {
+                      if (value != null) setState(() => _sort = value);
+                    },
+                  ),
+                ),
+                if (open.isNotEmpty || visible.isEmpty)
+                  const SectionTitle('Công nợ cần thanh toán'),
+                if (visible.isEmpty)
                   const SizedBox(
                       height: 140,
                       child: EmptyState(
-                          title: 'Không có công nợ có thể thanh toán.',
+                          title: 'Không có khoản công nợ phù hợp.',
                           icon: Icons.verified_outlined))
-                else
+                else if (open.isNotEmpty)
                   for (final item in open)
                     _ReceivableTile(
                       receivable: item,

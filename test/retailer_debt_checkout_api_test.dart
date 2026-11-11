@@ -104,6 +104,72 @@ void main() {
     expect(partial.onPressed, isNotNull);
   });
 
+  testWidgets('payment debts can be searched, filtered and sorted locally',
+      (tester) async {
+    final rows = <Receivable>[
+      Receivable.fromJson(<String, dynamic>{
+        'id': 'payment-1',
+        'orderId': 'order-1',
+        'orderCode': 'DH-LOW',
+        'status': 'Unpaid',
+        'adjustedAmount': 100000,
+        'outstandingAmount': 100000,
+        'collectibleAmount': 100000,
+        'dueDate': '2030-01-01T00:00:00Z',
+      }),
+      Receivable.fromJson(<String, dynamic>{
+        'id': 'payment-2',
+        'orderId': 'order-2',
+        'orderCode': 'DH-HIGH',
+        'status': 'Unpaid',
+        'adjustedAmount': 500000,
+        'outstandingAmount': 500000,
+        'collectibleAmount': 500000,
+        'dueDate': '2030-02-01T00:00:00Z',
+      }),
+      Receivable.fromJson(<String, dynamic>{
+        'id': 'payment-3',
+        'orderId': 'order-3',
+        'orderCode': 'DH-PAID',
+        'status': 'Paid',
+        'adjustedAmount': 200000,
+        'confirmedAmount': 200000,
+      }),
+    ];
+    await tester.pumpWidget(ProviderScope(
+      overrides: [receivablesProvider.overrideWith((ref) async => rows)],
+      child: const MaterialApp(home: PaymentsScreen()),
+    ));
+    await tester.pumpAndSettle();
+
+    expect(find.text('DH-HIGH'), findsOneWidget);
+    expect(tester.getTopLeft(find.text('DH-LOW')).dy,
+        lessThan(tester.getTopLeft(find.text('DH-HIGH')).dy));
+
+    await tester.enterText(find.byType(TextField), 'PAID');
+    await tester.pump();
+    expect(find.text('DH-PAID'), findsOneWidget);
+    expect(find.text('DH-HIGH'), findsNothing);
+
+    await tester.tap(find.byTooltip('Xóa tìm kiếm'));
+    await tester.pump();
+    await tester.tap(find.text('Đã trả'));
+    await tester.pumpAndSettle();
+    expect(find.text('DH-PAID'), findsOneWidget);
+    expect(find.text('DH-HIGH'), findsNothing);
+
+    await tester.tap(find.text('Tất cả'));
+    await tester.pumpAndSettle();
+    await tester.tap(
+        find.byWidgetPredicate((widget) => widget is DropdownButtonFormField));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Số tiền cao đến thấp').last);
+    await tester.pumpAndSettle();
+    expect(tester.getTopLeft(find.text('DH-HIGH')).dy,
+        lessThan(tester.getTopLeft(find.text('DH-LOW')).dy));
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets(
       'payment confirmation keeps the back action full-width below PayOS',
       (tester) async {
