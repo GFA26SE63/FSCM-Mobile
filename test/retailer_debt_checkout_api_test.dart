@@ -5,6 +5,7 @@ import 'package:fscm_mobile/core/network/api_client.dart';
 import 'package:fscm_mobile/core/network/api_transport.dart';
 import 'package:fscm_mobile/core/config/env.dart';
 import 'package:fscm_mobile/data/remote/receivables_api.dart';
+import 'package:fscm_mobile/data/models/debt_checkout.dart';
 import 'package:fscm_mobile/data/models/receivable.dart';
 import 'package:fscm_mobile/data/repositories/finance_repository.dart';
 import 'package:fscm_mobile/features/retailer/payments/payments_screen.dart';
@@ -36,6 +37,18 @@ void main() {
       Env.graphQlEndpointFor('https://example.test/fscm/api/v1/'),
       'https://example.test/fscm/graphql',
     );
+  });
+
+  test('cancelled PayOS checkout is terminal', () {
+    const checkout = DebtCheckout(
+      id: 'checkout-1',
+      status: 'Cancelled',
+      amount: 292500,
+      checkoutUrl: 'https://pay.payos.vn/checkout-1',
+      allocations: <DebtCheckoutAllocation>[],
+    );
+
+    expect(checkout.isTerminal, isTrue);
   });
 
   test(

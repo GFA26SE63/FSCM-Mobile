@@ -297,8 +297,9 @@ class _DebtCheckoutResultScreenState
   @override
   Widget build(BuildContext context) {
     final paid = _checkout.status == 'Paid';
-    final failed =
-        _checkout.status == 'Failed' || _checkout.status == 'Expired';
+    final failed = _checkout.status == 'Failed' ||
+        _checkout.status == 'Expired' ||
+        _checkout.status == 'Cancelled';
     return Scaffold(
       appBar: AppBar(title: const Text('Kết quả thanh toán')),
       body: Padding(
@@ -325,7 +326,9 @@ class _DebtCheckoutResultScreenState
                       : failed
                           ? (_checkout.status == 'Expired'
                               ? 'Thanh toán đã hết hạn'
-                              : 'Thanh toán thất bại')
+                              : _checkout.status == 'Cancelled'
+                                  ? 'Bạn đã hủy thanh toán'
+                                  : 'Thanh toán thất bại')
                           : 'Đang chờ PayOS xác nhận',
                   textAlign: TextAlign.center,
                   style: Theme.of(context).textTheme.headlineSmall),

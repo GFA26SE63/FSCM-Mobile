@@ -48,5 +48,8 @@ class DebtCheckout {
   final List<DebtCheckoutAllocation> allocations;
 
   bool get isTerminal =>
-      status == 'Paid' || status == 'Failed' || status == 'Expired';
+      status == 'Paid' ||
+      status == 'Failed' ||
+      status == 'Expired' ||
+      status == 'Cancelled';
 }
