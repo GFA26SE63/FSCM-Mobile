@@ -9,6 +9,8 @@ import 'package:fscm_mobile/data/models/debt_checkout.dart';
 import 'package:fscm_mobile/data/models/receivable.dart';
 import 'package:fscm_mobile/data/repositories/finance_repository.dart';
 import 'package:fscm_mobile/features/retailer/payments/payments_screen.dart';
+import 'package:fscm_mobile/shared/widgets/chip_filter_bar.dart';
+import 'package:fscm_mobile/shared/widgets/empty_state.dart';
 
 void main() {
   test('receivables use typed GraphQL read model', () async {
@@ -102,6 +104,54 @@ void main() {
     final partial = tester.widget<OutlinedButton>(
         find.widgetWithText(OutlinedButton, 'Thanh toán một phần'));
     expect(partial.onPressed, isNotNull);
+  });
+
+  testWidgets('payment status filters support horizontal scrolling',
+      (tester) async {
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(
+        body: Center(
+          child: SizedBox(
+            width: 320,
+            child: ChipFilterBar<int>(
+              padding: EdgeInsets.zero,
+              selected: 0,
+              onSelected: (_) {},
+              options: const <ChipOption<int>>[
+                ChipOption(0, 'Tất cả'),
+                ChipOption(1, 'Cần trả'),
+                ChipOption(2, 'Quá hạn'),
+                ChipOption(3, 'Đã trả'),
+                ChipOption(4, 'Trả trước'),
+              ],
+            ),
+          ),
+        ),
+      ),
+    ));
+
+    final scrollable = find.byType(SingleChildScrollView);
+    await tester.drag(scrollable, const Offset(-180, 0));
+    await tester.pumpAndSettle();
+    final state = tester.state<ScrollableState>(
+        find.descendant(of: scrollable, matching: find.byType(Scrollable)));
+    expect(state.position.pixels, greaterThan(0));
+  });
+
+  testWidgets('compact empty states do not overflow', (tester) async {
+    await tester.pumpWidget(const MaterialApp(
+      home: Scaffold(
+        body: SizedBox(
+          height: 140,
+          child: EmptyState(
+            title: 'Không có khoản công nợ phù hợp.',
+            icon: Icons.verified_outlined,
+          ),
+        ),
+      ),
+    ));
+
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('payment debts can be searched, filtered and sorted locally',
