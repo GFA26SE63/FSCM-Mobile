@@ -66,8 +66,8 @@ class _ChipFilterBarState<T> extends State<ChipFilterBar<T>> {
       height: 44,
       child: Scrollbar(
         controller: _scrollController,
-        thumbVisibility: true,
-        trackVisibility: true,
+        thumbVisibility: false,
+        trackVisibility: false,
         interactive: true,
         child: SingleChildScrollView(
           controller: _scrollController,
