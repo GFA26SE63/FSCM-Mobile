@@ -108,8 +108,6 @@ class Endpoints {
   static String notificationRead(String id) => '/notifications/$id/read';
   static const String notificationsReadAll = '/notifications/read-all';
 
-  static const String graphql = '/graphql';
-
   // ---------------------------------------------------------- mobile sync
   /// `GET /sync/snapshot?since=` - retailers in area, products, prices,
   /// promotions, available stock summary.

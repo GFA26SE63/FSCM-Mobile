@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:fscm_mobile/core/config/env.dart';
 import 'package:fscm_mobile/core/network/api_client.dart';
 import 'package:fscm_mobile/core/network/endpoints.dart';
 import 'package:fscm_mobile/data/models/json_utils.dart';
@@ -15,8 +16,10 @@ class ReceivablesApi {
   final ApiClient _client;
 
   /// Sales: receivables of retailers they look after. Retailer: own debts.
-  Future<List<Receivable>> list({required bool retailer, String? status}) async {
-    final query = retailer ? r'''
+  Future<List<Receivable>> list(
+      {required bool retailer, String? status}) async {
+    final query = retailer
+        ? r'''
           query RetailerReceivables($filter: RetailerReceivableFilterInput!) {
             retailerReceivables(filter: $filter) {
               items {
@@ -27,7 +30,8 @@ class ReceivablesApi {
               }
             }
           }
-        ''' : r'''
+        '''
+        : r'''
           query SalesReceivables($status: String) {
             receivables(status: $status) {
               id orderId orderCode retailerCode retailerName status
@@ -37,11 +41,17 @@ class ReceivablesApi {
           }
         ''';
     final response = asMap(await _client.post(
-      Endpoints.graphql,
+      Env.effectiveGraphQlEndpoint,
       body: <String, dynamic>{
         'query': query,
         'variables': retailer
-            ? <String, dynamic>{'filter': <String, dynamic>{'status': status, 'page': 1, 'pageSize': 100}}
+            ? <String, dynamic>{
+                'filter': <String, dynamic>{
+                  'status': status,
+                  'page': 1,
+                  'pageSize': 100
+                }
+              }
             : <String, dynamic>{'status': status},
       },
     ));
