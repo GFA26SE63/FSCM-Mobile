@@ -99,9 +99,9 @@ class Endpoints {
   static const String loyaltyRedemptions = '/loyalty/redemptions';
 
   // --------------------------------------------------------- performance
-  static const String kpiSales = '/kpi/sales';
-  static const String rankingsSales = '/rankings/sales';
-  static const String rankingsProducts = '/rankings/products';
+  static const String kpiSales = '/reports/sales-kpis';
+  static const String rankingsSales = '/reports/sales-ranking';
+  static const String rankingsProducts = '/reports/best-selling-products';
 
   // ------------------------------------------------------- notifications
   static const String notifications = '/notifications';
