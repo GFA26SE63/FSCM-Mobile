@@ -15,6 +15,7 @@ import 'package:fscm_mobile/features/sales/orders/widgets/price_difference_card.
 import 'package:fscm_mobile/shared/theme/app_colors.dart';
 import 'package:fscm_mobile/shared/widgets/app_card.dart';
 import 'package:fscm_mobile/shared/widgets/async_body.dart';
+import 'package:fscm_mobile/shared/widgets/allocation_retry_button.dart';
 import 'package:fscm_mobile/shared/widgets/dialogs.dart';
 import 'package:fscm_mobile/shared/widgets/info_banner.dart';
 import 'package:fscm_mobile/shared/widgets/kv_row.dart';
@@ -120,6 +121,7 @@ class _Detail extends ConsumerWidget {
           style: const TextStyle(color: AppColors.textMuted),
         ),
         const SizedBox(height: 10),
+        AllocationRetryButton(order: order),
         if (order.syncStatus == SyncStatus.synced && entry?.serverOrder != null)
           const InfoBanner(
             text: 'Đang xem kết quả đã lưu lúc gửi. '

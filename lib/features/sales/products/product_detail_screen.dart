@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:fscm_mobile/core/auth/user_role.dart';
 import 'package:fscm_mobile/core/utils/money.dart';
 import 'package:fscm_mobile/data/models/order_availability.dart';
 import 'package:fscm_mobile/data/models/product.dart';
@@ -12,10 +13,12 @@ class ProductDetailScreen extends StatelessWidget {
       required this.product,
       required this.unitPrice,
       this.availability,
+      this.viewerRole,
       this.promotions = const []});
   final Product product;
   final num? unitPrice;
   final ProductAvailability? availability;
+  final UserRole? viewerRole;
   final List<Promotion> promotions;
 
   @override
@@ -39,7 +42,9 @@ class ProductDetailScreen extends StatelessWidget {
           if (availability != null) ...[
             AppCard(
                 child: OrderStockSummary(
-                    availability: availability!, maxWarehouses: null)),
+                    availability: availability!,
+                    viewerRole: viewerRole,
+                    maxWarehouses: null)),
             const Padding(
                 padding: EdgeInsets.only(bottom: 16),
                 child: Text(

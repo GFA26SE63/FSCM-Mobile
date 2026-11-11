@@ -81,6 +81,11 @@ class Endpoints {
 
   // ------------------------------------------------------------- finance
   static const String receivables = '/receivables';
+  static const String retailerReceivables = '/retailer/receivables';
+  static const String retailerDebtPayOsCheckouts =
+      '/retailer/receivables/payos-checkouts';
+  static String retailerDebtPayOsCheckout(String checkoutId) =>
+      '/retailer/receivables/payos-checkouts/$checkoutId';
   static String paymentForOrder(String orderId) => '/payments/orders/$orderId';
   static String payOsCheckout(String orderId) =>
       '/payments/orders/$orderId/payos-checkout';
@@ -102,6 +107,8 @@ class Endpoints {
   static const String notifications = '/notifications';
   static String notificationRead(String id) => '/notifications/$id/read';
   static const String notificationsReadAll = '/notifications/read-all';
+
+  static const String graphql = '/graphql';
 
   // ---------------------------------------------------------- mobile sync
   /// `GET /sync/snapshot?since=` - retailers in area, products, prices,
