@@ -5,12 +5,14 @@ import 'package:fscm_mobile/data/models/json_utils.dart';
 /// collection, due = delivered date + term).
 class Receivable {
   const Receivable({
+    required this.paymentId,
     required this.orderId,
     required this.orderCode,
     required this.retailerCode,
     required this.retailerName,
     required this.amount,
     required this.outstandingAmount,
+    required this.collectibleAmount,
     required this.status,
     this.deliveredAt,
     this.dueDate,
@@ -20,6 +22,7 @@ class Receivable {
   });
 
   factory Receivable.fromJson(Map<String, dynamic> j) => Receivable(
+        paymentId: asStr(j['id'] ?? j['paymentId']),
         orderId: asStr(j['orderId']),
         orderCode: asStr(j['orderCode']),
         retailerCode: asStr(j['retailerCode']),
@@ -27,6 +30,10 @@ class Receivable {
         amount: asInt(j['adjustedAmount'] ?? j['amount']),
         outstandingAmount:
             asInt(j['outstandingAmount'] ?? j['adjustedAmount'] ?? j['amount']),
+        collectibleAmount: asInt(j['collectibleAmount'] ??
+            j['outstandingAmount'] ??
+            j['adjustedAmount'] ??
+            j['amount']),
         status: ReceivableStatus.fromCode(asStrOrNull(j['status'])),
         deliveredAt: asDate(j['deliveredDate'] ?? j['deliveredAt']),
         dueDate: asDate(j['dueDate']),
@@ -36,11 +43,13 @@ class Receivable {
       );
 
   final String orderId;
+  final String paymentId;
   final String orderCode;
   final String retailerCode;
   final String retailerName;
   final int amount;
   final int outstandingAmount;
+  final int collectibleAmount;
   final ReceivableStatus status;
   final DateTime? deliveredAt;
   final DateTime? dueDate;
@@ -62,12 +71,14 @@ class Receivable {
 
   Receivable copyWith({ReceivableStatus? status, DateTime? paidAt}) =>
       Receivable(
+        paymentId: paymentId,
         orderId: orderId,
         orderCode: orderCode,
         retailerCode: retailerCode,
         retailerName: retailerName,
         amount: amount,
         outstandingAmount: outstandingAmount,
+        collectibleAmount: collectibleAmount,
         status: status ?? this.status,
         deliveredAt: deliveredAt,
         dueDate: dueDate,
@@ -78,11 +89,13 @@ class Receivable {
 
   Map<String, dynamic> toJson() => <String, dynamic>{
         'orderId': orderId,
+        'id': paymentId,
         'orderCode': orderCode,
         'retailerCode': retailerCode,
         'retailerName': retailerName,
         'amount': amount,
         'outstandingAmount': outstandingAmount,
+        'collectibleAmount': collectibleAmount,
         'status': status.code,
         'deliveredAt': isoOrNull(deliveredAt),
         'dueDate': isoOrNull(dueDate),
