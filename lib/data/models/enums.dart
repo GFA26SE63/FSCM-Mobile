@@ -240,7 +240,11 @@ enum PointKind {
   pending('Pending', 'Chờ cộng'),
   held('Held', 'Đang giữ'),
   refunded('Refunded', 'Hoàn điểm'),
-  redeemed('Redeemed', 'Đã đổi');
+  redeemed('Redeemed', 'Đã đổi'),
+  adjusted('EarnedAdjusted', 'Điều chỉnh điểm'),
+  pendingCancelled('PendingEarnCancelled', 'Hủy điểm chờ cộng'),
+  expired('Expired', 'Hết hạn'),
+  unknown('Unknown', 'Giao dịch khác');
 
   const PointKind(this.code, this.label);
   final String code;
@@ -248,15 +252,14 @@ enum PointKind {
 
   static PointKind fromCode(String? code) {
     final c = (code ?? '').toLowerCase();
-    if (c == 'earnedadjusted') return PointKind.earned;
+    if (c == 'pendingearn') return PointKind.pending;
     if (c == 'redemptionheld') return PointKind.held;
     if (c == 'redemptionrejected') return PointKind.refunded;
     if (c == 'redemptioncompleted') return PointKind.redeemed;
-    if (c == 'expired') return PointKind.redeemed;
     for (final k in PointKind.values) {
       if (k.code.toLowerCase() == c) return k;
     }
-    return PointKind.earned;
+    return PointKind.unknown;
   }
 }
 
