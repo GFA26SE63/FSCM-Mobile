@@ -56,7 +56,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       }
       ok = await ref
           .read(authControllerProvider.notifier)
-          .login(identifier, _password.text);
+          .login(identifier, _password.text.trim());
     } on ApiException catch (error) {
       if (error.code == 'retailer_activation_required' && mounted) {
         await context.push(AppRoutes.retailerActivation, extra: identifier);
