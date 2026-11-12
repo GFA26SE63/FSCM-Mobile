@@ -1,4 +1,6 @@
 import 'package:fscm_mobile/core/utils/status_tone.dart';
+import 'package:fscm_mobile/core/network/api_exception.dart';
+import 'package:fscm_mobile/data/models/map_place.dart';
 import 'package:fscm_mobile/data/models/json_utils.dart';
 
 /// Backend `RetailerTypes` (exact, case-sensitive values).
@@ -116,6 +118,9 @@ class RetailerDeclaration {
     required this.reviewedAt,
     required this.updatedAt,
     required this.mlorDeclarations,
+    this.latitude,
+    this.longitude,
+    this.providerPlaceId,
   });
 
   factory RetailerDeclaration.fromJson(Map<String, dynamic> j) =>
@@ -127,6 +132,9 @@ class RetailerDeclaration {
         phone: asStr(j['phone']),
         email: asStr(j['email']),
         address: asStr(j['address']),
+        latitude: _coordinate(j['latitude'], -90, 90),
+        longitude: _coordinate(j['longitude'], -180, 180),
+        providerPlaceId: asStrOrNull(j['providerPlaceId']),
         status: DeclarationStatus.fromCode(asStrOrNull(j['status'])),
         retailerType:
             RetailerTypeOption.fromCode(asStrOrNull(j['retailerType'])),
@@ -156,6 +164,9 @@ class RetailerDeclaration {
   final String phone;
   final String email;
   final String address;
+  final double? latitude;
+  final double? longitude;
+  final String? providerPlaceId;
   final DeclarationStatus status;
   final RetailerTypeOption retailerType;
   final double forecastRevenue;
@@ -178,6 +189,16 @@ class RetailerDeclaration {
   final DateTime? reviewedAt;
   final DateTime? updatedAt;
   final List<MlorDeclaration> mlorDeclarations;
+
+  static double? _coordinate(Object? value, double min, double max) {
+    if (value == null) { return null; }
+    final number = value is num ? value.toDouble() : double.tryParse(value.toString());
+    if (number == null || !number.isFinite || number < min || number > max) {
+      throw const ApiException(kind: ApiErrorKind.server,
+          message: 'Tọa độ khai báo trả về không hợp lệ. Vui lòng tải lại.');
+    }
+    return number;
+  }
 }
 
 /// Body of `POST /retailers` (with region/group) and
@@ -198,6 +219,9 @@ class RetailerDeclarationInput {
     required this.assessmentNote,
     required this.mlorDeclarations,
     required this.submitForReview,
+    this.latitude,
+    this.longitude,
+    this.providerPlaceId,
   });
 
   final String name;
@@ -214,9 +238,17 @@ class RetailerDeclarationInput {
   final String assessmentNote;
   final List<MlorDeclaration> mlorDeclarations;
   final bool submitForReview;
+  final double? latitude;
+  final double? longitude;
+  final String? providerPlaceId;
 
-  Map<String, dynamic> toJson({String? regionId, String? salesGroupId}) =>
-      <String, dynamic>{
+  Map<String, dynamic> toJson({String? regionId, String? salesGroupId}) {
+    if ((latitude != null || longitude != null) &&
+        !MapPlace.validCoordinates(latitude, longitude)) {
+      throw const ApiException(kind: ApiErrorKind.validation,
+          message: 'Vui lòng chọn lại vị trí hợp lệ trên bản đồ.');
+    }
+    return <String, dynamic>{
         if (regionId != null) 'regionId': regionId,
         if (salesGroupId != null) 'salesGroupId': salesGroupId,
         'name': name,
@@ -231,13 +263,13 @@ class RetailerDeclarationInput {
         'purchaseFrequencyPerMonth': purchaseFrequencyPerMonth,
         'requestedCreditTermDays': requestedCreditTermDays,
         'assessmentNote': assessmentNote.isEmpty ? null : assessmentNote,
-        // Location is optional on the backend; GPS capture is not wired yet.
-        'latitude': null,
-        'longitude': null,
-        'providerPlaceId': null,
+        'latitude': latitude,
+        'longitude': longitude,
+        'providerPlaceId': providerPlaceId,
         'mlorDeclarations': mlorDeclarations.map((e) => e.toJson()).toList(),
         'submitForReview': submitForReview,
       };
+  }
 }
 
 /// Sales group the signed-in Sales can declare into (`GET /sales-groups/{id}`).

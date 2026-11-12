@@ -50,3 +50,5 @@ docs/design
 docs/audit
 .agent
 graphify-out
+# Widget Preview related
+.widget_preview/

@@ -6,12 +6,14 @@ import 'package:fscm_mobile/core/network/api_exception.dart';
 import 'package:fscm_mobile/core/utils/money.dart';
 import 'package:fscm_mobile/core/utils/status_tone.dart';
 import 'package:fscm_mobile/data/models/retailer_declaration.dart';
+import 'package:fscm_mobile/data/models/map_place.dart';
 import 'package:fscm_mobile/data/repositories/data_version.dart';
 import 'package:fscm_mobile/data/repositories/retailer_repository.dart';
 import 'package:fscm_mobile/shared/widgets/dialogs.dart';
 import 'package:fscm_mobile/shared/widgets/info_banner.dart';
 import 'package:fscm_mobile/shared/widgets/section_title.dart';
 import 'package:fscm_mobile/shared/widgets/search_picker_field.dart';
+import 'package:fscm_mobile/shared/widgets/map_location_picker.dart';
 
 /// "Khai báo retailer mới" (`POST /retailers`) or edit of a Draft / Rejected
 /// declaration (`PUT /retailers/{id}/declaration`). Sales can save a draft or
@@ -43,6 +45,11 @@ class _DeclareRetailerScreenState extends ConsumerState<DeclareRetailerScreen> {
   late List<MlorDeclaration> _mlors;
   String? _salesGroupId;
   bool _busy = false;
+  double? _latitude;
+  double? _longitude;
+  String? _providerPlaceId;
+  String _locationAddress = '';
+  bool _locationNeedsReview = false;
 
   bool get _isEdit => widget.initial != null;
 
@@ -53,6 +60,10 @@ class _DeclareRetailerScreenState extends ConsumerState<DeclareRetailerScreen> {
     String num(double v) => v == 0 ? '' : v.toStringAsFixed(v % 1 == 0 ? 0 : 2);
     _name = TextEditingController(text: d?.name ?? '');
     _address = TextEditingController(text: d?.address ?? '');
+    _latitude = d?.latitude;
+    _longitude = d?.longitude;
+    _providerPlaceId = d?.providerPlaceId;
+    _locationAddress = d?.address.trim() ?? '';
     _contact = TextEditingController(text: d?.contactName ?? '');
     _phone = TextEditingController(text: d?.phone ?? '');
     _email = TextEditingController(text: d?.email ?? '');
@@ -105,6 +116,9 @@ class _DeclareRetailerScreenState extends ConsumerState<DeclareRetailerScreen> {
         phone: _digits(_phone.text),
         email: _email.text.trim().toLowerCase(),
         address: _address.text.trim(),
+        latitude: _latitude,
+        longitude: _longitude,
+        providerPlaceId: _providerPlaceId,
         retailerType: _type,
         forecastRevenue: (Money.parse(_forecast.text) ?? 0).toDouble(),
         storeSizeSquareMeters: _decimal(_area.text) ?? 0,
@@ -117,8 +131,33 @@ class _DeclareRetailerScreenState extends ConsumerState<DeclareRetailerScreen> {
         submitForReview: submit,
       );
 
+  Future<void> _pickLocation() async {
+    final selected = await Navigator.of(context).push<MapPlace>(MaterialPageRoute(
+      builder: (_) => MapLocationPicker(
+        address: _address.text.trim(),
+        initial: MapPlace.validCoordinates(_latitude, _longitude)
+            ? MapPlace(latitude: _latitude!, longitude: _longitude!,
+                address: _address.text.trim(), providerPlaceId: _providerPlaceId)
+            : null,
+      ),
+    ));
+    if (!mounted || selected == null) { return; }
+    setState(() {
+      _address.text = selected.address;
+      _latitude = selected.latitude;
+      _longitude = selected.longitude;
+      _providerPlaceId = selected.providerPlaceId;
+      _locationAddress = selected.address.trim();
+      _locationNeedsReview = false;
+    });
+  }
+
   Future<void> _save({required bool submit}) async {
     if (!(_form.currentState?.validate() ?? false)) return;
+    if (_locationNeedsReview) {
+      showAppSnack(context, 'Địa chỉ đã thay đổi. Hãy xác nhận lại vị trí trên bản đồ.', error: true);
+      return;
+    }
     if (submit && _mlors.isEmpty) {
       showAppSnack(
           context, 'Cần ít nhất 1 MLOR (ngành hàng hoặc SKU) để gửi duyệt.',
@@ -206,8 +245,28 @@ class _DeclareRetailerScreenState extends ConsumerState<DeclareRetailerScreen> {
             const SizedBox(height: 10),
             TextFormField(
                 controller: _address,
+                readOnly: _busy,
+                onChanged: (value) {
+                  // A manually edited address is not a verified provider place.
+                  setState(() {
+                    _providerPlaceId = null;
+                    _locationNeedsReview = MapPlace.validCoordinates(_latitude, _longitude)
+                        && value.trim() != _locationAddress;
+                  });
+                },
                 decoration: const InputDecoration(labelText: 'Địa chỉ'),
                 validator: (v) => _required(v, 'Nhập địa chỉ')),
+            const SizedBox(height: 6),
+            OutlinedButton.icon(
+              onPressed: _busy ? null : _pickLocation,
+              icon: const Icon(Icons.map_outlined),
+              label: const Text('Chọn trên bản đồ'),
+            ),
+            if (MapPlace.validCoordinates(_latitude, _longitude))
+              Text('Vị trí đã chọn: ${_latitude!.toStringAsFixed(6)}, ${_longitude!.toStringAsFixed(6)}'),
+            if (_locationNeedsReview)
+              Text('Địa chỉ đã đổi, cần xác nhận lại ghim.',
+                  style: TextStyle(color: Theme.of(context).colorScheme.error)),
             const SizedBox(height: 10),
             TextFormField(
                 controller: _contact,

@@ -8,6 +8,7 @@ import 'package:fscm_mobile/shared/routes.dart';
 import 'package:fscm_mobile/shared/theme/app_colors.dart';
 import 'package:fscm_mobile/shared/widgets/app_card.dart';
 import 'package:fscm_mobile/shared/widgets/dialogs.dart';
+import 'widgets/profile_identity_card.dart';
 
 /// Role-specific shortcut shown on the profile screen.
 class ProfileAction {
@@ -27,11 +28,6 @@ class ProfileScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(currentUserProvider);
-    final contactText = <String>[
-      if (user != null && user.email.isNotEmpty) user.email,
-      if (user != null && user.phone.isNotEmpty) user.phone,
-    ].join(' · ');
-
     return Scaffold(
       appBar: AppBar(title: const Text('Tài khoản')),
       body: user == null
@@ -39,49 +35,7 @@ class ProfileScreen extends ConsumerWidget {
           : ListView(
               padding: const EdgeInsets.all(16),
               children: <Widget>[
-                AppCard(
-                  child: Row(
-                    children: <Widget>[
-                      CircleAvatar(
-                        radius: 28,
-                        backgroundColor: AppColors.primarySoft,
-                        child: Text(
-                          user.initials,
-                          style: const TextStyle(
-                            color: AppColors.primary,
-                            fontSize: 18,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: <Widget>[
-                            Text(
-                              user.fullName,
-                              style: const TextStyle(
-                                  fontSize: 17, fontWeight: FontWeight.w700),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              '${user.role.label} · ${user.scopeText}',
-                              style:
-                                  const TextStyle(color: AppColors.textMuted),
-                            ),
-                            if (contactText.isNotEmpty)
-                              Text(
-                                contactText,
-                                style:
-                                    const TextStyle(color: AppColors.textMuted),
-                              ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+                ProfileIdentityCard(user: user),
                 for (final a in actions)
                   AppCard(
                     onTap: () => context.push(a.route),

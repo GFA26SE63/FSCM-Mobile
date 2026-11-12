@@ -19,8 +19,11 @@ class AppUser {
     this.retailerName,
     this.retailerAddress,
     this.regionIds = const <String>[],
+    this.warehouseIds = const <String>[],
     this.salesGroupIds = const <String>[],
+    this.retailerIds = const <String>[],
     this.regionLabels = const <ScopeLabel>[],
+    this.warehouseLabels = const <ScopeLabel>[],
     this.salesGroupLabels = const <ScopeLabel>[],
     this.retailerLabels = const <ScopeLabel>[],
   });
@@ -32,9 +35,11 @@ class AppUser {
     final labels = _map(json['scopeLabels']);
     final regions = ScopeLabel.listFrom(labels['regions']);
     final groups = ScopeLabel.listFrom(labels['salesGroups']);
+    final warehouses = ScopeLabel.listFrom(labels['warehouses']);
     final retailers = ScopeLabel.listFrom(labels['retailers']);
-    final isRetailerRole =
-        UserRole.fromCode(json['role']?.toString()) == UserRole.retailer;
+    final retailerIds = _strings(scope['retailerIds']);
+    final role = UserRole.fromCode(json['role']?.toString());
+    final isRetailerRole = role == UserRole.retailer;
     String? flat(String key) {
       final v = json[key];
       return v is String && v.isNotEmpty ? v : null;
@@ -44,16 +49,20 @@ class AppUser {
       id: json['id']?.toString() ?? '',
       fullName: json['fullName']?.toString() ?? '',
       email: json['email']?.toString() ?? '',
-      phone: json['phone']?.toString() ?? json['email']?.toString() ?? '',
-      role: UserRole.fromCode(json['role']?.toString()),
+      phone: json['phone']?.toString() ?? '',
+      role: role,
       areaCode: json['areaCode'] as String? ??
           (regions.isEmpty ? null : regions.first.code),
       areaName: json['areaName'] as String? ??
           (regions.isEmpty ? null : regions.first.name),
       salesGroup: json['salesGroup'] as String? ??
           (groups.isEmpty ? null : groups.first.code),
-      warehouseCode: json['warehouseCode'] as String?,
-      warehouseName: json['warehouseName'] as String?,
+      warehouseCode: warehouses.isNotEmpty
+          ? warehouses.first.code
+          : labels.containsKey('warehouses') ? null : json['warehouseCode'] as String?,
+      warehouseName: warehouses.isNotEmpty
+          ? warehouses.first.name
+          : labels.containsKey('warehouses') ? null : json['warehouseName'] as String?,
       retailerCode: flat('retailerCode') ??
           (isRetailerRole && retailers.isNotEmpty
               ? retailers.first.code
@@ -64,8 +73,11 @@ class AppUser {
               : null),
       retailerAddress: json['retailerAddress'] as String?,
       regionIds: _strings(scope['regionIds']),
+      warehouseIds: _strings(scope['warehouseIds']),
       salesGroupIds: _strings(scope['salesGroupIds']),
+      retailerIds: retailerIds,
       regionLabels: regions,
+      warehouseLabels: warehouses,
       salesGroupLabels: groups,
       retailerLabels: retailers,
     );
@@ -92,8 +104,11 @@ class AppUser {
 
   /// Territory scope from the backend (Guid strings).
   final List<String> regionIds;
+  final List<String> warehouseIds;
   final List<String> salesGroupIds;
+  final List<String> retailerIds;
   final List<ScopeLabel> regionLabels;
+  final List<ScopeLabel> warehouseLabels;
   final List<ScopeLabel> salesGroupLabels;
   final List<ScopeLabel> retailerLabels;
 
@@ -141,10 +156,14 @@ class AppUser {
         // Persisted in the backend shape so [AppUser.fromJson] reads it back.
         'scope': <String, dynamic>{
           'regionIds': regionIds,
+          'warehouseIds': warehouseIds,
           'salesGroupIds': salesGroupIds,
+          'retailerIds': retailerIds,
         },
         'scopeLabels': <String, dynamic>{
           'regions': regionLabels.map((e) => e.toJson()).toList(),
+          if (warehouseLabels.isNotEmpty)
+            'warehouses': warehouseLabels.map((e) => e.toJson()).toList(),
           'salesGroups': salesGroupLabels.map((e) => e.toJson()).toList(),
           'retailers': retailerLabels.map((e) => e.toJson()).toList(),
         },
