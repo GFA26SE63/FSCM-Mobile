@@ -56,7 +56,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       }
       ok = await ref
           .read(authControllerProvider.notifier)
-          .login(identifier, _password.text);
+          .login(identifier, _password.text.trim());
     } on ApiException catch (error) {
       if (error.code == 'retailer_activation_required' && mounted) {
         await context.push(AppRoutes.retailerActivation, extra: identifier);
@@ -154,16 +154,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           ),
                         ),
                         onFieldSubmitted: (_) => _submit(),
-                      ),
-                      const Padding(
-                        padding: EdgeInsets.only(top: 6, left: 4),
-                        child: Text(
-                          'Để trống nếu đăng nhập lần đầu.',
-                          style: TextStyle(
-                            color: AppColors.textMuted,
-                            fontSize: 12,
-                          ),
-                        ),
                       ),
                     ],
                     const SizedBox(height: 12),
