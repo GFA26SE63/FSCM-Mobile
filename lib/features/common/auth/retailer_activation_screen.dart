@@ -5,7 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import 'package:fscm_mobile/core/network/api_exception.dart';
 import 'package:fscm_mobile/data/repositories/auth_repository.dart';
 
 class RetailerActivationScreen extends ConsumerStatefulWidget {
@@ -119,12 +118,7 @@ class _RetailerActivationScreenState
       final ok = await ref
           .read(authControllerProvider.notifier)
           .completeActivation(_setupToken!, _password.text);
-      if (!ok) {
-        throw ApiException(
-            kind: ApiErrorKind.validation,
-            message: ref.read(authControllerProvider).error ??
-                'Không thể kích hoạt tài khoản.');
-      }
+      if (!ok) return;
     });
   }
 
@@ -135,10 +129,9 @@ class _RetailerActivationScreenState
     });
     try {
       await action();
-    } on Object catch (error) {
-      if (mounted) {
-        setState(() => _error = ApiException.describe(error));
-      }
+    } on Object {
+      // API failures are already shown once by the root snackbar. `_error`
+      // is reserved for client-side validation so the same error is not shown twice.
     } finally {
       if (mounted) {
         setState(() => _busy = false);

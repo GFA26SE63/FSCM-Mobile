@@ -66,6 +66,7 @@ class ComplaintsApi {
         return 'image/jpeg';
     }
   }
+
   Future<List<String>> receivedLabels(String orderId) async {
     final data = asMap(
       await _client.get(Endpoints.shipmentDeliveryView(orderId)),
