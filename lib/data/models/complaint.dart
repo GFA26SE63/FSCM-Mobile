@@ -11,6 +11,18 @@ class Complaint {
     this.evidenceRequestReason = '',
     this.adjustmentAmount = 0,
     this.finalUnitPrice = 0,
+    this.requestType = 'Complaint',
+    this.settlementMethod = 'DebtOffset',
+    this.approvedSettlementMethod = '',
+    this.requestedQuantity = 0,
+    this.approvedQuantity,
+    this.handledQuantity,
+    this.physicalHandlingCompleted = false,
+    this.financialAdjustmentApplied = false,
+    this.debtOffsetAmount = 0,
+    this.refundAmount = 0,
+    this.refundId = '',
+    this.documents = const [],
     required this.code,
     required this.orderCode,
     required this.sku,
@@ -32,6 +44,22 @@ class Complaint {
         evidenceRequestReason: asStr(j['evidenceRequestReason']),
         adjustmentAmount: asDouble(j['adjustmentAmount']),
         finalUnitPrice: asDouble(j['finalUnitPrice']),
+        requestType: asStr(j['requestType']).isEmpty
+            ? 'Complaint'
+            : asStr(j['requestType']),
+        settlementMethod: asStr(j['settlementMethod']),
+        approvedSettlementMethod: asStr(j['approvedSettlementMethod']),
+        requestedQuantity: asInt(j['requestedQuantity']),
+        approvedQuantity:
+            j['approvedQuantity'] == null ? null : asInt(j['approvedQuantity']),
+        handledQuantity:
+            j['handledQuantity'] == null ? null : asInt(j['handledQuantity']),
+        physicalHandlingCompleted: j['physicalHandlingCompleted'] == true,
+        financialAdjustmentApplied: j['financialAdjustmentApplied'] == true,
+        debtOffsetAmount: asDouble(j['debtOffsetAmount']),
+        refundAmount: asDouble(j['refundAmount']),
+        refundId: asStr(j['refundId']),
+        documents: asMapList(j['documents']),
         code: asStr(j['code']),
         orderCode: asStr(j['orderCode']),
         sku: asStr(j['sku']),
@@ -56,6 +84,28 @@ class Complaint {
   final String evidenceRequestReason;
   final double adjustmentAmount;
   final double finalUnitPrice;
+  final String requestType,
+      settlementMethod,
+      approvedSettlementMethod,
+      refundId;
+  final int requestedQuantity;
+  final int? approvedQuantity, handledQuantity;
+  final bool physicalHandlingCompleted, financialAdjustmentApplied;
+  final double debtOffsetAmount, refundAmount;
+  final List<Map<String, dynamic>> documents;
+  String get typeText => requestType == 'Return'
+      ? 'Trả hàng'
+      : requestType == 'DamagedCollection'
+          ? 'Thu hồi hàng hỏng'
+          : 'Khiếu nại đơn hàng';
+  String get settlementText => _settlementLabel(settlementMethod);
+  String get approvedSettlementText =>
+      _settlementLabel(approvedSettlementMethod);
+  static String _settlementLabel(String method) => method == 'CashRefund'
+      ? 'Hoàn tiền'
+      : method == 'None'
+          ? 'Chỉ thu hồi, không bồi hoàn'
+          : 'Cấn trừ công nợ';
   final String code;
   final String orderCode;
   final String sku;
@@ -88,8 +138,14 @@ class Complaint {
     if (needsEvidence) return 'Cần bổ sung bằng chứng';
     if (status == ComplaintStatus.rejected) return 'Bị từ chối';
     if (status == ComplaintStatus.cancelled) return 'Đã hủy';
-    if (reviewStatus == 'Resolved') return 'Đã xử lý xong';
-    if (status == ComplaintStatus.approved) return 'Đã chấp nhận · hoàn tiền';
+    if (reviewStatus == 'Resolved' || status == ComplaintStatus.resolved) {
+      return 'Đã xử lý xong';
+    }
+    if (status == ComplaintStatus.approved) {
+      return physicalHandlingCompleted
+          ? 'Đã duyệt · chờ chốt tài chính'
+          : 'Đã duyệt · chờ xử lý hàng';
+    }
     return 'Đang chờ xem xét';
   }
 
@@ -107,6 +163,10 @@ class NewComplaint {
     required this.note,
     this.shipmentId,
     this.allocationId,
+    this.requestType = 'Complaint',
+    this.settlementMethod = 'DebtOffset',
+    this.affectedQuantity,
+    this.requiresCollection = false,
   });
 
   final String orderCode;
@@ -115,6 +175,9 @@ class NewComplaint {
   final int actualQty;
   final String issueType;
   final String note;
+  final String requestType, settlementMethod;
+  final int? affectedQuantity;
+  final bool requiresCollection;
 
   final String? shipmentId;
   final String? allocationId;
@@ -126,6 +189,10 @@ class NewComplaint {
         'actualQty': actualQty,
         'issueType': issueType,
         'note': note,
+        'requestType': requestType,
+        'settlementMethod': settlementMethod,
+        if (affectedQuantity != null) 'affectedQuantity': affectedQuantity,
+        'requiresCollection': requiresCollection,
         if (shipmentId != null) 'shipmentId': shipmentId,
         if (allocationId != null) 'allocationId': allocationId,
       };
@@ -140,7 +207,10 @@ class ComplaintTarget {
       required this.productName,
       required this.batchCode,
       required this.labelCode,
-      required this.expectedQuantity});
+      required this.expectedQuantity,
+      this.receivedQuantity,
+      this.remainingClaimableQuantity,
+      this.remainingReturnableQuantity});
   factory ComplaintTarget.fromJson(Map<String, dynamic> j) => ComplaintTarget(
       shipmentId: asStr(j['shipmentId']),
       shipmentCode: asStr(j['shipmentCode']),
@@ -149,7 +219,15 @@ class ComplaintTarget {
       productName: asStr(j['productName']),
       batchCode: asStr(j['batchCode']),
       labelCode: asStr(j['labelCode']),
-      expectedQuantity: asInt(j['expectedQuantity']));
+      expectedQuantity: asInt(j['expectedQuantity']),
+      receivedQuantity:
+          j['receivedQuantity'] == null ? null : asInt(j['receivedQuantity']),
+      remainingClaimableQuantity: j['remainingClaimableQuantity'] == null
+          ? null
+          : asInt(j['remainingClaimableQuantity']),
+      remainingReturnableQuantity: j['remainingReturnableQuantity'] == null
+          ? null
+          : asInt(j['remainingReturnableQuantity']));
   final String shipmentId,
       shipmentCode,
       allocationId,
@@ -158,6 +236,9 @@ class ComplaintTarget {
       batchCode,
       labelCode;
   final int expectedQuantity;
+  final int? receivedQuantity,
+      remainingClaimableQuantity,
+      remainingReturnableQuantity;
 }
 
 /// One evidence image of a claim; [url] is a short-lived read URL.

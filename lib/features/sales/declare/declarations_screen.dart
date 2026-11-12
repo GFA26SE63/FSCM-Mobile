@@ -141,8 +141,6 @@ class _TileState extends ConsumerState<_Tile> {
                 '${d.purchasingCapacity.toStringAsFixed(0)} thùng / tháng · ${d.purchaseFrequencyPerMonth} lần / tháng'),
             KvRow('Xếp loại tiềm năng', d.potentialClass),
             KvRow(
-                'Đề xuất hạn thanh toán', '${d.requestedCreditTermDays} ngày'),
-            KvRow(
                 'MLOR',
                 d.mlorDeclarations.isEmpty
                     ? 'Chưa khai báo'

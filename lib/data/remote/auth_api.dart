@@ -44,7 +44,7 @@ class AuthApi {
 
   Future<void> requestOtp(String phone) async {
     await _client.post(Endpoints.authOtpRequest,
-        body: <String, dynamic>{'identifier': phone, 'channel': 'Email'});
+        body: <String, dynamic>{'identifier': phone});
   }
 
   /// Returns a short-lived setup token used by [setPassword].
