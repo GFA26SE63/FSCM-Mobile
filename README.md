@@ -35,13 +35,27 @@ flutter run -d windows --dart-define-from-file=env/appsettings.json
 
 ## Bản đồ khai báo điểm bán
 
-Thêm `"VIETMAP_API_KEY": "<client-key>"` vào file cấu hình local dùng với
-`--dart-define-from-file`. Key client cần quyền tải bản đồ raster, Autocomplete v4
-và Place v4; không chép credential riêng của backend vào app. Cấu hình mẫu nằm
-trong `env/development.example.json`. Sau khi thêm key phải dừng và chạy lại app.
+VietMap cấp key theo nhóm dịch vụ, nên app dùng hai key riêng trong file cấu hình local
+dùng với `--dart-define-from-file` (mẫu: `env/development.example.json`):
 
-Sales → Khai báo cửa hàng mới → **Chọn trên bản đồ**: nhập địa chỉ và bấm tìm,
-chọn kết quả hoặc chạm bản đồ để đặt ghim, rồi bấm **Dùng vị trí này**.
+| Biến | Dùng cho |
+|---|---|
+| `VIETMAP_MAPS_API_KEY` | Tải bản đồ nền (raster tile) |
+| `VIETMAP_SEARCH_API_KEY` | Autocomplete v4, Place v4, Reverse v4 |
+
+Dùng nhầm key cho dịch vụ kia, VietMap trả HTTP 423. Hai key không vượt qua được giới hạn
+quyền hay hạn mức của từng key. Không chép credential riêng của backend vào app và không
+commit key thật (`env/appsettings.json` đã nằm trong `.gitignore`). Sau khi đổi key phải
+dừng và chạy lại app. Chạy từ IDE thì cấu hình launch phải có
+`"toolArgs": ["--dart-define-from-file=env/appsettings.json"]`. Thiếu Maps key thì không hiện
+bản đồ; thiếu Search key thì không tìm/tự điền địa chỉ được nhưng vẫn chạm bản đồ đặt ghim
+và nhập địa chỉ tay. Nếu tìm địa chỉ báo key chưa được cấp quyền (HTTP 423), bật
+Autocomplete/Place/Reverse v4 cho Search key hoặc nạp thêm hạn mức trên VIETMAP Console.
+
+Sales → Khai báo cửa hàng mới → **Chọn trên bản đồ**: gõ địa chỉ để xem gợi ý,
+chọn kết quả hoặc chạm bản đồ để đặt ghim (địa chỉ tự điền theo ghim qua Reverse v4),
+rồi bấm **Dùng vị trí này**. Nếu không tìm được địa chỉ tại ghim, hoặc địa chỉ đã sửa
+tay, phải tích ô xác nhận địa chỉ khớp với ghim trước khi dùng vị trí.
 Địa chỉ, `latitude`, `longitude`, `providerPlaceId` được gửi qua API khai báo
 retailer hiện có. Chọn ghim thủ công không gán mã địa điểm giả. Mở sửa Draft/Rejected
 giữ vị trí đã lưu; thoát màn chọn bản đồ không thay đổi form. Nếu đổi địa chỉ của
