@@ -5,8 +5,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:fscm_mobile/data/repositories/auth_repository.dart';
 import 'package:fscm_mobile/features/common/auth/login_screen.dart';
 
-class _FakeAuthController extends StateNotifier<AuthState> implements AuthController {
-  _FakeAuthController() : super(const AuthState(status: AuthStatus.unauthenticated));
+class _FakeAuthController extends StateNotifier<AuthState>
+    implements AuthController {
+  _FakeAuthController()
+      : super(const AuthState(status: AuthStatus.unauthenticated));
 
   String? lastIdentifier;
   String? lastPassword;
@@ -46,7 +48,8 @@ Future<void> _pumpLogin(WidgetTester tester, _FakeAuthController controller) =>
     ));
 
 void main() {
-  testWidgets('starts with one identifier field and no password', (tester) async {
+  testWidgets('starts with one identifier field and no password',
+      (tester) async {
     final controller = _FakeAuthController();
     await _pumpLogin(tester, controller);
     await tester.pumpAndSettle();
@@ -65,7 +68,8 @@ void main() {
     expect(controller.lookupCalls, 0);
   });
 
-  testWidgets('valid account advances to the password step then logs in', (tester) async {
+  testWidgets('valid account advances to the password step then logs in',
+      (tester) async {
     final controller = _FakeAuthController();
     await _pumpLogin(tester, controller);
     await tester.enterText(find.byType(TextFormField).first, 'an.nv@fscm.vn');
@@ -82,7 +86,8 @@ void main() {
     expect(controller.lastPassword, 'Pass@123');
   });
 
-  testWidgets('accepts a Vietnamese mobile number as the identifier', (tester) async {
+  testWidgets('accepts a Vietnamese mobile number as the identifier',
+      (tester) async {
     final controller = _FakeAuthController();
     await _pumpLogin(tester, controller);
     await tester.enterText(find.byType(TextFormField).first, '0909555127');
