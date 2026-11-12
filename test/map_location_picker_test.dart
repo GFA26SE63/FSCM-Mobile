@@ -52,7 +52,7 @@ class _FakeMapRepository implements MapRepository {
   bool get isSearchConfigured => searchKey;
 
   @override
-  String get tileUrlTemplate => 'https://tiles.test/{z}/{x}/{y}.png';
+  String get tileUrlTemplate => 'https://tiles.test/{z}/{x}/{y}{r}.png';
 
   @override
   Future<List<MapSuggestion>> search(String text) {

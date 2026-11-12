@@ -370,6 +370,8 @@ class _MapLocationPickerState extends ConsumerState<MapLocationPicker> {
                     TileLayer(
                       key: ValueKey(_tileVersion),
                       urlTemplate: repo.tileUrlTemplate,
+                      // Fills `{r}`: 512 px street tiles on high-density screens.
+                      retinaMode: RetinaMode.isHighDensity(context),
                       userAgentPackageName: 'vn.edu.fpt.fscm.fscm_mobile',
                       tileProvider: widget.tileProvider,
                       errorTileCallback: (_, __, ___) {
