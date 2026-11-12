@@ -162,7 +162,7 @@ class RtOrderDetailScreen extends ConsumerWidget {
                   onPressed: () =>
                       context.push(AppRoutes.rtComplaintFor(order.id)),
                   icon: const Icon(Icons.report_gmailerrorred_outlined),
-                  label: const Text('Khiếu nại đơn hàng'),
+                  label: const Text('Tạo yêu cầu theo đơn'),
                 ),
             ],
           ),

@@ -349,7 +349,7 @@ List<RouteBase> _retailerRoutes() => <RouteBase>[
                     icon: Icons.card_giftcard,
                     route: AppRoutes.rtGifts),
                 ProfileAction(
-                    label: 'Khiếu nại',
+                    label: 'Yêu cầu',
                     icon: Icons.report_gmailerrorred_outlined,
                     route: AppRoutes.rtComplaints),
               ]),
