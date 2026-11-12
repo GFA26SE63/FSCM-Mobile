@@ -50,5 +50,6 @@ docs/design
 docs/audit
 .agent
 graphify-out
+CLAUDE.md
 # Widget Preview related
 .widget_preview/

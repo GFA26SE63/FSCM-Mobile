@@ -48,6 +48,8 @@ class _DeclareRetailerScreenState extends ConsumerState<DeclareRetailerScreen> {
   double? _latitude;
   double? _longitude;
   String? _providerPlaceId;
+  // Address and place reference confirmed together with the pin.
+  String? _locationPlaceId;
   String _locationAddress = '';
   bool _locationNeedsReview = false;
 
@@ -63,6 +65,7 @@ class _DeclareRetailerScreenState extends ConsumerState<DeclareRetailerScreen> {
     _latitude = d?.latitude;
     _longitude = d?.longitude;
     _providerPlaceId = d?.providerPlaceId;
+    _locationPlaceId = d?.providerPlaceId;
     _locationAddress = d?.address.trim() ?? '';
     _contact = TextEditingController(text: d?.contactName ?? '');
     _phone = TextEditingController(text: d?.phone ?? '');
@@ -132,21 +135,28 @@ class _DeclareRetailerScreenState extends ConsumerState<DeclareRetailerScreen> {
       );
 
   Future<void> _pickLocation() async {
-    final selected = await Navigator.of(context).push<MapPlace>(MaterialPageRoute(
+    final selected =
+        await Navigator.of(context).push<MapPlace>(MaterialPageRoute(
       builder: (_) => MapLocationPicker(
         address: _address.text.trim(),
         initial: MapPlace.validCoordinates(_latitude, _longitude)
-            ? MapPlace(latitude: _latitude!, longitude: _longitude!,
-                address: _address.text.trim(), providerPlaceId: _providerPlaceId)
+            ? MapPlace(
+                latitude: _latitude!,
+                longitude: _longitude!,
+                address: _locationAddress,
+                providerPlaceId: _locationPlaceId)
             : null,
       ),
     ));
-    if (!mounted || selected == null) { return; }
+    if (!mounted || selected == null) {
+      return;
+    }
     setState(() {
       _address.text = selected.address;
       _latitude = selected.latitude;
       _longitude = selected.longitude;
       _providerPlaceId = selected.providerPlaceId;
+      _locationPlaceId = selected.providerPlaceId;
       _locationAddress = selected.address.trim();
       _locationNeedsReview = false;
     });
@@ -155,7 +165,9 @@ class _DeclareRetailerScreenState extends ConsumerState<DeclareRetailerScreen> {
   Future<void> _save({required bool submit}) async {
     if (!(_form.currentState?.validate() ?? false)) return;
     if (_locationNeedsReview) {
-      showAppSnack(context, 'Địa chỉ đã thay đổi. Hãy xác nhận lại vị trí trên bản đồ.', error: true);
+      showAppSnack(
+          context, 'Địa chỉ đã thay đổi. Hãy xác nhận lại vị trí trên bản đồ.',
+          error: true);
       return;
     }
     if (submit && _mlors.isEmpty) {
@@ -249,9 +261,12 @@ class _DeclareRetailerScreenState extends ConsumerState<DeclareRetailerScreen> {
                 onChanged: (value) {
                   // A manually edited address is not a verified provider place.
                   setState(() {
-                    _providerPlaceId = null;
-                    _locationNeedsReview = MapPlace.validCoordinates(_latitude, _longitude)
-                        && value.trim() != _locationAddress;
+                    _providerPlaceId = value.trim() == _locationAddress
+                        ? _locationPlaceId
+                        : null;
+                    _locationNeedsReview =
+                        MapPlace.validCoordinates(_latitude, _longitude) &&
+                            value.trim() != _locationAddress;
                   });
                 },
                 decoration: const InputDecoration(labelText: 'Địa chỉ'),
@@ -263,7 +278,8 @@ class _DeclareRetailerScreenState extends ConsumerState<DeclareRetailerScreen> {
               label: const Text('Chọn trên bản đồ'),
             ),
             if (MapPlace.validCoordinates(_latitude, _longitude))
-              Text('Vị trí đã chọn: ${_latitude!.toStringAsFixed(6)}, ${_longitude!.toStringAsFixed(6)}'),
+              Text(
+                  'Vị trí đã chọn: ${_latitude!.toStringAsFixed(6)}, ${_longitude!.toStringAsFixed(6)}'),
             if (_locationNeedsReview)
               Text('Địa chỉ đã đổi, cần xác nhận lại ghim.',
                   style: TextStyle(color: Theme.of(context).colorScheme.error)),
