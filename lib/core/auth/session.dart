@@ -22,6 +22,7 @@ class AppUser {
     this.salesGroupIds = const <String>[],
     this.regionLabels = const <ScopeLabel>[],
     this.salesGroupLabels = const <ScopeLabel>[],
+    this.retailerLabels = const <ScopeLabel>[],
   });
 
   factory AppUser.fromJson(Map<String, dynamic> json) {
@@ -31,6 +32,14 @@ class AppUser {
     final labels = _map(json['scopeLabels']);
     final regions = ScopeLabel.listFrom(labels['regions']);
     final groups = ScopeLabel.listFrom(labels['salesGroups']);
+    final retailers = ScopeLabel.listFrom(labels['retailers']);
+    final isRetailerRole =
+        UserRole.fromCode(json['role']?.toString()) == UserRole.retailer;
+    String? flat(String key) {
+      final v = json[key];
+      return v is String && v.isNotEmpty ? v : null;
+    }
+
     return AppUser(
       id: json['id']?.toString() ?? '',
       fullName: json['fullName']?.toString() ?? '',
@@ -45,13 +54,20 @@ class AppUser {
           (groups.isEmpty ? null : groups.first.code),
       warehouseCode: json['warehouseCode'] as String?,
       warehouseName: json['warehouseName'] as String?,
-      retailerCode: json['retailerCode'] as String?,
-      retailerName: json['retailerName'] as String?,
+      retailerCode: flat('retailerCode') ??
+          (isRetailerRole && retailers.isNotEmpty
+              ? retailers.first.code
+              : null),
+      retailerName: flat('retailerName') ??
+          (isRetailerRole && retailers.isNotEmpty
+              ? retailers.first.name
+              : null),
       retailerAddress: json['retailerAddress'] as String?,
       regionIds: _strings(scope['regionIds']),
       salesGroupIds: _strings(scope['salesGroupIds']),
       regionLabels: regions,
       salesGroupLabels: groups,
+      retailerLabels: retailers,
     );
   }
 
@@ -79,6 +95,7 @@ class AppUser {
   final List<String> salesGroupIds;
   final List<ScopeLabel> regionLabels;
   final List<ScopeLabel> salesGroupLabels;
+  final List<ScopeLabel> retailerLabels;
 
   String get initials {
     final parts = fullName
@@ -129,6 +146,7 @@ class AppUser {
         'scopeLabels': <String, dynamic>{
           'regions': regionLabels.map((e) => e.toJson()).toList(),
           'salesGroups': salesGroupLabels.map((e) => e.toJson()).toList(),
+          'retailers': retailerLabels.map((e) => e.toJson()).toList(),
         },
       };
 }
