@@ -24,6 +24,8 @@ class ComplaintFormScreen extends ConsumerStatefulWidget {
 class _ComplaintFormScreenState extends ConsumerState<ComplaintFormScreen> {
   String? _orderCode, _allocationId;
   String _issueType = 'Shortage';
+  String _requestType = 'Complaint', _settlement = 'DebtOffset';
+  bool _collect = false;
   final _actual = TextEditingController(), _note = TextEditingController();
   bool _busy = false;
   static const int _maxImages = 5;
@@ -63,10 +65,30 @@ class _ComplaintFormScreenState extends ConsumerState<ComplaintFormScreen> {
   }
 
   Future<void> _submit(Order order, ComplaintTarget target) async {
+    if (_busy) return;
     final actual = int.tryParse(_actual.text.trim());
-    if (actual == null || actual < 0 || actual >= target.expectedQuantity) {
+    final affected = actual == null
+        ? 0
+        : _requestType == 'Complaint'
+            ? target.expectedQuantity - actual
+            : actual;
+    final claimLimit =
+        target.remainingClaimableQuantity ?? target.expectedQuantity;
+    final returnLimit = target.remainingReturnableQuantity ??
+        target.receivedQuantity ??
+        target.expectedQuantity;
+    if (actual == null ||
+        actual < 0 ||
+        affected <= 0 ||
+        (_settlement != 'None' && affected > claimLimit) ||
+        ((_requestType != 'Complaint' || _collect) && affected > returnLimit)) {
       showAppSnack(context,
-          'Số lượng dùng được phải từ 0 đến ${target.expectedQuantity - 1} thùng của phần giao đã chọn.',
+          'Số thùng không hợp lệ. Còn $claimLimit thùng được yêu cầu bồi hoàn, $returnLimit thùng được trả/thu hồi.',
+          error: true);
+      return;
+    }
+    if (_requestType != 'Complaint' && _note.text.trim().isEmpty) {
+      showAppSnack(context, 'Vui lòng ghi rõ lý do trả/thu hồi hàng.',
           error: true);
       return;
     }
@@ -80,15 +102,20 @@ class _ComplaintFormScreenState extends ConsumerState<ComplaintFormScreen> {
               actualQty: actual,
               issueType: _issueType,
               note: _note.text.trim(),
+              requestType: _requestType,
+              settlementMethod: _settlement,
+              affectedQuantity: _requestType == 'Complaint' ? null : affected,
+              requiresCollection:
+                  _requestType == 'DamagedCollection' || _collect,
               shipmentId: target.shipmentId,
               allocationId: target.allocationId));
       // The claim exists once created; images are attached to it afterwards.
       var failed = 0;
       for (final image in _images) {
         try {
-          await ref
-              .read(loyaltyRepositoryProvider)
-              .addComplaintEvidence(result.id, image.file.path);
+          await ref.read(loyaltyRepositoryProvider).addComplaintEvidence(
+              result.id, image.file.path,
+              bytes: image.bytes, fileName: image.file.name);
         } on ApiException {
           failed++;
         }
@@ -99,8 +126,8 @@ class _ComplaintFormScreenState extends ConsumerState<ComplaintFormScreen> {
       showAppSnack(
           context,
           failed == 0
-              ? 'Đã gửi khiếu nại ${result.code}.'
-              : 'Đã gửi khiếu nại ${result.code} nhưng $failed ảnh chưa tải lên được. Hãy bổ sung ảnh trong danh sách khiếu nại.',
+              ? 'Đã gửi yêu cầu ${result.code}.'
+              : 'Đã gửi yêu cầu ${result.code} nhưng $failed ảnh chưa tải lên được. Hãy bổ sung ảnh trong danh sách yêu cầu.',
           error: failed > 0);
       context.pop();
     } on ApiException catch (e) {
@@ -112,7 +139,7 @@ class _ComplaintFormScreenState extends ConsumerState<ComplaintFormScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-      appBar: AppBar(title: const Text('Tạo khiếu nại')),
+      appBar: AppBar(title: const Text('Tạo yêu cầu')),
       body: AsyncBody<OrderListResult>(
           value: ref.watch(ordersProvider),
           onRetry: () => ref.invalidate(ordersProvider),
@@ -130,6 +157,26 @@ class _ComplaintFormScreenState extends ConsumerState<ComplaintFormScreen> {
             final matches = eligible.where((o) => o.code == _orderCode);
             final order = matches.isEmpty ? null : matches.first;
             return ListView(padding: const EdgeInsets.all(16), children: [
+              DropdownButtonFormField<String>(
+                  initialValue: _requestType,
+                  decoration: const InputDecoration(labelText: 'Loại yêu cầu'),
+                  items: const [
+                    DropdownMenuItem(
+                        value: 'Complaint', child: Text('Khiếu nại đơn hàng')),
+                    DropdownMenuItem(value: 'Return', child: Text('Trả hàng')),
+                    DropdownMenuItem(
+                        value: 'DamagedCollection',
+                        child: Text('Thu hồi hàng hỏng'))
+                  ],
+                  onChanged: _busy
+                      ? null
+                      : (v) => setState(() {
+                            _requestType = v!;
+                            _collect = v != 'Complaint';
+                            _settlement = 'DebtOffset';
+                            _actual.clear();
+                            if (v != 'Complaint') _issueType = 'Damaged';
+                          })),
               DropdownButtonFormField<String>(
                   key: ValueKey(_orderCode),
                   initialValue: order?.code,
@@ -191,27 +238,70 @@ class _ComplaintFormScreenState extends ConsumerState<ComplaintFormScreen> {
                             if (target != null) ...[
                               Text(
                                   '${target.productName}\nTem ${target.labelCode} · giao ${target.expectedQuantity} thùng'),
+                              if (_requestType == 'Complaint')
+                                DropdownButtonFormField<String>(
+                                    initialValue: _issueType,
+                                    items: const [
+                                      DropdownMenuItem(
+                                          value: 'Shortage',
+                                          child: Text('Thiếu hàng')),
+                                      DropdownMenuItem(
+                                          value: 'Damaged',
+                                          child: Text(
+                                              'Hàng hỏng / không sử dụng được'))
+                                    ],
+                                    onChanged: _busy
+                                        ? null
+                                        : (v) => setState(() {
+                                              _issueType = v ?? 'Shortage';
+                                              if (_issueType == 'Shortage') {
+                                                _collect = false;
+                                              }
+                                            })),
                               DropdownButtonFormField<String>(
-                                  initialValue: _issueType,
-                                  items: const [
-                                    DropdownMenuItem(
-                                        value: 'Shortage',
-                                        child: Text('Thiếu hàng')),
-                                    DropdownMenuItem(
-                                        value: 'Damaged',
-                                        child: Text(
-                                            'Hàng hỏng / không sử dụng được'))
+                                  key: ValueKey('settlement:$_requestType'),
+                                  initialValue: _settlement,
+                                  decoration: const InputDecoration(
+                                      labelText: 'Phương án mong muốn'),
+                                  items: [
+                                    const DropdownMenuItem(
+                                        value: 'DebtOffset',
+                                        child: Text('Cấn trừ công nợ')),
+                                    const DropdownMenuItem(
+                                        value: 'CashRefund',
+                                        child: Text('Hoàn tiền')),
+                                    if (_requestType == 'DamagedCollection')
+                                      const DropdownMenuItem(
+                                          value: 'None',
+                                          child: Text(
+                                              'Chỉ thu hồi, không bồi hoàn'))
                                   ],
                                   onChanged: _busy
                                       ? null
-                                      : (v) => setState(
-                                          () => _issueType = v ?? 'Shortage')),
+                                      : (v) =>
+                                          setState(() => _settlement = v!)),
+                              if (_requestType == 'Return' ||
+                                  _requestType == 'Complaint' &&
+                                      _issueType == 'Damaged')
+                                CheckboxListTile(
+                                    value: _collect,
+                                    title: const Text(
+                                        'Cần công ty đến thu hồi hàng'),
+                                    onChanged: _busy
+                                        ? null
+                                        : (v) => setState(
+                                            () => _collect = v ?? false)),
+                              const Text(
+                                  'Giảm nợ trong đơn gốc trước; phần tiền đã thu thừa được lập phiếu hoàn. Admin xác nhận phương án; yêu cầu xử lý hàng chờ đối soát thực tế.'),
                               TextField(
+                                  key: const ValueKey(
+                                      'complaint_affected_quantity'),
                                   controller: _actual,
                                   keyboardType: TextInputType.number,
-                                  decoration: const InputDecoration(
-                                      labelText:
-                                          'Số thùng dùng được trong phần giao này')),
+                                  decoration: InputDecoration(
+                                      labelText: _requestType == 'Complaint'
+                                          ? 'Số thùng dùng được trong phần giao này'
+                                          : 'Số thùng yêu cầu trả / thu hồi')),
                               TextField(
                                   controller: _note,
                                   maxLines: 3,
@@ -249,7 +339,7 @@ class _ComplaintFormScreenState extends ConsumerState<ComplaintFormScreen> {
                                       ? null
                                       : () => _submit(order, target),
                                   child: Text(
-                                      _busy ? 'Đang gửi...' : 'Gửi khiếu nại')),
+                                      _busy ? 'Đang gửi...' : 'Gửi yêu cầu')),
                             ],
                           ]);
                     }),

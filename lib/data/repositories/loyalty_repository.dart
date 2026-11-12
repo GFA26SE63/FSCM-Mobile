@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'dart:typed_data';
 import 'package:fscm_mobile/core/auth/user_role.dart';
 import 'package:fscm_mobile/core/network/api_exception.dart';
 
@@ -98,8 +99,9 @@ class LoyaltyRepository {
 
   Future<List<Complaint>> complaints() => _complaints.list();
 
-  Future<void> addComplaintEvidence(String id, String path) =>
-      _complaints.addEvidence(id, path);
+  Future<void> addComplaintEvidence(String id, String path,
+          {Uint8List? bytes, String? fileName}) =>
+      _complaints.addEvidence(id, path, bytes: bytes, fileName: fileName);
 
   Future<List<ComplaintEvidence>> complaintEvidence(String id) =>
       _complaints.evidence(id);

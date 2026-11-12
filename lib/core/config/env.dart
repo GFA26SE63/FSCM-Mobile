@@ -107,6 +107,18 @@ class Env {
   );
 
   static const Duration connectTimeout = Duration(seconds: 15);
+
+  /// VietMap keys are service-specific: a tile key gets HTTP 423 from the
+  /// search APIs and vice versa. Never embed the backend's private server
+  /// credential here.
+  ///
+  /// Key for VietMap raster tiles (map rendering).
+  static const String vietMapMapsApiKey =
+      String.fromEnvironment('VIETMAP_MAPS_API_KEY');
+
+  /// Key for VietMap Autocomplete v4, Place v4 and Reverse v4.
+  static const String vietMapSearchApiKey =
+      String.fromEnvironment('VIETMAP_SEARCH_API_KEY');
   static const Duration receiveTimeout = Duration(seconds: 30);
 
   /// Offline order queue: automatic retries before the order waits for a

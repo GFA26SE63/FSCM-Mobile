@@ -357,11 +357,11 @@ class ApiClient {
         ),
       );
     } on ApiException catch (error) {
-      _reportActionFailure(method, error);
+      _reportActionFailure(method, path, error);
       rethrow;
     }
     if (response.isSuccess) {
-      _reportActionSuccess(method);
+      _reportActionSuccess(method, path);
       return response.data;
     }
 
@@ -412,20 +412,26 @@ class ApiClient {
     if (error.kind == ApiErrorKind.forbidden && !_forbidden.isClosed) {
       _forbidden.add(error);
     }
-    _reportActionFailure(method, error);
+    _reportActionFailure(method, path, error);
     throw error;
   }
 
-  bool _isStateChangingMethod(String method) => method != 'GET';
+  bool _shouldReportStatus(String method, String path) {
+    if (method == 'GET') return false;
+    return path != Endpoints.authLoginLookup &&
+        path != Endpoints.authRefresh &&
+        !path.startsWith(Endpoints.devices) &&
+        !path.startsWith(Endpoints.notifications);
+  }
 
-  void _reportActionSuccess(String method) {
-    if (_isStateChangingMethod(method) && !_statusFeedback.isClosed) {
+  void _reportActionSuccess(String method, String path) {
+    if (_shouldReportStatus(method, path) && !_statusFeedback.isClosed) {
       _statusFeedback.add(const ApiStatusFeedback.success());
     }
   }
 
-  void _reportActionFailure(String method, ApiException error) {
-    if (!_statusFeedback.isClosed) {
+  void _reportActionFailure(String method, String path, ApiException error) {
+    if (_shouldReportStatus(method, path) && !_statusFeedback.isClosed) {
       _statusFeedback.add(ApiStatusFeedback.failure(error));
     }
   }

@@ -1,4 +1,7 @@
 import 'package:dio/dio.dart';
+import 'dart:convert';
+import 'dart:typed_data';
+import 'package:uuid/uuid.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:fscm_mobile/core/network/api_client.dart';
@@ -13,6 +16,7 @@ class ComplaintsApi {
   ComplaintsApi(this._client);
 
   final ApiClient _client;
+  final Map<String, String> _pendingRequests = {};
 
   Future<List<ComplaintTarget>> targets(String orderId) async =>
       unwrapItems(await _client.get('/complaints/orders/$orderId/targets'))
@@ -25,19 +29,28 @@ class ComplaintsApi {
   }
 
   Future<Complaint> create(NewComplaint request) async {
-    final data =
-        await _client.post(Endpoints.complaints, body: request.toJson());
+    final body = request.toJson();
+    final signature = jsonEncode(body);
+    body['requestId'] =
+        _pendingRequests.putIfAbsent(signature, () => const Uuid().v4());
+    final data = await _client.post(Endpoints.complaints, body: body);
+    _pendingRequests.remove(signature);
     return Complaint.fromJson(asMap(data));
   }
 
   /// Adds one evidence image to an open claim (multipart form field "file").
   /// The content type must be sent explicitly: the server only accepts JPG/PNG/WebP and rejects
   /// the `application/octet-stream` that dio would otherwise use.
-  Future<void> addEvidence(String complaintId, String filePath) async {
+  Future<void> addEvidence(String complaintId, String filePath,
+      {Uint8List? bytes, String? fileName}) async {
+    final name = fileName ?? filePath.split(RegExp(r'[\\/]')).last;
     final form = FormData.fromMap(<String, dynamic>{
-      'file': await MultipartFile.fromFile(filePath,
-          filename: filePath.split(RegExp(r'[\\/]')).last,
-          contentType: DioMediaType.parse(_imageType(filePath))),
+      'file': bytes != null
+          ? MultipartFile.fromBytes(bytes,
+              filename: name, contentType: DioMediaType.parse(_imageType(name)))
+          : await MultipartFile.fromFile(filePath,
+              filename: name,
+              contentType: DioMediaType.parse(_imageType(name))),
     });
     await _client.post('/complaints/$complaintId/evidence', body: form);
   }
