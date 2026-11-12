@@ -120,7 +120,7 @@ class AuthController extends StateNotifier<AuthState> {
     try {
       final session = await _ref
           .read(authApiProvider)
-          .login(phone: phone.trim(), password: password);
+          .login(phone: phone.trim(), password: password.trim());
       if (!session.user.role.hasMobileShell) {
         state = const AuthState(
           status: AuthStatus.unauthenticated,
@@ -155,7 +155,7 @@ class AuthController extends StateNotifier<AuthState> {
     try {
       final session = await _ref
           .read(authApiProvider)
-          .setPassword(setupToken: setupToken, password: password);
+          .setPassword(setupToken: setupToken, password: password.trim());
       await _tokens.save(session.toJson());
       state = AuthState(status: AuthStatus.authenticated, session: session);
       _refreshProfile();

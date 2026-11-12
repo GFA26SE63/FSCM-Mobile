@@ -27,7 +27,7 @@ class AuthApi {
       {required String phone, required String password}) async {
     final data = await _client.post(
       Endpoints.authLogin,
-      body: <String, dynamic>{'identifier': phone, 'password': password},
+      body: <String, dynamic>{'identifier': phone, 'password': password.trim()},
     );
     return Session.fromJson(asMap(data));
   }
@@ -61,7 +61,10 @@ class AuthApi {
       {required String setupToken, required String password}) async {
     final data = await _client.post(
       Endpoints.authSetPassword,
-      body: <String, dynamic>{'setupToken': setupToken, 'password': password},
+      body: <String, dynamic>{
+        'setupToken': setupToken,
+        'password': password.trim()
+      },
     );
     return Session.fromJson(asMap(data));
   }

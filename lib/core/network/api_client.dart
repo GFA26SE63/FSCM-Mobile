@@ -29,17 +29,6 @@ final apiClientProvider = Provider<ApiClient>((ref) {
   return client;
 });
 
-/// A user-visible result for a state-changing request.
-class ApiStatusFeedback {
-  const ApiStatusFeedback.success() : error = null;
-
-  const ApiStatusFeedback.failure(this.error);
-
-  final ApiException? error;
-
-  bool get isError => error != null;
-}
-
 /// Interceptor to stream network activity to the console (adb logcat / flutter logs / terminal).
 class _HttpLoggingInterceptor extends Interceptor {
   @override
@@ -147,8 +136,6 @@ class ApiClient {
       StreamController<void>.broadcast();
   final StreamController<ApiException> _forbidden =
       StreamController<ApiException>.broadcast();
-  final StreamController<ApiStatusFeedback> _statusFeedback =
-      StreamController<ApiStatusFeedback>.broadcast();
   final StreamController<Session> _sessionRefreshed =
       StreamController<Session>.broadcast();
 
@@ -175,10 +162,6 @@ class ApiClient {
 
   /// Fires when a call returns 403 so the UI can refresh scope and explain it.
   Stream<ApiException> get onForbidden => _forbidden.stream;
-
-  /// Emits request failures and state-changing request successes so all screens
-  /// can provide a consistent acknowledgement without duplicating snackbars.
-  Stream<ApiStatusFeedback> get onStatusFeedback => _statusFeedback.stream;
 
   /// Public programmatic token refresh (e.g. on app launch if session is expired).
   Future<bool> tryRefreshToken() => _tryRefreshToken();
@@ -356,12 +339,10 @@ class ApiClient {
           headers: headers,
         ),
       );
-    } on ApiException catch (error) {
-      _reportActionFailure(method, path, error);
+    } on ApiException {
       rethrow;
     }
     if (response.isSuccess) {
-      _reportActionSuccess(method, path);
       return response.data;
     }
 
@@ -412,34 +393,12 @@ class ApiClient {
     if (error.kind == ApiErrorKind.forbidden && !_forbidden.isClosed) {
       _forbidden.add(error);
     }
-    _reportActionFailure(method, path, error);
     throw error;
-  }
-
-  bool _shouldReportStatus(String method, String path) {
-    if (method == 'GET') return false;
-    return path != Endpoints.authLoginLookup &&
-        path != Endpoints.authRefresh &&
-        !path.startsWith(Endpoints.devices) &&
-        !path.startsWith(Endpoints.notifications);
-  }
-
-  void _reportActionSuccess(String method, String path) {
-    if (_shouldReportStatus(method, path) && !_statusFeedback.isClosed) {
-      _statusFeedback.add(const ApiStatusFeedback.success());
-    }
-  }
-
-  void _reportActionFailure(String method, String path, ApiException error) {
-    if (_shouldReportStatus(method, path) && !_statusFeedback.isClosed) {
-      _statusFeedback.add(ApiStatusFeedback.failure(error));
-    }
   }
 
   void dispose() {
     unawaited(_unauthorized.close());
     unawaited(_forbidden.close());
-    unawaited(_statusFeedback.close());
     unawaited(_sessionRefreshed.close());
   }
 }

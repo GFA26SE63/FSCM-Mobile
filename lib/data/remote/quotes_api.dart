@@ -5,6 +5,7 @@ import 'package:fscm_mobile/core/network/endpoints.dart';
 import 'package:fscm_mobile/core/network/api_exception.dart';
 import 'package:fscm_mobile/data/models/enums.dart';
 import 'package:fscm_mobile/data/models/json_utils.dart';
+import 'package:fscm_mobile/data/models/payment_result.dart';
 import 'package:fscm_mobile/data/models/sales_order_quote.dart';
 import 'package:fscm_mobile/data/repositories/auth_repository.dart';
 import 'package:fscm_mobile/data/repositories/data_version.dart';
@@ -76,12 +77,15 @@ class QuotesApi {
   }
 
   Future<PayOsCheckout> createPayOsCheckout(String orderId) async {
-    final paymentData =
-        asMap(await _client.get(Endpoints.paymentForOrder(orderId)));
+    final paymentData = await paymentForOrder(orderId);
     final data = await _client.post(
       Endpoints.payOsCheckout(orderId),
-      body: <String, dynamic>{'expectedVersion': asInt(paymentData['version'])},
+      body: <String, dynamic>{'expectedVersion': paymentData.version},
     );
     return PayOsCheckout.fromJson(asMap(data));
   }
+
+  Future<PaymentResult> paymentForOrder(String orderId) async =>
+      PaymentResult.fromJson(
+          asMap(await _client.get(Endpoints.paymentForOrder(orderId))));
 }

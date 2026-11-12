@@ -1,9 +1,6 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:uuid/uuid.dart';
 
 import 'package:fscm_mobile/core/utils/dates.dart';
@@ -20,6 +17,7 @@ import 'package:fscm_mobile/shared/widgets/chip_filter_bar.dart';
 import 'package:fscm_mobile/shared/widgets/empty_state.dart';
 import 'package:fscm_mobile/shared/widgets/info_banner.dart';
 import 'package:fscm_mobile/shared/widgets/dialogs.dart';
+import 'package:fscm_mobile/shared/widgets/payos_checkout_result_page.dart';
 import 'package:fscm_mobile/shared/widgets/section_title.dart';
 import 'package:fscm_mobile/shared/widgets/status_chip.dart';
 
@@ -383,159 +381,59 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
   }
 }
 
-class DebtCheckoutResultScreen extends ConsumerStatefulWidget {
+class DebtCheckoutResultScreen extends ConsumerWidget {
   const DebtCheckoutResultScreen({super.key, required this.initial});
   final DebtCheckout initial;
-  @override
-  ConsumerState<DebtCheckoutResultScreen> createState() =>
-      _DebtCheckoutResultScreenState();
-}
-
-class _DebtCheckoutResultScreenState
-    extends ConsumerState<DebtCheckoutResultScreen>
-    with WidgetsBindingObserver {
-  late DebtCheckout _checkout;
-  Timer? _timer;
-  bool _refreshing = false;
 
   @override
-  void initState() {
-    super.initState();
-    _checkout = widget.initial;
-    WidgetsBinding.instance.addObserver(this);
-    WidgetsBinding.instance.addPostFrameCallback((_) => _openPayOs());
-    _timer = Timer.periodic(const Duration(seconds: 3), (_) => _refresh());
-  }
+  Widget build(BuildContext context, WidgetRef ref) => PayOsCheckoutResultPage(
+        checkoutUrl: initial.checkoutUrl,
+        initial: _debtSnapshot(initial),
+        refresh: () async => _debtSnapshot(
+            await ref.read(financeRepositoryProvider).debtCheckout(initial.id)),
+        onTerminal: () => ref.invalidate(receivablesProvider),
+        homeRoute: AppRoutes.rtOrders,
+        reviewRoute: AppRoutes.rtPayments,
+        reviewLabel: 'Xem lại công nợ',
+        onReview: () {
+          ref.invalidate(receivablesProvider);
+          final navigator = Navigator.of(context);
+          if (navigator.canPop()) {
+            navigator.pop();
+          } else {
+            context.go(AppRoutes.rtPayments);
+          }
+        },
+        details: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: <Widget>[
+            const Text('Đơn hàng thanh toán',
+                style: TextStyle(fontWeight: FontWeight.w700)),
+            const SizedBox(height: 6),
+            ...initial.allocations.map((allocation) => Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 2),
+                  child: Row(children: <Widget>[
+                    Expanded(child: Text(allocation.orderCode)),
+                    Text(Money.format(allocation.amount),
+                        style: const TextStyle(fontWeight: FontWeight.w600)),
+                  ]),
+                )),
+          ],
+        ),
+      );
 
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) _refresh();
-  }
-
-  Future<void> _openPayOs() async {
-    final uri = Uri.tryParse(_checkout.checkoutUrl);
-    if (uri == null ||
-        !await launchUrl(uri, mode: LaunchMode.externalApplication)) {
-      if (mounted) {
-        showAppSnack(context, 'Không thể mở PayOS. Hãy thử lại.', error: true);
-      }
-    }
-  }
-
-  Future<void> _refresh() async {
-    if (_refreshing || _checkout.isTerminal) return;
-    _refreshing = true;
-    try {
-      final next =
-          await ref.read(financeRepositoryProvider).debtCheckout(_checkout.id);
-      if (mounted) setState(() => _checkout = next);
-      if (next.isTerminal) {
-        _timer?.cancel();
-        ref.invalidate(receivablesProvider);
-      }
-    } finally {
-      _refreshing = false;
-    }
-  }
-
-  @override
-  void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
-    _timer?.cancel();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final paid = _checkout.status == 'Paid';
-    final failed = _checkout.status == 'Failed' ||
-        _checkout.status == 'Expired' ||
-        _checkout.status == 'Cancelled';
-    return Scaffold(
-      appBar: AppBar(title: const Text('Kết quả thanh toán')),
-      body: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: <Widget>[
-              Icon(
-                  paid
-                      ? Icons.check_circle
-                      : failed
-                          ? Icons.error_outline
-                          : Icons.hourglass_top,
-                  size: 72,
-                  color: paid
-                      ? AppColors.success
-                      : failed
-                          ? AppColors.danger
-                          : AppColors.primary),
-              const SizedBox(height: 16),
-              Text(
-                  paid
-                      ? 'Thanh toán thành công'
-                      : failed
-                          ? (_checkout.status == 'Expired'
-                              ? 'Thanh toán đã hết hạn'
-                              : _checkout.status == 'Cancelled'
-                                  ? 'Bạn đã hủy thanh toán'
-                                  : 'Thanh toán thất bại')
-                          : 'Đang chờ PayOS xác nhận',
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.headlineSmall),
-              const SizedBox(height: 8),
-              Text(Money.format(_checkout.amount),
-                  style: const TextStyle(
-                      fontSize: 22, fontWeight: FontWeight.w800)),
-              Text('${_checkout.allocations.length} khoản công nợ',
-                  style: const TextStyle(color: AppColors.textMuted)),
-              const SizedBox(height: 16),
-              const Align(
-                alignment: Alignment.centerLeft,
-                child: Text('Đơn hàng thanh toán',
-                    style: TextStyle(fontWeight: FontWeight.w700)),
-              ),
-              const SizedBox(height: 6),
-              ..._checkout.allocations.map((allocation) => Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 2),
-                    child: Row(children: <Widget>[
-                      Expanded(child: Text(allocation.orderCode)),
-                      Text(Money.format(allocation.amount),
-                          style: const TextStyle(fontWeight: FontWeight.w600)),
-                    ]),
-                  )),
-              if (!paid && !failed) ...<Widget>[
-                const SizedBox(height: 20),
-                const CircularProgressIndicator(),
-                TextButton(
-                    onPressed: _openPayOs, child: const Text('Mở lại PayOS')),
-              ],
-              const Spacer(),
-              SizedBox(
-                  width: double.infinity,
-                  child: FilledButton(
-                      onPressed: () => context.go(AppRoutes.rtOrders),
-                      child: const Text('Về trang chủ'))),
-              const SizedBox(height: 10),
-              SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton(
-                      onPressed: _viewReceivables,
-                      child: const Text('Xem lại công nợ'))),
-            ]),
-      ),
-    );
-  }
-
-  void _viewReceivables() {
-    ref.invalidate(receivablesProvider);
-    final navigator = Navigator.of(context);
-    if (navigator.canPop()) {
-      navigator.pop();
-    } else {
-      context.go(AppRoutes.rtPayments);
-    }
-  }
+  static PayOsCheckoutSnapshot _debtSnapshot(DebtCheckout checkout) =>
+      PayOsCheckoutSnapshot(
+        state: switch (checkout.status) {
+          'Paid' => PayOsCheckoutState.paid,
+          'Failed' => PayOsCheckoutState.failed,
+          'Expired' => PayOsCheckoutState.expired,
+          'Cancelled' => PayOsCheckoutState.cancelled,
+          _ => PayOsCheckoutState.pending,
+        },
+        amount: checkout.amount,
+        summary: '${checkout.allocations.length} khoản công nợ',
+      );
 }
 
 class _Summary extends StatelessWidget {
