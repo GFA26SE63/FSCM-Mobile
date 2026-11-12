@@ -99,7 +99,7 @@ class _RetailerActivationScreenState
   }
 
   Future<void> _setPassword() async {
-    final password = _password.text;
+    final password = _password.text.trim();
     final strongPassword = password.length >= 12 &&
         password.contains(RegExp(r'[A-Z]')) &&
         password.contains(RegExp(r'[a-z]')) &&
@@ -110,14 +110,14 @@ class _RetailerActivationScreenState
           'Mật khẩu tối thiểu 12 ký tự, gồm chữ hoa, chữ thường, số và ký tự đặc biệt.');
       return;
     }
-    if (_password.text != _confirm.text) {
+    if (password != _confirm.text.trim()) {
       setState(() => _error = 'Mật khẩu xác nhận không khớp.');
       return;
     }
     await _run(() async {
       final ok = await ref
           .read(authControllerProvider.notifier)
-          .completeActivation(_setupToken!, _password.text);
+          .completeActivation(_setupToken!, password);
       if (!ok) return;
     });
   }

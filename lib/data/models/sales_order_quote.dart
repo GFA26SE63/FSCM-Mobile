@@ -62,13 +62,28 @@ class SalesOrderQuote {
 }
 
 class PayOsCheckout {
-  const PayOsCheckout({required this.checkoutUrl, required this.qrCode});
+  const PayOsCheckout({
+    required this.paymentId,
+    required this.orderId,
+    required this.amount,
+    required this.checkoutUrl,
+    required this.qrCode,
+    required this.status,
+  });
 
   factory PayOsCheckout.fromJson(Map<String, dynamic> json) => PayOsCheckout(
+        paymentId: asStr(json['paymentId']),
+        orderId: asStr(json['orderId']),
+        amount: asDouble(json['amount']),
         checkoutUrl: asStr(json['checkoutUrl']),
         qrCode: asStr(json['qrCode']),
+        status: asStr(json['status']),
       );
 
+  final String paymentId;
+  final String orderId;
+  final num amount;
   final String checkoutUrl;
   final String qrCode;
+  final String status;
 }

@@ -3,7 +3,7 @@ import 'package:fscm_mobile/app/app.dart';
 
 /// Shows a short toast-like message at the bottom.
 void showAppSnack(BuildContext context, String message, {bool error = false}) {
-  showRootStatus(message, error: error, manual: true);
+  showRootStatus(message, error: error);
 }
 
 /// Yes/no confirmation; returns false when dismissed.
