@@ -294,6 +294,8 @@ class _ComplaintFormScreenState extends ConsumerState<ComplaintFormScreen> {
                               const Text(
                                   'Giảm nợ trong đơn gốc trước; phần tiền đã thu thừa được lập phiếu hoàn. Admin xác nhận phương án; yêu cầu xử lý hàng chờ đối soát thực tế.'),
                               TextField(
+                                  key: const ValueKey(
+                                      'complaint_affected_quantity'),
                                   controller: _actual,
                                   keyboardType: TextInputType.number,
                                   decoration: InputDecoration(
