@@ -59,10 +59,14 @@ class AppUser {
           (groups.isEmpty ? null : groups.first.code),
       warehouseCode: warehouses.isNotEmpty
           ? warehouses.first.code
-          : labels.containsKey('warehouses') ? null : json['warehouseCode'] as String?,
+          : labels.containsKey('warehouses')
+              ? null
+              : json['warehouseCode'] as String?,
       warehouseName: warehouses.isNotEmpty
           ? warehouses.first.name
-          : labels.containsKey('warehouses') ? null : json['warehouseName'] as String?,
+          : labels.containsKey('warehouses')
+              ? null
+              : json['warehouseName'] as String?,
       retailerCode: flat('retailerCode') ??
           (isRetailerRole && retailers.isNotEmpty
               ? retailers.first.code

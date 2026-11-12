@@ -49,7 +49,8 @@ class ProfileIdentityCard extends StatelessWidget {
             const SizedBox(height: 12),
             Text('Email: $email'),
           ],
-          if (phone.isNotEmpty && phone.toLowerCase() != email.toLowerCase()) ...<Widget>[
+          if (phone.isNotEmpty &&
+              phone.toLowerCase() != email.toLowerCase()) ...<Widget>[
             const SizedBox(height: 6),
             Text('SĐT: $phone'),
           ],
@@ -144,7 +145,8 @@ class _ScopeSection extends StatelessWidget {
           for (final label in labels)
             Padding(
               padding: const EdgeInsets.only(bottom: 4),
-              child: Text(_description(label.name, useLegacyCode ? legacyCode : label.code)),
+              child: Text(_description(
+                  label.name, useLegacyCode ? legacyCode : label.code)),
             ),
       ],
     );

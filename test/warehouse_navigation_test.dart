@@ -56,8 +56,15 @@ void main() {
         await tester.tap(find.text(entry.key));
         await tester.pumpAndSettle();
         expect(find.text('Page ${entry.value}'), findsOneWidget);
-        expect(tester.widget<NavigationBar>(find.byType(NavigationBar)).selectedIndex,
-            entry.key == 'Picking' ? 1 : entry.key == 'Tài khoản' ? 3 : 0);
+        expect(
+            tester
+                .widget<NavigationBar>(find.byType(NavigationBar))
+                .selectedIndex,
+            entry.key == 'Picking'
+                ? 1
+                : entry.key == 'Tài khoản'
+                    ? 3
+                    : 0);
       }
       await tester.tap(find.text('Quét QR'));
       await tester.pumpAndSettle();

@@ -46,7 +46,8 @@ void main() {
       await tester.pumpWidget(MaterialApp(
         home: Scaffold(
           body: SingleChildScrollView(
-            child: ProfileIdentityCard(user: AppUser.fromJson(profileJson(role))),
+            child:
+                ProfileIdentityCard(user: AppUser.fromJson(profileJson(role))),
           ),
         ),
       ));
@@ -58,8 +59,10 @@ void main() {
         expect(find.text('Kho phụ trách'), findsNothing);
       } else if (role == 'Sales') {
         for (final text in [
-          'Nhóm Một · Mã G1', 'Nhóm Hai · Mã G2',
-          'Vùng Đông · Mã R1', 'Vùng Tây · Mã R2',
+          'Nhóm Một · Mã G1',
+          'Nhóm Hai · Mã G2',
+          'Vùng Đông · Mã R1',
+          'Vùng Tây · Mã R2',
         ]) {
           expect(find.text(text), findsOneWidget);
         }

@@ -191,10 +191,14 @@ class RetailerDeclaration {
   final List<MlorDeclaration> mlorDeclarations;
 
   static double? _coordinate(Object? value, double min, double max) {
-    if (value == null) { return null; }
-    final number = value is num ? value.toDouble() : double.tryParse(value.toString());
+    if (value == null) {
+      return null;
+    }
+    final number =
+        value is num ? value.toDouble() : double.tryParse(value.toString());
     if (number == null || !number.isFinite || number < min || number > max) {
-      throw const ApiException(kind: ApiErrorKind.server,
+      throw const ApiException(
+          kind: ApiErrorKind.server,
           message: 'Tọa độ khai báo trả về không hợp lệ. Vui lòng tải lại.');
     }
     return number;
@@ -245,30 +249,31 @@ class RetailerDeclarationInput {
   Map<String, dynamic> toJson({String? regionId, String? salesGroupId}) {
     if ((latitude != null || longitude != null) &&
         !MapPlace.validCoordinates(latitude, longitude)) {
-      throw const ApiException(kind: ApiErrorKind.validation,
+      throw const ApiException(
+          kind: ApiErrorKind.validation,
           message: 'Vui lòng chọn lại vị trí hợp lệ trên bản đồ.');
     }
     return <String, dynamic>{
-        if (regionId != null) 'regionId': regionId,
-        if (salesGroupId != null) 'salesGroupId': salesGroupId,
-        'name': name,
-        'contactName': contactName,
-        'phone': phone,
-        'email': email,
-        'address': address.isEmpty ? null : address,
-        'retailerType': retailerType.code,
-        'forecastRevenue': forecastRevenue,
-        'storeSizeSquareMeters': storeSizeSquareMeters,
-        'purchasingCapacity': purchasingCapacity,
-        'purchaseFrequencyPerMonth': purchaseFrequencyPerMonth,
-        'requestedCreditTermDays': requestedCreditTermDays,
-        'assessmentNote': assessmentNote.isEmpty ? null : assessmentNote,
-        'latitude': latitude,
-        'longitude': longitude,
-        'providerPlaceId': providerPlaceId,
-        'mlorDeclarations': mlorDeclarations.map((e) => e.toJson()).toList(),
-        'submitForReview': submitForReview,
-      };
+      if (regionId != null) 'regionId': regionId,
+      if (salesGroupId != null) 'salesGroupId': salesGroupId,
+      'name': name,
+      'contactName': contactName,
+      'phone': phone,
+      'email': email,
+      'address': address.isEmpty ? null : address,
+      'retailerType': retailerType.code,
+      'forecastRevenue': forecastRevenue,
+      'storeSizeSquareMeters': storeSizeSquareMeters,
+      'purchasingCapacity': purchasingCapacity,
+      'purchaseFrequencyPerMonth': purchaseFrequencyPerMonth,
+      'requestedCreditTermDays': requestedCreditTermDays,
+      'assessmentNote': assessmentNote.isEmpty ? null : assessmentNote,
+      'latitude': latitude,
+      'longitude': longitude,
+      'providerPlaceId': providerPlaceId,
+      'mlorDeclarations': mlorDeclarations.map((e) => e.toJson()).toList(),
+      'submitForReview': submitForReview,
+    };
   }
 }
 

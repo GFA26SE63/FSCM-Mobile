@@ -65,4 +65,3 @@ class PaymentResult {
   bool get isOverdue => status.toLowerCase() == 'overdue';
   bool get isPartiallyPaid => status.toLowerCase() == 'partiallypaid';
 }
-

@@ -35,8 +35,11 @@ void main() {
     expect(AppUser.fromJson(json).retailerCode, 'ACCOUNT-CODE');
   });
 
-  test('Sales assigned retailers are not treated as the Sales own retailer', () {
-    final json = retailerUser()..['role'] = 'Sales'..remove('retailerCode');
+  test('Sales assigned retailers are not treated as the Sales own retailer',
+      () {
+    final json = retailerUser()
+      ..['role'] = 'Sales'
+      ..remove('retailerCode');
     expect(AppUser.fromJson(json).retailerCode, isNull);
   });
 
@@ -62,7 +65,9 @@ void main() {
   });
 
   test('blank flat retailer values use develop scope fallback', () {
-    final json = retailerUser()..['retailerCode'] = ''..['retailerName'] = '';
+    final json = retailerUser()
+      ..['retailerCode'] = ''
+      ..['retailerName'] = '';
     final user = AppUser.fromJson(json);
     expect(user.retailerCode, '10004127');
     expect(user.retailerName, 'An Phú');
@@ -93,7 +98,9 @@ void main() {
       'id': 'keeper',
       'role': 'WarehouseKeeper',
       'email': 'keeper@example.com',
-      'scope': <String, dynamic>{'warehouseIds': ['w1', 'w2']},
+      'scope': <String, dynamic>{
+        'warehouseIds': ['w1', 'w2']
+      },
       'scopeLabels': <String, dynamic>{
         'warehouses': [
           {'id': 'w1', 'code': 'WH-01', 'name': 'Kho Thủ Đức'},

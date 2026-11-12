@@ -42,9 +42,12 @@ class _ProfileApi extends AuthApi {
 
 void main() {
   for (final role in ['Retailer', 'Sales', 'WarehouseKeeper']) {
-    test('restored $role session loads and persists current profile labels', () async {
+    test('restored $role session loads and persists current profile labels',
+        () async {
       final cachedUser = <String, dynamic>{
-        'id': 'user', 'role': role, 'fullName': 'Cached name',
+        'id': 'user',
+        'role': role,
+        'fullName': 'Cached name',
       };
       final tokens = _MemoryTokens(<String, dynamic>{
         'accessToken': 'access',
@@ -52,21 +55,32 @@ void main() {
         'user': cachedUser,
       });
       final client = ApiClient(
-        transport: _UnusedTransport(), tokenReader: () => 'access',
+        transport: _UnusedTransport(),
+        tokenReader: () => 'access',
       );
       addTearDown(client.dispose);
-      final api = _ProfileApi(client, AppUser.fromJson(<String, dynamic>{
-        ...cachedUser,
-        'fullName': 'Current name',
-        'scope': <String, dynamic>{
-          'retailerIds': ['r'], 'salesGroupIds': ['g'], 'warehouseIds': ['w'],
-        },
-        'scopeLabels': <String, dynamic>{
-          'retailers': [{'id': 'r', 'code': '10004127', 'name': 'Điểm bán'}],
-          'salesGroups': [{'id': 'g', 'code': 'G1', 'name': 'Nhóm Sales'}],
-          'warehouses': [{'id': 'w', 'code': 'WH1', 'name': 'Kho'}],
-        },
-      }));
+      final api = _ProfileApi(
+          client,
+          AppUser.fromJson(<String, dynamic>{
+            ...cachedUser,
+            'fullName': 'Current name',
+            'scope': <String, dynamic>{
+              'retailerIds': ['r'],
+              'salesGroupIds': ['g'],
+              'warehouseIds': ['w'],
+            },
+            'scopeLabels': <String, dynamic>{
+              'retailers': [
+                {'id': 'r', 'code': '10004127', 'name': 'Điểm bán'}
+              ],
+              'salesGroups': [
+                {'id': 'g', 'code': 'G1', 'name': 'Nhóm Sales'}
+              ],
+              'warehouses': [
+                {'id': 'w', 'code': 'WH1', 'name': 'Kho'}
+              ],
+            },
+          }));
       final container = ProviderContainer(overrides: [
         tokenStoreProvider.overrideWithValue(tokens),
         apiClientProvider.overrideWithValue(client),
