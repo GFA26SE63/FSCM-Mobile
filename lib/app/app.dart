@@ -48,12 +48,13 @@ class _FscmAppState extends ConsumerState<FscmApp> with WidgetsBindingObserver {
         ref.read(apiClientProvider).onStatusFeedback.listen((feedback) {
       final version = _manualStatusVersion;
       Future<void>.delayed(const Duration(milliseconds: 180), () {
-        if (_manualStatusVersion == version)
+        if (_manualStatusVersion == version) {
           showRootStatus(
               feedback.isError
                   ? feedback.error!.message
                   : 'Thao tác thành công.',
               error: feedback.isError);
+        }
       });
     });
   }
