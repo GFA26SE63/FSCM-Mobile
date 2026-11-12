@@ -200,7 +200,8 @@ class _EvidenceStrip extends ConsumerWidget {
                     context: context,
                     builder: (_) => Dialog(
                       child: InteractiveViewer(
-                          child: Image.network(list[i].url, fit: BoxFit.contain)),
+                          child:
+                              Image.network(list[i].url, fit: BoxFit.contain)),
                     ),
                   ),
                   child: ClipRRect(

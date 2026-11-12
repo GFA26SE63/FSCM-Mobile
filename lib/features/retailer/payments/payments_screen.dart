@@ -19,6 +19,7 @@ import 'package:fscm_mobile/shared/widgets/async_body.dart';
 import 'package:fscm_mobile/shared/widgets/chip_filter_bar.dart';
 import 'package:fscm_mobile/shared/widgets/empty_state.dart';
 import 'package:fscm_mobile/shared/widgets/info_banner.dart';
+import 'package:fscm_mobile/shared/widgets/dialogs.dart';
 import 'package:fscm_mobile/shared/widgets/section_title.dart';
 import 'package:fscm_mobile/shared/widgets/status_chip.dart';
 
@@ -374,8 +375,7 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
       ref.invalidate(receivablesProvider);
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Không thể tạo thanh toán: $error')));
+        showAppSnack(context, 'Không thể tạo thanh toán: $error', error: true);
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -417,8 +417,7 @@ class _DebtCheckoutResultScreenState
     if (uri == null ||
         !await launchUrl(uri, mode: LaunchMode.externalApplication)) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Không thể mở PayOS. Hãy thử lại.')));
+        showAppSnack(context, 'Không thể mở PayOS. Hãy thử lại.', error: true);
       }
     }
   }
