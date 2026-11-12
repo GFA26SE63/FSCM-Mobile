@@ -107,6 +107,10 @@ class Env {
   );
 
   static const Duration connectTimeout = Duration(seconds: 15);
+
+  /// Client key for VietMap tiles, Autocomplete v4 and Place v4.
+  /// Never embed the backend's private server credential here.
+  static const String vietMapApiKey = String.fromEnvironment('VIETMAP_API_KEY');
   static const Duration receiveTimeout = Duration(seconds: 30);
 
   /// Offline order queue: automatic retries before the order waits for a

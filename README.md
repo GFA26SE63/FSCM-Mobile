@@ -33,6 +33,24 @@ Windows dùng OAuth client riêng và callback loopback `http://localhost:8000`:
 flutter run -d windows --dart-define-from-file=env/appsettings.json
 ```
 
+## Bản đồ khai báo điểm bán
+
+Thêm `"VIETMAP_API_KEY": "<client-key>"` vào file cấu hình local dùng với
+`--dart-define-from-file`. Key client cần quyền tải bản đồ raster, Autocomplete v4
+và Place v4; không chép credential riêng của backend vào app. Cấu hình mẫu nằm
+trong `env/development.example.json`. Sau khi thêm key phải dừng và chạy lại app.
+
+Sales → Khai báo cửa hàng mới → **Chọn trên bản đồ**: nhập địa chỉ và bấm tìm,
+chọn kết quả hoặc chạm bản đồ để đặt ghim, rồi bấm **Dùng vị trí này**.
+Địa chỉ, `latitude`, `longitude`, `providerPlaceId` được gửi qua API khai báo
+retailer hiện có. Chọn ghim thủ công không gán mã địa điểm giả. Mở sửa Draft/Rejected
+giữ vị trí đã lưu; thoát màn chọn bản đồ không thay đổi form. Nếu đổi địa chỉ của
+một vị trí đã chọn, xác nhận lại ghim trước khi lưu. Bản đồ cần mạng; nhập địa chỉ
+không kèm tọa độ vẫn được giữ như luồng cũ vì BE cho phép. Không gọi API
+`/map/geocode` của Admin để khai báo một retailer chưa tồn tại.
+
+Tài liệu contract VietMap: [Autocomplete v4](https://maps.vietmap.vn/docs/map-api/autocomplete-version/autocomplete-v4/).
+
 ## Kiến trúc và cấu trúc thư mục
 
 Ứng dụng dùng kiến trúc phân lớp hướng feature: `features` chỉ lo presentation theo vai trò, `data` sở hữu DTO/remote/local/repository, `core` cung cấp hạ tầng kỹ thuật, và `sync` điều phối offline queue. Riverpod là dependency injection + state management; UI không tự tạo API client/database.

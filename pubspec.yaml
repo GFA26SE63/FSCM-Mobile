@@ -37,6 +37,8 @@ dependencies:
   url_launcher: ^6.3.2
   google_sign_in: ^7.2.0
   google_sign_in_all_platforms: ^2.0.3
+  flutter_map: ^7.0.2
+  latlong2: ^0.9.1
 
   # Utils
   cupertino_icons: ^1.0.8
