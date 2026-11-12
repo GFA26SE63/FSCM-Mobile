@@ -82,7 +82,7 @@ void main() {
       expect(persisted.accessToken, 'access');
       expect(persisted.refreshToken, 'refresh');
       if (role == 'Retailer') {
-        expect(persisted.user.retailerCode, isNull);
+        expect(persisted.user.retailerCode, '10004127');
         expect(persisted.user.retailerName, 'Điểm bán');
       } else if (role == 'Sales') {
         expect(persisted.user.salesGroupLabels.single.code, 'G1');

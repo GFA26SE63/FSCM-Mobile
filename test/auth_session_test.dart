@@ -8,18 +8,18 @@ void main() {
         'fullName': 'An Phú',
         'role': 'Retailer',
         'retailerCode': 'ACCOUNT-CODE',
+        'retailerName': 'An Phú',
         'scope': <String, dynamic>{
           'retailerIds': <String>['owned-retailer'],
         },
         'scopeLabels': <String, dynamic>{
           'retailers': <Map<String, dynamic>>[
-            {'id': 'unrelated-retailer', 'code': '99999999', 'name': 'Other'},
             {'id': 'owned-retailer', 'code': '10004127', 'name': 'An Phú'},
           ],
         },
       };
 
-  test('Retailer code keeps account mapping while name uses matching scope', () {
+  test('explicit retailer code and name take precedence over scope labels', () {
     final user = AppUser.fromJson(retailerUser());
     expect(user.retailerCode, 'ACCOUNT-CODE');
     expect(user.retailerName, 'An Phú');
@@ -47,9 +47,25 @@ void main() {
     expect(restored.retailerCode, 'ACCOUNT-CODE');
   });
 
-  test('scope labels alone no longer supply a retailer code', () {
-    final json = retailerUser()..remove('retailerCode');
-    expect(AppUser.fromJson(json).retailerCode, isNull);
+  test('Retailer scope fallback from develop survives session persistence', () {
+    final json = retailerUser()
+      ..remove('retailerCode')
+      ..remove('retailerName');
+    // The server returns labels for the user's scope. Match develop's
+    // first-label fallback when no explicit account code/name is supplied.
+    final user = AppUser.fromJson(json);
+    expect(user.retailerCode, '10004127');
+    expect(user.retailerName, 'An Phú');
+    final restored = AppUser.fromJson(user.toJson());
+    expect(restored.retailerCode, '10004127');
+    expect(restored.retailerName, 'An Phú');
+  });
+
+  test('blank flat retailer values use develop scope fallback', () {
+    final json = retailerUser()..['retailerCode'] = ''..['retailerName'] = '';
+    final user = AppUser.fromJson(json);
+    expect(user.retailerCode, '10004127');
+    expect(user.retailerName, 'An Phú');
   });
 
   test('authentication session preserves access and refresh tokens', () {

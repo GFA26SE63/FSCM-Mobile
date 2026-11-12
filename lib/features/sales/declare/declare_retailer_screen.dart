@@ -42,7 +42,6 @@ class _DeclareRetailerScreenState extends ConsumerState<DeclareRetailerScreen> {
   late final TextEditingController _frequency;
   late final TextEditingController _note;
   late RetailerTypeOption _type;
-  late int _creditTerm;
   late List<MlorDeclaration> _mlors;
   String? _salesGroupId;
   bool _busy = false;
@@ -80,9 +79,6 @@ class _DeclareRetailerScreenState extends ConsumerState<DeclareRetailerScreen> {
         text: d == null ? '4' : d.purchaseFrequencyPerMonth.toString());
     _note = TextEditingController(text: d?.assessmentNote ?? '');
     _type = d?.retailerType ?? RetailerTypeOption.groceryStore;
-    _creditTerm = allowedCreditTermDays.contains(d?.requestedCreditTermDays)
-        ? d!.requestedCreditTermDays
-        : 0;
     _mlors = List<MlorDeclaration>.of(d?.mlorDeclarations ?? const []);
   }
 
@@ -128,7 +124,8 @@ class _DeclareRetailerScreenState extends ConsumerState<DeclareRetailerScreen> {
         storeSizeSquareMeters: _decimal(_area.text) ?? 0,
         purchasingCapacity: _decimal(_capacity.text) ?? 0,
         purchaseFrequencyPerMonth: int.tryParse(_frequency.text.trim()) ?? 0,
-        requestedCreditTermDays: _creditTerm,
+        // Credit term is decided by Admin at review time; Sales no longer proposes it.
+        requestedCreditTermDays: 0,
         assessmentNote: _note.text.trim(),
         mlorDeclarations: _mlors,
         submitForReview: submit,
@@ -361,18 +358,6 @@ class _DeclareRetailerScreenState extends ConsumerState<DeclareRetailerScreen> {
               validator: (v) => (_decimal(v ?? '') ?? -1) >= 0
                   ? null
                   : 'Nhập khả năng nhập hàng',
-            ),
-            const SizedBox(height: 10),
-            DropdownButtonFormField<int>(
-              initialValue: _creditTerm,
-              decoration: const InputDecoration(
-                  labelText: 'Đề xuất hạn thanh toán',
-                  helperText: 'Admin quyết định khi duyệt'),
-              items: allowedCreditTermDays
-                  .map((d) => DropdownMenuItem<int>(
-                      value: d, child: Text(d == 0 ? 'Trả ngay' : '$d ngày')))
-                  .toList(),
-              onChanged: (v) => setState(() => _creditTerm = v ?? _creditTerm),
             ),
             const SizedBox(height: 10),
             TextFormField(

@@ -39,12 +39,12 @@ class AppUser {
     final retailers = ScopeLabel.listFrom(labels['retailers']);
     final retailerIds = _strings(scope['retailerIds']);
     final role = UserRole.fromCode(json['role']?.toString());
-    final ownedRetailers = retailers
-        .where((label) => retailerIds.contains(label.id))
-        .toList();
-    final retailer = role == UserRole.retailer && ownedRetailers.length == 1
-        ? ownedRetailers.single
-        : null;
+    final isRetailerRole = role == UserRole.retailer;
+    String? flat(String key) {
+      final v = json[key];
+      return v is String && v.isNotEmpty ? v : null;
+    }
+
     return AppUser(
       id: json['id']?.toString() ?? '',
       fullName: json['fullName']?.toString() ?? '',
@@ -63,9 +63,14 @@ class AppUser {
       warehouseName: warehouses.isNotEmpty
           ? warehouses.first.name
           : labels.containsKey('warehouses') ? null : json['warehouseName'] as String?,
-      retailerCode: json['retailerCode'] as String?,
-      retailerName: retailer?.name ??
-          (labels.containsKey('retailers') ? null : json['retailerName'] as String?),
+      retailerCode: flat('retailerCode') ??
+          (isRetailerRole && retailers.isNotEmpty
+              ? retailers.first.code
+              : null),
+      retailerName: flat('retailerName') ??
+          (isRetailerRole && retailers.isNotEmpty
+              ? retailers.first.name
+              : null),
       retailerAddress: json['retailerAddress'] as String?,
       regionIds: _strings(scope['regionIds']),
       warehouseIds: _strings(scope['warehouseIds']),
@@ -160,8 +165,7 @@ class AppUser {
           if (warehouseLabels.isNotEmpty)
             'warehouses': warehouseLabels.map((e) => e.toJson()).toList(),
           'salesGroups': salesGroupLabels.map((e) => e.toJson()).toList(),
-          if (retailerLabels.isNotEmpty)
-            'retailers': retailerLabels.map((e) => e.toJson()).toList(),
+          'retailers': retailerLabels.map((e) => e.toJson()).toList(),
         },
       };
 }
