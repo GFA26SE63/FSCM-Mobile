@@ -133,7 +133,8 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: AppRoutes.login, builder: (c, s) => const LoginScreen()),
       GoRoute(
           path: AppRoutes.retailerActivation,
-          builder: (c, s) => const RetailerActivationScreen()),
+          builder: (c, s) =>
+              RetailerActivationScreen(identifier: s.extra as String?)),
       GoRoute(
           path: AppRoutes.notifications,
           builder: (c, s) => const NotificationsScreen()),

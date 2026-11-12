@@ -7,6 +7,7 @@ class Endpoints {
   // Local credentials remain available; Google exchanges a verified ID token
   // for the same internal FSCM session contract.
   static const String authLogin = '/auth/login';
+  static const String authLoginLookup = '/auth/login/lookup';
   static const String authRefresh = '/auth/refresh';
   static const String authOtpRequest = '/auth/otp/request';
   static const String authOtpVerify = '/auth/otp/verify';

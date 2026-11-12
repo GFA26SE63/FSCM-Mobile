@@ -7,7 +7,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fscm_mobile/app/router.dart';
 import 'package:fscm_mobile/app/theme.dart';
 import 'package:fscm_mobile/core/network/api_client.dart';
-import 'package:fscm_mobile/core/network/api_exception.dart';
 import 'package:fscm_mobile/data/repositories/auth_repository.dart';
 
 /// Global key to display toasts/snackbars across the entire app
@@ -24,30 +23,41 @@ class FscmApp extends ConsumerStatefulWidget {
 }
 
 class _FscmAppState extends ConsumerState<FscmApp> with WidgetsBindingObserver {
-  StreamSubscription<ApiException>? _forbiddenSub;
+  StreamSubscription<ApiStatusFeedback>? _statusFeedbackSub;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
 
-    // Listen to 403 Forbidden errors to display "Không đủ quyền/phạm vi" (§2.3)
-    _forbiddenSub = ref.read(apiClientProvider).onForbidden.listen((error) {
-      rootScaffoldMessengerKey.currentState?.showSnackBar(
+    _statusFeedbackSub =
+        ref.read(apiClientProvider).onStatusFeedback.listen((feedback) {
+      _showStatus(
+        feedback.isError ? feedback.error!.message : 'Thao tác thành công.',
+        error: feedback.isError,
+      );
+    });
+  }
+
+  void _showStatus(String message, {bool error = false}) {
+    final messenger = rootScaffoldMessengerKey.currentState;
+    messenger
+      ?..hideCurrentSnackBar()
+      ..showSnackBar(
         SnackBar(
-          content: Text(error.message),
-          backgroundColor: const Color(0xFFB42318),
+          content: Text(message),
+          backgroundColor:
+              error ? const Color(0xFFB42318) : const Color(0xFF1B1F1D),
           behavior: SnackBarBehavior.floating,
           duration: const Duration(seconds: 4),
         ),
       );
-    });
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    unawaited(_forbiddenSub?.cancel());
+    unawaited(_statusFeedbackSub?.cancel());
     super.dispose();
   }
 

@@ -23,6 +23,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final GlobalKey<FormState> _form = GlobalKey<FormState>();
   bool _busy = false;
   bool _obscure = true;
+  bool _passwordStep = false;
   String? _error;
 
   @override
@@ -41,6 +42,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final identifier = _identifier.text.trim();
     bool ok;
     try {
+      if (!_passwordStep) {
+        final firstLogin = await ref
+            .read(authControllerProvider.notifier)
+            .requiresActivation(identifier);
+        if (!mounted) return;
+        if (firstLogin) {
+          await context.push(AppRoutes.retailerActivation, extra: identifier);
+          return;
+        }
+        setState(() => _passwordStep = true);
+        return;
+      }
       ok = await ref
           .read(authControllerProvider.notifier)
           .login(identifier, _password.text);
@@ -121,31 +134,34 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             : 'Nhập email hoặc số điện thoại hợp lệ';
                       },
                     ),
-                    const SizedBox(height: 12),
-                    TextFormField(
-                      controller: _password,
-                      obscureText: _obscure,
-                      decoration: InputDecoration(
-                        labelText: 'Mật khẩu',
-                        suffixIcon: IconButton(
-                          onPressed: () => setState(() => _obscure = !_obscure),
-                          icon: Icon(_obscure
-                              ? Icons.visibility_off
-                              : Icons.visibility),
+                    if (_passwordStep) ...[
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        controller: _password,
+                        obscureText: _obscure,
+                        decoration: InputDecoration(
+                          labelText: 'Mật khẩu',
+                          suffixIcon: IconButton(
+                            onPressed: () =>
+                                setState(() => _obscure = !_obscure),
+                            icon: Icon(_obscure
+                                ? Icons.visibility_off
+                                : Icons.visibility),
+                          ),
+                        ),
+                        onFieldSubmitted: (_) => _submit(),
+                      ),
+                      const Padding(
+                        padding: EdgeInsets.only(top: 6, left: 4),
+                        child: Text(
+                          'Để trống nếu đăng nhập lần đầu.',
+                          style: TextStyle(
+                            color: AppColors.textMuted,
+                            fontSize: 12,
+                          ),
                         ),
                       ),
-                      onFieldSubmitted: (_) => _submit(),
-                    ),
-                    const Padding(
-                      padding: EdgeInsets.only(top: 6, left: 4),
-                      child: Text(
-                        'Để trống nếu đăng nhập lần đầu.',
-                        style: TextStyle(
-                          color: AppColors.textMuted,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ),
+                    ],
                     const SizedBox(height: 12),
                     if (authError != null)
                       InfoBanner(
@@ -154,7 +170,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           icon: Icons.error_outline),
                     FilledButton(
                       onPressed: _busy ? null : _submit,
-                      child: Text(_busy ? 'Đang đăng nhập...' : 'Đăng nhập'),
+                      child: Text(_busy
+                          ? 'Đang xử lý...'
+                          : (_passwordStep ? 'Đăng nhập' : 'Tiếp tục')),
                     ),
                     const SizedBox(height: 14),
                     const Row(
