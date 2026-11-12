@@ -1,151 +1,66 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-
-import 'package:fscm_mobile/core/utils/dates.dart';
-import 'package:fscm_mobile/core/utils/money.dart';
-import 'package:fscm_mobile/data/models/enums.dart';
 import 'package:fscm_mobile/data/models/loyalty.dart';
 import 'package:fscm_mobile/data/repositories/loyalty_repository.dart';
+import 'package:fscm_mobile/features/retailer/loyalty/widgets/loyalty_balance_card.dart';
+import 'package:fscm_mobile/features/retailer/loyalty/widgets/loyalty_ledger_tile.dart';
 import 'package:fscm_mobile/shared/routes.dart';
-import 'package:fscm_mobile/shared/theme/app_colors.dart';
-import 'package:fscm_mobile/shared/widgets/app_card.dart';
 import 'package:fscm_mobile/shared/widgets/async_body.dart';
 import 'package:fscm_mobile/shared/widgets/section_title.dart';
 
-/// Loyalty card: available / pending / held points, program rule and ledger.
 class LoyaltyScreen extends ConsumerWidget {
   const LoyaltyScreen({super.key});
+
+  Future<void> _reload(WidgetRef ref) async {
+    ref.invalidate(loyaltyAccountProvider);
+    try {
+      await ref.read(loyaltyAccountProvider.future);
+    } catch (_) {
+      // AsyncBody renders the provider error; no successful empty fallback.
+    }
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final value = ref.watch(loyaltyAccountProvider);
     return Scaffold(
-      appBar: AppBar(title: const Text('Thẻ tích điểm')),
+      appBar: AppBar(title: const Text('Thẻ tích điểm'), actions: [
+        IconButton(
+            tooltip: 'Tải lại thẻ tích điểm',
+            onPressed: value.isLoading ? null : () => unawaited(_reload(ref)),
+            icon: const Icon(Icons.refresh)),
+      ]),
       body: AsyncBody<LoyaltyAccount>(
         value: value,
-        onRetry: () => ref.invalidate(loyaltyAccountProvider),
-        builder: (a) => RefreshIndicator(
-          onRefresh: () async => ref.invalidate(loyaltyAccountProvider),
+        onRetry: () => unawaited(_reload(ref)),
+        builder: (account) => RefreshIndicator(
+          onRefresh: () => _reload(ref),
           child: ListView(
             physics: const AlwaysScrollableScrollPhysics(),
             padding: const EdgeInsets.all(16),
-            children: <Widget>[
-              Container(
-                padding: const EdgeInsets.all(18),
-                decoration: BoxDecoration(
-                  color: AppColors.primary,
-                  borderRadius: BorderRadius.circular(18),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    Text(
-                      '${a.program.code} · ${a.program.name}',
-                      style: const TextStyle(
-                          color: Colors.white70, fontWeight: FontWeight.w600),
-                    ),
-                    const SizedBox(height: 10),
-                    Text(
-                      '${a.balance}',
-                      style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 40,
-                          fontWeight: FontWeight.w800),
-                    ),
-                    const Text('điểm khả dụng',
-                        style: TextStyle(color: Colors.white70)),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: <Widget>[
-                        _mini('Chờ cộng', a.pending),
-                        const SizedBox(width: 24),
-                        _mini('Đang giữ', a.held),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 12),
-              AppCard(
-                child: Text(
-                  '${a.program.amountPerPoint > 0 ? 'Cứ ${Money.format(a.program.amountPerPoint)} giá trị đơn hàng (sau khuyến mãi) được 1 điểm. ' : 'Retailer chưa được gắn chương trình tích điểm đang hoạt động. '}'
-                  'Điểm chỉ được cộng khi đơn đã giao và đã thanh toán đủ.'
-                  '${a.program.expiryText.isEmpty ? '' : '\n${a.program.expiryText}'}',
-                  style: const TextStyle(height: 1.4),
-                ),
-              ),
+            children: [
+              LoyaltyBalanceCard(account: account),
+              LoyaltyProgramCard(account: account),
               FilledButton.icon(
                 onPressed: () => context.push(AppRoutes.rtGifts),
                 icon: const Icon(Icons.card_giftcard),
-                label: const Text('Đổi quà'),
+                label: Text(account.hasNegativeBalance
+                    ? 'Xem quà & yêu cầu đã gửi'
+                    : 'Đổi quà'),
               ),
               const SectionTitle('Lịch sử điểm'),
-              if (a.ledger.isEmpty)
+              if (account.ledger.isEmpty)
                 const Padding(
                     padding: EdgeInsets.all(16),
                     child: Text('Chưa có giao dịch điểm.'))
               else
-                for (final e in a.ledger) _LedgerTile(entry: e),
+                for (final entry in account.ledger)
+                  LoyaltyLedgerTile(key: ValueKey(entry.id), entry: entry),
             ],
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _mini(String label, int value) => Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Text(label,
-              style: const TextStyle(color: Colors.white70, fontSize: 12)),
-          Text('$value',
-              style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w700,
-                  fontSize: 16)),
-        ],
-      );
-}
-
-class _LedgerTile extends StatelessWidget {
-  const _LedgerTile({required this.entry});
-
-  final PointLedgerEntry entry;
-
-  @override
-  Widget build(BuildContext context) {
-    final e = entry;
-    final negative = e.points < 0;
-    final color = negative
-        ? AppColors.danger
-        : (e.kind == PointKind.pending
-            ? AppColors.textMuted
-            : AppColors.success);
-    return AppCard(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      child: Row(
-        children: <Widget>[
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Text(e.description,
-                    style: const TextStyle(fontWeight: FontWeight.w600)),
-                Text(
-                  '${AppDates.timeDay(e.date)} · ${e.kind.label}',
-                  style:
-                      const TextStyle(color: AppColors.textMuted, fontSize: 12),
-                ),
-              ],
-            ),
-          ),
-          Text(
-            '${negative ? '' : '+'}${e.points}',
-            style: TextStyle(
-                fontWeight: FontWeight.w800, fontSize: 16, color: color),
-          ),
-        ],
       ),
     );
   }

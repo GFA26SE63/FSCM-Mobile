@@ -4,6 +4,7 @@ import 'package:fscm_mobile/data/models/order.dart';
 import 'package:fscm_mobile/data/models/price_quote.dart';
 import 'package:fscm_mobile/core/network/api_exception.dart';
 import 'package:fscm_mobile/data/models/offline_expected_condition.dart';
+import 'package:fscm_mobile/data/models/offline_condition_conflict.dart';
 
 /// JSON element sent to `POST /orders/sync`. The UUID [clientRequestId] is
 /// the idempotency key; [offlineCode] (`OFF-{device}-{0000}`) is the
@@ -27,6 +28,7 @@ class OfflineOrderPayload {
     this.estimatedAt,
     this.snapshotVersion,
     this.expectedConditions = const <OfflineExpectedCondition>[],
+    this.pendingOnlineRequest,
   });
 
   factory OfflineOrderPayload.fromJson(Map<String, dynamic> json) {
@@ -56,6 +58,9 @@ class OfflineOrderPayload {
         json['expectedConditions'],
         OfflineExpectedCondition.fromJson,
       ),
+      pendingOnlineRequest: json['pendingOnlineRequest'] is Map
+          ? NewOrderRequest.fromJson(asMap(json['pendingOnlineRequest']))
+          : null,
     );
   }
 
@@ -75,6 +80,9 @@ class OfflineOrderPayload {
   final DateTime? estimatedAt;
   final String? snapshotVersion;
   final List<OfflineExpectedCondition> expectedConditions;
+
+  /// An online POST with an unknown result must replay its original endpoint/body.
+  final NewOrderRequest? pendingOnlineRequest;
 
   int get localFinal => localTotal - localDiscount;
 
@@ -109,9 +117,25 @@ class OfflineOrderPayload {
         'snapshotVersion': snapshotVersion,
         'expectedConditions':
             expectedConditions.map((item) => item.toJson()).toList(),
+        if (pendingOnlineRequest != null)
+          'pendingOnlineRequest': pendingOnlineRequest!.toJson(),
       };
 
-  Map<String, dynamic> toRequestJson() {
+  Map<String, dynamic> toRequestJson({bool confirmConditionChanges = false}) {
+    final online = pendingOnlineRequest;
+    if (online != null) {
+      final quantities = {for (final line in lines) line.productId: line.qty};
+      if (online.clientOrderKey != clientRequestId ||
+          online.retailerId != retailerId ||
+          online.lines.length != lines.length ||
+          online.lines.any((line) => quantities[line.productId] != line.qty)) {
+        throw const ApiException(
+          kind: ApiErrorKind.validation,
+          message: 'Yêu cầu online đang chờ kết quả đã bị thay đổi.',
+        );
+      }
+      return online.toJson();
+    }
     if (!hasCompleteExpectedConditions) {
       throw const ApiException(
         kind: ApiErrorKind.validation,
@@ -126,8 +150,8 @@ class OfflineOrderPayload {
       'paymentMethod': null,
       'offlineEstimatedAmount': localFinal,
       if (snapshotVersion != null) 'snapshotVersion': snapshotVersion,
-      // Giữ hành vi hiện tại; luồng xác nhận thay đổi xử lý ở F31.
-      'confirmConditionChanges': true,
+      // Commercial changes require a separate explicit confirmation flow.
+      'confirmConditionChanges': confirmConditionChanges,
       'expectedConditions':
           expectedConditions.map((item) => item.toJson()).toList(),
       'lines': lines
@@ -159,6 +183,9 @@ class OfflineOrder {
     this.finalAmount,
     this.promoChanged = false,
     this.changeReason = '',
+    this.conditionConflict,
+    this.conditionsConfirmed = false,
+    this.serverOrder,
   });
 
   /// Auto-increment primary key = creation order (tie-break for equal
@@ -177,6 +204,13 @@ class OfflineOrder {
   final int? finalAmount;
   final bool promoChanged;
   final String changeReason;
+  final OfflineConditionConflict? conditionConflict;
+
+  /// Persisted only after Sales explicitly accepts the displayed conditions.
+  final bool conditionsConfirmed;
+
+  /// Server receipt captured at submission, usable while the device is offline.
+  final Order? serverOrder;
 
   String get localCode => payload.offlineCode;
 
@@ -191,6 +225,10 @@ class OfflineOrder {
     int? finalAmount,
     bool? promoChanged,
     String? changeReason,
+    OfflineConditionConflict? conditionConflict,
+    bool clearConditionConflict = false,
+    bool? conditionsConfirmed,
+    Order? serverOrder,
   }) =>
       OfflineOrder(
         id: id,
@@ -207,6 +245,11 @@ class OfflineOrder {
         finalAmount: finalAmount ?? this.finalAmount,
         promoChanged: promoChanged ?? this.promoChanged,
         changeReason: changeReason ?? this.changeReason,
+        conditionConflict: clearConditionConflict
+            ? null
+            : conditionConflict ?? this.conditionConflict,
+        conditionsConfirmed: conditionsConfirmed ?? this.conditionsConfirmed,
+        serverOrder: serverOrder ?? this.serverOrder,
       );
 }
 
@@ -220,6 +263,7 @@ class OrderSyncResult {
     this.finalAmount,
     this.promoChanged = false,
     this.changeReason = '',
+    this.serverOrder,
   });
 
   factory OrderSyncResult.fromJson(Map<String, dynamic> j) => OrderSyncResult(
@@ -239,11 +283,25 @@ class OrderSyncResult {
   final int? finalAmount;
   final bool promoChanged;
   final String changeReason;
+  final Order? serverOrder;
 }
 
 /// Conversion of a queue row into the order model used by the UI.
 Order orderFromOffline(OfflineOrder entry) {
   final payload = entry.payload;
+  if (entry.status == SyncStatus.synced && entry.serverOrder != null) {
+    return Order.fromJson({
+      ...entry.serverOrder!.toJson(),
+      'isOffline': true,
+      'offlineCode': payload.offlineCode,
+      'syncStatus': SyncStatus.synced.code,
+      'syncedAt': entry.syncedAt?.toUtc().toIso8601String(),
+      'syncMode': entry.syncMode,
+      'localFinal': payload.localFinal,
+      'promoChanged': entry.promoChanged,
+      'changeReason': entry.changeReason,
+    });
+  }
   final quote = payload.localQuote;
 
   final lines = quote == null
@@ -265,7 +323,7 @@ Order orderFromOffline(OfflineOrder entry) {
           .toList();
 
   return Order(
-    code: '',
+    code: entry.status == SyncStatus.synced ? entry.serverOrderCode : '',
     offlineCode: payload.offlineCode,
     retailerCode: payload.retailerCode,
     retailerName: payload.retailerName,

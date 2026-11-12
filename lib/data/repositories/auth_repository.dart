@@ -131,6 +131,9 @@ class AuthController extends StateNotifier<AuthState> {
     }
   }
 
+  Future<bool> requiresActivation(String identifier) =>
+      _ref.read(authApiProvider).requiresActivation(identifier.trim());
+
   Future<void> requestActivationOtp(String phone) =>
       _ref.read(authApiProvider).requestOtp(phone.trim());
 

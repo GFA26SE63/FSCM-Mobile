@@ -22,6 +22,7 @@ class ApiException implements Exception {
     this.code,
     this.errors = const <String, List<String>>{},
     this.details,
+    this.problemDetails,
   });
 
   const ApiException.network([String? message, String? details])
@@ -81,6 +82,7 @@ class ApiException implements Exception {
       title: title,
       code: code,
       errors: errors,
+      problemDetails: body is Map ? Map<String, dynamic>.from(body) : null,
     );
   }
 
@@ -91,6 +93,9 @@ class ApiException implements Exception {
   final String? code;
   final Map<String, List<String>> errors;
   final String? details;
+
+  /// Original structured ProblemDetails, including domain-specific extensions.
+  final Map<String, dynamic>? problemDetails;
 
   bool get isNetwork =>
       kind == ApiErrorKind.network || kind == ApiErrorKind.timeout;

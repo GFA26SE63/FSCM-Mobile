@@ -42,16 +42,14 @@ class SalesHomeScreen extends ConsumerWidget {
     final today = AppClock.today();
     final todayOrders =
         orders.where((o) => AppDates.isSameDay(o.createdAt, today)).toList();
-    final waiting = orders.where((o) =>
-        o.status == OrderStatus.allocating ||
-        o.status == OrderStatus.quoted ||
-        o.status == OrderStatus.paymentPending).length;
-    final rejected =
-        orders.where((o) => o.status.isRejectedOrCancelled).length;
-    final unsynced = queue
-        .where((e) =>
-            e.status == SyncStatus.pending || e.status == SyncStatus.syncing)
+    final waiting = orders
+        .where((o) =>
+            o.status == OrderStatus.allocating ||
+            o.status == OrderStatus.quoted ||
+            o.status == OrderStatus.paymentPending)
         .length;
+    final rejected = orders.where((o) => o.status.isRejectedOrCancelled).length;
+    final unsynced = queue.where((e) => e.status.isUnsent).length;
     final overdue = debts.where((d) => d.isOverdue).toList();
     final promoCount = catalog?.runningPromotions().length ?? 0;
 
@@ -66,7 +64,7 @@ class SalesHomeScreen extends ConsumerWidget {
       ),
       body: RefreshIndicator(
         onRefresh: () async {
-          await ref.read(syncServiceProvider.notifier).syncAll(manual: true);
+          await ref.read(syncServiceProvider.notifier).refreshSnapshot();
         },
         child: ListView(
           padding: const EdgeInsets.all(16),
@@ -110,7 +108,7 @@ class SalesHomeScreen extends ConsumerWidget {
                 const SizedBox(width: 10),
                 Expanded(
                     child: _Stat(
-                        label: 'Chờ duyệt',
+                        label: 'Chờ xử lý',
                         value: '$waiting',
                         tone: StatusTone.info)),
                 const SizedBox(width: 10),
@@ -222,7 +220,7 @@ class _SyncCard extends ConsumerWidget {
                     ? null
                     : () => ref
                         .read(syncServiceProvider.notifier)
-                        .syncAll(manual: true),
+                        .refreshSnapshot(),
                 child: Text(busy ? 'Đang đồng bộ...' : 'Đồng bộ'),
               ),
             ],

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:fscm_mobile/core/auth/user_role.dart';
 import 'package:fscm_mobile/core/network/api_client.dart';
 import 'package:fscm_mobile/core/network/api_transport.dart';
 import 'package:fscm_mobile/data/models/order_availability.dart';
@@ -29,8 +30,7 @@ void main() {
     expect((await api.availability('retailer-1', ['product-1']))['SKU001'], 40);
   });
 
-  testWidgets(
-      'shows each warehouse separately and allows selecting the remaining ten cartons',
+  testWidgets('shows each warehouse separately and allows selecting one carton',
       (tester) async {
     tester.view.physicalSize = const Size(360, 800);
     tester.view.devicePixelRatio = 1;
@@ -59,7 +59,7 @@ void main() {
     expect(find.text('Ngoài phạm vi phục vụ'), findsNothing);
     expect(find.text('Kho Củ Chi · WH-HCM-01'), findsNothing);
     await tester.tap(find.byIcon(Icons.add));
-    expect(selected, 10);
+    expect(selected, 1);
     expect(tester.takeException(), isNull);
   });
 
@@ -104,6 +104,7 @@ void main() {
                                     basePrice: 1000),
                                 unitPrice: 1000,
                                 availability: availability,
+                                viewerRole: UserRole.sales,
                                 promotions: const [
                                   Promotion(
                                       id: 'internal-promotion-id',
@@ -127,6 +128,37 @@ void main() {
     expect(find.textContaining('quá xa'), findsNothing);
     expect(tester.takeException(), isNull);
   });
+
+  for (final role in [UserRole.sales, UserRole.retailer]) {
+    testWidgets('SKU detail shows warehouse stock only for ${role.code}',
+        (tester) async {
+      await tester.pumpWidget(MaterialApp(
+          home: ProductDetailScreen(
+        product: const Product(
+            sku: 'SKU001',
+            name: 'Sữa tươi',
+            pack: 'Thùng',
+            category: 'Sữa',
+            basePrice: 1000),
+        unitPrice: 1000,
+        availability: ProductAvailability.fromJson(_AvailabilityTransport.item),
+        viewerRole: role,
+      )));
+      expect(find.text('Đủ điều kiện giao cho điểm bán: 40 thùng'),
+          findsOneWidget);
+      if (role == UserRole.sales) {
+        expect(find.text('Kho Thủ Đức · WH-TD'), findsOneWidget);
+        expect(find.text('10 thùng'), findsOneWidget);
+        expect(find.text('Kho Quận 7 · WH-Q7'), findsOneWidget);
+        expect(find.text('30 thùng'), findsOneWidget);
+      } else {
+        expect(find.byType(WarehouseStockList), findsNothing);
+        expect(find.textContaining('Kho Thủ Đức'), findsNothing);
+        expect(find.textContaining('WH-Q7'), findsNothing);
+      }
+      expect(tester.takeException(), isNull);
+    });
+  }
 
   testWidgets(
       'reports unavailable delivery when all serviceable warehouses have zero stock or none exist',
@@ -152,7 +184,11 @@ void main() {
     ]) {
       await tester.pumpWidget(MaterialApp(
           home: Scaffold(body: WarehouseStockList(warehouses: warehouses))));
-      expect(find.text('Không có hàng đủ điều kiện để giao.'), findsOneWidget);
+      expect(find.text('Không có hàng đủ điều kiện để giao.'),
+          warehouses.isEmpty ? findsNothing : findsOneWidget);
+      if (warehouses.isEmpty) {
+        expect(find.text('Chưa có dữ liệu chi tiết theo kho.'), findsOneWidget);
+      }
       expect(find.textContaining('quá xa'), findsNothing);
       expect(tester.takeException(), isNull);
     }

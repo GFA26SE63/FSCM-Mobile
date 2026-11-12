@@ -9,7 +9,8 @@ import 'package:fscm_mobile/core/network/api_exception.dart';
 import 'package:fscm_mobile/data/repositories/auth_repository.dart';
 
 class RetailerActivationScreen extends ConsumerStatefulWidget {
-  const RetailerActivationScreen({super.key});
+  const RetailerActivationScreen({super.key, this.identifier});
+  final String? identifier;
 
   @override
   ConsumerState<RetailerActivationScreen> createState() =>
@@ -29,6 +30,15 @@ class _RetailerActivationScreenState
   String? _setupToken;
   String? _error;
   Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.identifier != null) {
+      _phone.text = widget.identifier!;
+      WidgetsBinding.instance.addPostFrameCallback((_) => _requestOtp());
+    }
+  }
 
   @override
   void dispose() {
@@ -55,8 +65,8 @@ class _RetailerActivationScreenState
   }
 
   Future<void> _requestOtp() async {
-    if (_phone.text.replaceAll(' ', '').length < 9) {
-      setState(() => _error = 'Nhập số điện thoại hợp lệ.');
+    if (_phone.text.trim().isEmpty) {
+      setState(() => _error = 'Nhập Email hoặc số điện thoại hợp lệ.');
       return;
     }
     await _run(() async {

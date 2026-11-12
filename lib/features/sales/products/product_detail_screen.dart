@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:fscm_mobile/core/auth/user_role.dart';
 import 'package:fscm_mobile/core/utils/money.dart';
 import 'package:fscm_mobile/data/models/order_availability.dart';
 import 'package:fscm_mobile/data/models/product.dart';
 import 'package:fscm_mobile/data/models/promotion.dart';
 import 'package:fscm_mobile/shared/widgets/app_card.dart';
-import 'package:fscm_mobile/shared/widgets/warehouse_stock_list.dart';
+import 'package:fscm_mobile/shared/widgets/order_stock_summary.dart';
 
 class ProductDetailScreen extends StatelessWidget {
   const ProductDetailScreen(
@@ -12,10 +13,12 @@ class ProductDetailScreen extends StatelessWidget {
       required this.product,
       required this.unitPrice,
       this.availability,
+      this.viewerRole,
       this.promotions = const []});
   final Product product;
   final num? unitPrice;
   final ProductAvailability? availability;
+  final UserRole? viewerRole;
   final List<Promotion> promotions;
 
   @override
@@ -38,8 +41,10 @@ class ProductDetailScreen extends StatelessWidget {
               ])),
           if (availability != null) ...[
             AppCard(
-                child: WarehouseStockList(
-                    warehouses: availability!.warehouses, maxItems: null)),
+                child: OrderStockSummary(
+                    availability: availability!,
+                    viewerRole: viewerRole,
+                    maxWarehouses: null)),
             const Padding(
                 padding: EdgeInsets.only(bottom: 16),
                 child: Text(

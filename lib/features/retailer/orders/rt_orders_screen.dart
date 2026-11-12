@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -6,7 +8,7 @@ import 'package:fscm_mobile/core/utils/clock.dart';
 import 'package:fscm_mobile/core/utils/dates.dart';
 import 'package:fscm_mobile/core/utils/money.dart';
 import 'package:fscm_mobile/data/models/order.dart';
-import 'package:fscm_mobile/data/repositories/order_repository.dart';
+import 'package:fscm_mobile/data/repositories/retailer_orders_controller.dart';
 import 'package:fscm_mobile/features/common/notifications/notification_bell_button.dart';
 import 'package:fscm_mobile/shared/routes.dart';
 import 'package:fscm_mobile/shared/theme/app_colors.dart';
@@ -15,6 +17,7 @@ import 'package:fscm_mobile/shared/widgets/async_body.dart';
 import 'package:fscm_mobile/shared/widgets/chip_filter_bar.dart';
 import 'package:fscm_mobile/shared/widgets/empty_state.dart';
 import 'package:fscm_mobile/shared/widgets/order_widgets.dart';
+import 'package:fscm_mobile/shared/widgets/info_banner.dart';
 
 enum _Span { all, week, month }
 
@@ -29,6 +32,13 @@ class RtOrdersScreen extends ConsumerStatefulWidget {
 class _RtOrdersScreenState extends ConsumerState<RtOrdersScreen> {
   String _query = '';
   _Span _span = _Span.all;
+  Timer? _searchDebounce;
+
+  @override
+  void dispose() {
+    _searchDebounce?.cancel();
+    super.dispose();
+  }
 
   bool _inSpan(Order o) {
     switch (_span) {
@@ -41,16 +51,9 @@ class _RtOrdersScreenState extends ConsumerState<RtOrdersScreen> {
     }
   }
 
-  bool _matches(Order o) {
-    if (!_inSpan(o)) return false;
-    if (_query.isEmpty) return true;
-    final hay = '${o.code} ${o.itemsSummary}'.toLowerCase();
-    return hay.contains(_query);
-  }
-
   @override
   Widget build(BuildContext context) {
-    final value = ref.watch(ordersProvider);
+    final value = ref.watch(retailerOrdersProvider(_query));
     return DefaultTabController(
       length: 2,
       child: Scaffold(
@@ -72,11 +75,18 @@ class _RtOrdersScreenState extends ConsumerState<RtOrdersScreen> {
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
               child: TextField(
                 decoration: const InputDecoration(
-                  hintText: 'Tìm mã đơn hoặc sản phẩm',
+                  hintText: 'Tìm mã đơn',
                   prefixIcon: Icon(Icons.search),
                 ),
-                onChanged: (v) =>
-                    setState(() => _query = v.trim().toLowerCase()),
+                onChanged: (v) {
+                  _searchDebounce?.cancel();
+                  _searchDebounce =
+                      Timer(const Duration(milliseconds: 350), () {
+                    if (mounted) {
+                      setState(() => _query = v.trim().toLowerCase());
+                    }
+                  });
+                },
               ),
             ),
             ChipFilterBar<_Span>(
@@ -89,19 +99,29 @@ class _RtOrdersScreenState extends ConsumerState<RtOrdersScreen> {
               ],
             ),
             Expanded(
-              child: AsyncBody<OrderListResult>(
+              child: AsyncBody<RetailerOrdersState>(
                 value: value,
-                onRetry: () => ref.invalidate(ordersProvider),
+                onRetry: () =>
+                    ref.read(retailerOrdersProvider(_query).notifier).refresh(),
                 builder: (result) {
-                  final all = result.orders.where(_matches).toList();
+                  // Search is performed by the server. Only the time range and
+                  // status tabs filter the pages currently loaded on the device.
+                  final all = result.orders.where(_inSpan).toList();
                   final active = all.where((o) => o.status.isActive).toList();
                   final history = all.where((o) => !o.status.isActive).toList();
                   return TabBarView(
                     children: <Widget>[
                       _OrderList(
-                          orders: active, empty: 'Không có đơn đang xử lý.'),
+                          orders: active,
+                          empty:
+                              'Không có đơn đang xử lý trong dữ liệu đã tải.',
+                          search: _query,
+                          state: result),
                       _OrderList(
-                          orders: history, empty: 'Chưa có đơn trong lịch sử.'),
+                          orders: history,
+                          empty: 'Chưa có đơn lịch sử trong dữ liệu đã tải.',
+                          search: _query,
+                          state: result),
                     ],
                   );
                 },
@@ -115,25 +135,47 @@ class _RtOrdersScreenState extends ConsumerState<RtOrdersScreen> {
 }
 
 class _OrderList extends ConsumerWidget {
-  const _OrderList({required this.orders, required this.empty});
+  const _OrderList(
+      {required this.orders,
+      required this.empty,
+      required this.search,
+      required this.state});
 
   final List<Order> orders;
   final String empty;
+  final String search;
+  final RetailerOrdersState state;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return RefreshIndicator(
-      onRefresh: () async => ref.invalidate(ordersProvider),
-      child: orders.isEmpty
-          ? ListView(children: <Widget>[
-              const SizedBox(height: 80),
-              EmptyState(title: empty)
-            ])
-          : ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: orders.length,
-              itemBuilder: (context, i) => RtOrderTile(order: orders[i]),
+      onRefresh: () =>
+          ref.read(retailerOrdersProvider(search).notifier).refresh(),
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(16),
+        children: [
+          Text('Đã tải ${state.orders.length}/${state.totalCount} đơn'
+              '${search.isEmpty ? '' : ' khớp mã tìm kiếm'}. '
+              'Tab trạng thái và bộ lọc thời gian chỉ áp dụng trên các đơn đã tải.'),
+          if (state.hasMore && orders.isEmpty)
+            const InfoBanner(
+                text: 'Vẫn còn đơn chưa tải. Chọn "Tải thêm đơn" để tiếp tục '
+                    'kiểm tra kết quả trong tab và khoảng thời gian này.'),
+          if (orders.isEmpty) EmptyState(title: empty),
+          for (final order in orders) RtOrderTile(order: order),
+          if (state.moreError != null) InfoBanner(text: state.moreError!),
+          if (state.hasMore)
+            OutlinedButton(
+              onPressed: state.loadingMore
+                  ? null
+                  : () => ref
+                      .read(retailerOrdersProvider(search).notifier)
+                      .loadMore(),
+              child: Text(state.loadingMore ? 'Đang tải...' : 'Tải thêm đơn'),
             ),
+        ],
+      ),
     );
   }
 }

@@ -9,23 +9,33 @@ class AppDates {
   static final DateFormat _date = DateFormat('dd/MM/yyyy');
   static final DateFormat _dayMonth = DateFormat('dd/MM');
   static final DateFormat _time = DateFormat('HH:mm');
-  static final DateFormat _iso = DateFormat("yyyy-MM-dd'T'HH:mm:ss");
   static final DateFormat _isoDate = DateFormat('yyyy-MM-dd');
 
+  // Business timestamps always display in Vietnam, independently of the device zone.
+  static DateTime vietnamTime(DateTime d) =>
+      d.toUtc().add(const Duration(hours: 7));
+
+  // Calendar-only values (expiry/due dates) have no UTC marker and must not shift.
+  static DateTime _calendarDate(DateTime d) => d.isUtc ? vietnamTime(d) : d;
+
   /// `10:12 27/09`
-  static String timeDay(DateTime? d) => d == null ? '—' : _timeDay.format(d);
+  static String timeDay(DateTime? d) =>
+      d == null ? '—' : _timeDay.format(vietnamTime(d));
 
   /// `27/09/2026`
-  static String date(DateTime? d) => d == null ? '—' : _date.format(d);
+  static String date(DateTime? d) =>
+      d == null ? '—' : _date.format(_calendarDate(d));
 
   /// `27/09`
-  static String dayMonth(DateTime? d) => d == null ? '—' : _dayMonth.format(d);
+  static String dayMonth(DateTime? d) =>
+      d == null ? '—' : _dayMonth.format(_calendarDate(d));
 
   /// `10:12`
-  static String time(DateTime? d) => d == null ? '—' : _time.format(d);
+  static String time(DateTime? d) =>
+      d == null ? '—' : _time.format(vietnamTime(d));
 
-  /// Local ISO-8601 without offset, the format used by the API JSON.
-  static String iso(DateTime d) => _iso.format(d);
+  /// Preserve the UTC marker so a cached timestamp is not reinterpreted as device-local.
+  static String iso(DateTime d) => d.toIso8601String();
 
   static String isoDate(DateTime d) => _isoDate.format(d);
 
