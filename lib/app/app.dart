@@ -12,6 +12,20 @@ import 'package:fscm_mobile/data/repositories/auth_repository.dart';
 /// Global key to display toasts/snackbars across the entire app
 final GlobalKey<ScaffoldMessengerState> rootScaffoldMessengerKey =
     GlobalKey<ScaffoldMessengerState>();
+int _manualStatusVersion = 0;
+
+void showRootStatus(String message, {bool error = false, bool manual = false}) {
+  if (manual) _manualStatusVersion++;
+  final messenger = rootScaffoldMessengerKey.currentState;
+  messenger
+    ?..hideCurrentSnackBar()
+    ..showSnackBar(SnackBar(
+        content: Text(message),
+        backgroundColor:
+            error ? const Color(0xFFB42318) : const Color(0xFF1B1F1D),
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 4)));
+}
 
 /// Root widget: Vietnamese `MaterialApp.router` with the teal theme,
 /// automatic session/scope verification on resume (§3.3), and 403 banner (§2.3).
@@ -32,26 +46,16 @@ class _FscmAppState extends ConsumerState<FscmApp> with WidgetsBindingObserver {
 
     _statusFeedbackSub =
         ref.read(apiClientProvider).onStatusFeedback.listen((feedback) {
-      _showStatus(
-        feedback.isError ? feedback.error!.message : 'Thao tác thành công.',
-        error: feedback.isError,
-      );
+      final version = _manualStatusVersion;
+      Future<void>.delayed(const Duration(milliseconds: 180), () {
+        if (_manualStatusVersion == version)
+          showRootStatus(
+              feedback.isError
+                  ? feedback.error!.message
+                  : 'Thao tác thành công.',
+              error: feedback.isError);
+      });
     });
-  }
-
-  void _showStatus(String message, {bool error = false}) {
-    final messenger = rootScaffoldMessengerKey.currentState;
-    messenger
-      ?..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Text(message),
-          backgroundColor:
-              error ? const Color(0xFFB42318) : const Color(0xFF1B1F1D),
-          behavior: SnackBarBehavior.floating,
-          duration: const Duration(seconds: 4),
-        ),
-      );
   }
 
   @override

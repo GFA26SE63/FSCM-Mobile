@@ -1,19 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:fscm_mobile/app/app.dart';
 
 /// Shows a short toast-like message at the bottom.
 void showAppSnack(BuildContext context, String message, {bool error = false}) {
-  final messenger = ScaffoldMessenger.of(context);
-  messenger
-    ..hideCurrentSnackBar()
-    ..showSnackBar(
-      SnackBar(
-        content: Text(message),
-        behavior: SnackBarBehavior.floating,
-        backgroundColor:
-            error ? const Color(0xFFB42318) : const Color(0xFF1B1F1D),
-        duration: const Duration(seconds: 4),
-      ),
-    );
+  showRootStatus(message, error: error, manual: true);
 }
 
 /// Yes/no confirmation; returns false when dismissed.
