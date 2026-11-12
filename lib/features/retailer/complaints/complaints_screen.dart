@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 
 import 'package:fscm_mobile/core/network/api_exception.dart';
 import 'package:fscm_mobile/core/utils/dates.dart';
+import 'package:fscm_mobile/core/utils/money.dart';
 import 'package:fscm_mobile/data/models/complaint.dart';
 import 'package:fscm_mobile/data/repositories/loyalty_repository.dart';
 import 'package:fscm_mobile/shared/routes.dart';
@@ -26,9 +27,9 @@ class ComplaintsScreen extends ConsumerWidget {
         .pickImage(source: ImageSource.gallery, imageQuality: 85);
     if (picked == null) return;
     try {
-      await ref
-          .read(loyaltyRepositoryProvider)
-          .addComplaintEvidence(c.id, picked.path);
+      await ref.read(loyaltyRepositoryProvider).addComplaintEvidence(
+          c.id, picked.path,
+          bytes: await picked.readAsBytes(), fileName: picked.name);
       ref.invalidate(complaintEvidenceProvider(c.id));
       ref.invalidate(complaintsProvider);
       if (context.mounted) showAppSnack(context, 'Đã bổ sung bằng chứng.');
@@ -77,11 +78,11 @@ class ComplaintsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final value = ref.watch(complaintsProvider);
     return Scaffold(
-      appBar: AppBar(title: const Text('Khiếu nại')),
+      appBar: AppBar(title: const Text('Yêu cầu')),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => context.push(AppRoutes.rtComplaintNew),
         icon: const Icon(Icons.add),
-        label: const Text('Tạo khiếu nại'),
+        label: const Text('Tạo yêu cầu'),
       ),
       body: AsyncBody<List<Complaint>>(
         value: value,
@@ -90,7 +91,7 @@ class ComplaintsScreen extends ConsumerWidget {
           if (list.isEmpty) {
             return const EmptyState(
                 icon: Icons.report_gmailerrorred_outlined,
-                title: 'Chưa có khiếu nại nào.');
+                title: 'Chưa có yêu cầu nào.');
           }
           return ListView.builder(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 90),
@@ -111,9 +112,11 @@ class ComplaintsScreen extends ConsumerWidget {
                       ],
                     ),
                     Text('${c.orderCode} · ${c.sku} ${c.name}'),
-                    Text(c.issueType == 'Damaged' ? 'Hàng hỏng' : 'Thiếu hàng'),
+                    Text('${c.typeText} · Đề nghị: ${c.settlementText}'),
+                    if (c.approvedSettlementMethod.isNotEmpty)
+                      Text('Admin duyệt: ${c.approvedSettlementText}'),
                     Text(
-                      'Đặt ${c.expectedQty} · thực nhận ${c.actualQty} (thiếu ${c.shortfall})',
+                      'Yêu cầu ${c.requestedQuantity == 0 ? c.shortfall : c.requestedQuantity} thùng · duyệt ${c.approvedQuantity ?? '—'} · xử lý ${c.handledQuantity ?? '—'}',
                       style: const TextStyle(
                           color: AppColors.textMuted, fontSize: 13),
                     ),
@@ -138,10 +141,22 @@ class ComplaintsScreen extends ConsumerWidget {
                       Text('Phản hồi: ${c.response}',
                           style: const TextStyle(fontWeight: FontWeight.w600)),
                     ],
-                    if (c.isRefund)
+                    if (c.financialAdjustmentApplied &&
+                        c.debtOffsetAmount + c.refundAmount !=
+                            c.adjustmentAmount)
+                      const Text(
+                          'Lịch sử cũ đã điều chỉnh nghĩa vụ thanh toán. Xem công nợ và phiếu hoàn để đối soát chi tiết.'),
+                    if (c.financialAdjustmentApplied &&
+                        c.debtOffsetAmount + c.refundAmount ==
+                            c.adjustmentAmount)
                       Text(
-                          'Phần thiếu / hỏng được xử lý bằng tiền theo giá net ${c.finalUnitPrice.toStringAsFixed(0)}đ: ${c.adjustmentAmount.toStringAsFixed(0)}đ. Công nợ được điều chỉnh; nếu bạn đã thanh toán, nhân viên sẽ tạo hồ sơ hoàn tiền.',
+                          'Đã chốt: cấn trừ nợ ${Money.format(c.debtOffsetAmount)}; phiếu hoàn ${Money.format(c.refundAmount)}${c.refundId.isEmpty ? '' : ' (đã tạo, đang theo dõi chi trả)'}.',
                           style: const TextStyle(fontSize: 13)),
+                    for (final doc in c.documents)
+                      Padding(
+                          padding: const EdgeInsets.only(top: 4),
+                          child: Text(
+                              '${doc['kind'] == 'ReturnOrder' ? 'Phiếu trả hàng' : 'Phiếu thu hồi'} ${doc['code']} · ${doc['status'] == 'Pending' ? 'Chờ xử lý' : doc['status'] == 'Waived' ? 'Miễn xử lý' : 'Đã xử lý'}')),
                     if (c.acceptsEvidence || c.canCancel)
                       Wrap(spacing: 8, children: <Widget>[
                         if (c.acceptsEvidence)
@@ -154,7 +169,7 @@ class ComplaintsScreen extends ConsumerWidget {
                               onPressed: () => _cancel(context, ref, c),
                               icon: const Icon(Icons.cancel_outlined,
                                   color: AppColors.danger),
-                              label: const Text('Hủy khiếu nại',
+                              label: const Text('Hủy yêu cầu',
                                   style: TextStyle(color: AppColors.danger))),
                       ]),
                     Text(AppDates.timeDay(c.createdAt),

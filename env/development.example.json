@@ -6,6 +6,6 @@
   "GOOGLE_WINDOWS_REDIRECT_PORT": 8000,
   "API_BASE_URL": "https://localhost:7027/api/v1",
   "GRAPHQL_ENDPOINT": "https://localhost:7027/graphql",
-  "VIETMAP_MAPS_API_KEY": "your-vietmap-api-key",
-  "VIETMAP_SEARCH_API_KEY": "your-vietmap-search-api-key"
+  "VIETMAP_MAPS_API_KEY": "",
+  "VIETMAP_SEARCH_API_KEY": ""
 }
