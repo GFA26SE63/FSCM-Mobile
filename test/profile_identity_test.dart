@@ -9,6 +9,7 @@ Map<String, dynamic> profileJson(String role) => <String, dynamic>{
       'fullName': 'Nguyễn Văn An',
       'email': 'account@example.com',
       'role': role,
+      if (role == 'Retailer') 'retailerCode': '10004127',
       'scope': <String, dynamic>{
         'retailerIds': ['retailer'],
         'warehouseIds': ['w1', 'w2'],

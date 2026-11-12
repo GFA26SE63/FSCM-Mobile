@@ -71,6 +71,7 @@ class ProfileIdentityCard extends StatelessWidget {
                 .toList(),
             legacyName: user.retailerName,
             legacyCode: user.retailerCode,
+            useLegacyCode: true,
           ),
           if (user.retailerAddress?.trim().isNotEmpty == true) ...<Widget>[
             const SizedBox(height: 6),
@@ -113,12 +114,14 @@ class _ScopeSection extends StatelessWidget {
     required this.labels,
     this.legacyName,
     this.legacyCode,
+    this.useLegacyCode = false,
   });
 
   final String title;
   final List<ScopeLabel> labels;
   final String? legacyName;
   final String? legacyCode;
+  final bool useLegacyCode;
 
   String _description(String? name, String? code) {
     final parts = <String>[
@@ -141,7 +144,7 @@ class _ScopeSection extends StatelessWidget {
           for (final label in labels)
             Padding(
               padding: const EdgeInsets.only(bottom: 4),
-              child: Text(_description(label.name, label.code)),
+              child: Text(_description(label.name, useLegacyCode ? legacyCode : label.code)),
             ),
       ],
     );

@@ -63,8 +63,7 @@ class AppUser {
       warehouseName: warehouses.isNotEmpty
           ? warehouses.first.name
           : labels.containsKey('warehouses') ? null : json['warehouseName'] as String?,
-      retailerCode: retailer?.code ??
-          (labels.containsKey('retailers') ? null : json['retailerCode'] as String?),
+      retailerCode: json['retailerCode'] as String?,
       retailerName: retailer?.name ??
           (labels.containsKey('retailers') ? null : json['retailerName'] as String?),
       retailerAddress: json['retailerAddress'] as String?,

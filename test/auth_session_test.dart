@@ -7,7 +7,7 @@ void main() {
         'id': 'retailer-user',
         'fullName': 'An Phú',
         'role': 'Retailer',
-        'retailerCode': 'OLD-CODE',
+        'retailerCode': 'ACCOUNT-CODE',
         'scope': <String, dynamic>{
           'retailerIds': <String>['owned-retailer'],
         },
@@ -19,32 +19,37 @@ void main() {
         },
       };
 
-  test('Retailer profile uses the matching scoped retailer, not legacy code', () {
+  test('Retailer code keeps account mapping while name uses matching scope', () {
     final user = AppUser.fromJson(retailerUser());
-    expect(user.retailerCode, '10004127');
+    expect(user.retailerCode, 'ACCOUNT-CODE');
     expect(user.retailerName, 'An Phú');
-    expect(user.scopeText, 'Mã 10004127');
+    expect(user.scopeText, 'Mã ACCOUNT-CODE');
     final restored = AppUser.fromJson(user.toJson());
-    expect(restored.retailerCode, '10004127');
+    expect(restored.retailerCode, 'ACCOUNT-CODE');
     expect(restored.retailerIds, ['owned-retailer']);
   });
 
-  test('missing scoped retailer does not select an unrelated or stale code', () {
+  test('missing labels do not overwrite an explicit account retailer code', () {
     final json = retailerUser();
     json['scopeLabels'] = <String, dynamic>{'retailers': <dynamic>[]};
-    expect(AppUser.fromJson(json).retailerCode, isNull);
+    expect(AppUser.fromJson(json).retailerCode, 'ACCOUNT-CODE');
   });
 
   test('Sales assigned retailers are not treated as the Sales own retailer', () {
-    final json = retailerUser()..['role'] = 'Sales';
+    final json = retailerUser()..['role'] = 'Sales'..remove('retailerCode');
     expect(AppUser.fromJson(json).retailerCode, isNull);
   });
 
   test('legacy cached retailer code survives until server scope is loaded', () {
     final json = retailerUser()..remove('scopeLabels');
     final restored = AppUser.fromJson(AppUser.fromJson(json).toJson());
-    expect(AppUser.fromJson(json).retailerCode, 'OLD-CODE');
-    expect(restored.retailerCode, 'OLD-CODE');
+    expect(AppUser.fromJson(json).retailerCode, 'ACCOUNT-CODE');
+    expect(restored.retailerCode, 'ACCOUNT-CODE');
+  });
+
+  test('scope labels alone no longer supply a retailer code', () {
+    final json = retailerUser()..remove('retailerCode');
+    expect(AppUser.fromJson(json).retailerCode, isNull);
   });
 
   test('authentication session preserves access and refresh tokens', () {
