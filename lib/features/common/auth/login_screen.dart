@@ -155,16 +155,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         ),
                         onFieldSubmitted: (_) => _submit(),
                       ),
-                      const Padding(
-                        padding: EdgeInsets.only(top: 6, left: 4),
-                        child: Text(
-                          'Để trống nếu đăng nhập lần đầu.',
-                          style: TextStyle(
-                            color: AppColors.textMuted,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ),
                     ],
                     const SizedBox(height: 12),
                     if (authError != null)
