@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:collection';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -6,25 +7,114 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:fscm_mobile/app/router.dart';
 import 'package:fscm_mobile/app/theme.dart';
-import 'package:fscm_mobile/core/network/api_client.dart';
 import 'package:fscm_mobile/data/repositories/auth_repository.dart';
 
-/// Global key to display toasts/snackbars across the entire app
+/// Shared presentation-level feedback channel.
+///
+/// Screens own the decision to show feedback. This controller only coordinates
+/// the resulting root Snackbar so repeated taps and concurrent operations do
+/// not hide important errors or build up a queue of stale success messages.
 final GlobalKey<ScaffoldMessengerState> rootScaffoldMessengerKey =
     GlobalKey<ScaffoldMessengerState>();
-int _manualStatusVersion = 0;
+final RootFeedbackController rootFeedback = RootFeedbackController(
+  messengerKey: rootScaffoldMessengerKey,
+);
 
-void showRootStatus(String message, {bool error = false, bool manual = false}) {
-  if (manual) _manualStatusVersion++;
-  final messenger = rootScaffoldMessengerKey.currentState;
-  messenger
-    ?..hideCurrentSnackBar()
-    ..showSnackBar(SnackBar(
-        content: Text(message),
+void showRootStatus(String message, {bool error = false}) {
+  rootFeedback.show(message, error: error);
+}
+
+class _QueuedFeedback {
+  const _QueuedFeedback(this.message, this.error);
+
+  final String message;
+  final bool error;
+}
+
+class RootFeedbackController {
+  RootFeedbackController({
+    required GlobalKey<ScaffoldMessengerState> messengerKey,
+    DateTime Function()? clock,
+  })  : _messengerKey = messengerKey,
+        _clock = clock ?? DateTime.now;
+
+  static const Duration _cooldown = Duration(seconds: 3);
+  static const Duration _duration = Duration(seconds: 4);
+
+  final GlobalKey<ScaffoldMessengerState> _messengerKey;
+  final DateTime Function() _clock;
+  final Map<String, DateTime> _recent = <String, DateTime>{};
+  final Queue<_QueuedFeedback> _pendingErrors = Queue<_QueuedFeedback>();
+
+  int _activeId = 0;
+  String? _activeFingerprint;
+  bool _activeIsError = false;
+
+  /// Shows only one feedback channel at a time.
+  ///
+  /// Success messages are intentionally never queued: the updated screen is
+  /// already the acknowledgement, and a stale success must not cover the next
+  /// CTA. Errors preempt a success and are queued in arrival order so an
+  /// important failure is never silently discarded.
+  void show(String message, {bool error = false}) {
+    final normalized = message.trim();
+    if (normalized.isEmpty) return;
+
+    final now = _clock();
+    final fingerprint = '${error ? 'error' : 'info'}:$normalized';
+    _recent.removeWhere((_, seenAt) => now.difference(seenAt) >= _cooldown);
+    if (_recent.containsKey(fingerprint) ||
+        _activeFingerprint == fingerprint ||
+        _pendingErrors.any((item) =>
+            '${item.error ? 'error' : 'info'}:${item.message}' ==
+            fingerprint)) {
+      return;
+    }
+    _recent[fingerprint] = now;
+
+    if (error && _activeFingerprint != null && _activeIsError) {
+      _pendingErrors.add(_QueuedFeedback(normalized, true));
+      return;
+    }
+
+    if (!error && _activeFingerprint != null) {
+      return;
+    }
+
+    if (error && _activeFingerprint != null) {
+      _messengerKey.currentState?.hideCurrentSnackBar(
+        reason: SnackBarClosedReason.hide,
+      );
+    }
+    _present(_QueuedFeedback(normalized, error));
+  }
+
+  void _present(_QueuedFeedback feedback) {
+    final messenger = _messengerKey.currentState;
+    if (messenger == null) return;
+
+    final id = ++_activeId;
+    _activeFingerprint =
+        '${feedback.error ? 'error' : 'info'}:${feedback.message}';
+    _activeIsError = feedback.error;
+    final controller = messenger.showSnackBar(
+      SnackBar(
+        content: Text(feedback.message),
         backgroundColor:
-            error ? const Color(0xFFB42318) : const Color(0xFF1B1F1D),
+            feedback.error ? const Color(0xFFB42318) : const Color(0xFF1B1F1D),
         behavior: SnackBarBehavior.floating,
-        duration: const Duration(seconds: 4)));
+        duration: _duration,
+      ),
+    );
+    unawaited(controller.closed.then((_) {
+      if (id != _activeId) return;
+      _activeFingerprint = null;
+      _activeIsError = false;
+      if (_pendingErrors.isNotEmpty) {
+        _present(_pendingErrors.removeFirst());
+      }
+    }));
+  }
 }
 
 /// Root widget: Vietnamese `MaterialApp.router` with the teal theme,
@@ -37,32 +127,15 @@ class FscmApp extends ConsumerStatefulWidget {
 }
 
 class _FscmAppState extends ConsumerState<FscmApp> with WidgetsBindingObserver {
-  StreamSubscription<ApiStatusFeedback>? _statusFeedbackSub;
-
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-
-    _statusFeedbackSub =
-        ref.read(apiClientProvider).onStatusFeedback.listen((feedback) {
-      final version = _manualStatusVersion;
-      Future<void>.delayed(const Duration(milliseconds: 180), () {
-        if (_manualStatusVersion == version) {
-          showRootStatus(
-              feedback.isError
-                  ? feedback.error!.message
-                  : 'Thao tác thành công.',
-              error: feedback.isError);
-        }
-      });
-    });
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    unawaited(_statusFeedbackSub?.cancel());
     super.dispose();
   }
 
