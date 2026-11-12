@@ -1,4 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:fscm_mobile/core/auth/user_role.dart';
+import 'package:fscm_mobile/core/network/api_exception.dart';
 
 import 'package:fscm_mobile/data/models/complaint.dart';
 import 'package:fscm_mobile/data/models/loyalty.dart';
@@ -15,10 +17,29 @@ final loyaltyRepositoryProvider = Provider<LoyaltyRepository>((ref) {
 });
 
 final loyaltyAccountProvider =
-    FutureProvider.autoDispose<LoyaltyAccount>((ref) {
+    FutureProvider.autoDispose<LoyaltyAccount>((ref) async {
   ref.watch(dataVersionProvider);
-  ref.watch(currentUserProvider);
-  return ref.watch(loyaltyRepositoryProvider).account();
+  final user = ref.watch(currentUserProvider);
+  if (user == null || user.role != UserRole.retailer) {
+    throw const ApiException(
+        kind: ApiErrorKind.forbidden,
+        message: 'Cần đăng nhập Retailer để xem thẻ tích điểm của mình.');
+  }
+  var disposed = false;
+  ref.onDispose(() => disposed = true);
+  final result = await ref.watch(loyaltyRepositoryProvider).account();
+  if (disposed || ref.read(currentUserProvider)?.id != user.id) {
+    throw const ApiException(
+        kind: ApiErrorKind.unauthorized,
+        message: 'Phiên đăng nhập đã thay đổi.');
+  }
+  final code = user.retailerCode;
+  if (code != null && code.isNotEmpty && code != result.retailerCode) {
+    throw const ApiException(
+        kind: ApiErrorKind.forbidden,
+        message: 'Thẻ tích điểm không thuộc điểm bán của tài khoản này.');
+  }
+  return result;
 });
 
 final giftsProvider = FutureProvider.autoDispose<List<Gift>>((ref) {
@@ -37,10 +58,20 @@ final complaintsProvider = FutureProvider.autoDispose<List<Complaint>>((ref) {
   return ref.watch(loyaltyRepositoryProvider).complaints();
 });
 
+final complaintEvidenceProvider = FutureProvider.autoDispose
+    .family<List<ComplaintEvidence>, String>((ref, id) {
+  return ref.watch(loyaltyRepositoryProvider).complaintEvidence(id);
+});
 final receivedComplaintLabelsProvider =
     FutureProvider.autoDispose.family<List<String>, String>((ref, orderId) {
   if (orderId.isEmpty) return Future.value(const <String>[]);
   return ref.watch(loyaltyRepositoryProvider).receivedLabels(orderId);
+});
+
+final complaintTargetsProvider = FutureProvider.autoDispose
+    .family<List<ComplaintTarget>, String>((ref, orderId) {
+  ref.watch(currentUserProvider);
+  return ref.watch(loyaltyRepositoryProvider).targets(orderId);
 });
 
 /// Retailer side: points, gifts, redemptions and complaints.
@@ -53,6 +84,9 @@ class LoyaltyRepository {
   final LoyaltyApi _loyalty;
   final ComplaintsApi _complaints;
 
+  Future<List<ComplaintTarget>> targets(String orderId) =>
+      _complaints.targets(orderId);
+
   Future<LoyaltyAccount> account() => _loyalty.account();
 
   Future<List<Gift>> gifts() => _loyalty.gifts();
@@ -63,6 +97,17 @@ class LoyaltyRepository {
   Future<GiftRedemption> redeem(Gift gift) => _loyalty.redeem(gift);
 
   Future<List<Complaint>> complaints() => _complaints.list();
+
+  Future<void> addComplaintEvidence(String id, String path) =>
+      _complaints.addEvidence(id, path);
+
+  Future<List<ComplaintEvidence>> complaintEvidence(String id) =>
+      _complaints.evidence(id);
+
+  Future<void> removeComplaintEvidence(String id, String evidenceId) =>
+      _complaints.removeEvidence(id, evidenceId);
+
+  Future<void> cancelComplaint(String id) => _complaints.cancel(id);
 
   Future<Complaint> complain(NewComplaint request) =>
       _complaints.create(request);

@@ -36,11 +36,16 @@ class WarehouseAvailability {
 
 class ProductAvailability {
   const ProductAvailability(
-      {required this.sku, required this.quantity, required this.warehouses});
-  factory ProductAvailability.fromJson(Map<String, dynamic> json) =>
+      {required this.sku,
+      required this.quantity,
+      required this.warehouses,
+      this.checkedAt});
+  factory ProductAvailability.fromJson(Map<String, dynamic> json,
+          {DateTime? checkedAt}) =>
       ProductAvailability(
         sku: asStr(json['sku']),
         quantity: asInt(json['eligibleQuantity']),
+        checkedAt: checkedAt,
         warehouses: asMapList(json['warehouses'])
             .map(WarehouseAvailability.fromJson)
             .toList(),
@@ -48,6 +53,7 @@ class ProductAvailability {
   final String sku;
   final int quantity;
   final List<WarehouseAvailability> warehouses;
+  final DateTime? checkedAt;
 
   List<WarehouseAvailability> get serviceWarehouses {
     final result = warehouses.where((w) => w.withinServiceArea).toList();

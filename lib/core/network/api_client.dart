@@ -29,6 +29,17 @@ final apiClientProvider = Provider<ApiClient>((ref) {
   return client;
 });
 
+/// A user-visible result for a state-changing request.
+class ApiStatusFeedback {
+  const ApiStatusFeedback.success() : error = null;
+
+  const ApiStatusFeedback.failure(this.error);
+
+  final ApiException? error;
+
+  bool get isError => error != null;
+}
+
 /// Interceptor to stream network activity to the console (adb logcat / flutter logs / terminal).
 class _HttpLoggingInterceptor extends Interceptor {
   @override
@@ -136,6 +147,8 @@ class ApiClient {
       StreamController<void>.broadcast();
   final StreamController<ApiException> _forbidden =
       StreamController<ApiException>.broadcast();
+  final StreamController<ApiStatusFeedback> _statusFeedback =
+      StreamController<ApiStatusFeedback>.broadcast();
   final StreamController<Session> _sessionRefreshed =
       StreamController<Session>.broadcast();
 
@@ -162,6 +175,10 @@ class ApiClient {
 
   /// Fires when a call returns 403 so the UI can refresh scope and explain it.
   Stream<ApiException> get onForbidden => _forbidden.stream;
+
+  /// Emits request failures and state-changing request successes so all screens
+  /// can provide a consistent acknowledgement without duplicating snackbars.
+  Stream<ApiStatusFeedback> get onStatusFeedback => _statusFeedback.stream;
 
   /// Public programmatic token refresh (e.g. on app launch if session is expired).
   Future<bool> tryRefreshToken() => _tryRefreshToken();
@@ -328,16 +345,25 @@ class ApiClient {
         ? null
         : (Map<String, dynamic>.of(query)..removeWhere((_, v) => v == null));
 
-    final response = await _transport.send(
-      ApiRequest(
-        method: method,
-        path: path,
-        query: cleanQuery,
-        body: body,
-        headers: headers,
-      ),
-    );
-    if (response.isSuccess) return response.data;
+    ApiResponse response;
+    try {
+      response = await _transport.send(
+        ApiRequest(
+          method: method,
+          path: path,
+          query: cleanQuery,
+          body: body,
+          headers: headers,
+        ),
+      );
+    } on ApiException catch (error) {
+      _reportActionFailure(method, error);
+      rethrow;
+    }
+    if (response.isSuccess) {
+      _reportActionSuccess(method);
+      return response.data;
+    }
 
     final error = ApiException.fromProblem(response.statusCode, response.data);
 
@@ -358,23 +384,23 @@ class ApiClient {
           );
         }
 
+        var refreshed = false;
         try {
-          final refreshed = await _tryRefreshToken();
-          if (refreshed) {
-            return await _send(
-              method,
-              path,
-              body: body,
-              query: query,
-              extraHeaders: extraHeaders,
-              isRetry: true,
-            );
-          }
+          refreshed = await _tryRefreshToken();
         } on ApiException catch (e) {
           if (e.kind == ApiErrorKind.network ||
               e.kind == ApiErrorKind.timeout) {
             rethrow;
           }
+        }
+        // Retry errors belong to the retried request. Catching them as refresh
+        // failures emitted logout twice for 401 and turned a genuine 403 into 401.
+        if (refreshed) {
+          return _send(method, path,
+              body: body,
+              query: query,
+              extraHeaders: extraHeaders,
+              isRetry: true);
         }
       }
 
@@ -386,12 +412,28 @@ class ApiClient {
     if (error.kind == ApiErrorKind.forbidden && !_forbidden.isClosed) {
       _forbidden.add(error);
     }
+    _reportActionFailure(method, error);
     throw error;
+  }
+
+  bool _isStateChangingMethod(String method) => method != 'GET';
+
+  void _reportActionSuccess(String method) {
+    if (_isStateChangingMethod(method) && !_statusFeedback.isClosed) {
+      _statusFeedback.add(const ApiStatusFeedback.success());
+    }
+  }
+
+  void _reportActionFailure(String method, ApiException error) {
+    if (!_statusFeedback.isClosed) {
+      _statusFeedback.add(ApiStatusFeedback.failure(error));
+    }
   }
 
   void dispose() {
     unawaited(_unauthorized.close());
     unawaited(_forbidden.close());
+    unawaited(_statusFeedback.close());
     unawaited(_sessionRefreshed.close());
   }
 }

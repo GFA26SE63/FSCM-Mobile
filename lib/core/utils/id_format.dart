@@ -123,7 +123,8 @@ class IdFormat {
   static final RegExp orderPattern = RegExp(r'^DH-\d{6}$');
   static final RegExp offlineOrderPattern =
       RegExp(r'^OFF-[A-Z0-9]{2,8}-\d{4}$');
-  static final RegExp pickingListPattern = RegExp(r'^DH-\d{6}[A-Z]$');
+  static final RegExp pickingListPattern =
+      RegExp(r'^(?:DH-\d{6}[A-Z]|PK-DH-\d{6}-WH-[A-Z0-9-]+)$');
   static final RegExp documentPattern =
       RegExp(r'^(PN|PH|DC|KN|KMB)-\d{6}-\d{2}$');
   static final RegExp promotionPattern = RegExp(r'^KM-\d{3}$');
@@ -159,6 +160,9 @@ class IdFormat {
   /// Order code a picking list belongs to (`DH-001024B` -> `DH-001024`).
   static String? orderOfPickingList(String pickingListCode) {
     if (!isPickingList(pickingListCode)) return null;
+    if (pickingListCode.startsWith('PK-')) {
+      return pickingListCode.substring(3, 12);
+    }
     return pickingListCode.substring(0, pickingListCode.length - 1);
   }
 

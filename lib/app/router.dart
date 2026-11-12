@@ -133,7 +133,8 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: AppRoutes.login, builder: (c, s) => const LoginScreen()),
       GoRoute(
           path: AppRoutes.retailerActivation,
-          builder: (c, s) => const RetailerActivationScreen()),
+          builder: (c, s) =>
+              RetailerActivationScreen(identifier: s.extra as String?)),
       GoRoute(
           path: AppRoutes.notifications,
           builder: (c, s) => const NotificationsScreen()),
@@ -362,7 +363,10 @@ List<RouteBase> _retailerRoutes() => <RouteBase>[
           builder: (c, s) => const PaymentsScreen()),
       GoRoute(
           path: AppRoutes.rtLoyalty, builder: (c, s) => const LoyaltyScreen()),
-      GoRoute(path: AppRoutes.rtGifts, builder: (c, s) => const GiftsScreen()),
+      GoRoute(
+          path: AppRoutes.rtGifts,
+          builder: (c, s) =>
+              GiftsScreen(redemptionId: s.uri.queryParameters['redemptionId'])),
       GoRoute(
           path: AppRoutes.rtComplaints,
           builder: (c, s) => const ComplaintsScreen()),

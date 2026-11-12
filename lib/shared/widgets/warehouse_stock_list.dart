@@ -19,7 +19,9 @@ class WarehouseStockList extends StatelessWidget {
       children: [
         const Text('Tồn đủ điều kiện theo kho',
             style: TextStyle(fontSize: 12, color: AppColors.textMuted)),
-        if (visible.every((w) => w.quantity <= 0))
+        if (warehouses.isEmpty)
+          const Text('Chưa có dữ liệu chi tiết theo kho.')
+        else if (visible.every((w) => w.quantity <= 0))
           const Padding(
               padding: EdgeInsets.only(top: 6),
               child: Text('Không có hàng đủ điều kiện để giao.')),

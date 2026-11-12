@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:fscm_mobile/core/network/api_exception.dart';
-import 'package:fscm_mobile/core/network/network_monitor.dart';
 import 'package:fscm_mobile/core/utils/dates.dart';
 import 'package:fscm_mobile/core/utils/money.dart';
 import 'package:fscm_mobile/core/utils/status_tone.dart';
@@ -16,13 +15,14 @@ import 'package:fscm_mobile/features/sales/orders/widgets/price_difference_card.
 import 'package:fscm_mobile/shared/theme/app_colors.dart';
 import 'package:fscm_mobile/shared/widgets/app_card.dart';
 import 'package:fscm_mobile/shared/widgets/async_body.dart';
+import 'package:fscm_mobile/shared/widgets/allocation_retry_button.dart';
 import 'package:fscm_mobile/shared/widgets/dialogs.dart';
 import 'package:fscm_mobile/shared/widgets/info_banner.dart';
 import 'package:fscm_mobile/shared/widgets/kv_row.dart';
 import 'package:fscm_mobile/shared/widgets/order_widgets.dart';
 import 'package:fscm_mobile/shared/widgets/section_title.dart';
 import 'package:fscm_mobile/shared/widgets/timeline_list.dart';
-import 'package:fscm_mobile/sync/sync_service.dart';
+import 'package:fscm_mobile/features/sales/orders/widgets/offline_draft_actions.dart';
 
 class SalesOrderDetailScreen extends ConsumerWidget {
   const SalesOrderDetailScreen({
@@ -90,10 +90,6 @@ class _Detail extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final online = ref.watch(networkMonitorProvider).online;
-    final sync = ref.watch(syncServiceProvider);
-
-    final queued = entry?.status == SyncStatus.pending;
     final localQueued = order.isLocalQueued;
     final hasStoredQuote = entry?.payload.localQuote != null;
 
@@ -125,6 +121,12 @@ class _Detail extends ConsumerWidget {
           style: const TextStyle(color: AppColors.textMuted),
         ),
         const SizedBox(height: 10),
+        AllocationRetryButton(order: order),
+        if (order.syncStatus == SyncStatus.synced && entry?.serverOrder != null)
+          const InfoBanner(
+            text: 'Đang xem kết quả đã lưu lúc gửi. '
+                'Tải lại khi có mạng để cập nhật tiến trình đơn.',
+          ),
         if (order.status.isRejectedOrCancelled)
           InfoBanner(
             tone: StatusTone.danger,
@@ -134,8 +136,7 @@ class _Detail extends ConsumerWidget {
                 ? 'Hệ thống từ chối đơn hàng.'
                 : order.rejectReason,
           ),
-        if (order.syncStatus == SyncStatus.pending ||
-            order.syncStatus == SyncStatus.syncing)
+        if (order.syncStatus?.isUnsent == true)
           const InfoBanner(
             icon: Icons.save_alt,
             text: 'Đơn đang lưu trên máy. Giá và khuyến mãi là bản '
@@ -155,6 +156,13 @@ class _Detail extends ConsumerWidget {
             serverAmount: order.finalAmount,
             title: 'Đối chiếu với bản offline',
             serverLabel: 'Giá hệ thống hiện tại',
+          ),
+        if (entry?.status == SyncStatus.synced && entry?.finalAmount != null)
+          PriceDifferenceCard(
+            localAmount: entry!.payload.localFinal,
+            serverAmount: entry!.finalAmount!,
+            title: 'Đối chiếu tại thời điểm gửi',
+            serverLabel: 'Kết quả server lúc gửi',
           ),
         if (!localQueued && order.changeReason.isNotEmpty)
           InfoBanner(text: order.changeReason),
@@ -194,6 +202,7 @@ class _Detail extends ConsumerWidget {
                 'Thanh toán',
                 order.payment.labelWithTerm(order.creditTerm),
               ),
+              if (entry != null) KvRow('Trạng thái gửi', entry!.status.label),
               KvRow(
                 'Người tạo',
                 order.createdByName.isEmpty ? '—' : order.createdByName,
@@ -215,6 +224,10 @@ class _Detail extends ConsumerWidget {
                 KvRow('Mã tạm trên máy', order.offlineCode)
               else if (entry != null)
                 KvRow('Mã tạm trên máy', entry!.localCode),
+              if (entry?.serverOrderCode.isNotEmpty == true)
+                KvRow('Mã đơn server', entry!.serverOrderCode)
+              else if (order.code.isNotEmpty)
+                KvRow('Mã đơn server', order.code),
               if (order.syncedAt != null)
                 KvRow(
                   'Đồng bộ lúc',
@@ -239,28 +252,11 @@ class _Detail extends ConsumerWidget {
           ),
         ],
         const SizedBox(height: 8),
-        if (queued && online)
-          FilledButton.icon(
-            onPressed: sync.busy
-                ? null
-                : () {
-                    ref
-                        .read(syncServiceProvider.notifier)
-                        .syncAll(manual: true);
-                  },
-            icon: const Icon(Icons.sync),
-            label: Text(
-              sync.busy ? 'Đang đồng bộ...' : 'Đồng bộ ngay',
-            ),
+        if (entry != null)
+          OfflineDraftActions(
+            entry: entry!,
+            onDeleted: () => context.pop(),
           ),
-        if (queued) ...[
-          const SizedBox(height: 8),
-          OutlinedButton.icon(
-            onPressed: sync.busy ? null : () => _removeFromQueue(context, ref),
-            icon: const Icon(Icons.delete_outline),
-            label: const Text('Xóa khỏi hàng đợi đồng bộ'),
-          ),
-        ],
         if (order.syncStatus == null && order.status == OrderStatus.allocating)
           OutlinedButton.icon(
             onPressed: () => _cancel(context, ref),
@@ -269,51 +265,6 @@ class _Detail extends ConsumerWidget {
           ),
       ],
     );
-  }
-
-  Future<void> _removeFromQueue(
-    BuildContext context,
-    WidgetRef ref,
-  ) async {
-    final currentEntry = entry;
-    if (currentEntry == null) {
-      return;
-    }
-
-    final repository = ref.read(orderRepositoryProvider);
-
-    final confirmed = await confirmDialog(
-      context,
-      title: 'Xóa đơn khỏi máy?',
-      message: 'Đơn ${currentEntry.localCode} chưa gửi lên hệ thống '
-          'sẽ bị xóa và không thể khôi phục.',
-      confirmLabel: 'Xóa',
-    );
-
-    if (!confirmed || !context.mounted) {
-      return;
-    }
-
-    try {
-      await repository.removeFromQueue(
-        currentEntry.clientRequestId,
-      );
-
-      if (!context.mounted) {
-        return;
-      }
-
-      ref.read(dataVersionProvider.notifier).state++;
-      context.pop();
-    } catch (error) {
-      if (context.mounted) {
-        showAppSnack(
-          context,
-          ApiException.describe(error),
-          error: true,
-        );
-      }
-    }
   }
 
   Future<void> _cancel(

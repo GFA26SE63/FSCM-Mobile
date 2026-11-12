@@ -29,13 +29,25 @@ Future<bool> confirmDialog(
     builder: (ctx) => AlertDialog(
       title: Text(title),
       content: Text(message),
+      actionsPadding: const EdgeInsets.fromLTRB(24, 0, 24, 20),
       actions: <Widget>[
-        TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: Text(cancelLabel)),
-        FilledButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: Text(confirmLabel)),
+        SizedBox(
+          width: double.infinity,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              FilledButton(
+                onPressed: () => Navigator.of(ctx).pop(true),
+                child: Text(confirmLabel),
+              ),
+              const SizedBox(height: 10),
+              OutlinedButton(
+                onPressed: () => Navigator.of(ctx).pop(false),
+                child: Text(cancelLabel),
+              ),
+            ],
+          ),
+        ),
       ],
     ),
   );

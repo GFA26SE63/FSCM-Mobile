@@ -48,14 +48,16 @@ void main() {
         () {
       expect(OrderLimits.maxQty(10), 10);
       expect(OrderLimits.maxQty(120), 120);
-      expect(OrderLimits.maxQty(129), 120);
+      expect(OrderLimits.maxQty(129), 129);
       expect(OrderLimits.maxQty(130), 130);
-      expect(OrderLimits.maxQty(35), 30);
+      expect(OrderLimits.maxQty(35), 35);
+      expect(OrderLimits.maxQty(35, step: 10), 30);
+      expect(OrderLimits.maxQty(6, step: 2), 6);
     });
 
     test('never negative', () {
       expect(OrderLimits.maxQty(20), 20);
-      expect(OrderLimits.maxQty(5), 0);
+      expect(OrderLimits.maxQty(5), 5);
       expect(OrderLimits.maxQty(0), 0);
     });
   });
