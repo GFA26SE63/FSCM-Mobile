@@ -40,7 +40,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       _error = null;
     });
     final identifier = _identifier.text.trim();
-    bool ok;
+    var ok = true;
     try {
       if (!_passwordStep) {
         final firstLogin = await ref
@@ -59,16 +59,20 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           .login(identifier, _password.text);
     } on ApiException catch (error) {
       if (error.code == 'retailer_activation_required' && mounted) {
-        await context.push(AppRoutes.retailerActivation);
+        await context.push(AppRoutes.retailerActivation, extra: identifier);
         return;
       }
-      rethrow;
+      if (mounted) setState(() => _error = error.message);
+    } finally {
+      if (mounted) {
+        setState(() {
+          _busy = false;
+          if (_passwordStep && _error == null && !ok) {
+            _error = ref.read(authControllerProvider).error;
+          }
+        });
+      }
     }
-    if (!mounted) return;
-    setState(() {
-      _busy = false;
-      if (!ok) _error = ref.read(authControllerProvider).error;
-    });
   }
 
   Future<void> _submitGoogle() async {

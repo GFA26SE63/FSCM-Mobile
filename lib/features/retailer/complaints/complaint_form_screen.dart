@@ -46,7 +46,8 @@ class _ComplaintFormScreenState extends ConsumerState<ComplaintFormScreen> {
   Future<void> _pickImages() async {
     final room = _maxImages - _images.length;
     if (room <= 0) {
-      showAppSnack(context, 'Tối đa $_maxImages ảnh. Hãy xóa bớt ảnh trước khi chọn thêm.',
+      showAppSnack(context,
+          'Tối đa $_maxImages ảnh. Hãy xóa bớt ảnh trước khi chọn thêm.',
           error: true);
       return;
     }
@@ -60,6 +61,7 @@ class _ComplaintFormScreenState extends ConsumerState<ComplaintFormScreen> {
     if (!mounted) return;
     setState(() => _images.addAll(added));
   }
+
   Future<void> _submit(Order order, ComplaintTarget target) async {
     final actual = int.tryParse(_actual.text.trim());
     if (actual == null || actual < 0 || actual >= target.expectedQuantity) {
@@ -218,20 +220,25 @@ class _ComplaintFormScreenState extends ConsumerState<ComplaintFormScreen> {
                               if (_images.isNotEmpty)
                                 Padding(
                                   padding: const EdgeInsets.only(top: 8),
-                                  child: Wrap(spacing: 8, runSpacing: 8, children: <Widget>[
-                                    for (var i = 0; i < _images.length; i++)
-                                      _ImagePreview(
-                                        bytes: _images[i].bytes,
-                                        onRemove: _busy
-                                            ? null
-                                            : () => setState(() => _images.removeAt(i)),
-                                      ),
-                                  ]),
+                                  child: Wrap(
+                                      spacing: 8,
+                                      runSpacing: 8,
+                                      children: <Widget>[
+                                        for (var i = 0; i < _images.length; i++)
+                                          _ImagePreview(
+                                            bytes: _images[i].bytes,
+                                            onRemove: _busy
+                                                ? null
+                                                : () => setState(
+                                                    () => _images.removeAt(i)),
+                                          ),
+                                      ]),
                                 ),
                               OutlinedButton.icon(
-                                  onPressed: _busy || _images.length >= _maxImages
-                                      ? null
-                                      : _pickImages,
+                                  onPressed:
+                                      _busy || _images.length >= _maxImages
+                                          ? null
+                                          : _pickImages,
                                   icon: const Icon(Icons.add_a_photo_outlined),
                                   label: Text(_images.isEmpty
                                       ? 'Thêm ảnh bằng chứng (tối đa $_maxImages)'
@@ -274,8 +281,8 @@ class _ImagePreview extends StatelessWidget {
           child: InkWell(
             onTap: onRemove,
             child: Container(
-              decoration:
-                  const BoxDecoration(color: Colors.black54, shape: BoxShape.circle),
+              decoration: const BoxDecoration(
+                  color: Colors.black54, shape: BoxShape.circle),
               padding: const EdgeInsets.all(3),
               child: const Icon(Icons.close, size: 16, color: Colors.white),
             ),

@@ -43,13 +43,12 @@ class _RtReceiveScreenState extends ConsumerState<RtReceiveScreen> {
       _error = '';
     });
     try {
-      final result = await ref
-          .read(orderRepositoryProvider)
-          .confirmShipmentReceipt(
-            order.id,
-            shipment,
-            labelCodes: _scanned.toList(growable: false),
-          );
+      final result =
+          await ref.read(orderRepositoryProvider).confirmShipmentReceipt(
+                order.id,
+                shipment,
+                labelCodes: _scanned.toList(growable: false),
+              );
       ref.invalidate(orderDetailProvider(widget.code));
       ref.invalidate(orderDetailProvider(order.id));
       ref.invalidate(deliveryShipmentsProvider(order.id));
@@ -178,7 +177,8 @@ class _RtReceiveScreenState extends ConsumerState<RtReceiveScreen> {
         SectionTitle('2. Quét tem của ${selected.warehouseCode}'),
         const InfoBanner(
           icon: Icons.qr_code_scanner,
-          text: 'Chỉ quét tem thuộc phần giao đã chọn. Đổi sang kho khác sẽ xóa danh sách tem đang quét.',
+          text:
+              'Chỉ quét tem thuộc phần giao đã chọn. Đổi sang kho khác sẽ xóa danh sách tem đang quét.',
         ),
         QrScanView(
           hint: 'Quét tem trên kiện hàng',
@@ -200,8 +200,7 @@ class _RtReceiveScreenState extends ConsumerState<RtReceiveScreen> {
               children: <Widget>[
                 const Icon(Icons.check_circle, color: AppColors.primary),
                 const SizedBox(width: 10),
-                Text(code,
-                    style: const TextStyle(fontWeight: FontWeight.w700)),
+                Text(code, style: const TextStyle(fontWeight: FontWeight.w700)),
               ],
             ),
           ),
@@ -255,6 +254,7 @@ class _RtReceiveScreenState extends ConsumerState<RtReceiveScreen> {
     );
   }
 
-  String _quantity(double value) =>
-      value == value.roundToDouble() ? value.toInt().toString() : value.toString();
+  String _quantity(double value) => value == value.roundToDouble()
+      ? value.toInt().toString()
+      : value.toString();
 }

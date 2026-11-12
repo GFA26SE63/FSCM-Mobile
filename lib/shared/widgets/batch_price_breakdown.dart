@@ -25,9 +25,8 @@ class BatchPriceBreakdown extends StatelessWidget {
         for (final batch in batches)
           Padding(
             padding: const EdgeInsets.only(top: 8),
-            child: batch.hasPriceSnapshot
-                ? _BatchCard(batch)
-                : _PlainBatch(batch),
+            child:
+                batch.hasPriceSnapshot ? _BatchCard(batch) : _PlainBatch(batch),
           ),
         if (priced.isEmpty)
           const Padding(
@@ -135,7 +134,8 @@ class _BatchCard extends StatelessWidget {
         children: <Widget>[
           Expanded(
             child: Text(label,
-                style: const TextStyle(fontSize: 13, color: AppColors.textMuted)),
+                style:
+                    const TextStyle(fontSize: 13, color: AppColors.textMuted)),
           ),
           Text(value,
               style: TextStyle(fontSize: 13, fontWeight: weight, color: color)),
