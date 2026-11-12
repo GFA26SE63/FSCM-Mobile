@@ -35,8 +35,12 @@ class VietMapApi {
   bool get isSearchConfigured => _searchApiKey.isNotEmpty;
 
   /// Raster base map, authorised by the maps key.
+  ///
+  /// `tm` is VietMap's street style (roads, street names, places); `st` is
+  /// unlabelled satellite imagery. `{r}` becomes `@2x` on high-density screens
+  /// (512 px tiles) so labels stay sharp.
   String get tileUrlTemplate =>
-      'https://maps.vietmap.vn/maps/tiles/st/{z}/{x}/{y}.png'
+      'https://maps.vietmap.vn/maps/tiles/tm/{z}/{x}/{y}{r}.png'
       '?apikey=${Uri.encodeQueryComponent(_mapsApiKey)}';
 
   /// Search-key request; every caller of this is a search-family API.

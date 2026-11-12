@@ -311,6 +311,12 @@ void main() {
       }
       expect(api.tileUrlTemplate, contains('apikey=test-maps-key'));
       expect(api.tileUrlTemplate, isNot(contains('test-client-key')));
+      // Street style with retina placeholder, never the unlabelled satellite style.
+      expect(
+          api.tileUrlTemplate,
+          startsWith(
+              'https://maps.vietmap.vn/maps/tiles/tm/{z}/{x}/{y}{r}.png?'));
+      expect(api.tileUrlTemplate, isNot(contains('/tiles/st/')));
       expect(api.isMapConfigured, isTrue);
       expect(api.isSearchConfigured, isTrue);
     });
