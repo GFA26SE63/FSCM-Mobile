@@ -4,6 +4,9 @@ import 'package:go_router/go_router.dart';
 
 import 'package:fscm_mobile/data/repositories/auth_repository.dart';
 import 'package:fscm_mobile/data/repositories/order_repository.dart';
+import 'package:fscm_mobile/data/repositories/retailer_order_repository.dart';
+import 'package:fscm_mobile/core/auth/user_role.dart';
+import 'package:fscm_mobile/core/utils/money.dart';
 import 'package:fscm_mobile/shared/routes.dart';
 import 'package:fscm_mobile/shared/theme/app_colors.dart';
 import 'package:fscm_mobile/shared/widgets/app_card.dart';
@@ -36,6 +39,7 @@ class ProfileScreen extends ConsumerWidget {
               padding: const EdgeInsets.all(16),
               children: <Widget>[
                 ProfileIdentityCard(user: user),
+                if (user.role == UserRole.retailer) _CreditProfileCard(),
                 for (final a in actions)
                   AppCard(
                     onTap: () => context.push(a.route),
@@ -101,5 +105,29 @@ class ProfileScreen extends ConsumerWidget {
         } catch (_) {}
       }
     }
+  }
+}
+
+class _CreditProfileCard extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final credit = ref.watch(ownRetailerCreditProvider);
+    return AppCard(
+      child: credit.when(
+        loading: () => const ListTile(
+            title: Text('Công nợ'),
+            subtitle: Text('Đang tải hạn mức và kỳ hạn…')),
+        error: (_, __) => const ListTile(
+            title: Text('Công nợ'),
+            subtitle: Text('Chưa tải được hồ sơ công nợ.')),
+        data: (retailer) => ListTile(
+          leading: const Icon(Icons.account_balance_wallet_outlined,
+              color: AppColors.primary),
+          title: const Text('Hạn mức & kỳ hạn công nợ'),
+          subtitle: Text(
+              'Hạn mức: ${Money.format(retailer.creditLimit)}\nKỳ hạn: ${retailer.creditTerm} ngày, tính từ ngày nhận đủ hàng.'),
+        ),
+      ),
+    );
   }
 }

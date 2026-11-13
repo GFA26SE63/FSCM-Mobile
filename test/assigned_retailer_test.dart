@@ -23,6 +23,7 @@ void main() {
     expect(retailer.id, 'retailer-1');
     expect(retailer.status, 'Active');
     expect(retailer.creditTerm, 14);
+    expect(retailer.creditLimit, 1500000);
 
     final restored = Retailer.fromJson(
       jsonDecode(jsonEncode(retailer.toJson())) as Map<String, dynamic>,
@@ -30,6 +31,7 @@ void main() {
 
     expect(restored.status, 'Active');
     expect(restored.creditTerm, 14);
+    expect(restored.creditLimit, 1500000);
   });
 
   test('missing retailer status does not default to Active', () {

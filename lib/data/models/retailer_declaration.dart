@@ -109,7 +109,6 @@ class RetailerDeclaration {
     required this.storeSizeCategory,
     required this.purchasingCapacity,
     required this.purchaseFrequencyPerMonth,
-    required this.requestedCreditTermDays,
     required this.creditTermDays,
     required this.potentialClass,
     required this.assessmentNote,
@@ -143,7 +142,6 @@ class RetailerDeclaration {
         storeSizeCategory: asStr(j['storeSizeCategory']),
         purchasingCapacity: asDouble(j['purchasingCapacity']),
         purchaseFrequencyPerMonth: asInt(j['purchaseFrequencyPerMonth']),
-        requestedCreditTermDays: asInt(j['requestedCreditTermDays']),
         creditTermDays: asInt(j['creditTermDays']),
         potentialClass: asStr(j['potentialClass']),
         assessmentNote: asStr(j['assessmentNote']),
@@ -176,7 +174,6 @@ class RetailerDeclaration {
   final String storeSizeCategory;
   final double purchasingCapacity;
   final int purchaseFrequencyPerMonth;
-  final int requestedCreditTermDays;
 
   /// Set by Admin on approval.
   final int creditTermDays;
@@ -219,7 +216,6 @@ class RetailerDeclarationInput {
     required this.storeSizeSquareMeters,
     required this.purchasingCapacity,
     required this.purchaseFrequencyPerMonth,
-    required this.requestedCreditTermDays,
     required this.assessmentNote,
     required this.mlorDeclarations,
     required this.submitForReview,
@@ -238,7 +234,6 @@ class RetailerDeclarationInput {
   final double storeSizeSquareMeters;
   final double purchasingCapacity;
   final int purchaseFrequencyPerMonth;
-  final int requestedCreditTermDays;
   final String assessmentNote;
   final List<MlorDeclaration> mlorDeclarations;
   final bool submitForReview;
@@ -266,7 +261,6 @@ class RetailerDeclarationInput {
       'storeSizeSquareMeters': storeSizeSquareMeters,
       'purchasingCapacity': purchasingCapacity,
       'purchaseFrequencyPerMonth': purchaseFrequencyPerMonth,
-      'requestedCreditTermDays': requestedCreditTermDays,
       'assessmentNote': assessmentNote.isEmpty ? null : assessmentNote,
       'latitude': latitude,
       'longitude': longitude,
