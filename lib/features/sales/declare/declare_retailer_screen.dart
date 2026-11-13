@@ -127,8 +127,6 @@ class _DeclareRetailerScreenState extends ConsumerState<DeclareRetailerScreen> {
         storeSizeSquareMeters: _decimal(_area.text) ?? 0,
         purchasingCapacity: _decimal(_capacity.text) ?? 0,
         purchaseFrequencyPerMonth: int.tryParse(_frequency.text.trim()) ?? 0,
-        // Credit term is decided by Admin at review time; Sales no longer proposes it.
-        requestedCreditTermDays: 0,
         assessmentNote: _note.text.trim(),
         mlorDeclarations: _mlors,
         submitForReview: submit,
