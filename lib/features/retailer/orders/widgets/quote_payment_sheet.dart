@@ -63,7 +63,7 @@ class _QuotePaymentSheetState extends ConsumerState<QuotePaymentSheet> {
               subtitle: Text(credit.isLoading
                   ? 'Đang kiểm tra kỳ hạn được duyệt...'
                   : creditAllowed
-                      ? 'Kỳ hạn được duyệt: ${retailer.creditTerm} ngày.'
+                      ? 'Kỳ hạn được duyệt: ${retailer.creditTerm} ngày · Hạn mức: ${Money.format(retailer.creditLimit)}'
                       : credit.hasError
                           ? 'Chưa kiểm tra được công nợ. Bạn vẫn có thể chọn trả trước.'
                           : 'Cửa hàng chưa đủ điều kiện công nợ.'),
