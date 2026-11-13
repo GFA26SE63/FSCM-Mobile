@@ -12,6 +12,7 @@ Map<String, dynamic> mobileSnapshotFixture() {
         'address': 'Địa chỉ A',
         'status': 'Active',
         'creditTermDays': 14,
+        'creditLimit': 1500000,
       },
       {
         'id': 'retailer-2',
