@@ -9,10 +9,13 @@ import 'package:fscm_mobile/data/repositories/order_configuration_repository.dar
 import 'package:fscm_mobile/data/repositories/catalog_repository.dart';
 import 'package:fscm_mobile/data/repositories/data_version.dart';
 import 'package:fscm_mobile/data/repositories/order_repository.dart';
+import 'package:fscm_mobile/data/repositories/auth_repository.dart';
 import 'package:fscm_mobile/features/sales/orders/order_confirm_sheet.dart';
 import 'package:fscm_mobile/shared/widgets/async_body.dart';
 import 'package:fscm_mobile/shared/widgets/dialogs.dart';
 import 'package:fscm_mobile/shared/widgets/info_banner.dart';
+import 'package:fscm_mobile/shared/widgets/quantity_stepper.dart';
+import 'package:fscm_mobile/shared/widgets/order_quantity_field.dart';
 
 class DraftEditScreen extends ConsumerStatefulWidget {
   const DraftEditScreen({
@@ -30,6 +33,7 @@ class _DraftEditScreenState extends ConsumerState<DraftEditScreen> {
   late List<CartLine> _lines;
   String? _selectedSku;
   bool _saving = false;
+  final Set<String> _invalidQuantities = <String>{};
 
   @override
   void initState() {
@@ -153,7 +157,7 @@ class _DraftEditScreenState extends ConsumerState<DraftEditScreen> {
             child: SizedBox(
               width: double.infinity,
               child: FilledButton(
-                onPressed: _saving || _lines.isEmpty ? null : () => _save(data),
+                onPressed: _saving || _lines.isEmpty || _invalidQuantities.isNotEmpty ? null : () => _save(data),
                 child: Text(
                   _saving ? 'Đang lưu...' : 'Xem lại tạm tính và lưu draft',
                 ),
@@ -169,7 +173,11 @@ class _DraftEditScreenState extends ConsumerState<DraftEditScreen> {
     final line = _lines[index];
     final name = data.product(line.sku)?.name ?? line.sku;
 
-    return Card(
+    return Padding(
+      key: ValueKey(line.sku),
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Card(
+      margin: EdgeInsets.zero,
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(
@@ -179,49 +187,68 @@ class _DraftEditScreenState extends ConsumerState<DraftEditScreen> {
               '${line.sku} · $name',
               style: const TextStyle(fontWeight: FontWeight.w700),
             ),
-            Row(
-              children: [
-                const Expanded(child: Text('Số lượng')),
-                IconButton(
-                  onPressed: _saving || line.qty <= step
-                      ? null
-                      : () {
-                          setState(() {
-                            _lines[index] = line.withQty(
-                              line.qty - step,
-                            );
-                          });
-                        },
-                  icon: const Icon(Icons.remove_circle_outline),
+            OrderQuantityField(
+              label: 'Số lượng (thùng)',
+              showRemove: true,
+              removeLabel: 'Bỏ khỏi draft',
+              onRemove: _saving ? null : () => _removeLine(line),
+              control: QuantityStepper(
+                  editable: true,
+                  enabled: !_saving,
+                  value: line.qty,
+                  min: step,
+                  max: 2147483647,
+                  step: step,
+                  onValidationChanged: (valid) => setState(() {
+                    if (valid) {
+                      _invalidQuantities.remove(line.sku);
+                    } else {
+                      _invalidQuantities.add(line.sku);
+                    }
+                  }),
+                  onChanged: (quantity) {
+                    final current = _lines.indexWhere((item) => item.sku == line.sku);
+                    if (!_saving && current >= 0) {
+                      setState(() => _lines[current] = line.withQty(quantity));
+                    }
+                  },
                 ),
-                Text('${line.qty} thùng'),
-                IconButton(
-                  onPressed: _saving
-                      ? null
-                      : () {
-                          setState(() {
-                            _lines[index] = line.withQty(
-                              line.qty + step,
-                            );
-                          });
-                        },
-                  icon: const Icon(Icons.add_circle_outline),
-                ),
-                IconButton(
-                  tooltip: 'Bỏ sản phẩm',
-                  onPressed: _saving
-                      ? null
-                      : () {
-                          setState(() => _lines.removeAt(index));
-                        },
-                  icon: const Icon(Icons.delete_outline),
-                ),
-              ],
             ),
           ],
         ),
       ),
+    ),
     );
+  }
+
+  void _removeLine(CartLine line) {
+    final ownerId = ref.read(currentUserProvider)?.id;
+    final index = _lines.indexWhere((item) => item.sku == line.sku);
+    if (_saving || ownerId == null || index < 0) {
+      return;
+    }
+    setState(() {
+      _lines.removeAt(index);
+      _invalidQuantities.remove(line.sku);
+    });
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.clearSnackBars();
+    messenger.removeCurrentSnackBar();
+    messenger.showSnackBar(SnackBar(
+      duration: const Duration(seconds: 4),
+      persist: false,
+      content: Text('Đã bỏ ${line.sku} khỏi draft.'),
+      action: SnackBarAction(label: 'Hoàn tác', onPressed: () {
+        if (!mounted || _saving || ref.read(currentUserProvider)?.id != ownerId ||
+            _lines.any((item) => item.sku == line.sku)) {
+          return;
+        }
+        setState(() {
+          _lines.insert(index > _lines.length ? _lines.length : index, line);
+          _invalidQuantities.remove(line.sku);
+        });
+      }),
+    ));
   }
 
   Future<void> _save(CatalogData data) async {
@@ -232,7 +259,7 @@ class _DraftEditScreenState extends ConsumerState<DraftEditScreen> {
       if (!mounted) {
         return;
       }
-      if (_lines.any((line) => line.qty <= 0 || line.qty % step != 0)) {
+      if (_invalidQuantities.isNotEmpty || _lines.any((line) => line.qty <= 0 || line.qty % step != 0)) {
         throw ApiException(
             kind: ApiErrorKind.validation,
             message: 'Số lượng phải là số thùng nguyên dương theo bước $step.');
