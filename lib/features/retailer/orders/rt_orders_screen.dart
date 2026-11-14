@@ -45,9 +45,9 @@ class _RtOrdersScreenState extends ConsumerState<RtOrdersScreen> {
       case _Span.all:
         return true;
       case _Span.week:
-        return AppDates.daysBetween(o.createdAt, AppClock.now()) <= 7;
+        return AppDates.vietnamDaysBetween(o.createdAt, AppClock.now()) <= 7;
       case _Span.month:
-        return AppDates.daysBetween(o.createdAt, AppClock.now()) <= 30;
+        return AppDates.vietnamDaysBetween(o.createdAt, AppClock.now()) <= 30;
     }
   }
 
