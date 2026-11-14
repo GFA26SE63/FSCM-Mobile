@@ -113,4 +113,7 @@ class Endpoints {
   /// `GET /sync/snapshot?since=` - retailers in area, products, prices,
   /// promotions, available stock summary.
   static const String syncSnapshot = '/mobile/snapshot';
+
+  /// Role-scoped dashboard (Warehouse Keeper on mobile).
+  static const String dashboard = '/dashboard';
 }
