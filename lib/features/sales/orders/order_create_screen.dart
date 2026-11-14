@@ -39,6 +39,7 @@ import 'package:fscm_mobile/shared/widgets/empty_state.dart';
 import 'package:fscm_mobile/shared/widgets/info_banner.dart';
 import 'package:fscm_mobile/shared/widgets/online_chip.dart';
 import 'package:fscm_mobile/shared/widgets/quantity_stepper.dart';
+import 'package:fscm_mobile/shared/widgets/order_quantity_field.dart';
 import 'package:fscm_mobile/sync/sync_service.dart';
 
 final _orderAvailabilityProvider = FutureProvider.autoDispose
@@ -69,6 +70,7 @@ class OrderCreateScreen extends ConsumerStatefulWidget {
 
 class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
   final Map<String, int> _cart = <String, int>{};
+  final Set<String> _invalidQuantities = <String>{};
   final String _clientOrderKey = const Uuid().v4();
 
   String _query = '';
@@ -329,7 +331,7 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
   }
 
   void _validateQuantities(int step) {
-    if (_lines.any((line) => line.qty <= 0 || line.qty % step != 0)) {
+    if (_invalidQuantities.isNotEmpty || _lines.any((line) => line.qty <= 0 || line.qty % step != 0)) {
       throw ApiException(
           kind: ApiErrorKind.validation,
           message: 'Số lượng phải là số thùng nguyên dương theo bước $step. '
@@ -376,7 +378,11 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
       ));
     }
 
-    return AppCard(
+    return Padding(
+      key: ValueKey(product.sku),
+      padding: const EdgeInsets.only(bottom: 10),
+      child: AppCard(
+      margin: EdgeInsets.zero,
       onTap: _busy ? null : openDetail,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -412,46 +418,39 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
               viewerRole: viewerRole,
               onViewAll: _busy ? null : openDetail,
             ),
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  maximum == 0
+          OrderQuantityField(
+            label: maximum == 0
                       ? (availability == null
                           ? 'Chưa kiểm tra được tồn đủ điều kiện'
                           : availability.quantity <= 0
                               ? 'Không có hàng đủ điều kiện để giao'
                               : 'Chưa đủ hàng theo bước $_step thùng')
                       : _step == 1
-                          ? 'Chọn số lượng thùng'
-                          : 'Chọn số lượng · bội $_step thùng',
-                  style: TextStyle(
-                    color:
-                        maximum == 0 ? AppColors.warning : AppColors.textMuted,
-                    fontSize: 13,
-                  ),
-                ),
-              ),
-              if (maximum > 0 || quantity > 0)
-                QuantityStepper(
+                          ? 'Số lượng (thùng)'
+                          : 'Số lượng · bội $_step thùng',
+            labelColor: maximum == 0 ? AppColors.warning : AppColors.textMuted,
+            showRemove: quantity > 0,
+            onRemove: _busy ? null : () => _removeProduct(product),
+            control: maximum > 0 || quantity > 0 ? QuantityStepper(
+                  editable: true,
+                  enabled: !_busy,
                   value: quantity,
                   step: _step,
                   max: quantity > maximum ? quantity : maximum,
+                  onValidationChanged: (valid) => setState(() {
+                    if (valid) {
+                      _invalidQuantities.remove(product.sku);
+                    } else {
+                      _invalidQuantities.add(product.sku);
+                    }
+                  }),
                   onChanged: (value) {
                     if (_busy) {
                       return;
                     }
                     setState(() => _cart[product.sku] = value);
                   },
-                ),
-              if (quantity > 0)
-                IconButton(
-                    tooltip: 'Bỏ sản phẩm khỏi giỏ',
-                    onPressed: _busy
-                        ? null
-                        : () => setState(() => _cart.remove(product.sku)),
-                    icon: const Icon(Icons.close)),
-            ],
+                ) : null,
           ),
           if (pricedLines.isNotEmpty && pricedLines.first.hasDiscount)
             Padding(
@@ -468,7 +467,40 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
             ),
         ],
       ),
+    ),
     );
+  }
+
+  void _removeProduct(Product product) {
+    if (_busy) {
+      return;
+    }
+    final previous = _cart[product.sku];
+    final ownerId = ref.read(currentUserProvider)?.id;
+    if (previous == null || previous <= 0 || ownerId == null) {
+      return;
+    }
+    setState(() {
+      _cart.remove(product.sku);
+      _invalidQuantities.remove(product.sku);
+    });
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.clearSnackBars();
+    messenger.removeCurrentSnackBar();
+    messenger.showSnackBar(SnackBar(
+      duration: const Duration(seconds: 4),
+      persist: false,
+      content: Text('Đã bỏ ${product.name} khỏi giỏ.'),
+      action: SnackBarAction(label: 'Hoàn tác', onPressed: () {
+        if (!_isCurrentUser(ownerId) || _busy || (_cart[product.sku] ?? 0) > 0) {
+          return;
+        }
+        setState(() {
+          _cart[product.sku] = previous;
+          _invalidQuantities.remove(product.sku);
+        });
+      }),
+    ));
   }
 
   Widget _bottomBar(
@@ -497,7 +529,9 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    count == 0 ? 'Giỏ hàng trống' : '$count sản phẩm',
+                    _invalidQuantities.isNotEmpty
+                        ? 'Kiểm tra lại số lượng đã nhập'
+                        : count == 0 ? 'Giỏ hàng trống' : '$count sản phẩm',
                     style: const TextStyle(
                       color: AppColors.textMuted,
                     ),
@@ -534,7 +568,7 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
             SizedBox(
               width: 160,
               child: FilledButton(
-                onPressed: count == 0 || _busy
+                onPressed: count == 0 || _busy || _invalidQuantities.isNotEmpty
                     ? null
                     : () => _review(data, retailer, online),
                 child: Text(

@@ -50,6 +50,18 @@ class AppDates {
   static bool isSameDay(DateTime a, DateTime b) =>
       a.year == b.year && a.month == b.month && a.day == b.day;
 
+  /// Day-only key for an instant in Vietnam; UTC construction avoids device DST.
+  static DateTime vietnamDay(DateTime instant) {
+    final local = vietnamTime(instant);
+    return DateTime.utc(local.year, local.month, local.day);
+  }
+
+  static bool isSameVietnamDay(DateTime a, DateTime b) =>
+      vietnamDay(a) == vietnamDay(b);
+
+  static int vietnamDaysBetween(DateTime from, DateTime to) =>
+      vietnamDay(to).difference(vietnamDay(from)).inDays;
+
   /// Whole days from [from] to [to] (date part only).
   static int daysBetween(DateTime from, DateTime to) {
     final a = DateTime(from.year, from.month, from.day);
