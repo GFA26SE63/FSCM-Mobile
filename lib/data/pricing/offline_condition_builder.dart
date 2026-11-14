@@ -90,6 +90,27 @@ class OfflineConditionBuilder {
         }
       }
 
+      // Category default MLOR ("MLOR theo danh mục sản phẩm"): nearest
+      // category in the tree that has one, before the system default.
+      if (selected == null) {
+        var categoryId = asStr(product['categoryId']);
+        final visited = <String>{};
+        while (categoryId.isNotEmpty && visited.add(categoryId)) {
+          final category = categories[categoryId];
+          if (category == null) break;
+          final ratio = asDouble(category['defaultMlorRatio'], double.nan);
+          final version = asInt(category['defaultMlorVersion']);
+          if (ratio > 0 && ratio < 1 && version > 0) {
+            selected = <String, dynamic>{
+              'version': version,
+              'minimumLifeRatio': ratio,
+            };
+            break;
+          }
+          categoryId = asStr(category['parentCategoryId']);
+        }
+      }
+
       if (selected == null) {
         final fallback = asMap(snapshot.raw['defaultMlor']);
         final effectiveFrom = asDate(fallback['effectiveFrom']);
