@@ -10,6 +10,7 @@ import 'package:fscm_mobile/core/utils/money.dart';
 import 'package:fscm_mobile/data/models/order.dart';
 import 'package:fscm_mobile/data/repositories/retailer_orders_controller.dart';
 import 'package:fscm_mobile/features/common/notifications/notification_bell_button.dart';
+import 'package:fscm_mobile/features/retailer/orders/widgets/retailer_todo_card.dart';
 import 'package:fscm_mobile/shared/routes.dart';
 import 'package:fscm_mobile/shared/theme/app_colors.dart';
 import 'package:fscm_mobile/shared/widgets/app_card.dart';
@@ -45,9 +46,9 @@ class _RtOrdersScreenState extends ConsumerState<RtOrdersScreen> {
       case _Span.all:
         return true;
       case _Span.week:
-        return AppDates.daysBetween(o.createdAt, AppClock.now()) <= 7;
+        return AppDates.vietnamDaysBetween(o.createdAt, AppClock.now()) <= 7;
       case _Span.month:
-        return AppDates.daysBetween(o.createdAt, AppClock.now()) <= 30;
+        return AppDates.vietnamDaysBetween(o.createdAt, AppClock.now()) <= 30;
     }
   }
 
@@ -71,6 +72,7 @@ class _RtOrdersScreenState extends ConsumerState<RtOrdersScreen> {
         ),
         body: Column(
           children: <Widget>[
+            const RetailerTodoCard(),
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
               child: TextField(

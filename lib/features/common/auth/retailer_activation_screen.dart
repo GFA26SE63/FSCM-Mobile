@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'package:fscm_mobile/data/repositories/auth_repository.dart';
+import 'package:fscm_mobile/shared/widgets/password_requirements.dart';
 
 class RetailerActivationScreen extends ConsumerStatefulWidget {
   const RetailerActivationScreen({super.key, this.identifier});
@@ -100,14 +101,9 @@ class _RetailerActivationScreenState
 
   Future<void> _setPassword() async {
     final password = _password.text.trim();
-    final strongPassword = password.length >= 12 &&
-        password.contains(RegExp(r'[A-Z]')) &&
-        password.contains(RegExp(r'[a-z]')) &&
-        password.contains(RegExp(r'[0-9]')) &&
-        password.contains(RegExp(r'[^A-Za-z0-9]'));
-    if (!strongPassword) {
-      setState(() => _error =
-          'Mật khẩu tối thiểu 12 ký tự, gồm chữ hoa, chữ thường, số và ký tự đặc biệt.');
+    if (!PasswordPolicy.isValid(password)) {
+      setState(() =>
+          _error = 'Mật khẩu chưa đạt đủ các yêu cầu bên dưới ô mật khẩu.');
       return;
     }
     if (password != _confirm.text.trim()) {
@@ -185,6 +181,13 @@ class _RetailerActivationScreenState
                       icon: Icon(_obscure
                           ? Icons.visibility_off
                           : Icons.visibility)))),
+          const SizedBox(height: 8),
+          // Same trimmed value that _setPassword submits, so a tick always means "accepted".
+          ValueListenableBuilder<TextEditingValue>(
+            valueListenable: _password,
+            builder: (context, value, _) =>
+                PasswordRequirementsChecklist(password: value.text.trim()),
+          ),
           const SizedBox(height: 12),
           TextField(
               controller: _confirm,
