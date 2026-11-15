@@ -14,7 +14,7 @@ import 'package:fscm_mobile/shared/widgets/info_banner.dart';
 import 'package:fscm_mobile/shared/widgets/qr_scan_view.dart';
 
 /// Central "Quét QR" of the Warehouse Keeper: classifies the code and opens
-/// the label, picking list or transfer slip. With [labelsOnly] it is the
+/// the label or picking list. With [labelsOnly] it is the
 /// "Tra cứu tem" screen reached from the home page.
 class WkScanScreen extends ConsumerStatefulWidget {
   const WkScanScreen({super.key, this.labelsOnly = false});
@@ -47,9 +47,7 @@ class _WkScanScreenState extends ConsumerState<WkScanScreen> {
         route = widget.labelsOnly ? null : AppRoutes.wkPickingDetail(code);
         break;
       case ScannedCodeKind.document:
-        route = (widget.labelsOnly || !code.startsWith('DC-'))
-            ? null
-            : AppRoutes.wkTransferDetail(code);
+        route = null;
         break;
       default:
         route = null;
@@ -58,7 +56,7 @@ class _WkScanScreenState extends ConsumerState<WkScanScreen> {
     if (route == null) {
       setState(() => _error = widget.labelsOnly
           ? 'Mã "$code" không phải tem (TEM-000000).'
-          : 'Không nhận diện được mã "$code". Quét tem, phiếu picking (DH-000000A) hoặc phiếu chuyển kho (DC-yyMMdd-nn).');
+          : 'Không nhận diện được mã "$code". Quét tem hoặc phiếu picking (DH-000000A).');
       return;
     }
     setState(() => _error = '');
@@ -80,7 +78,7 @@ class _WkScanScreenState extends ConsumerState<WkScanScreen> {
             icon: Icons.qr_code_scanner,
             text: widget.labelsOnly
                 ? 'Quét tem để xem batch, số lượng, vị trí, tem gốc/con và lịch sử.'
-                : 'Quét tem để tra cứu, phiếu picking để lấy hàng hoặc phiếu chuyển kho để nhận hàng.',
+                : 'Quét tem để tra cứu hoặc phiếu picking để lấy hàng.',
           ),
           QrScanView(
             onCode: _onCode,

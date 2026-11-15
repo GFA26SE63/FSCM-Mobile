@@ -25,7 +25,7 @@ class PickingLine {
         name: asStr(j['name'] ?? j['productName']),
         batchCode: asStr(j['batchCode']),
         need: asInt(j['need'] ?? j['requestedQuantity']),
-        expiry: asDate(j['expiry']),
+        expiry: asDate(j['expirationDate'] ?? j['expiry']),
         location: asStr(j['location']),
         picked: asInt(j['picked'] ?? j['pickedQuantity']),
         suggestedLabel: asStr(j['suggestedLabel']),

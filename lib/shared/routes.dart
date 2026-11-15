@@ -34,6 +34,8 @@ class AppRoutes {
   // ------------------------------------------------------- warehouse keeper
   static const String wkHome = '/wk/home';
   static const String wkPicking = '/wk/picking';
+  // Legacy transfer routes are retained only so archived screens still compile.
+  // They are not registered in the router or exposed in the current scope.
   static const String wkTransfers = '/wk/transfers';
   static const String wkAccount = '/wk/account';
   static const String wkScan = '/wk/scan';

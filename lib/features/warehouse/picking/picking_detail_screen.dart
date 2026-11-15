@@ -134,12 +134,13 @@ class _LineCard extends StatelessWidget {
           const SizedBox(height: 4),
           Text('Batch ${l.batchCode}',
               style: const TextStyle(color: AppColors.textMuted)),
-          Text('HSD ${AppDates.date(l.expiry)} · Vị trí ${l.location}'),
+          Text('HSD ${AppDates.date(l.expiry)}${l.location.isEmpty ? '' : ' · Vị trí ${l.location}'}'),
           Text('Cần lấy: ${l.need} thùng (đã lấy ${l.picked})',
               style: const TextStyle(fontWeight: FontWeight.w700)),
-          Text('Tem gợi ý (FEFO): ${l.suggestedLabel}',
-              style: const TextStyle(
-                  color: AppColors.primary, fontWeight: FontWeight.w600)),
+          if (l.suggestedLabel.isNotEmpty)
+            Text('Tem gợi ý (FEFO): ${l.suggestedLabel}',
+                style: const TextStyle(
+                    color: AppColors.primary, fontWeight: FontWeight.w600)),
           if (l.outLabel.isNotEmpty) Text('Tem mang đi: ${l.outLabel}'),
           if (!list.isCompleted && !l.isDone) ...<Widget>[
             const SizedBox(height: 8),

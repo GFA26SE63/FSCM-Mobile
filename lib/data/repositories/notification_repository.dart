@@ -73,6 +73,18 @@ class NotificationRepository {
     }
   }
 
+  Future<void> markAllRead() async {
+    final local = await _readLocal();
+    if (local.any((item) => item.unread)) {
+      await _writeLocal(local.map((item) => item.markRead()).toList());
+    }
+    try {
+      await _api.markAllRead();
+    } on ApiException catch (e) {
+      if (!e.isNetwork) rethrow;
+    }
+  }
+
   /// Creates an in-app notification stored on the device.
   Future<void> addLocal(String text,
       {String orderCode = '', String kind = 'order'}) async {

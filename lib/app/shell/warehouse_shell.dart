@@ -4,8 +4,8 @@ import 'package:go_router/go_router.dart';
 import 'package:fscm_mobile/shared/routes.dart';
 import 'package:fscm_mobile/shared/theme/app_colors.dart';
 
-/// Warehouse Keeper navigation: Trang chủ, Picking, [Quét QR], Nhận hàng,
-/// Tài khoản. The scan button sits in the middle (docked FAB). There is no
+/// Warehouse Keeper navigation: Trang chủ, Picking, [Quét QR], Tài khoản.
+/// The scan button sits in the middle (docked FAB). There is no
 /// notifications tab: every page of this role shows the bell top-right.
 class WarehouseShell extends StatelessWidget {
   const WarehouseShell({super.key, required this.navigationShell});
@@ -72,20 +72,11 @@ class WarehouseShell extends StatelessWidget {
             ),
             Expanded(
               child: _NavItem(
-                icon: Icons.move_to_inbox_outlined,
-                activeIcon: Icons.move_to_inbox,
-                label: 'Nhận hàng',
-                selected: current == 2,
-                onTap: () => _go(2),
-              ),
-            ),
-            Expanded(
-              child: _NavItem(
                 icon: Icons.person_outline,
                 activeIcon: Icons.person,
                 label: 'Tài khoản',
-                selected: current == 3,
-                onTap: () => _go(3),
+                selected: current == 2,
+                onTap: () => _go(2),
               ),
             ),
           ],
