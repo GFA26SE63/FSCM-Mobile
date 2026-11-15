@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import 'package:fscm_mobile/shared/theme/app_colors.dart';
-import 'package:fscm_mobile/shared/widgets/quantity_stepper.dart';
 
 /// Order-card footer: the quantity control stays on the right; removal has its
 /// own line so it never takes space from the label or the plus button.
@@ -25,7 +24,9 @@ class OrderQuantityField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final style = DefaultTextStyle.of(context).style.copyWith(color: labelColor, fontSize: 13);
+    final style = DefaultTextStyle.of(context)
+        .style
+        .copyWith(color: labelColor, fontSize: 13);
     final caption = Text(label, style: style);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -35,19 +36,14 @@ class OrderQuantityField extends StatelessWidget {
           caption
         else
           LayoutBuilder(builder: (context, constraints) {
-            final measure = TextPainter(
-              text: TextSpan(text: label, style: style),
-              textDirection: Directionality.of(context),
-              textScaler: MediaQuery.textScalerOf(context),
-              maxLines: 1,
-            )..layout();
-            final inline = constraints.maxWidth >=
-                measure.width + QuantityStepper.editableWidth + 16;
-            measure.dispose();
+            // Preserve the compact one-line footer on normal phone cards;
+            // the Expanded caption clips gracefully before it can overlap the
+            // fixed-width quantity control. Narrow cards stack the controls.
+            final inline = constraints.maxWidth >= 300;
             if (inline) {
               return Row(children: [
                 Expanded(child: caption),
-                const SizedBox(width: 16),
+                const SizedBox(width: 8),
                 control!,
               ]);
             }

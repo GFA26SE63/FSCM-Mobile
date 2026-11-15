@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import 'package:fscm_mobile/core/network/api_exception.dart';
 import 'package:fscm_mobile/core/utils/id_format.dart';
 import 'package:fscm_mobile/core/utils/status_tone.dart';
+import 'package:fscm_mobile/data/repositories/warehouse_repository.dart';
 import 'package:fscm_mobile/features/common/notifications/notification_bell_button.dart';
 import 'package:fscm_mobile/shared/routes.dart';
 import 'package:fscm_mobile/shared/widgets/info_banner.dart';
@@ -69,6 +71,7 @@ class _WkScanScreenState extends ConsumerState<WkScanScreen> {
     });
 
     try {
+      if (!mounted) return;
       await context.push<void>(route);
     } finally {
       if (mounted) {
@@ -92,9 +95,6 @@ class _WkScanScreenState extends ConsumerState<WkScanScreen> {
             text: widget.labelsOnly
                 ? 'Quét tem để xem batch, số lượng, vị trí, tem gốc/con và lịch sử.'
                 : 'Quét tem để tra cứu hoặc phiếu picking để lấy hàng.',
-          ),
-          QrScanView(
-            onCode: _onCode,
           ),
           const SizedBox(height: 12),
           if (_opening)
