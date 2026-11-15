@@ -89,7 +89,8 @@ class PickingDetailScreen extends ConsumerWidget {
     );
   }
 
-  Future<void> _complete(BuildContext context, WidgetRef ref, PickingList p) async {
+  Future<void> _complete(
+      BuildContext context, WidgetRef ref, PickingList p) async {
     final ok = await confirmDialog(
       context,
       title: 'Hoàn tất soạn hàng ${p.code}?',

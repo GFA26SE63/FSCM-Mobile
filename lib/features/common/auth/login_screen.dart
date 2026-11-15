@@ -2,12 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import 'package:fscm_mobile/core/utils/status_tone.dart';
 import 'package:fscm_mobile/core/network/api_exception.dart';
+import 'package:fscm_mobile/core/utils/status_tone.dart';
 import 'package:fscm_mobile/data/repositories/auth_repository.dart';
-import 'package:fscm_mobile/shared/theme/app_colors.dart';
-import 'package:fscm_mobile/shared/widgets/info_banner.dart';
 import 'package:fscm_mobile/shared/routes.dart';
+import 'package:fscm_mobile/shared/theme/app_colors.dart';
+import 'package:fscm_mobile/shared/widgets/fscm_logo.dart';
+import 'package:fscm_mobile/shared/widgets/info_banner.dart';
 
 /// Phone + password or Google login.
 class LoginScreen extends ConsumerStatefulWidget {
@@ -23,6 +24,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final GlobalKey<FormState> _form = GlobalKey<FormState>();
   bool _busy = false;
   bool _obscure = true;
+  bool _passwordStep = false;
   String? _error;
 
   @override
@@ -39,23 +41,39 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       _error = null;
     });
     final identifier = _identifier.text.trim();
-    bool ok;
+    var ok = true;
     try {
-      ok = await ref
-          .read(authControllerProvider.notifier)
-          .login(identifier, _password.text);
-    } on ApiException catch (error) {
-      if (error.code == 'retailer_activation_required' && mounted) {
-        await context.push(AppRoutes.retailerActivation);
+      if (!_passwordStep) {
+        final firstLogin = await ref
+            .read(authControllerProvider.notifier)
+            .requiresActivation(identifier);
+        if (!mounted) return;
+        if (firstLogin) {
+          await context.push(AppRoutes.retailerActivation, extra: identifier);
+          return;
+        }
+        setState(() => _passwordStep = true);
         return;
       }
-      rethrow;
+      ok = await ref
+          .read(authControllerProvider.notifier)
+          .login(identifier, _password.text.trim());
+    } on ApiException catch (error) {
+      if (error.code == 'retailer_activation_required' && mounted) {
+        await context.push(AppRoutes.retailerActivation, extra: identifier);
+        return;
+      }
+      if (mounted) setState(() => _error = error.message);
+    } finally {
+      if (mounted) {
+        setState(() {
+          _busy = false;
+          if (_passwordStep && _error == null && !ok) {
+            _error = ref.read(authControllerProvider).error;
+          }
+        });
+      }
     }
-    if (!mounted) return;
-    setState(() {
-      _busy = false;
-      if (!ok) _error = ref.read(authControllerProvider).error;
-    });
   }
 
   Future<void> _submitGoogle() async {
@@ -74,6 +92,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final authError = _error ?? ref.watch(authControllerProvider).error;
     return Scaffold(
       body: SafeArea(
         child: Center(
@@ -86,9 +105,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: <Widget>[
-                    const Icon(Icons.ac_unit,
-                        size: 44, color: AppColors.primary),
-                    const SizedBox(height: 8),
+                    const Align(
+                      alignment: Alignment.centerLeft,
+                      child: FscmLogo(
+                        size: 56,
+                        borderRadius: 16,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
                     const Text(
                       'FSCM',
                       style: TextStyle(
@@ -120,40 +144,35 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             : 'Nhập email hoặc số điện thoại hợp lệ';
                       },
                     ),
-                    const SizedBox(height: 12),
-                    TextFormField(
-                      controller: _password,
-                      obscureText: _obscure,
-                      decoration: InputDecoration(
-                        labelText: 'Mật khẩu',
-                        suffixIcon: IconButton(
-                          onPressed: () => setState(() => _obscure = !_obscure),
-                          icon: Icon(_obscure
-                              ? Icons.visibility_off
-                              : Icons.visibility),
+                    if (_passwordStep) ...[
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        controller: _password,
+                        obscureText: _obscure,
+                        decoration: InputDecoration(
+                          labelText: 'Mật khẩu',
+                          suffixIcon: IconButton(
+                            onPressed: () =>
+                                setState(() => _obscure = !_obscure),
+                            icon: Icon(_obscure
+                                ? Icons.visibility_off
+                                : Icons.visibility),
+                          ),
                         ),
+                        onFieldSubmitted: (_) => _submit(),
                       ),
-                      onFieldSubmitted: (_) => _submit(),
-                    ),
-                    const Padding(
-                      padding: EdgeInsets.only(top: 6, left: 4),
-                      child: Text(
-                        'Để trống nếu đăng nhập lần đầu.',
-                        style: TextStyle(
-                          color: AppColors.textMuted,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ),
+                    ],
                     const SizedBox(height: 12),
-                    if (_error != null)
+                    if (authError != null)
                       InfoBanner(
-                          text: _error!,
+                          text: authError,
                           tone: StatusTone.danger,
                           icon: Icons.error_outline),
                     FilledButton(
                       onPressed: _busy ? null : _submit,
-                      child: Text(_busy ? 'Đang đăng nhập...' : 'Đăng nhập'),
+                      child: Text(_busy
+                          ? 'Đang xử lý...'
+                          : (_passwordStep ? 'Đăng nhập' : 'Tiếp tục')),
                     ),
                     const SizedBox(height: 14),
                     const Row(

@@ -7,6 +7,8 @@ class Endpoints {
   // Local credentials remain available; Google exchanges a verified ID token
   // for the same internal FSCM session contract.
   static const String authLogin = '/auth/login';
+  static const String authLoginLookup = '/auth/login/lookup';
+  static const String authRefresh = '/auth/refresh';
   static const String authOtpRequest = '/auth/otp/request';
   static const String authOtpVerify = '/auth/otp/verify';
   static const String authSetPassword = '/auth/password';
@@ -14,7 +16,7 @@ class Endpoints {
   static const String authGoogleExchange = '/auth/google/exchange';
 
   // ------------------------------------------------------------ identity
-  static const String me = '/me';
+  static const String me = '/auth/me';
   static const String devices = '/devices';
 
   // ------------------------------------------------------------- catalog
@@ -26,10 +28,17 @@ class Endpoints {
   static const String salesGroups = '/sales-groups';
   static const String retailers = '/retailers';
   static String retailer(String code) => '/retailers/$code';
+  static String retailerOrderEligibility(String retailerId) =>
+      '/retailers/$retailerId/order-eligibility';
   static String retailerMlor(String code) => '/retailers/$code/mlor';
-  static const String retailerRegistrations = '/retailer-registrations';
-  static String retailerRegistration(String code) =>
-      '/retailer-registrations/$code';
+  static String salesGroup(String id) => '/sales-groups/$id';
+
+  /// Retailer declaration (Sales): `POST /retailers` creates, `PUT
+  /// /retailers/{id}/declaration` updates a Draft/Rejected one, `POST
+  /// /retailers/{id}/submit-review` sends it to Admin / Operator.
+  static String retailerDeclaration(String id) => '/retailers/$id/declaration';
+  static String retailerSubmitReview(String id) =>
+      '/retailers/$id/submit-review';
 
   // ----------------------------------------------------------- logistics
   static const String transitQuote = '/transit/quote';
@@ -73,6 +82,11 @@ class Endpoints {
 
   // ------------------------------------------------------------- finance
   static const String receivables = '/receivables';
+  static const String retailerReceivables = '/retailer/receivables';
+  static const String retailerDebtPayOsCheckouts =
+      '/retailer/receivables/payos-checkouts';
+  static String retailerDebtPayOsCheckout(String checkoutId) =>
+      '/retailer/receivables/payos-checkouts/$checkoutId';
   static String paymentForOrder(String orderId) => '/payments/orders/$orderId';
   static String payOsCheckout(String orderId) =>
       '/payments/orders/$orderId/payos-checkout';
@@ -86,9 +100,9 @@ class Endpoints {
   static const String loyaltyRedemptions = '/loyalty/redemptions';
 
   // --------------------------------------------------------- performance
-  static const String kpiSales = '/kpi/sales';
-  static const String rankingsSales = '/rankings/sales';
-  static const String rankingsProducts = '/rankings/products';
+  static const String kpiSales = '/reports/sales-kpis';
+  static const String rankingsSales = '/reports/sales-ranking';
+  static const String rankingsProducts = '/reports/best-selling-products';
 
   // ------------------------------------------------------- notifications
   static const String notifications = '/notifications';
@@ -99,4 +113,7 @@ class Endpoints {
   /// `GET /sync/snapshot?since=` - retailers in area, products, prices,
   /// promotions, available stock summary.
   static const String syncSnapshot = '/mobile/snapshot';
+
+  /// Role-scoped dashboard (Warehouse Keeper on mobile).
+  static const String dashboard = '/dashboard';
 }

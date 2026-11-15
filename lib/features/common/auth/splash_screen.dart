@@ -32,11 +32,8 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
           children: <Widget>[
             FscmLogo(
               size: 84,
-              iconSize: 46,
               borderRadius: 24,
               backgroundColor: Colors.white,
-              iconColor: AppColors.primary,
-              strokeWidth: 2.0,
             ),
             SizedBox(height: 20),
             Text(

@@ -16,10 +16,22 @@ class LoyaltyApi {
   final ApiClient _client;
 
   Future<LoyaltyAccount> account() async {
-    final data = asMap(await _client.get(Endpoints.loyaltyCardMe));
-    final programs = await this.programs();
-    final programId = asStr(data['programId']);
-    final program = programs.where((item) => item.id == programId).firstOrNull;
+    final data = await _client.get(Endpoints.loyaltyCardMe);
+    if (data is! Map<String, dynamic>) {
+      invalidLoyaltyResponse();
+    }
+    final card = LoyaltyAccount.fromJson(data);
+    if (card.programId == null) {
+      return card;
+    }
+    // Read the exact program on the card, including an inactive one. The
+    // active-only list can omit it and must not turn its rate into zero.
+    final rawProgram = await _client.get(
+        '${Endpoints.loyaltyPrograms}/${Uri.encodeComponent(card.programId!)}');
+    if (rawProgram is! Map<String, dynamic>) {
+      invalidLoyaltyResponse();
+    }
+    final program = LoyaltyProgram.fromJson(rawProgram);
     return LoyaltyAccount.fromJson(data, program: program);
   }
 

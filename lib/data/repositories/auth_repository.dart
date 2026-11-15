@@ -42,15 +42,39 @@ class AuthController extends StateNotifier<AuthState> {
   AuthController(this._ref) : super(const AuthState.unknown()) {
     _unauthorizedSub = _ref.read(apiClientProvider).onUnauthorized.listen((_) {
       if (state.isAuthenticated) {
-        unawaited(logout(callServer: false));
+        unawaited(_handleSessionExpired());
+      }
+    });
+    _sessionRefreshedSub =
+        _ref.read(apiClientProvider).onSessionRefreshed.listen((newSession) {
+      if (state.isAuthenticated) {
+        state =
+            AuthState(status: AuthStatus.authenticated, session: newSession);
+        _refreshProfile();
       }
     });
   }
 
   final Ref _ref;
   StreamSubscription<void>? _unauthorizedSub;
+  StreamSubscription<Session>? _sessionRefreshedSub;
 
   TokenStore get _tokens => _ref.read(tokenStoreProvider);
+
+  void _refreshProfile() {
+    if (state.isAuthenticated) {
+      unawaited(verifySessionOnResume());
+    }
+  }
+
+  Future<void> _handleSessionExpired() async {
+    await _tokens.clear();
+    await _ref.read(appDatabaseProvider).clearCache();
+    state = const AuthState(
+      status: AuthStatus.unauthenticated,
+      error: 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.',
+    );
+  }
 
   /// Called once from the splash screen.
   Future<void> restore() async {
@@ -60,12 +84,35 @@ class AuthController extends StateNotifier<AuthState> {
       return;
     }
     final session = Session.fromJson(json);
-    if (session.isExpired || !session.user.role.hasMobileShell) {
+    if (!session.user.role.hasMobileShell) {
       await _tokens.clear();
       state = const AuthState(status: AuthStatus.unauthenticated);
       return;
     }
+    if (session.isExpired) {
+      if (session.refreshToken.isNotEmpty && !session.isRefreshTokenExpired) {
+        final refreshed = await _ref.read(apiClientProvider).tryRefreshToken();
+        if (refreshed) {
+          final newJson = await _tokens.load();
+          if (newJson != null) {
+            final refreshedSession = Session.fromJson(newJson);
+            state = AuthState(
+                status: AuthStatus.authenticated, session: refreshedSession);
+            _refreshProfile();
+            unawaited(_registerDevice());
+            return;
+          }
+        }
+      }
+      await _tokens.clear();
+      state = const AuthState(
+        status: AuthStatus.unauthenticated,
+        error: 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.',
+      );
+      return;
+    }
     state = AuthState(status: AuthStatus.authenticated, session: session);
+    _refreshProfile();
     unawaited(_registerDevice());
   }
 
@@ -73,7 +120,7 @@ class AuthController extends StateNotifier<AuthState> {
     try {
       final session = await _ref
           .read(authApiProvider)
-          .login(phone: phone.trim(), password: password);
+          .login(phone: phone.trim(), password: password.trim());
       if (!session.user.role.hasMobileShell) {
         state = const AuthState(
           status: AuthStatus.unauthenticated,
@@ -84,6 +131,7 @@ class AuthController extends StateNotifier<AuthState> {
       }
       await _tokens.save(session.toJson());
       state = AuthState(status: AuthStatus.authenticated, session: session);
+      _refreshProfile();
       unawaited(_registerDevice());
       return true;
     } on ApiException catch (e) {
@@ -92,6 +140,9 @@ class AuthController extends StateNotifier<AuthState> {
       return false;
     }
   }
+
+  Future<bool> requiresActivation(String identifier) =>
+      _ref.read(authApiProvider).requiresActivation(identifier.trim());
 
   Future<void> requestActivationOtp(String phone) =>
       _ref.read(authApiProvider).requestOtp(phone.trim());
@@ -104,9 +155,10 @@ class AuthController extends StateNotifier<AuthState> {
     try {
       final session = await _ref
           .read(authApiProvider)
-          .setPassword(setupToken: setupToken, password: password);
+          .setPassword(setupToken: setupToken, password: password.trim());
       await _tokens.save(session.toJson());
       state = AuthState(status: AuthStatus.authenticated, session: session);
+      _refreshProfile();
       unawaited(_registerDevice());
       return true;
     } on ApiException catch (error) {
@@ -130,6 +182,7 @@ class AuthController extends StateNotifier<AuthState> {
       }
       await _tokens.save(session.toJson());
       state = AuthState(status: AuthStatus.authenticated, session: session);
+      _refreshProfile();
       unawaited(_registerDevice());
       return true;
     } on ApiException catch (e) {
@@ -148,12 +201,22 @@ class AuthController extends StateNotifier<AuthState> {
   /// protected request receives 403.
   Future<void> verifySessionOnResume() async {
     if (!state.isAuthenticated) return;
+    final expectedSession = state.session!;
     try {
       final user = await _ref.read(authApiProvider).me();
+      // A late /me response must not replace a logout, another login or a
+      // refreshed session. Refresh starts its own verification above.
+      if (!mounted || !identical(state.session, expectedSession)) return;
       if (!user.role.hasMobileShell) {
         await logout(callServer: false);
+        return;
       }
+      if (user.id != expectedSession.user.id) return;
+      final updated = expectedSession.copyWith(user: user);
+      state = AuthState(status: AuthStatus.authenticated, session: updated);
+      await _tokens.save(updated.toJson());
     } on ApiException catch (error) {
+      if (!mounted || !identical(state.session, expectedSession)) return;
       if (error.kind == ApiErrorKind.unauthorized ||
           error.kind == ApiErrorKind.forbidden) {
         await logout(callServer: false);
@@ -190,6 +253,7 @@ class AuthController extends StateNotifier<AuthState> {
   @override
   void dispose() {
     unawaited(_unauthorizedSub?.cancel());
+    unawaited(_sessionRefreshedSub?.cancel());
     super.dispose();
   }
 }

@@ -5,11 +5,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import 'package:fscm_mobile/core/network/api_exception.dart';
 import 'package:fscm_mobile/data/repositories/auth_repository.dart';
+import 'package:fscm_mobile/shared/widgets/password_requirements.dart';
 
 class RetailerActivationScreen extends ConsumerStatefulWidget {
-  const RetailerActivationScreen({super.key});
+  const RetailerActivationScreen({super.key, this.identifier});
+  final String? identifier;
 
   @override
   ConsumerState<RetailerActivationScreen> createState() =>
@@ -29,6 +30,15 @@ class _RetailerActivationScreenState
   String? _setupToken;
   String? _error;
   Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.identifier != null) {
+      _phone.text = widget.identifier!;
+      WidgetsBinding.instance.addPostFrameCallback((_) => _requestOtp());
+    }
+  }
 
   @override
   void dispose() {
@@ -55,8 +65,8 @@ class _RetailerActivationScreenState
   }
 
   Future<void> _requestOtp() async {
-    if (_phone.text.replaceAll(' ', '').length < 9) {
-      setState(() => _error = 'Nhập số điện thoại hợp lệ.');
+    if (_phone.text.trim().isEmpty) {
+      setState(() => _error = 'Nhập Email hoặc số điện thoại hợp lệ.');
       return;
     }
     await _run(() async {
@@ -90,31 +100,21 @@ class _RetailerActivationScreenState
   }
 
   Future<void> _setPassword() async {
-    final password = _password.text;
-    final strongPassword = password.length >= 12 &&
-        password.contains(RegExp(r'[A-Z]')) &&
-        password.contains(RegExp(r'[a-z]')) &&
-        password.contains(RegExp(r'[0-9]')) &&
-        password.contains(RegExp(r'[^A-Za-z0-9]'));
-    if (!strongPassword) {
-      setState(() => _error =
-          'Mật khẩu tối thiểu 12 ký tự, gồm chữ hoa, chữ thường, số và ký tự đặc biệt.');
+    final password = _password.text.trim();
+    if (!PasswordPolicy.isValid(password)) {
+      setState(() =>
+          _error = 'Mật khẩu chưa đạt đủ các yêu cầu bên dưới ô mật khẩu.');
       return;
     }
-    if (_password.text != _confirm.text) {
+    if (password != _confirm.text.trim()) {
       setState(() => _error = 'Mật khẩu xác nhận không khớp.');
       return;
     }
     await _run(() async {
       final ok = await ref
           .read(authControllerProvider.notifier)
-          .completeActivation(_setupToken!, _password.text);
-      if (!ok) {
-        throw ApiException(
-            kind: ApiErrorKind.validation,
-            message: ref.read(authControllerProvider).error ??
-                'Không thể kích hoạt tài khoản.');
-      }
+          .completeActivation(_setupToken!, password);
+      if (!ok) return;
     });
   }
 
@@ -125,10 +125,9 @@ class _RetailerActivationScreenState
     });
     try {
       await action();
-    } on Object catch (error) {
-      if (mounted) {
-        setState(() => _error = ApiException.describe(error));
-      }
+    } on Object {
+      // API failures are already shown once by the root snackbar. `_error`
+      // is reserved for client-side validation so the same error is not shown twice.
     } finally {
       if (mounted) {
         setState(() => _busy = false);
@@ -182,6 +181,13 @@ class _RetailerActivationScreenState
                       icon: Icon(_obscure
                           ? Icons.visibility_off
                           : Icons.visibility)))),
+          const SizedBox(height: 8),
+          // Same trimmed value that _setPassword submits, so a tick always means "accepted".
+          ValueListenableBuilder<TextEditingValue>(
+            valueListenable: _password,
+            builder: (context, value, _) =>
+                PasswordRequirementsChecklist(password: value.text.trim()),
+          ),
           const SizedBox(height: 12),
           TextField(
               controller: _confirm,

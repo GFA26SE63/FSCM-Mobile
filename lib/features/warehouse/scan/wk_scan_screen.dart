@@ -1,13 +1,9 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import 'package:fscm_mobile/core/network/api_exception.dart';
 import 'package:fscm_mobile/core/utils/id_format.dart';
 import 'package:fscm_mobile/core/utils/status_tone.dart';
-import 'package:fscm_mobile/data/repositories/warehouse_repository.dart';
 import 'package:fscm_mobile/features/common/notifications/notification_bell_button.dart';
 import 'package:fscm_mobile/shared/routes.dart';
 import 'package:fscm_mobile/shared/widgets/info_banner.dart';
@@ -17,7 +13,10 @@ import 'package:fscm_mobile/shared/widgets/qr_scan_view.dart';
 /// the label or picking list. With [labelsOnly] it is the
 /// "Tra cứu tem" screen reached from the home page.
 class WkScanScreen extends ConsumerStatefulWidget {
-  const WkScanScreen({super.key, this.labelsOnly = false});
+  const WkScanScreen({
+    super.key,
+    this.labelsOnly = false,
+  });
 
   final bool labelsOnly;
 
@@ -27,10 +26,14 @@ class WkScanScreen extends ConsumerStatefulWidget {
 
 class _WkScanScreenState extends ConsumerState<WkScanScreen> {
   String _error = '';
+  bool _opening = false;
 
   Future<void> _onCode(String raw) async {
+    if (_opening) return;
+
     final code = raw.trim().toUpperCase();
     final kind = IdFormat.classify(code);
+
     String? route;
     switch (kind) {
       case ScannedCodeKind.label:
@@ -52,28 +55,38 @@ class _WkScanScreenState extends ConsumerState<WkScanScreen> {
       default:
         route = null;
     }
-    if (!mounted) return;
+
     if (route == null) {
       setState(() => _error = widget.labelsOnly
           ? 'Mã "$code" không phải tem (TEM-000000).'
           : 'Không nhận diện được mã "$code". Quét tem hoặc phiếu picking (DH-000000A).');
       return;
     }
-    setState(() => _error = '');
-    unawaited(context.push(route));
+
+    setState(() {
+      _opening = true;
+      _error = '';
+    });
+
+    try {
+      await context.push<void>(route);
+    } finally {
+      if (mounted) {
+        setState(() => _opening = false);
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final title = widget.labelsOnly ? 'Tra cứu tem' : 'Quét QR';
     return Scaffold(
       appBar: AppBar(
-        title: Text(title),
-        actions: const <Widget>[NotificationBellButton()],
+        title: Text(widget.labelsOnly ? 'Tra cứu tem' : 'Quét QR'),
+        actions: const [NotificationBellButton()],
       ),
       body: ListView(
         padding: const EdgeInsets.all(16),
-        children: <Widget>[
+        children: [
           InfoBanner(
             icon: Icons.qr_code_scanner,
             text: widget.labelsOnly
@@ -83,12 +96,18 @@ class _WkScanScreenState extends ConsumerState<WkScanScreen> {
           QrScanView(
             onCode: _onCode,
           ),
-          if (_error.isNotEmpty) ...<Widget>[
+          const SizedBox(height: 12),
+          if (_opening)
+            const Center(child: CircularProgressIndicator())
+          else
+            QrScanView(onCode: _onCode),
+          if (_error.isNotEmpty) ...[
             const SizedBox(height: 12),
             InfoBanner(
-                tone: StatusTone.danger,
-                icon: Icons.error_outline,
-                text: _error),
+              tone: StatusTone.danger,
+              icon: Icons.error_outline,
+              text: _error,
+            ),
           ],
         ],
       ),

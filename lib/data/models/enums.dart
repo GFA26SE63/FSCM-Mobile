@@ -83,15 +83,19 @@ enum PaymentMethod {
 
 /// State of an entry in the OfflineOrderQueue table.
 enum SyncStatus {
-  pending('pending', 'Chờ đồng bộ', StatusTone.neutral),
-  syncing('syncing', 'Đang đồng bộ', StatusTone.info),
-  synced('synced', 'Đã đồng bộ', StatusTone.success),
+  pending('pending', 'Bản nháp', StatusTone.neutral),
+  syncing('syncing', 'Đang gửi', StatusTone.info),
+  needsConfirmation('needs_confirmation', 'Cần xác nhận', StatusTone.warning),
+  failed('failed', 'Gửi lỗi', StatusTone.danger),
+  synced('synced', 'Đã gửi', StatusTone.success),
   rejected('rejected', 'Bị từ chối', StatusTone.danger);
 
   const SyncStatus(this.code, this.label, this.tone);
   final String code;
   final String label;
   final StatusTone tone;
+
+  bool get isUnsent => this != SyncStatus.synced && this != SyncStatus.rejected;
 
   static SyncStatus fromCode(String? code) {
     for (final s in SyncStatus.values) {
@@ -103,6 +107,7 @@ enum SyncStatus {
 
 enum ReceivableStatus {
   unpaid('Unpaid', 'Chưa thu', StatusTone.info),
+  partiallyPaid('PartiallyPaid', 'Đã thu một phần', StatusTone.warning),
   paid('Paid', 'Đã thu đủ', StatusTone.success),
   overdue('Overdue', 'Quá hạn', StatusTone.danger),
   cancelled('Cancelled', 'Đã hủy', StatusTone.neutral);
@@ -144,24 +149,33 @@ enum PickingStatus {
 }
 
 enum LabelStatus {
+  available('Available', 'Sẵn sàng', StatusTone.primary),
   inStock('InStock', 'Trong kho', StatusTone.primary),
-  picked('Picked', 'Đã pick', StatusTone.purple),
+  picked('Picked', 'Đã soạn', StatusTone.purple),
   inTransit('InTransit', 'Đang vận chuyển', StatusTone.warning),
   delivered('Delivered', 'Đã giao', StatusTone.success),
+  invalidated('Invalidated', 'Đã vô hiệu hóa', StatusTone.danger),
+  split('Split', 'Đã tách · không dùng lại', StatusTone.neutral),
   expired('Expired', 'Hết hạn', StatusTone.danger),
-  cancelled('Cancelled', 'Hủy', StatusTone.neutral);
+  cancelled('Cancelled', 'Đã hủy', StatusTone.neutral),
+  unknown('Unknown', 'Không xác định', StatusTone.neutral);
 
   const LabelStatus(this.code, this.label, this.tone);
+
   final String code;
   final String label;
   final StatusTone tone;
 
   static LabelStatus fromCode(String? code) {
-    final c = (code ?? '').toLowerCase();
-    for (final s in LabelStatus.values) {
-      if (s.code.toLowerCase() == c) return s;
+    final normalized = (code ?? '').trim().toLowerCase();
+
+    for (final status in LabelStatus.values) {
+      if (status.code.toLowerCase() == normalized) {
+        return status;
+      }
     }
-    return LabelStatus.inStock;
+
+    return LabelStatus.unknown;
   }
 }
 
@@ -227,7 +241,11 @@ enum PointKind {
   pending('Pending', 'Chờ cộng'),
   held('Held', 'Đang giữ'),
   refunded('Refunded', 'Hoàn điểm'),
-  redeemed('Redeemed', 'Đã đổi');
+  redeemed('Redeemed', 'Đã đổi'),
+  adjusted('EarnedAdjusted', 'Điều chỉnh điểm'),
+  pendingCancelled('PendingEarnCancelled', 'Hủy điểm chờ cộng'),
+  expired('Expired', 'Hết hạn'),
+  unknown('Unknown', 'Giao dịch khác');
 
   const PointKind(this.code, this.label);
   final String code;
@@ -235,15 +253,14 @@ enum PointKind {
 
   static PointKind fromCode(String? code) {
     final c = (code ?? '').toLowerCase();
-    if (c == 'earnedadjusted') return PointKind.earned;
+    if (c == 'pendingearn') return PointKind.pending;
     if (c == 'redemptionheld') return PointKind.held;
     if (c == 'redemptionrejected') return PointKind.refunded;
     if (c == 'redemptioncompleted') return PointKind.redeemed;
-    if (c == 'expired') return PointKind.redeemed;
     for (final k in PointKind.values) {
       if (k.code.toLowerCase() == c) return k;
     }
-    return PointKind.earned;
+    return PointKind.unknown;
   }
 }
 
@@ -252,7 +269,8 @@ enum ComplaintStatus {
   inProgress('InProgress', 'Đang xử lý', StatusTone.purple),
   approved('Approved', 'Đã chấp nhận', StatusTone.success),
   resolved('Resolved', 'Đã xử lý', StatusTone.success),
-  rejected('Rejected', 'Từ chối', StatusTone.danger);
+  rejected('Rejected', 'Từ chối', StatusTone.danger),
+  cancelled('Cancelled', 'Đã hủy', StatusTone.neutral);
 
   const ComplaintStatus(this.code, this.label, this.tone);
   final String code;
@@ -267,23 +285,5 @@ enum ComplaintStatus {
     return ComplaintStatus.open;
   }
 }
-
-/// Retailer registration request (KB-0000) state.
-enum RegistrationStatus {
-  waiting('Pending', 'Chờ duyệt', StatusTone.info),
-  approved('Approved', 'Đã duyệt', StatusTone.success),
-  rejected('Rejected', 'Bị từ chối', StatusTone.danger);
-
-  const RegistrationStatus(this.code, this.label, this.tone);
-  final String code;
-  final String label;
-  final StatusTone tone;
-
-  static RegistrationStatus fromCode(String? code) {
-    final c = (code ?? '').toLowerCase();
-    for (final s in RegistrationStatus.values) {
-      if (s.code.toLowerCase() == c) return s;
-    }
-    return RegistrationStatus.waiting;
-  }
-}
+// Retailer declaration status lives in retailer_declaration.dart
+// (DeclarationStatus, matching backend RetailerStatuses).

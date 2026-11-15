@@ -5,20 +5,31 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:uuid/uuid.dart';
 
+import 'package:fscm_mobile/core/auth/user_role.dart';
+import 'package:fscm_mobile/core/network/api_client.dart';
 import 'package:fscm_mobile/core/network/api_exception.dart';
 import 'package:fscm_mobile/core/network/network_monitor.dart';
+import 'package:fscm_mobile/core/utils/clock.dart';
 import 'package:fscm_mobile/core/utils/money.dart';
+import 'package:fscm_mobile/core/utils/dates.dart';
 import 'package:fscm_mobile/core/utils/status_tone.dart';
+import 'package:fscm_mobile/data/models/json_utils.dart';
 import 'package:fscm_mobile/data/models/order.dart';
+import 'package:fscm_mobile/data/models/order_availability.dart';
+import 'package:fscm_mobile/shared/widgets/order_stock_summary.dart';
 import 'package:fscm_mobile/data/models/price_quote.dart';
 import 'package:fscm_mobile/data/models/product.dart';
 import 'package:fscm_mobile/data/models/retailer.dart';
+import 'package:fscm_mobile/data/pricing/order_limits.dart';
+import 'package:fscm_mobile/data/remote/orders_api.dart';
 import 'package:fscm_mobile/data/remote/products_api.dart';
 import 'package:fscm_mobile/data/repositories/auth_repository.dart';
 import 'package:fscm_mobile/data/repositories/catalog_repository.dart';
 import 'package:fscm_mobile/data/repositories/data_version.dart';
 import 'package:fscm_mobile/data/repositories/order_repository.dart';
+import 'package:fscm_mobile/data/repositories/order_configuration_repository.dart';
 import 'package:fscm_mobile/features/sales/orders/order_confirm_sheet.dart';
+import 'package:fscm_mobile/features/sales/products/product_detail_screen.dart';
 import 'package:fscm_mobile/shared/routes.dart';
 import 'package:fscm_mobile/shared/theme/app_colors.dart';
 import 'package:fscm_mobile/shared/widgets/app_card.dart';
@@ -28,16 +39,30 @@ import 'package:fscm_mobile/shared/widgets/empty_state.dart';
 import 'package:fscm_mobile/shared/widgets/info_banner.dart';
 import 'package:fscm_mobile/shared/widgets/online_chip.dart';
 import 'package:fscm_mobile/shared/widgets/quantity_stepper.dart';
+import 'package:fscm_mobile/shared/widgets/order_quantity_field.dart';
 import 'package:fscm_mobile/sync/sync_service.dart';
 
-/// Create an order for one retailer. Works offline: the discount is
-/// estimated from the cached promotions and the order is stored in the
-/// local queue (`OFF-{device}-{0000}`); online it goes straight to
-/// `POST /orders`.
-class OrderCreateScreen extends ConsumerStatefulWidget {
-  const OrderCreateScreen({super.key, required this.retailerCode});
+final _orderAvailabilityProvider = FutureProvider.autoDispose
+    .family<Map<String, ProductAvailability>, String>((ref, retailerId) async {
+  ref.watch(dataVersionProvider);
+  ref.watch(currentUserProvider);
 
-  final String retailerCode;
+  final api = ref.watch(ordersApiProvider);
+  final catalog = await ref.watch(catalogProvider.future);
+
+  return api.availabilityByWarehouse(
+    retailerId,
+    catalog.products.map((product) => product.id).toList(),
+  );
+});
+
+class OrderCreateScreen extends ConsumerStatefulWidget {
+  const OrderCreateScreen({
+    super.key,
+    this.retailerCode,
+  });
+
+  final String? retailerCode;
 
   @override
   ConsumerState<OrderCreateScreen> createState() => _OrderCreateScreenState();
@@ -45,106 +70,250 @@ class OrderCreateScreen extends ConsumerStatefulWidget {
 
 class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
   final Map<String, int> _cart = <String, int>{};
+  final Set<String> _invalidQuantities = <String>{};
+  final String _clientOrderKey = const Uuid().v4();
+
   String _query = '';
   bool _busy = false;
+  int get _step => ref.read(orderStepProvider).requireValue;
+
+  @override
+  void initState() {
+    super.initState();
+
+    unawaited(
+      Future<void>.microtask(() async {
+        if (!mounted) {
+          return;
+        }
+
+        await ref.read(syncServiceProvider.notifier).refreshSnapshot();
+      }),
+    );
+  }
 
   List<CartLine> get _lines => _cart.entries
-      .where((e) => e.value > 0)
-      .map((e) => CartLine(sku: e.key, qty: e.value))
+      .where((entry) => entry.value > 0)
+      .map(
+        (entry) => CartLine(
+          sku: entry.key,
+          qty: entry.value,
+        ),
+      )
       .toList();
+
+  bool _isCurrentUser(String userId) =>
+      mounted && ref.read(currentUserProvider)?.id == userId;
+
+  /// Snapshot hiện có status trong raw payload.
+  /// Không dùng areaCode để xác định quyền đặt hàng.
+  bool _cachedRetailerIsActive(
+    CatalogData data,
+    Retailer retailer,
+  ) {
+    final rows = asMapList(data.snapshot?.raw['retailers']);
+
+    return rows.any(
+      (row) =>
+          asStr(row['id']) == retailer.id && asStr(row['status']) == 'Active',
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     final catalog = ref.watch(catalogProvider);
     final user = ref.watch(currentUserProvider);
     final online = ref.watch(networkMonitorProvider).online;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Tạo đơn hàng'),
-        actions: const <Widget>[
-          Padding(padding: EdgeInsets.only(right: 12), child: OnlineChip())
+        actions: const [
+          Padding(
+            padding: EdgeInsets.only(right: 12),
+            child: OnlineChip(),
+          ),
         ],
       ),
       body: AsyncBody<CatalogData>(
         value: catalog,
         onRetry: () => ref.invalidate(catalogProvider),
         builder: (data) {
-          final retailer = data.retailer(widget.retailerCode);
+          final retailer = widget.retailerCode == null
+              ? (data.retailers.length == 1 ? data.retailers.single : null)
+              : data.retailer(widget.retailerCode!);
+
           if (retailer == null) {
             return const EmptyState(
-                title: 'Không tìm thấy điểm bán',
-                message: 'Đồng bộ lại danh sách điểm bán rồi thử lại.');
-          }
-          if (retailer.areaCode.isNotEmpty && retailer.areaCode != user?.areaCode) {
-            return EmptyState(
-              icon: Icons.lock_outline,
-              title: 'Điểm bán ngoài khu vực',
-              message:
-                  '${retailer.name} thuộc khu vực ${retailer.areaName}. Bạn chỉ tạo được đơn cho điểm bán trong khu vực ${user?.areaName ?? ''}.',
+              title: 'Không tìm thấy điểm bán',
+              message: 'Cập nhật snapshot rồi mở lại màn đặt hàng.',
             );
           }
-          return _body(context, data, retailer, online);
+
+          if (user?.role == UserRole.sales &&
+              !online &&
+              !_cachedRetailerIsActive(data, retailer)) {
+            return const EmptyState(
+              icon: Icons.lock_outline,
+              title: 'Chưa thể chuẩn bị đơn offline',
+              message: 'Theo snapshot hiện có, điểm bán chưa có trạng thái '
+                  'hoạt động hợp lệ. Kết nối mạng và cập nhật dữ liệu.',
+            );
+          }
+
+          return AsyncBody<int>(
+            value: ref.watch(orderStepProvider),
+            onRetry: () => ref.invalidate(orderStepProvider),
+            builder: (_) {
+              if (!online) {
+                return _body(context, data, retailer, online);
+              }
+              final availability = ref.watch(
+                _orderAvailabilityProvider(retailer.id),
+              );
+              final error = availability.error;
+              final serverUnavailable =
+                  error is ApiException && error.isNetwork;
+              // Connectivity can stay online while the backend is unreachable.
+              // Sales can still prepare a draft; Retailer submission stays online-only.
+              return _body(
+                  context, data, retailer, online && !serverUnavailable,
+                  availability: availability.hasError || availability.isLoading
+                      ? null
+                      : availability.valueOrNull,
+                  availabilityLoading: availability.isLoading,
+                  availabilityError: availability.hasError
+                      ? ApiException.describe(availability.error!)
+                      : null);
+            },
+          );
         },
       ),
     );
   }
 
   Widget _body(
-      BuildContext context, CatalogData data, Retailer retailer, bool online) {
-    final products = data.products.where((p) {
-      if (_query.isEmpty) return true;
-      return p.name.toLowerCase().contains(_query) ||
-          p.sku.toLowerCase().contains(_query);
+    BuildContext context,
+    CatalogData data,
+    Retailer retailer,
+    bool online, {
+    Map<String, ProductAvailability>? availability,
+    bool availabilityLoading = false,
+    String? availabilityError,
+  }) {
+    final isRetailer =
+        ref.watch(currentUserProvider)?.role == UserRole.retailer;
+
+    final products = data.products.where((product) {
+      return _query.isEmpty ||
+          product.name.toLowerCase().contains(_query) ||
+          product.sku.toLowerCase().contains(_query);
     }).toList();
+
     final lines = _lines;
     final quote =
         lines.isEmpty ? PriceQuote.empty : data.quote(lines, retailer.code);
+
     return Column(
-      children: <Widget>[
+      children: [
         Expanded(
           child: ListView(
             padding: const EdgeInsets.all(16),
-            children: <Widget>[
+            children: [
               AppCard(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    Text(retailer.name,
-                        style: const TextStyle(
-                            fontWeight: FontWeight.w800, fontSize: 16)),
-                    Text('Mã ${retailer.code} · ${retailer.address}',
-                        style: const TextStyle(color: AppColors.textMuted)),
+                  children: [
+                    Text(
+                      retailer.name,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 16,
+                      ),
+                    ),
+                    Text(
+                      'Mã ${retailer.code} · ${retailer.address}',
+                      style: const TextStyle(
+                        color: AppColors.textMuted,
+                      ),
+                    ),
                     Text(
                       retailer.creditAllowed
-                          ? 'Được mua công nợ ${retailer.creditTerm} ngày'
-                          : 'Không mua công nợ',
+                          ? 'Kỳ hạn công nợ theo snapshot: '
+                              '${retailer.creditTerm} ngày'
+                          : 'Không mua công nợ theo snapshot',
                       style: const TextStyle(
-                          color: AppColors.primary,
-                          fontWeight: FontWeight.w600),
+                        color: AppColors.primary,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ],
                 ),
               ),
               if (!online)
-                const InfoBanner(
+                InfoBanner(
                   tone: StatusTone.warning,
                   icon: Icons.cloud_off,
                   title: 'Đang offline',
-                  text:
-                      'Đơn được lưu trên máy, khuyến mãi chỉ là tạm tính. Khi có mạng hệ thống sẽ tính lại, phân bổ kho và quyết định cuối cùng.',
+                  text: isRetailer
+                      ? 'Kết nối mạng để kiểm tra giá và gửi đơn.'
+                      : 'Giá và khuyến mãi chỉ là tạm tính. '
+                          'Đơn lưu trên máy được backend kiểm tra lại '
+                          'khi nhận.',
                 ),
               InfoBanner(
-                text:
-                    'Số lượng tối đa = tồn khả dụng (cập nhật lúc ${_stamp(data)}) trừ tồn đệm 20, làm tròn xuống bội số 10.',
+                text: 'Snapshot lúc ${_stamp(data.lastSyncAt)}. '
+                    'Giá và khuyến mãi trên giỏ được tính từ dữ liệu '
+                    'đã lưu; chưa phải báo giá cuối sau phân bổ.',
               ),
+              if (availabilityLoading) const LinearProgressIndicator(),
+              if (availabilityError != null) ...[
+                InfoBanner(tone: StatusTone.warning, text: availabilityError),
+                TextButton(
+                    onPressed: () =>
+                        ref.invalidate(_orderAvailabilityProvider(retailer.id)),
+                    child: const Text('Kiểm tra lại tồn đủ điều kiện')),
+              ],
+              InfoBanner(
+                text: online
+                    ? 'Đang dùng kết quả kiểm tra availability '
+                        'cho giới hạn chọn hiện tại.'
+                    : 'Tồn snapshot chỉ là tham khảo, '
+                        'không phải hàng đã giữ cho điểm bán.',
+              ),
+              if (!quote.isComplete)
+                InfoBanner(
+                  tone: StatusTone.warning,
+                  text: 'Chưa có giá hiệu lực cho: '
+                      '${quote.missingPriceSkus.join(', ')}. '
+                      'Hãy cập nhật snapshot hoặc kiểm tra giá online.',
+                ),
               TextField(
+                enabled: !_busy,
                 decoration: const InputDecoration(
-                    hintText: 'Tìm sản phẩm', prefixIcon: Icon(Icons.search)),
-                onChanged: (v) =>
-                    setState(() => _query = v.trim().toLowerCase()),
+                  hintText: 'Tìm sản phẩm hoặc SKU',
+                  prefixIcon: Icon(Icons.search),
+                ),
+                onChanged: (value) {
+                  setState(() => _query = value.trim().toLowerCase());
+                },
               ),
               const SizedBox(height: 10),
-              for (final p in products) _productRow(p, data, quote),
+              if (products.isEmpty)
+                const EmptyState(
+                  title: 'Không có sản phẩm phù hợp',
+                  message: 'Kiểm tra từ khóa hoặc cập nhật snapshot sản phẩm.',
+                )
+              else
+                for (final product in products)
+                  _productRow(
+                    product,
+                    data,
+                    retailer,
+                    quote,
+                    availability?[product.sku],
+                    online: online,
+                  ),
             ],
           ),
         ),
@@ -153,99 +322,258 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
     );
   }
 
-  String _stamp(CatalogData data) {
-    final t = data.lastSyncAt;
-    if (t == null) return 'chưa đồng bộ';
-    return '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')} ${t.day.toString().padLeft(2, '0')}/${t.month.toString().padLeft(2, '0')}';
+  String _stamp(DateTime? value) {
+    if (value == null) {
+      return 'chưa đồng bộ';
+    }
+
+    return AppDates.timeDay(value.toLocal());
   }
 
-  Widget _productRow(Product p, CatalogData data, PriceQuote quote) {
-    final max = data.maxQty(p.sku);
-    final qty = _cart[p.sku] ?? 0;
-    final line = quote.lines.where((l) => l.sku == p.sku).toList();
-    return AppCard(
+  void _validateQuantities(int step) {
+    if (_invalidQuantities.isNotEmpty || _lines.any((line) => line.qty <= 0 || line.qty % step != 0)) {
+      throw ApiException(
+          kind: ApiErrorKind.validation,
+          message: 'Số lượng phải là số thùng nguyên dương theo bước $step. '
+              'Hãy kiểm tra lại giỏ hàng.');
+    }
+  }
+
+  Widget _productRow(Product product, CatalogData data, Retailer retailer,
+      PriceQuote quote, ProductAvailability? availability,
+      {required bool online}) {
+    final viewerRole = ref.watch(currentUserProvider)?.role;
+    // Snapshot stock must not limit a Sales draft. Unknown online availability
+    // is not zero; allow browsing, but wait for a verified result to add stock.
+    final maximum = online
+        ? OrderLimits.maxQty(availability?.quantity ?? 0, step: _step)
+        : 2147483647;
+    final quantity = _cart[product.sku] ?? 0;
+    final price = data.displayPrice(product);
+    final pricedLines =
+        quote.lines.where((line) => line.sku == product.sku).toList();
+
+    void openDetail() {
+      if (_busy) {
+        return;
+      }
+
+      final promotions = data
+          .runningPromotions(retailerCode: retailer.code)
+          .where((promotion) =>
+              promotion.groupSkus.contains(product.sku) ||
+              promotion.rules.any((rule) => rule.sku == product.sku))
+          .toList();
+
+      unawaited(Navigator.of(context).push<void>(
+        MaterialPageRoute<void>(
+          builder: (_) => ProductDetailScreen(
+            product: product,
+            unitPrice: price,
+            availability: availability,
+            viewerRole: viewerRole,
+            promotions: promotions,
+          ),
+        ),
+      ));
+    }
+
+    return Padding(
+      key: ValueKey(product.sku),
+      padding: const EdgeInsets.only(bottom: 10),
+      child: AppCard(
+      margin: EdgeInsets.zero,
+      onTap: _busy ? null : openDetail,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Text('${p.sku} · ${p.name}',
-              style: const TextStyle(fontWeight: FontWeight.w700)),
-          Text('${p.pack} · ${Money.format(data.unitPrice(p.sku))}/thùng',
-              style: const TextStyle(color: AppColors.textMuted)),
-          const SizedBox(height: 6),
+        children: [
           Row(
-            children: <Widget>[
+            children: [
               Expanded(
                 child: Text(
-                  max == 0
-                      ? 'Không đủ tồn để đặt'
-                      : 'Có thể đặt tối đa: $max thùng',
-                  style: TextStyle(
-                      color: max == 0 ? AppColors.danger : AppColors.textMuted,
-                      fontSize: 13),
+                  '${product.sku} · ${product.name}',
+                  style: const TextStyle(fontWeight: FontWeight.w700),
                 ),
               ),
-              if (max > 0)
-                QuantityStepper(
-                  value: qty,
-                  step: 10,
-                  max: max,
-                  onChanged: (v) => setState(() => _cart[p.sku] = v),
-                ),
+              IconButton(
+                onPressed: _busy ? null : openDetail,
+                tooltip: 'Chi tiết ${product.name}',
+                icon: const Icon(Icons.chevron_right),
+              ),
             ],
           ),
-          if (line.isNotEmpty && line.first.hasDiscount)
+          Text(
+            price == null
+                ? '${product.pack} · Chưa có giá hiệu lực trong snapshot'
+                : '${product.pack} · '
+                    '${Money.format(price)}/thùng · dự kiến',
+            style: TextStyle(
+              color: price == null ? AppColors.warning : AppColors.textMuted,
+            ),
+          ),
+          const SizedBox(height: 6),
+          if (availability != null)
+            OrderStockSummary(
+              availability: availability,
+              viewerRole: viewerRole,
+              onViewAll: _busy ? null : openDetail,
+            ),
+          OrderQuantityField(
+            label: maximum == 0
+                      ? (availability == null
+                          ? 'Chưa kiểm tra được tồn đủ điều kiện'
+                          : availability.quantity <= 0
+                              ? 'Không có hàng đủ điều kiện để giao'
+                              : 'Chưa đủ hàng theo bước $_step thùng')
+                      : _step == 1
+                          ? 'Số lượng (thùng)'
+                          : 'Số lượng · bội $_step thùng',
+            labelColor: maximum == 0 ? AppColors.warning : AppColors.textMuted,
+            showRemove: quantity > 0,
+            onRemove: _busy ? null : () => _removeProduct(product),
+            control: maximum > 0 || quantity > 0 ? QuantityStepper(
+                  editable: true,
+                  enabled: !_busy,
+                  value: quantity,
+                  step: _step,
+                  max: quantity > maximum ? quantity : maximum,
+                  onValidationChanged: (valid) => setState(() {
+                    if (valid) {
+                      _invalidQuantities.remove(product.sku);
+                    } else {
+                      _invalidQuantities.add(product.sku);
+                    }
+                  }),
+                  onChanged: (value) {
+                    if (_busy) {
+                      return;
+                    }
+                    setState(() => _cart[product.sku] = value);
+                  },
+                ) : null,
+          ),
+          if (pricedLines.isNotEmpty && pricedLines.first.hasDiscount)
             Padding(
               padding: const EdgeInsets.only(top: 4),
               child: Text(
-                '${line.first.promoId} · giảm ${Money.format(line.first.discount)}',
+                '${pricedLines.first.promoName.isEmpty ? 'Khuyến mãi' : pricedLines.first.promoName} · '
+                'giảm dự kiến '
+                '${Money.format(pricedLines.first.discount)}',
                 style: const TextStyle(
-                    color: AppColors.success, fontWeight: FontWeight.w600),
+                  color: AppColors.success,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
         ],
       ),
+    ),
     );
   }
 
+  void _removeProduct(Product product) {
+    if (_busy) {
+      return;
+    }
+    final previous = _cart[product.sku];
+    final ownerId = ref.read(currentUserProvider)?.id;
+    if (previous == null || previous <= 0 || ownerId == null) {
+      return;
+    }
+    setState(() {
+      _cart.remove(product.sku);
+      _invalidQuantities.remove(product.sku);
+    });
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.clearSnackBars();
+    messenger.removeCurrentSnackBar();
+    messenger.showSnackBar(SnackBar(
+      duration: const Duration(seconds: 4),
+      persist: false,
+      content: Text('Đã bỏ ${product.name} khỏi giỏ.'),
+      action: SnackBarAction(label: 'Hoàn tác', onPressed: () {
+        if (!_isCurrentUser(ownerId) || _busy || (_cart[product.sku] ?? 0) > 0) {
+          return;
+        }
+        setState(() {
+          _cart[product.sku] = previous;
+          _invalidQuantities.remove(product.sku);
+        });
+      }),
+    ));
+  }
+
   Widget _bottomBar(
-      CatalogData data, Retailer retailer, bool online, PriceQuote quote) {
+    CatalogData data,
+    Retailer retailer,
+    bool online,
+    PriceQuote quote,
+  ) {
     final count = _lines.length;
+
     return SafeArea(
       top: false,
       child: Container(
         padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
         decoration: const BoxDecoration(
           color: AppColors.surface,
-          border: Border(top: BorderSide(color: AppColors.divider)),
+          border: Border(
+            top: BorderSide(color: AppColors.divider),
+          ),
         ),
         child: Row(
-          children: <Widget>[
+          children: [
             Expanded(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Text(count == 0 ? 'Giỏ hàng trống' : '$count sản phẩm',
-                      style: const TextStyle(color: AppColors.textMuted)),
+                children: [
                   Text(
-                    Money.format(quote.finalAmount),
+                    _invalidQuantities.isNotEmpty
+                        ? 'Kiểm tra lại số lượng đã nhập'
+                        : count == 0 ? 'Giỏ hàng trống' : '$count sản phẩm',
                     style: const TextStyle(
-                        fontSize: 18, fontWeight: FontWeight.w800),
+                      color: AppColors.textMuted,
+                    ),
                   ),
-                  if (quote.discount > 0)
-                    Text('Đã giảm ${Money.format(quote.discount)}',
-                        style: const TextStyle(
-                            color: AppColors.success, fontSize: 12.5)),
+                  Text(
+                    quote.isComplete
+                        ? Money.format(quote.finalAmount)
+                        : 'Chưa đủ dữ liệu giá',
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  if (count > 0 && quote.isComplete)
+                    const Text(
+                      'Tạm tính trên máy',
+                      style: TextStyle(
+                        color: AppColors.textMuted,
+                        fontSize: 12,
+                      ),
+                    ),
+                  if (quote.isComplete && quote.discount > 0)
+                    Text(
+                      'Giảm dự kiến ${Money.format(quote.discount)}',
+                      style: const TextStyle(
+                        color: AppColors.success,
+                        fontSize: 12.5,
+                      ),
+                    ),
                 ],
               ),
             ),
+            const SizedBox(width: 8),
             SizedBox(
-              width: 170,
+              width: 160,
               child: FilledButton(
-                onPressed: (count == 0 || _busy)
+                onPressed: count == 0 || _busy || _invalidQuantities.isNotEmpty
                     ? null
                     : () => _review(data, retailer, online),
-                child: Text(_busy ? 'Đang xử lý...' : 'Xem giỏ & đặt hàng'),
+                child: Text(
+                  _busy ? 'Đang xử lý...' : 'Xem giỏ & đặt hàng',
+                ),
               ),
             ),
           ],
@@ -254,96 +582,408 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
     );
   }
 
-  Future<void> _review(CatalogData data, Retailer retailer, bool online) async {
-    final lines = _lines;
-    var quote = data.quote(lines, retailer.code);
-    var estimated = true;
-    if (online) {
-      setState(() => _busy = true);
-      try {
-        quote = await ref
-            .read(productsApiProvider)
-            .quote(retailerId: retailer.id, lines: lines);
-        estimated = false;
-      } on ApiException {
-        // Keep the local estimate.
-      }
-      if (!mounted) return;
-      setState(() => _busy = false);
-    }
-    final confirmed = await showModalBottomSheet<bool>(
-      context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
-      builder: (_) => OrderConfirmSheet(
-        retailer: retailer,
-        quote: quote,
-        online: online,
-        estimated: estimated,
-      ),
-    );
-    if (confirmed != true || !mounted) return;
-    await _submit(data, retailer);
-  }
+  /// Gọi bằng ApiClient hiện có vì RetailerRepository trên nhánh hiện tại
+  /// chưa có method orderEligibility.
+  Future<void> _ensureSalesOrderEligibility(
+    Retailer retailer,
+  ) async {
+    final user = ref.read(currentUserProvider);
 
-  Future<void> _submit(CatalogData data, Retailer retailer) async {
-    final repo = ref.read(orderRepositoryProvider);
-    final productsBySku = <String, Product>{for (final p in data.products) p.sku: p};
-    final lines = _lines
-        .map((line) => CartLine(
-              productId: productsBySku[line.sku]?.id ?? '',
-              sku: line.sku,
-              qty: line.qty,
-            ))
-        .toList();
-    if (retailer.id.isEmpty || lines.any((line) => line.productId.isEmpty)) {
-      showAppSnack(context,
-          'Dữ liệu Retailer/SKU chưa có ID từ máy chủ. Hãy đồng bộ lại danh mục.',
-          error: true);
+    if (user == null) {
+      throw const ApiException(
+        kind: ApiErrorKind.unauthorized,
+        message: 'Vui lòng đăng nhập lại.',
+      );
+    }
+
+    if (user.role == UserRole.retailer) {
       return;
     }
-    final online = ref.read(networkMonitorProvider).online;
+
+    if (user.role != UserRole.sales) {
+      throw const ApiException(
+        kind: ApiErrorKind.forbidden,
+        message: 'Tài khoản không được sử dụng luồng đặt hàng Sales.',
+      );
+    }
+
+    if (retailer.id.isEmpty) {
+      throw const ApiException(
+        kind: ApiErrorKind.validation,
+        message: 'Điểm bán thiếu ID máy chủ. Hãy cập nhật snapshot.',
+      );
+    }
+
+    final response = await ref.read(apiClientProvider).get(
+          '/retailers/${Uri.encodeComponent(retailer.id)}'
+          '/order-eligibility',
+        );
+
+    if (!mounted || !_isCurrentUser(user.id)) {
+      throw const ApiException(
+        kind: ApiErrorKind.forbidden,
+        message: 'Phiên đăng nhập đã thay đổi.',
+      );
+    }
+
+    final result = asMap(response);
+    final eligible = result['isEligible'];
+    final reasons = result['reasons'];
+
+    if (eligible is! bool ||
+        reasons is! List ||
+        reasons.any((reason) => reason is! String) ||
+        asStr(result['salesUserId']) != user.id ||
+        asStr(result['retailerId']) != retailer.id) {
+      throw const ApiException(
+        kind: ApiErrorKind.server,
+        message: 'Phản hồi kiểm tra điều kiện đặt hàng không hợp lệ.',
+      );
+    }
+
+    if (!eligible) {
+      final message = reasons.cast<String>().join('\n');
+
+      throw ApiException(
+        kind: ApiErrorKind.forbidden,
+        message: message.isEmpty
+            ? 'Điểm bán hiện chưa đủ điều kiện đặt hàng.'
+            : message,
+      );
+    }
+  }
+
+  Future<void> _review(
+    CatalogData data,
+    Retailer retailer,
+    bool online,
+  ) async {
+    if (_busy || _lines.isEmpty) {
+      return;
+    }
+
+    final user = ref.read(currentUserProvider);
+    if (user == null) {
+      return;
+    }
+
+    if (!online && user.role == UserRole.retailer) {
+      showAppSnack(
+        context,
+        'Retailer cần kết nối mạng để gửi đơn.',
+        error: true,
+      );
+      return;
+    }
+
+    if (!online &&
+        user.role == UserRole.sales &&
+        !_cachedRetailerIsActive(data, retailer)) {
+      showAppSnack(
+        context,
+        'Điểm bán chưa hoạt động theo snapshot hiện có.',
+        error: true,
+      );
+      return;
+    }
+
+    final estimatedAt = AppClock.now();
+    final lines = _lines;
+    final localEstimate = data.quote(
+      lines,
+      retailer.code,
+      now: estimatedAt,
+    );
+
+    var quote = localEstimate;
+    var estimated = true;
+
     setState(() => _busy = true);
+
     try {
+      final step = await ref.read(orderStepProvider.future);
+      if (!mounted || !_isCurrentUser(user.id)) {
+        return;
+      }
+      _validateQuantities(step);
+      if (online) {
+        await _ensureSalesOrderEligibility(retailer);
+
+        if (!mounted || !_isCurrentUser(user.id)) {
+          return;
+        }
+
+        try {
+          quote = await ref.read(productsApiProvider).quote(
+                retailerId: retailer.id,
+                lines: lines
+                    .map(
+                      (line) => CartLine(
+                        productId: data.product(line.sku)?.id ?? '',
+                        sku: line.sku,
+                        qty: line.qty,
+                      ),
+                    )
+                    .toList(),
+              );
+          estimated = false;
+        } on ApiException catch (error) {
+          if (!error.isNetwork || !localEstimate.isComplete) {
+            rethrow;
+          }
+          // Chỉ fallback khi mất kết nối và local estimate đầy đủ.
+        }
+      }
+
+      if (!quote.isComplete) {
+        throw ApiException(
+          kind: ApiErrorKind.validation,
+          message: 'Chưa có giá hiệu lực cho '
+              '${quote.missingPriceSkus.join(', ')}. '
+              'Hãy cập nhật snapshot hoặc kiểm tra giá online.',
+        );
+      }
+
+      if (!mounted || !_isCurrentUser(user.id)) {
+        return;
+      }
+
+      final confirmed = await showModalBottomSheet<bool>(
+        context: context,
+        isScrollControlled: true,
+        showDragHandle: true,
+        builder: (_) => OrderConfirmSheet(
+          retailer: retailer,
+          quote: quote,
+          online: online,
+          estimated: estimated,
+          localEstimate: localEstimate.isComplete ? localEstimate : null,
+          snapshotAt: data.lastSyncAt,
+          estimatedAt: estimatedAt,
+        ),
+      );
+
+      if (confirmed != true || !_isCurrentUser(user.id)) {
+        return;
+      }
+
+      await _submit(
+        data,
+        retailer,
+        confirmedQuote: quote,
+        localEstimate: localEstimate.isComplete ? localEstimate : null,
+        estimatedAt: estimatedAt,
+      );
+    } catch (error) {
+      if (mounted && _isCurrentUser(user.id)) {
+        showAppSnack(
+          context,
+          ApiException.describe(error),
+          error: true,
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _busy = false);
+      }
+    }
+  }
+
+  Future<void> _submit(
+    CatalogData data,
+    Retailer retailer, {
+    required PriceQuote confirmedQuote,
+    required PriceQuote? localEstimate,
+    required DateTime estimatedAt,
+  }) async {
+    final user = ref.read(currentUserProvider);
+    if (user == null) {
+      return;
+    }
+
+    final repository = ref.read(orderRepositoryProvider);
+    final productsBySku = {
+      for (final product in data.products) product.sku: product,
+    };
+
+    final lines = _lines
+        .map(
+          (line) => CartLine(
+            productId: productsBySku[line.sku]?.id ?? '',
+            sku: line.sku,
+            qty: line.qty,
+          ),
+        )
+        .toList();
+
+    if (retailer.id.isEmpty ||
+        lines.isEmpty ||
+        lines.any((line) => line.productId.isEmpty)) {
+      showAppSnack(
+        context,
+        'Retailer hoặc sản phẩm thiếu ID máy chủ. '
+        'Hãy cập nhật snapshot.',
+        error: true,
+      );
+      return;
+    }
+
+    final online = ref.read(networkMonitorProvider).online;
+
+    if (!online && user.role != UserRole.sales) {
+      showAppSnack(
+        context,
+        'Tài khoản này cần kết nối mạng để gửi đơn.',
+        error: true,
+      );
+      return;
+    }
+
+    setState(() => _busy = true);
+
+    try {
+      final step = await ref.read(orderStepProvider.future);
+      if (!mounted || !_isCurrentUser(user.id)) {
+        return;
+      }
+      _validateQuantities(step);
       var code = '';
       var message = '';
+      NewOrderRequest? attemptedOnlineRequest;
+
       Future<void> saveOffline(String notice) async {
-        final entry = await repo.createOffline(retailer: retailer, lines: lines);
+        if (!mounted || !_isCurrentUser(user.id)) {
+          throw const ApiException(
+            kind: ApiErrorKind.forbidden,
+            message: 'Phiên đăng nhập đã thay đổi.',
+          );
+        }
+
+        final estimate =
+            attemptedOnlineRequest != null ? confirmedQuote : localEstimate;
+
+        if (estimate == null || !estimate.isComplete) {
+          throw const ApiException(
+            kind: ApiErrorKind.validation,
+            message: 'Chưa có bản giá offline đầy đủ để lưu đơn. '
+                'Hãy cập nhật snapshot rồi thử lại.',
+          );
+        }
+
+        final entry = await repository.createOffline(
+          orderStep: step,
+          retailer: retailer,
+          lines: lines,
+          estimate: estimate,
+          estimatedAt: estimatedAt,
+          snapshot: data.snapshot,
+          pendingOnlineRequest: attemptedOnlineRequest,
+        );
+
         code = entry.localCode;
         message = notice;
       }
 
       if (online) {
         try {
-          final order = await repo.createOnline(NewOrderRequest(
-            clientOrderKey: const Uuid().v4(),
+          await _ensureSalesOrderEligibility(retailer);
+
+          if (!mounted || !_isCurrentUser(user.id)) {
+            return;
+          }
+
+          // Giữ kiểm tra availability hiện có.
+          final quantities = await ref.read(ordersApiProvider).availability(
+                retailer.id,
+                lines.map((line) => line.productId).toList(),
+              );
+
+          if (!mounted || !_isCurrentUser(user.id)) {
+            return;
+          }
+
+          final shortages = lines
+              .where((line) =>
+                  line.qty >
+                  OrderLimits.maxQty(quantities[line.sku] ?? 0, step: step))
+              .toList();
+          if (shortages.isNotEmpty) {
+            ref.invalidate(
+              _orderAvailabilityProvider(retailer.id),
+            );
+
+            showAppSnack(
+              context,
+              'Tồn đủ điều kiện thay đổi: '
+              '${shortages.map((line) => '${line.sku}: chọn ${line.qty}, hiện có ${quantities[line.sku] ?? 0} thùng').join('; ')}. '
+              'Giỏ hàng được giữ nguyên. Hãy điều chỉnh số lượng rồi gửi lại.',
+              error: true,
+            );
+            return;
+          }
+
+          attemptedOnlineRequest = NewOrderRequest(
+            clientOrderKey: _clientOrderKey,
             retailerId: retailer.id,
             lines: lines,
             deliveryAddress: retailer.address,
-          ));
+          );
+          final order = await repository.createOnline(attemptedOnlineRequest);
+
           code = order.id;
           message = order.status.isRejectedOrCancelled
               ? 'Đơn ${order.code} bị từ chối: ${order.rejectReason}'
-              : 'Đã tạo SO ${order.code}. Hệ thống đang phân bổ và sẽ gửi báo giá cho Retailer.';
-        } on ApiException catch (e) {
-          if (!e.isNetwork) rethrow;
+              : 'Đã tạo SO ${order.code}. '
+                  'Hệ thống đang phân bổ và sẽ gửi báo giá cho Retailer.';
+        } on ApiException catch (error) {
+          if (!error.isNetwork || user.role != UserRole.sales) {
+            rethrow;
+          }
+
           await saveOffline(
-              'Mất kết nối - đã lưu đơn trên máy, sẽ tự đồng bộ khi có mạng.');
+            attemptedOnlineRequest == null
+                ? 'Mất kết nối — đã lưu draft trên máy. Mở draft để chủ động gửi lại.'
+                : 'Chưa nhận được kết quả gửi online. Đã giữ nguyên yêu cầu trên máy; '
+                    'mở draft và bấm Gửi để kiểm tra hoặc hoàn tất cùng yêu cầu.',
+          );
         }
       } else {
-        await saveOffline('Đã lưu đơn trên máy. Đơn sẽ được gửi khi có mạng.');
+        await saveOffline(
+          'Đã lưu đơn và bản tạm tính trên máy.',
+        );
       }
+
+      if (!mounted || !_isCurrentUser(user.id)) {
+        return;
+      }
+
       ref.read(dataVersionProvider.notifier).state++;
+
       if (online) {
-        unawaited(ref.read(syncServiceProvider.notifier).refreshSnapshot());
+        unawaited(
+          ref.read(syncServiceProvider.notifier).refreshSnapshot(),
+        );
       }
-      if (!mounted) return;
+
       showAppSnack(context, message);
-      context.pushReplacement(AppRoutes.salesOrderDetail(code));
-    } on ApiException catch (e) {
-      if (mounted) showAppSnack(context, e.message, error: true);
+
+      context.pushReplacement(
+        user.role == UserRole.retailer
+            ? AppRoutes.rtOrderDetail(code)
+            : AppRoutes.salesOrderDetail(code),
+      );
+    } on ApiException catch (error) {
+      if (mounted && _isCurrentUser(user.id)) {
+        showAppSnack(
+          context,
+          error.message,
+          error: true,
+        );
+      }
     } finally {
-      if (mounted) setState(() => _busy = false);
+      if (mounted) {
+        setState(() => _busy = false);
+      }
     }
   }
 }

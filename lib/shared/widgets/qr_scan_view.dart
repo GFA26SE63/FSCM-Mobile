@@ -114,6 +114,9 @@ class _QrScanViewState extends State<QrScanView> {
             ),
             const SizedBox(width: 8),
             FilledButton(
+              style: FilledButton.styleFrom(
+                minimumSize: const Size(64, 48),
+              ),
               onPressed: () => _submitManual(_manual.text),
               child: const Text('OK'),
             ),

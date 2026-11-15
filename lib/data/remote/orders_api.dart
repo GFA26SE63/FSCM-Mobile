@@ -8,6 +8,8 @@ import 'package:fscm_mobile/data/models/delivery_shipment.dart';
 import 'package:fscm_mobile/data/models/offline_order.dart';
 import 'package:fscm_mobile/data/models/order.dart';
 import 'package:uuid/uuid.dart';
+import 'package:fscm_mobile/data/models/order_availability.dart';
+import 'package:fscm_mobile/data/models/order_page.dart';
 
 final ordersApiProvider =
     Provider<OrdersApi>((ref) => OrdersApi(ref.watch(apiClientProvider)));
@@ -16,6 +18,27 @@ class OrdersApi {
   OrdersApi(this._client);
 
   final ApiClient _client;
+  Future<Order> retryAllocation(String id, int version) async =>
+      Order.fromJson(asMap(await _client.post('/orders/$id/allocation/retry',
+          body: {'expectedVersion': version})));
+
+  Future<OrderPage> listPage(
+      {int page = 1, int pageSize = 20, String? search}) async {
+    final data = await _client.get(Endpoints.orders, query: {
+      'page': page,
+      'pageSize': pageSize,
+      if (search != null && search.trim().isNotEmpty) 'search': search.trim(),
+    });
+    return OrderPage.fromJson(asMap(data));
+  }
+
+  /// Number of orders in [status] within the caller's scope, read from the
+  /// page total rather than counting a page of rows.
+  Future<int> countByStatus(String status) async {
+    final data = await _client.get(Endpoints.orders,
+        query: <String, dynamic>{'status': status, 'page': 1, 'pageSize': 1});
+    return OrderPage.fromJson(asMap(data)).totalCount;
+  }
 
   /// Sales: own + group orders. Retailer: own orders (scoped by the token).
   Future<List<Order>> list({
@@ -30,10 +53,49 @@ class OrdersApi {
         'status': status,
         'search': search,
         'page': page,
-        'size': size,
+        'pageSize': size,
       },
     );
     return unwrapItems(data).map(Order.fromJson).toList();
+  }
+
+  Future<Map<String, int>> availability(
+      String retailerId, List<String> productIds) async {
+    final products = await availabilityByWarehouse(retailerId, productIds);
+    return products.map((sku, item) => MapEntry(sku, item.quantity));
+  }
+
+  Future<Map<String, ProductAvailability>> availabilityByWarehouse(
+      String retailerId, List<String> productIds) async {
+    final quantities = <String, ProductAvailability>{};
+    for (var offset = 0; offset < productIds.length; offset += 100) {
+      final requestedIds = productIds.skip(offset).take(100).toSet().toList();
+      final data = asMap(await _client.post('/orders/availability', body: {
+        'retailerId': retailerId,
+        'productIds': requestedIds,
+      }));
+      if (data['items'] is! List ||
+          unwrapItems(data).length != requestedIds.length) {
+        throw const ApiException(
+            kind: ApiErrorKind.server,
+            message: 'Phản hồi kiểm tra tồn thiếu dữ liệu sản phẩm.');
+      }
+      for (final item in unwrapItems(data)) {
+        final quantity = item['eligibleQuantity'];
+        if (asStr(item['sku']).isEmpty ||
+            quantity is! num ||
+            !quantity.isFinite ||
+            quantity < 0) {
+          throw const ApiException(
+              kind: ApiErrorKind.server,
+              message: 'Phản hồi kiểm tra tồn có số lượng không hợp lệ.');
+        }
+        final availability = ProductAvailability.fromJson(item,
+            checkedAt: asDate(data['checkedAt']));
+        quantities[availability.sku] = availability;
+      }
+    }
+    return quantities;
   }
 
   Future<Order> get(String idOrCode) async {
@@ -69,20 +131,49 @@ class OrdersApi {
       List<OfflineOrderPayload> orders) async {
     final results = <OrderSyncResult>[];
     for (final payload in orders) {
-      final data = await _client.post(Endpoints.ordersSync, body: payload.toJson());
-      final order = Order.fromJson(asMap(data));
-      results.add(OrderSyncResult(
-        clientRequestId: payload.clientRequestId,
-        accepted: true,
-        orderCode: order.code,
-        finalAmount: order.finalAmount,
-        promoChanged: order.finalAmount != payload.localFinal,
-        changeReason: order.finalAmount == payload.localFinal
-            ? ''
-            : 'Giá/khuyến mãi được tính lại khi đồng bộ.',
-      ));
+      if (payload.pendingOnlineRequest == null &&
+          !payload.hasCompleteExpectedConditions) {
+        results.add(
+          OrderSyncResult(
+            clientRequestId: payload.clientRequestId,
+            accepted: false,
+            reason: 'Draft thiếu điều kiện giá/MLOR tại thời điểm lưu. '
+                'Hãy tạo draft mới sau khi kiểm tra snapshot; '
+                'bản cũ được giữ lại để đối chiếu.',
+          ),
+        );
+        continue;
+      }
+      results.add(await submitOffline(payload));
     }
     return results;
+  }
+
+  Future<OrderSyncResult> submitOffline(
+    OfflineOrderPayload payload, {
+    bool confirmConditionChanges = false,
+  }) async {
+    final data = await _client.post(
+      payload.pendingOnlineRequest == null
+          ? Endpoints.ordersSync
+          : Endpoints.orders,
+      body: payload.toRequestJson(
+        confirmConditionChanges: confirmConditionChanges,
+      ),
+    );
+    final order = Order.fromJson(asMap(data));
+    return OrderSyncResult(
+      serverOrder: order,
+      clientRequestId: payload.clientRequestId,
+      accepted: true,
+      orderCode: order.code,
+      finalAmount: order.finalAmount,
+      promoChanged: order.finalAmount != payload.localFinal,
+      changeReason: order.finalAmount == payload.localFinal
+          ? ''
+          : 'Giá dự kiến được backend tính lại khi nhận đơn. '
+              'Giá sau giảm HSD được xác định khi phân bổ.',
+    );
   }
 
   Future<List<DeliveryShipment>> deliveryShipments(String orderId) async {

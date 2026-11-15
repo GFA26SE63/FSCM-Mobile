@@ -1,8 +1,7 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:fscm_mobile/shared/routes.dart';
-import 'package:fscm_mobile/shared/theme/app_colors.dart';
 
 /// Warehouse Keeper navigation: Trang chủ, Picking, [Quét QR], Tài khoản.
 /// The scan button sits in the middle (docked FAB). There is no
@@ -12,12 +11,9 @@ class WarehouseShell extends StatelessWidget {
 
   final StatefulNavigationShell navigationShell;
 
-  void _go(int index) => navigationShell.goBranch(index,
-      initialLocation: index == navigationShell.currentIndex);
-
   @override
   Widget build(BuildContext context) {
-    final current = navigationShell.currentIndex;
+    final branch = navigationShell.currentIndex;
     return Scaffold(
       body: navigationShell,
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,

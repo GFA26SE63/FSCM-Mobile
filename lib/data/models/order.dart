@@ -4,6 +4,10 @@ import 'package:fscm_mobile/data/models/price_quote.dart';
 import 'package:fscm_mobile/data/models/timeline_entry.dart';
 
 /// Batch allocation of an order line (result of the FEFO allocation engine).
+///
+/// F98: when the server sends a price snapshot (`allocationFragments`) the
+/// per-batch prices below are copied as-is. They are never recomputed on the
+/// device; `hasPriceSnapshot` tells the UI whether they can be shown.
 class BatchAllocation {
   const BatchAllocation({
     required this.batchCode,
@@ -11,21 +15,62 @@ class BatchAllocation {
     this.expiry,
     this.warehouseName = '',
     this.labelCode = '',
+    this.hasPriceSnapshot = false,
+    this.listUnitPrice = 0,
+    this.promotionDiscountPerUnit = 0,
+    this.baseUnitPrice = 0,
+    this.remainingShelfLifePercent = 0,
+    this.shelfLifeDiscountPerUnit = 0,
+    this.finalUnitPrice = 0,
+    this.netAmount = 0,
+    this.discountReason = '',
+    this.estimatedArrivalAt,
   });
 
-  factory BatchAllocation.fromJson(Map<String, dynamic> j) => BatchAllocation(
-        batchCode: asStr(j['batchCode']),
-        qty: asInt(j['qty'] ?? j['quantity'] ?? j['allocatedQuantity']),
-        expiry: asDate(j['expiry'] ?? j['batchExpirationDate']),
-        warehouseName: asStr(j['warehouseName'] ?? j['warehouseCode']),
-        labelCode: asStr(j['labelCode']),
-      );
+  factory BatchAllocation.fromJson(Map<String, dynamic> j) {
+    final snapshot = j['finalUnitPrice'] != null && j['netAmount'] != null;
+    return BatchAllocation(
+      batchCode: asStr(j['batchCode']),
+      qty: asInt(j['qty'] ?? j['quantity'] ?? j['allocatedQuantity']),
+      expiry: asDate(j['expiry'] ?? j['batchExpirationDate']),
+      warehouseName: asStr(j['warehouseName'] ?? j['warehouseCode']),
+      labelCode: asStr(j['labelCode']),
+      hasPriceSnapshot: snapshot,
+      listUnitPrice: asDouble(j['listUnitPrice']),
+      promotionDiscountPerUnit: asDouble(j['ordinaryPromotionDiscountPerUnit']),
+      baseUnitPrice: asDouble(j['baseUnitPrice']),
+      remainingShelfLifePercent: asDouble(j['remainingShelfLifePercent']),
+      shelfLifeDiscountPerUnit: asDouble(j['shelfLifeDiscountPerUnit']),
+      finalUnitPrice: asDouble(j['finalUnitPrice']),
+      netAmount: asDouble(j['netAmount']),
+      discountReason: asStr(j['discountReason']),
+      estimatedArrivalAt: asDate(j['estimatedArrivalAt']),
+    );
+  }
 
   final String batchCode;
   final int qty;
   final DateTime? expiry;
   final String warehouseName;
   final String labelCode;
+  final bool hasPriceSnapshot;
+  final double listUnitPrice;
+  final double promotionDiscountPerUnit;
+
+  /// Unit price after the quantity promotion (before the shelf-life discount).
+  final double baseUnitPrice;
+
+  /// Remaining shelf life of this batch at the estimated arrival, in percent.
+  final double remainingShelfLifePercent;
+  final double shelfLifeDiscountPerUnit;
+  final double finalUnitPrice;
+  final double netAmount;
+  final String discountReason;
+  final DateTime? estimatedArrivalAt;
+
+  /// Shelf-life discount as a percentage of the post-promotion price.
+  double get shelfLifeDiscountPercent =>
+      baseUnitPrice <= 0 ? 0 : shelfLifeDiscountPerUnit / baseUnitPrice * 100;
 
   Map<String, dynamic> toJson() => <String, dynamic>{
         'batchCode': batchCode,
@@ -33,6 +78,17 @@ class BatchAllocation {
         'expiry': isoOrNull(expiry),
         'warehouseName': warehouseName,
         'labelCode': labelCode,
+        if (hasPriceSnapshot) ...<String, dynamic>{
+          'listUnitPrice': listUnitPrice,
+          'ordinaryPromotionDiscountPerUnit': promotionDiscountPerUnit,
+          'baseUnitPrice': baseUnitPrice,
+          'remainingShelfLifePercent': remainingShelfLifePercent,
+          'shelfLifeDiscountPerUnit': shelfLifeDiscountPerUnit,
+          'finalUnitPrice': finalUnitPrice,
+          'netAmount': netAmount,
+          'discountReason': discountReason,
+          'estimatedArrivalAt': isoOrNull(estimatedArrivalAt),
+        },
       };
 }
 
@@ -42,36 +98,81 @@ class OrderLine {
     required this.name,
     required this.qty,
     required this.unitPrice,
+    this.grossAmount,
     this.discount = 0,
     this.discountPct = 0,
     this.promoId = '',
     this.promoName = '',
+    this.campaignDiscount,
+    this.shelfLifeDiscount = 0,
+    this.shelfLifeSource = '',
     this.batches = const <BatchAllocation>[],
   });
 
-  factory OrderLine.fromJson(Map<String, dynamic> j) => OrderLine(
-        sku: asStr(j['sku']),
-        name: asStr(j['name'] ?? j['productName']),
-        qty: asInt(j['qty'] ?? j['quantity'] ?? j['orderedQuantity']),
-        unitPrice: asInt(j['unitPrice']),
-        discount: asInt(j['discount'] ?? j['discountAmount']),
-        discountPct: asDouble(j['discountPct'] ?? j['discountPercent']),
-        promoId: asStr(j['promoId'] ?? j['discountSourceCode']),
-        promoName: asStr(j['promoName'] ?? j['discountSourceType']),
-        batches: mapList(j['batches'] ?? j['allocations'], BatchAllocation.fromJson),
-      );
+  factory OrderLine.fromJson(Map<String, dynamic> j) {
+    final fragments = asMapList(j['allocationFragments']);
+    final ordinaryPromotion = asMap(j['ordinaryPromotion']);
+    final discount = asInt(j['discount'] ?? j['discountAmount']);
+    final hasShelfLife = j['discountSourceType'] == 'ShelfLife';
+    final hasBreakdown = hasShelfLife ||
+        j['campaignDiscount'] != null ||
+        ordinaryPromotion.containsKey('discountAmount');
+    final campaignDiscount = hasBreakdown
+        ? asInt(j['campaignDiscount'] ?? ordinaryPromotion['discountAmount'])
+            .clamp(0, discount)
+            .toInt()
+        : null;
+    var promotionName =
+        asStr(j['promoName'] ?? ordinaryPromotion['name'], 'Khuyến mãi');
+    if (j['promoName'] == null &&
+        asStr(ordinaryPromotion['name']).isEmpty &&
+        hasShelfLife) {
+      promotionName = (campaignDiscount ?? 0) > 0
+          ? 'Khuyến mãi và giảm giá HSD'
+          : 'Giảm giá theo HSD';
+    }
+    return OrderLine(
+      sku: asStr(j['sku']),
+      name: asStr(j['name'] ?? j['productName']),
+      qty: asInt(j['qty'] ?? j['quantity'] ?? j['orderedQuantity']),
+      unitPrice: asDouble(j['unitPrice']),
+      grossAmount: j['grossAmount'] == null ? null : asInt(j['grossAmount']),
+      discount: discount,
+      discountPct: asDouble(j['discountPct'] ?? j['discountPercent']),
+      promoId: asStr(j['promoId'] ??
+          ordinaryPromotion['promotionId'] ??
+          ordinaryPromotion['code'] ??
+          j['discountSourceCode']),
+      promoName: promotionName,
+      campaignDiscount: campaignDiscount,
+      shelfLifeDiscount: hasShelfLife
+          ? discount - (campaignDiscount ?? 0)
+          : asInt(j['shelfLifeDiscount']),
+      shelfLifeSource: asStr(j['shelfLifeSource'] ??
+          (hasShelfLife ? j['discountSourceCode'] : null)),
+      batches: mapList(
+          j['batches'] ?? (fragments.isNotEmpty ? fragments : j['allocations']),
+          BatchAllocation.fromJson),
+    );
+  }
 
   final String sku;
   final String name;
   final int qty;
-  final int unitPrice;
+  final num unitPrice;
+  final int? grossAmount;
   final int discount;
   final double discountPct;
   final String promoId;
   final String promoName;
+
+  /// Null preserves legacy/offline lines whose discount has no component breakdown.
+  final int? campaignDiscount;
+  final int shelfLifeDiscount;
+  final String shelfLifeSource;
   final List<BatchAllocation> batches;
 
-  int get base => qty * unitPrice;
+  int get base => grossAmount ?? (qty * unitPrice).round();
   int get net => base - discount;
 
   Map<String, dynamic> toJson() => <String, dynamic>{
@@ -79,10 +180,14 @@ class OrderLine {
         'name': name,
         'qty': qty,
         'unitPrice': unitPrice,
+        'grossAmount': base,
         'discount': discount,
         'discountPct': discountPct,
         'promoId': promoId,
         'promoName': promoName,
+        'campaignDiscount': campaignDiscount,
+        'shelfLifeDiscount': shelfLifeDiscount,
+        'shelfLifeSource': shelfLifeSource,
         'batches': batches.map((b) => b.toJson()).toList(),
       };
 }
@@ -92,6 +197,12 @@ class OrderLine {
 class Order {
   const Order({
     this.id = '',
+    this.retailerId = '',
+    this.allocationState = '',
+    this.allocationResult,
+    this.finalPricePendingAllocation = false,
+    this.lineCount = 0,
+    this.totalCartons = 0,
     required this.code,
     required this.retailerCode,
     required this.retailerName,
@@ -126,42 +237,78 @@ class Order {
     this.timeline = const <TimelineEntry>[],
   });
 
-  factory Order.fromJson(Map<String, dynamic> j) => Order(
-        id: asStr(j['id']),
-        code: asStr(j['code'] ?? j['orderCode']),
-        retailerCode: asStr(j['retailerCode']),
-        retailerName: asStr(j['retailerName']),
-        status: OrderStatus.fromCode(asStrOrNull(j['status'])),
-        createdAt: asDate(j['createdAt']) ?? DateTime.now(),
-        lines: mapList(j['lines'], OrderLine.fromJson),
-        total: asInt(j['total'] ?? j['subtotalAmount'] ?? j['finalAmount']),
-        discount: asInt(j['discount'] ?? j['discountAmount']),
-        createdByName: asStr(j['createdByName']),
-        payment: PaymentMethod.fromCode(asStrOrNull(j['payment'] ?? j['paymentMethod'])),
-        creditTerm: asInt(j['creditTerm'] ?? j['creditTermDays']),
-        rejectReason: asStr(j['rejectReason'] ?? j['rejectionReason']),
-        version: asInt(j['version']),
-        isOffline: asBool(j['isOffline']),
-        offlineCode: asStr(j['offlineCode']),
-        syncedAt: asDate(j['syncedAt']),
-        syncMode: asStr(j['syncMode']),
-        promoChanged: asBool(j['promoChanged']),
-        changeReason: asStr(j['changeReason']),
-        localFinal: j['localFinal'] == null ? null : asInt(j['localFinal']),
-        vehiclePlate: asStr(j['vehiclePlate']),
-        driverName: asStr(j['driverName']),
-        driverPhone: asStr(j['driverPhone']),
-        departedAt: asDate(j['departedAt']),
-        paid: asBool(j['paid']),
-        paidAt: asDate(j['paidAt']),
-        dueDate: asDate(j['dueDate']),
-        pointsEarned: asInt(j['pointsEarned']),
-        pointsPending: asBool(j['pointsPending']),
-        labelCodes: asStrList(j['labelCodes']),
-        timeline: mapList(j['timeline'] ?? j['history'], TimelineEntry.fromJson),
-      );
+  factory Order.fromJson(Map<String, dynamic> j) {
+    final payment = asMap(j['payment']);
+    final legacyMethod = j['payment'] is String ? j['payment'] : null;
+    return Order(
+      id: asStr(j['id']),
+      retailerId: asStr(j['retailerId']),
+      allocationState: asStr(j['allocationState']),
+      allocationResult: asStrOrNull(j['allocationResult']),
+      finalPricePendingAllocation: asBool(j['finalPricePendingAllocation']),
+      lineCount: asInt(j['lineCount']),
+      totalCartons: asInt(j['totalCartons']),
+      code: asStr(j['code'] ?? j['orderCode']),
+      retailerCode: asStr(j['retailerCode']),
+      retailerName: asStr(j['retailerName']),
+      status: OrderStatus.fromCode(asStrOrNull(j['status'])),
+      createdAt: asDate(j['createdAt']) ?? DateTime.now(),
+      lines: mapList(j['lines'], OrderLine.fromJson),
+      total: asInt(j['total'] ?? j['subtotalAmount'] ?? j['finalAmount']),
+      discount: asInt(j['discount'] ?? j['discountAmount']),
+      createdByName: asStr(j['createdByName']),
+      payment: PaymentMethod.fromCode(
+          asStrOrNull(payment['method'] ?? j['paymentMethod'] ?? legacyMethod)),
+      creditTerm: asInt(j['creditTerm'] ?? j['creditTermDays']),
+      rejectReason: asStr(j['rejectReason'] ?? j['rejectionReason']),
+      version: asInt(j['version']),
+      isOffline: asBool(j['isOffline']) || asStr(j['source']) == 'Offline',
+      offlineCode: asStr(j['offlineCode']),
+      syncStatus: j['syncStatus'] == null
+          ? null
+          : SyncStatus.fromCode(asStrOrNull(j['syncStatus'])),
+      syncedAt: asDate(j['syncedAt']),
+      syncMode: asStr(j['syncMode']),
+      promoChanged: asBool(
+        j['promoChanged'] ?? j['hasOfflineDifference'],
+      ),
+      changeReason: asStr(
+        j['changeReason'],
+        asBool(j['hasOfflineDifference'])
+            ? 'Giá hệ thống khác với bản tạm tính khi lưu offline.'
+            : '',
+      ),
+      localFinal: (j['localFinal'] ?? j['offlineEstimatedAmount']) == null
+          ? null
+          : asInt(j['localFinal'] ?? j['offlineEstimatedAmount']),
+      vehiclePlate: asStr(j['vehiclePlate']),
+      driverName: asStr(j['driverName']),
+      driverPhone: asStr(j['driverPhone']),
+      departedAt: asDate(j['departedAt']),
+      paid: payment.containsKey('status')
+          ? asStr(payment['status']).toLowerCase() == 'paid'
+          : asBool(j['paid']),
+      paidAt: asDate(payment['paidDate'] ?? payment['paidAt'] ?? j['paidAt']),
+      dueDate: asDate(payment['dueDate'] ?? j['dueDate']),
+      pointsEarned: asInt(j['pointsEarned']),
+      pointsPending: asBool(j['pointsPending']),
+      labelCodes: asStrList(j['labelCodes']),
+      timeline: mapList(j['timeline'] ?? j['history'], TimelineEntry.fromJson),
+    );
+  }
+
+  bool get canPayOnline =>
+      payment == PaymentMethod.prepaid &&
+      status == OrderStatus.paymentPending &&
+      !paid;
 
   final String id;
+  final String retailerId;
+  final String allocationState;
+  final String? allocationResult;
+  final bool finalPricePendingAllocation;
+  final int lineCount;
+  final int totalCartons;
   final String code;
   final String retailerCode;
   final String retailerName;
@@ -213,35 +360,37 @@ class Order {
 
   String get displayCode => code.isNotEmpty ? code : offlineCode;
 
-  String get itemsSummary =>
-      lines.map((l) => '${l.name} ×${l.qty}').join(' · ');
+  String get itemsSummary => lines.isEmpty
+      ? '$lineCount SKU · $totalCartons thùng'
+      : lines.map((l) => '${l.name} ×${l.qty}').join(' · ');
 
-  /// Groups line discounts by promotion for the summary card.
+  /// Keep campaign names separate from the shared shelf-life table/version.
   List<AppliedPromo> get appliedPromos {
-    final byId = <String, List<OrderLine>>{};
-    for (final l in lines) {
-      if (l.discount > 0) {
-        byId.putIfAbsent(l.promoId, () => <OrderLine>[]).add(l);
-      }
+    final grouped = <String, AppliedPromo>{};
+    void add(
+        String key, String name, String typeLabel, int amount, OrderLine line) {
+      if (amount <= 0) return;
+      final prior = grouped[key];
+      final detail = '${line.sku} × ${line.qty}';
+      grouped[key] = AppliedPromo(
+          id: key,
+          name: name,
+          typeLabel: typeLabel,
+          detail: prior == null ? detail : '${prior.detail} · $detail',
+          amount: (prior?.amount ?? 0) + amount);
     }
-    return byId.entries.map((e) {
-      final first = e.value.first;
-      final amount = e.value.fold<int>(0, (s, l) => s + l.discount);
-      final detail = e.value
-          .map((l) => '${l.sku} × ${l.qty} (−${_pct(l.discountPct)}%)')
-          .join(', ');
-      return AppliedPromo(
-        id: e.key,
-        name: first.promoName,
-        typeLabel: '',
-        detail: detail,
-        amount: amount,
-      );
-    }).toList();
-  }
 
-  static String _pct(double v) =>
-      v == v.roundToDouble() ? v.round().toString() : v.toString();
+    for (final line in lines) {
+      final name = line.promoName.isEmpty ? 'Khuyến mãi' : line.promoName;
+      add('campaign:${line.promoId.isEmpty ? name : line.promoId}', name,
+          'Khuyến mãi số lượng', line.campaignDiscount ?? line.discount, line);
+    }
+    for (final line in lines) {
+      add('shelf-life:${line.shelfLifeSource}', 'Giảm giá theo HSD',
+          'Tính sau khuyến mãi số lượng', line.shelfLifeDiscount, line);
+    }
+    return grouped.values.toList();
+  }
 
   Order copyWith({
     OrderStatus? status,
@@ -253,6 +402,12 @@ class Order {
   }) =>
       Order(
         id: id,
+        retailerId: retailerId,
+        allocationState: allocationState,
+        allocationResult: allocationResult,
+        finalPricePendingAllocation: finalPricePendingAllocation,
+        lineCount: lineCount,
+        totalCartons: totalCartons,
         code: code,
         retailerCode: retailerCode,
         retailerName: retailerName,
@@ -289,6 +444,12 @@ class Order {
 
   Map<String, dynamic> toJson() => <String, dynamic>{
         'id': id,
+        'retailerId': retailerId,
+        'allocationState': allocationState,
+        'allocationResult': allocationResult,
+        'finalPricePendingAllocation': finalPricePendingAllocation,
+        'lineCount': lineCount,
+        'totalCartons': totalCartons,
         'code': code,
         'retailerCode': retailerCode,
         'retailerName': retailerName,
@@ -304,6 +465,7 @@ class Order {
         'rejectReason': rejectReason,
         'isOffline': isOffline,
         'offlineCode': offlineCode,
+        'syncStatus': syncStatus?.code,
         'syncedAt': isoOrNull(syncedAt),
         'syncMode': syncMode,
         'promoChanged': promoChanged,
@@ -325,6 +487,15 @@ class Order {
 
 /// Request body of `POST /orders` (online order creation).
 class NewOrderRequest {
+  factory NewOrderRequest.fromJson(Map<String, dynamic> json) =>
+      NewOrderRequest(
+        clientOrderKey: asStr(json['clientOrderKey']),
+        retailerId: asStr(json['retailerId']),
+        lines: mapList(json['lines'], CartLine.fromJson),
+        deliveryAddress: asStrOrNull(json['deliveryAddress']),
+        note: asStrOrNull(json['note']),
+      );
+
   const NewOrderRequest({
     required this.clientOrderKey,
     required this.retailerId,
@@ -353,8 +524,7 @@ class NewOrderRequest {
 class CartLine {
   const CartLine({this.productId = '', required this.sku, required this.qty});
 
-  factory CartLine.fromJson(Map<String, dynamic> j) =>
-      CartLine(
+  factory CartLine.fromJson(Map<String, dynamic> j) => CartLine(
         productId: asStr(j['productId']),
         sku: asStr(j['sku']),
         qty: asInt(j['qty'] ?? j['quantity']),

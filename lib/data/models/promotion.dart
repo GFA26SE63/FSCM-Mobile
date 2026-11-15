@@ -29,6 +29,7 @@ class Promotion {
     this.validFrom,
     this.validTo,
     this.active = true,
+    this.usesExactTimes = false,
     this.retailerCodes,
     this.rules = const <PromoRule>[],
     this.groupSkus = const <String>[],
@@ -43,6 +44,7 @@ class Promotion {
         validFrom: asDate(j['validFrom']),
         validTo: asDate(j['validTo']),
         active: asBool(j['active'], true),
+        usesExactTimes: asBool(j['usesExactTimes']),
         retailerCodes:
             j['retailerCodes'] == null ? null : asStrList(j['retailerCodes']),
         rules: mapList(j['rules'], PromoRule.fromJson),
@@ -57,6 +59,7 @@ class Promotion {
   final DateTime? validFrom;
   final DateTime? validTo;
   final bool active;
+  final bool usesExactTimes;
 
   /// null = every retailer.
   final List<String>? retailerCodes;
@@ -75,6 +78,10 @@ class Promotion {
 
   bool isRunning(DateTime now) {
     if (!active) return false;
+    if (usesExactTimes) {
+      return (validFrom == null || !now.isBefore(validFrom!)) &&
+          (validTo == null || !now.isAfter(validTo!));
+    }
     final today = DateTime(now.year, now.month, now.day);
     if (validFrom != null && today.isBefore(validFrom!)) return false;
     if (validTo != null && today.isAfter(validTo!)) return false;
@@ -106,6 +113,7 @@ class Promotion {
         'validFrom': isoOrNull(validFrom),
         'validTo': isoOrNull(validTo),
         'active': active,
+        'usesExactTimes': usesExactTimes,
         'retailerCodes': retailerCodes,
         'rules': rules.map((r) => r.toJson()).toList(),
         'groupSkus': groupSkus,

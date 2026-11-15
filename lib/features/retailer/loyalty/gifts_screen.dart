@@ -17,7 +17,8 @@ import 'package:fscm_mobile/shared/widgets/status_chip.dart';
 /// Gift catalog + own redemption requests. Redeeming holds the points until
 /// the request is processed (refunded if rejected).
 class GiftsScreen extends ConsumerStatefulWidget {
-  const GiftsScreen({super.key});
+  const GiftsScreen({super.key, this.redemptionId});
+  final String? redemptionId;
 
   @override
   ConsumerState<GiftsScreen> createState() => _GiftsScreenState();
@@ -27,6 +28,16 @@ class _GiftsScreenState extends ConsumerState<GiftsScreen> {
   String _busyGift = '';
 
   Future<void> _redeem(Gift g) async {
+    final state = ref.read(loyaltyAccountProvider);
+    if (state.isLoading ||
+        state.hasError ||
+        state.valueOrNull == null ||
+        state.requireValue.hasNegativeBalance ||
+        state.requireValue.balance < g.points) {
+      showAppSnack(context, 'Chưa đủ điểm khả dụng đã xác minh để đổi quà.',
+          error: true);
+      return;
+    }
     final ok = await confirmDialog(
       context,
       title: 'Đổi quà',
@@ -34,7 +45,20 @@ class _GiftsScreenState extends ConsumerState<GiftsScreen> {
           'Đổi "${g.name}" với ${g.points} điểm? Điểm sẽ được giữ cho đến khi yêu cầu được xử lý.',
       confirmLabel: 'Đổi quà',
     );
-    if (!ok || !mounted) return;
+    if (!ok || !mounted) {
+      return;
+    }
+    final latest = ref.read(loyaltyAccountProvider);
+    if (latest.isLoading ||
+        latest.hasError ||
+        latest.valueOrNull == null ||
+        latest.requireValue.hasNegativeBalance ||
+        latest.requireValue.balance < g.points) {
+      showAppSnack(
+          context, 'Điểm khả dụng đã thay đổi. Hãy tải lại thẻ tích điểm.',
+          error: true);
+      return;
+    }
     setState(() => _busyGift = g.code);
     try {
       final r = await ref.read(loyaltyRepositoryProvider).redeem(g);
@@ -46,18 +70,25 @@ class _GiftsScreenState extends ConsumerState<GiftsScreen> {
             'Đã gửi yêu cầu ${r.code}. ${r.points} điểm đang được giữ.');
       }
     } on ApiException catch (e) {
-      if (mounted) showAppSnack(context, e.message, error: true);
+      if (mounted) {
+        showAppSnack(context, e.message, error: true);
+      }
     } finally {
-      if (mounted) setState(() => _busyGift = '');
+      if (mounted) {
+        setState(() => _busyGift = '');
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final gifts = ref.watch(giftsProvider);
-    final account = ref.watch(loyaltyAccountProvider).valueOrNull;
-    final redemptions =
-        ref.watch(redemptionsProvider).valueOrNull ?? const <GiftRedemption>[];
+    final accountState = ref.watch(loyaltyAccountProvider);
+    final account = accountState.isLoading || accountState.hasError
+        ? null
+        : accountState.valueOrNull;
+    final redemptionState = ref.watch(redemptionsProvider);
+    final redemptions = redemptionState.valueOrNull ?? const <GiftRedemption>[];
     return Scaffold(
       appBar: AppBar(title: const Text('Đổi quà')),
       body: AsyncBody<List<Gift>>(
@@ -66,17 +97,46 @@ class _GiftsScreenState extends ConsumerState<GiftsScreen> {
         builder: (list) => ListView(
           padding: const EdgeInsets.all(16),
           children: <Widget>[
+            if (accountState.isLoading) const LinearProgressIndicator(),
+            if (accountState.hasError) ...[
+              InfoBanner(text: ApiException.describe(accountState.error!)),
+              TextButton(
+                  onPressed: () => ref.invalidate(loyaltyAccountProvider),
+                  child: const Text('Tải lại thẻ tích điểm')),
+            ],
+            if (account?.hasNegativeBalance == true)
+              const InfoBanner(
+                  text: 'Số dư điểm đang âm sau điều chỉnh. '
+                      'Chưa thể gửi yêu cầu đổi quà mới; bạn vẫn xem được yêu cầu trước đó.'),
             if (account != null)
               InfoBanner(
                 icon: Icons.stars_outlined,
                 text: 'Bạn có ${account.balance} điểm khả dụng'
                     '${account.held > 0 ? ' (đang giữ ${account.held} điểm)' : ''}.',
               ),
-            for (final g in list) _giftTile(g, account?.balance ?? 0),
+            for (final g in list) _giftTile(g, account),
+            if (redemptionState.isLoading) const LinearProgressIndicator(),
+            if (redemptionState.hasError) ...[
+              InfoBanner(text: ApiException.describe(redemptionState.error!)),
+              TextButton(
+                  onPressed: () => ref.invalidate(redemptionsProvider),
+                  child: const Text('Tải lại yêu cầu đổi quà')),
+            ],
+            if (widget.redemptionId != null &&
+                !redemptionState.isLoading &&
+                !redemptionState.hasError &&
+                redemptionState.hasValue &&
+                !redemptions.any((r) => r.code == widget.redemptionId))
+              const InfoBanner(
+                  text:
+                      'Không tìm thấy yêu cầu đổi quà nguồn trong tài khoản hiện tại.'),
             if (redemptions.isNotEmpty) ...<Widget>[
               const SectionTitle('Yêu cầu đổi quà của bạn'),
               for (final r in redemptions)
                 AppCard(
+                  color: r.code == widget.redemptionId
+                      ? AppColors.primarySoft
+                      : null,
                   child: Row(
                     children: <Widget>[
                       Expanded(
@@ -105,8 +165,10 @@ class _GiftsScreenState extends ConsumerState<GiftsScreen> {
     );
   }
 
-  Widget _giftTile(Gift g, int balance) {
-    final enough = balance >= g.points;
+  Widget _giftTile(Gift g, LoyaltyAccount? account) {
+    final enough = account != null &&
+        !account.hasNegativeBalance &&
+        account.balance >= g.points;
     final available = g.stock > 0;
     return AppCard(
       child: Row(

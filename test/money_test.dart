@@ -44,16 +44,20 @@ void main() {
   });
 
   group('OrderLimits.maxQty', () {
-    test('available minus buffer, rounded down to a multiple of 10', () {
-      expect(OrderLimits.maxQty(120), 100);
-      expect(OrderLimits.maxQty(129), 100);
-      expect(OrderLimits.maxQty(130), 110);
-      expect(OrderLimits.maxQty(35), 10);
+    test('does not subtract a buffer; rounds down only for the existing step',
+        () {
+      expect(OrderLimits.maxQty(10), 10);
+      expect(OrderLimits.maxQty(120), 120);
+      expect(OrderLimits.maxQty(129), 129);
+      expect(OrderLimits.maxQty(130), 130);
+      expect(OrderLimits.maxQty(35), 35);
+      expect(OrderLimits.maxQty(35, step: 10), 30);
+      expect(OrderLimits.maxQty(6, step: 2), 6);
     });
 
     test('never negative', () {
-      expect(OrderLimits.maxQty(20), 0);
-      expect(OrderLimits.maxQty(5), 0);
+      expect(OrderLimits.maxQty(20), 20);
+      expect(OrderLimits.maxQty(5), 5);
       expect(OrderLimits.maxQty(0), 0);
     });
   });
