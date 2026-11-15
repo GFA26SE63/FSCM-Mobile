@@ -7,6 +7,7 @@ import 'package:fscm_mobile/core/utils/status_tone.dart';
 import 'package:fscm_mobile/data/models/enums.dart';
 import 'package:fscm_mobile/data/models/picking.dart';
 import 'package:fscm_mobile/data/repositories/auth_repository.dart';
+import 'package:fscm_mobile/data/repositories/home_summary_repository.dart';
 import 'package:fscm_mobile/data/repositories/warehouse_repository.dart';
 import 'package:fscm_mobile/features/common/notifications/notification_bell_button.dart';
 import 'package:fscm_mobile/features/warehouse/picking/picking_list_tile.dart';
@@ -14,6 +15,7 @@ import 'package:fscm_mobile/shared/routes.dart';
 import 'package:fscm_mobile/shared/theme/app_colors.dart';
 import 'package:fscm_mobile/shared/widgets/app_card.dart';
 import 'package:fscm_mobile/shared/widgets/empty_state.dart';
+import 'package:fscm_mobile/shared/widgets/info_banner.dart';
 import 'package:fscm_mobile/shared/widgets/section_title.dart';
 
 /// Warehouse Keeper home: picking workload and incoming transfers.
@@ -28,6 +30,9 @@ class WkHomeScreen extends ConsumerWidget {
     final todo =
         pickings.where((p) => p.status != PickingStatus.completed).toList();
     int count(PickingStatus s) => pickings.where((p) => p.status == s).length;
+    final dashboard = ref.watch(warehouseDashboardProvider).valueOrNull;
+    // Server totals for the assigned warehouses; fall back to the loaded list.
+    int tile(String key, int fallback) => dashboard?.count(key) ?? fallback;
 
     return Scaffold(
       appBar: AppBar(
@@ -41,6 +46,7 @@ class WkHomeScreen extends ConsumerWidget {
       body: RefreshIndicator(
         onRefresh: () async {
           ref.invalidate(pickingListsProvider);
+          ref.invalidate(warehouseDashboardProvider);
         },
         child: ListView(
           padding: const EdgeInsets.all(16),
@@ -54,18 +60,52 @@ class WkHomeScreen extends ConsumerWidget {
             Row(
               children: <Widget>[
                 Expanded(
-                    child: _Stat('Chờ lấy', count(PickingStatus.pending),
+                    child: _Stat(
+                        'Chờ lấy',
+                        tile('pickingPending', count(PickingStatus.pending)),
                         StatusTone.info)),
                 const SizedBox(width: 10),
                 Expanded(
-                    child: _Stat('Đang lấy', count(PickingStatus.picking),
+                    child: _Stat(
+                        'Đang lấy',
+                        tile('pickingActive', count(PickingStatus.picking)),
                         StatusTone.purple)),
                 const SizedBox(width: 10),
                 Expanded(
-                    child: _Stat('Đã soạn', count(PickingStatus.completed),
+                    child: _Stat('Chờ xuất kho', tile('shipmentsReady', 0),
                         StatusTone.success)),
               ],
             ),
+            if (dashboard != null) ...<Widget>[
+              const SizedBox(height: 10),
+              Row(
+                children: <Widget>[
+                  Expanded(
+                      child: _Stat('Phiếu nhập chờ',
+                          dashboard.count('receiptPending'), StatusTone.info)),
+                  const SizedBox(width: 10),
+                  Expanded(
+                      child: _Stat('Thùng cận hạn',
+                          dashboard.count('nearExpiry'), StatusTone.warning)),
+                  const SizedBox(width: 10),
+                  Expanded(
+                      child: _Stat('Thùng hết hạn', dashboard.count('expired'),
+                          StatusTone.danger)),
+                ],
+              ),
+              if (dashboard.count('lowStock') > 0)
+                Padding(
+                  padding: const EdgeInsets.only(top: 10),
+                  child: InfoBanner(
+                    tone: StatusTone.danger,
+                    icon: Icons.inventory_outlined,
+                    title:
+                        '${dashboard.count('lowStock')} SKU dưới ngưỡng tồn khu vực',
+                    text:
+                        'Xem chi tiết ở Portal › Tổng quan › Tồn kho để đề xuất bổ sung hàng.',
+                  ),
+                ),
+            ],
             const SizedBox(height: 10),
             AppCard(
               onTap: () => context.push(AppRoutes.wkLabelLookup),
@@ -110,7 +150,9 @@ class WkHomeScreen extends ConsumerWidget {
               for (final p in todo.take(3)) PickingListTile(list: p),
             const SizedBox(height: 6),
             Text(
-              'Cập nhật ${AppDates.timeDay(DateTime.now())}',
+              dashboard == null
+                  ? 'Đang tải số liệu kho...'
+                  : 'Cập nhật ${AppDates.timeDay(dashboard.loadedAt)}',
               textAlign: TextAlign.center,
               style: const TextStyle(color: AppColors.textMuted, fontSize: 12),
             ),
