@@ -3,10 +3,14 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:fscm_mobile/shared/widgets/quantity_stepper.dart';
 
 void main() {
-  testWidgets('typed cartons respect the configured step and maximum; buttons recover invalid input', (tester) async {
+  testWidgets(
+      'typed cartons respect the configured step and maximum; buttons recover invalid input',
+      (tester) async {
     var quantity = 10;
     var valid = true;
-    await tester.pumpWidget(MaterialApp(home: Scaffold(body: StatefulBuilder(
+    await tester.pumpWidget(MaterialApp(
+        home: Scaffold(
+            body: StatefulBuilder(
       builder: (context, update) => QuantityStepper(
         editable: true,
         value: quantity,
@@ -40,25 +44,51 @@ void main() {
     expect(quantity, 160);
   });
 
-  testWidgets('busy controls cannot edit and warehouse steppers retain their existing non-editable default', (tester) async {
+  testWidgets(
+      'busy controls cannot edit and warehouse steppers retain their existing non-editable default',
+      (tester) async {
     var changes = 0;
-    await tester.pumpWidget(MaterialApp(home: Scaffold(body: QuantityStepper(
-      value: 1, enabled: false, editable: true, onChanged: (_) => changes++,
+    await tester.pumpWidget(MaterialApp(
+        home: Scaffold(
+            body: QuantityStepper(
+      value: 1,
+      enabled: false,
+      editable: true,
+      onChanged: (_) => changes++,
     ))));
     expect(tester.widget<TextField>(find.byType(TextField)).enabled, isFalse);
-    expect(tester.widget<IconButton>(find.widgetWithIcon(IconButton, Icons.add)).onPressed, isNull);
-    await tester.pumpWidget(MaterialApp(home: Scaffold(body: QuantityStepper(
-      value: 1, min: 1, onChanged: (_) => changes++,
+    expect(
+        tester
+            .widget<IconButton>(find.widgetWithIcon(IconButton, Icons.add))
+            .onPressed,
+        isNull);
+    await tester.pumpWidget(MaterialApp(
+        home: Scaffold(
+            body: QuantityStepper(
+      value: 1,
+      min: 1,
+      onChanged: (_) => changes++,
     ))));
     expect(find.byType(TextField), findsNothing);
-    expect(tester.widget<IconButton>(find.widgetWithIcon(IconButton, Icons.remove)).onPressed, isNull);
+    expect(
+        tester
+            .widget<IconButton>(find.widgetWithIcon(IconButton, Icons.remove))
+            .onPressed,
+        isNull);
     await tester.tap(find.byIcon(Icons.add));
     expect(changes, 1);
   });
 
-  testWidgets('editable quantity uses a single group with flat buttons and a borderless field', (tester) async {
-    await tester.pumpWidget(MaterialApp(home: Scaffold(body: QuantityStepper(
-      value: 150000, editable: true, onChanged: (_) {}, max: 1000000,
+  testWidgets(
+      'editable quantity uses a single group with flat buttons and a borderless field',
+      (tester) async {
+    await tester.pumpWidget(MaterialApp(
+        home: Scaffold(
+            body: QuantityStepper(
+      value: 150000,
+      editable: true,
+      onChanged: (_) {},
+      max: 1000000,
     ))));
     final field = tester.widget<TextField>(find.byType(TextField));
     expect(field.decoration!.border, InputBorder.none);

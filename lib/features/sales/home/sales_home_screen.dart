@@ -41,8 +41,9 @@ class SalesHomeScreen extends ConsumerWidget {
     final notes = ref.watch(notificationsProvider).valueOrNull ?? const [];
 
     final today = AppClock.now();
-    final todayOrders =
-        orders.where((o) => AppDates.isSameVietnamDay(o.createdAt, today)).toList();
+    final todayOrders = orders
+        .where((o) => AppDates.isSameVietnamDay(o.createdAt, today))
+        .toList();
     final waiting = orders
         .where((o) =>
             o.status == OrderStatus.allocating ||

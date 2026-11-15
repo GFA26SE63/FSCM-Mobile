@@ -45,7 +45,8 @@ class _QuantityStepperState extends State<QuantityStepper> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted && widget.editable) {
         widget.onValidationChanged?.call(widget.value >= widget.min &&
-            widget.value <= widget.max && widget.value % widget.step == 0);
+            widget.value <= widget.max &&
+            widget.value % widget.step == 0);
       }
     });
   }
@@ -110,14 +111,19 @@ class _QuantityStepperState extends State<QuantityStepper> {
               ),
               child: Row(
                 children: [
-                  SizedBox(width: 40, height: 44, child: IconButton(
-                    padding: EdgeInsets.zero,
-                    onPressed: widget.enabled && value - step >= widget.min
-                        ? () => _change(value - step) : null,
-                    icon: const Icon(Icons.remove, size: 18),
-                  )),
+                  SizedBox(
+                      width: 40,
+                      height: 44,
+                      child: IconButton(
+                        padding: EdgeInsets.zero,
+                        onPressed: widget.enabled && value - step >= widget.min
+                            ? () => _change(value - step)
+                            : null,
+                        icon: const Icon(Icons.remove, size: 18),
+                      )),
                   Container(width: 1, height: 44, color: AppColors.border),
-                  Expanded(child: TextField(
+                  Expanded(
+                      child: TextField(
                     controller: _controller,
                     focusNode: _focus,
                     enabled: widget.enabled,
@@ -129,31 +135,40 @@ class _QuantityStepperState extends State<QuantityStepper> {
                     decoration: const InputDecoration(
                       isDense: true,
                       filled: false,
-                      contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 12),
+                      contentPadding:
+                          EdgeInsets.symmetric(horizontal: 4, vertical: 12),
                       border: InputBorder.none,
                       enabledBorder: InputBorder.none,
                       focusedBorder: InputBorder.none,
                       disabledBorder: InputBorder.none,
                     ),
-                    onTap: () => _controller.selection = TextSelection(baseOffset: 0, extentOffset: _controller.text.length),
+                    onTap: () => _controller.selection = TextSelection(
+                        baseOffset: 0, extentOffset: _controller.text.length),
                     onChanged: _input,
                     onSubmitted: (_) => _focus.unfocus(),
                     onTapOutside: (_) => _focus.unfocus(),
                   )),
                   Container(width: 1, height: 44, color: AppColors.border),
-                  SizedBox(width: 40, height: 44, child: IconButton(
-                    padding: EdgeInsets.zero,
-                    onPressed: widget.enabled && value + step <= widget.max
-                        ? () => _change(value + step) : null,
-                    icon: const Icon(Icons.add, size: 18),
-                  )),
+                  SizedBox(
+                      width: 40,
+                      height: 44,
+                      child: IconButton(
+                        padding: EdgeInsets.zero,
+                        onPressed: widget.enabled && value + step <= widget.max
+                            ? () => _change(value + step)
+                            : null,
+                        icon: const Icon(Icons.add, size: 18),
+                      )),
                 ],
               ),
             ),
             if (_error != null)
               Padding(
                 padding: const EdgeInsets.only(top: 4),
-                child: Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error, fontSize: 11)),
+                child: Text(_error!,
+                    style: TextStyle(
+                        color: Theme.of(context).colorScheme.error,
+                        fontSize: 11)),
               ),
           ],
         ),
@@ -162,8 +177,11 @@ class _QuantityStepperState extends State<QuantityStepper> {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
-        _btn(Icons.remove,
-            widget.enabled && value - step >= widget.min ? () => _change(value - step) : null),
+        _btn(
+            Icons.remove,
+            widget.enabled && value - step >= widget.min
+                ? () => _change(value - step)
+                : null),
         SizedBox(
           width: 52,
           child: Text(
@@ -172,8 +190,11 @@ class _QuantityStepperState extends State<QuantityStepper> {
             style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
           ),
         ),
-        _btn(Icons.add,
-            widget.enabled && value + step <= widget.max ? () => _change(value + step) : null),
+        _btn(
+            Icons.add,
+            widget.enabled && value + step <= widget.max
+                ? () => _change(value + step)
+                : null),
       ],
     );
   }

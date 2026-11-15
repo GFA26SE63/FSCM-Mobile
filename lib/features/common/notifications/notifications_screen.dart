@@ -27,8 +27,7 @@ class NotificationsScreen extends ConsumerWidget {
         title: const Text('Thông báo'),
         actions: <Widget>[
           TextButton(
-            onPressed: () =>
-                _markAll(ref),
+            onPressed: () => _markAll(ref),
             child: const Text('Đánh dấu đã đọc'),
           ),
         ],

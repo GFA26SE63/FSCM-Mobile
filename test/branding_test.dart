@@ -69,7 +69,8 @@ void main() {
     expect(find.text('FSCM'), findsOneWidget);
   });
 
-  testWidgets('LoginScreen displays FscmLogo and FSCM branding', (tester) async {
+  testWidgets('LoginScreen displays FscmLogo and FSCM branding',
+      (tester) async {
     final fakeController = _FakeAuthController();
     await tester.pumpWidget(
       ProviderScope(
@@ -88,4 +89,3 @@ void main() {
     expect(find.text('FSCM'), findsOneWidget);
   });
 }
-
