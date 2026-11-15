@@ -331,7 +331,8 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
   }
 
   void _validateQuantities(int step) {
-    if (_invalidQuantities.isNotEmpty || _lines.any((line) => line.qty <= 0 || line.qty % step != 0)) {
+    if (_invalidQuantities.isNotEmpty ||
+        _lines.any((line) => line.qty <= 0 || line.qty % step != 0)) {
       throw ApiException(
           kind: ApiErrorKind.validation,
           message: 'Số lượng phải là số thùng nguyên dương theo bước $step. '
@@ -382,92 +383,95 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
       key: ValueKey(product.sku),
       padding: const EdgeInsets.only(bottom: 10),
       child: AppCard(
-      margin: EdgeInsets.zero,
-      onTap: _busy ? null : openDetail,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
+        margin: EdgeInsets.zero,
+        onTap: _busy ? null : openDetail,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    '${product.sku} · ${product.name}',
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                ),
+                IconButton(
+                  onPressed: _busy ? null : openDetail,
+                  tooltip: 'Chi tiết ${product.name}',
+                  icon: const Icon(Icons.chevron_right),
+                ),
+              ],
+            ),
+            Text(
+              price == null
+                  ? '${product.pack} · Chưa có giá hiệu lực trong snapshot'
+                  : '${product.pack} · '
+                      '${Money.format(price)}/thùng · dự kiến',
+              style: TextStyle(
+                color: price == null ? AppColors.warning : AppColors.textMuted,
+              ),
+            ),
+            const SizedBox(height: 6),
+            if (availability != null)
+              OrderStockSummary(
+                availability: availability,
+                viewerRole: viewerRole,
+                onViewAll: _busy ? null : openDetail,
+              ),
+            OrderQuantityField(
+              label: maximum == 0
+                  ? (availability == null
+                      ? 'Chưa kiểm tra được tồn đủ điều kiện'
+                      : availability.quantity <= 0
+                          ? 'Không có hàng đủ điều kiện để giao'
+                          : 'Chưa đủ hàng theo bước $_step thùng')
+                  : _step == 1
+                      ? 'Số lượng (thùng)'
+                      : 'Số lượng · bội $_step thùng',
+              labelColor:
+                  maximum == 0 ? AppColors.warning : AppColors.textMuted,
+              showRemove: quantity > 0,
+              onRemove: _busy ? null : () => _removeProduct(product),
+              control: maximum > 0 || quantity > 0
+                  ? QuantityStepper(
+                      editable: true,
+                      enabled: !_busy,
+                      value: quantity,
+                      step: _step,
+                      max: quantity > maximum ? quantity : maximum,
+                      onValidationChanged: (valid) => setState(() {
+                        if (valid) {
+                          _invalidQuantities.remove(product.sku);
+                        } else {
+                          _invalidQuantities.add(product.sku);
+                        }
+                      }),
+                      onChanged: (value) {
+                        if (_busy) {
+                          return;
+                        }
+                        setState(() => _cart[product.sku] = value);
+                      },
+                    )
+                  : null,
+            ),
+            if (pricedLines.isNotEmpty && pricedLines.first.hasDiscount)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
                 child: Text(
-                  '${product.sku} · ${product.name}',
-                  style: const TextStyle(fontWeight: FontWeight.w700),
+                  '${pricedLines.first.promoName.isEmpty ? 'Khuyến mãi' : pricedLines.first.promoName} · '
+                  'giảm dự kiến '
+                  '${Money.format(pricedLines.first.discount)}',
+                  style: const TextStyle(
+                    color: AppColors.success,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
-              IconButton(
-                onPressed: _busy ? null : openDetail,
-                tooltip: 'Chi tiết ${product.name}',
-                icon: const Icon(Icons.chevron_right),
-              ),
-            ],
-          ),
-          Text(
-            price == null
-                ? '${product.pack} · Chưa có giá hiệu lực trong snapshot'
-                : '${product.pack} · '
-                    '${Money.format(price)}/thùng · dự kiến',
-            style: TextStyle(
-              color: price == null ? AppColors.warning : AppColors.textMuted,
-            ),
-          ),
-          const SizedBox(height: 6),
-          if (availability != null)
-            OrderStockSummary(
-              availability: availability,
-              viewerRole: viewerRole,
-              onViewAll: _busy ? null : openDetail,
-            ),
-          OrderQuantityField(
-            label: maximum == 0
-                      ? (availability == null
-                          ? 'Chưa kiểm tra được tồn đủ điều kiện'
-                          : availability.quantity <= 0
-                              ? 'Không có hàng đủ điều kiện để giao'
-                              : 'Chưa đủ hàng theo bước $_step thùng')
-                      : _step == 1
-                          ? 'Số lượng (thùng)'
-                          : 'Số lượng · bội $_step thùng',
-            labelColor: maximum == 0 ? AppColors.warning : AppColors.textMuted,
-            showRemove: quantity > 0,
-            onRemove: _busy ? null : () => _removeProduct(product),
-            control: maximum > 0 || quantity > 0 ? QuantityStepper(
-                  editable: true,
-                  enabled: !_busy,
-                  value: quantity,
-                  step: _step,
-                  max: quantity > maximum ? quantity : maximum,
-                  onValidationChanged: (valid) => setState(() {
-                    if (valid) {
-                      _invalidQuantities.remove(product.sku);
-                    } else {
-                      _invalidQuantities.add(product.sku);
-                    }
-                  }),
-                  onChanged: (value) {
-                    if (_busy) {
-                      return;
-                    }
-                    setState(() => _cart[product.sku] = value);
-                  },
-                ) : null,
-          ),
-          if (pricedLines.isNotEmpty && pricedLines.first.hasDiscount)
-            Padding(
-              padding: const EdgeInsets.only(top: 4),
-              child: Text(
-                '${pricedLines.first.promoName.isEmpty ? 'Khuyến mãi' : pricedLines.first.promoName} · '
-                'giảm dự kiến '
-                '${Money.format(pricedLines.first.discount)}',
-                style: const TextStyle(
-                  color: AppColors.success,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-        ],
+          ],
+        ),
       ),
-    ),
     );
   }
 
@@ -484,23 +488,15 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
       _cart.remove(product.sku);
       _invalidQuantities.remove(product.sku);
     });
-    final messenger = ScaffoldMessenger.of(context);
-    messenger.clearSnackBars();
-    messenger.removeCurrentSnackBar();
-    messenger.showSnackBar(SnackBar(
-      duration: const Duration(seconds: 4),
-      persist: false,
-      content: Text('Đã bỏ ${product.name} khỏi giỏ.'),
-      action: SnackBarAction(label: 'Hoàn tác', onPressed: () {
-        if (!_isCurrentUser(ownerId) || _busy || (_cart[product.sku] ?? 0) > 0) {
-          return;
-        }
-        setState(() {
-          _cart[product.sku] = previous;
-          _invalidQuantities.remove(product.sku);
-        });
-      }),
-    ));
+    showAppUndoSnack('Đã bỏ ${product.name} khỏi giỏ.', onUndo: () {
+      if (!_isCurrentUser(ownerId) || _busy || (_cart[product.sku] ?? 0) > 0) {
+        return;
+      }
+      setState(() {
+        _cart[product.sku] = previous;
+        _invalidQuantities.remove(product.sku);
+      });
+    });
   }
 
   Widget _bottomBar(
@@ -531,7 +527,9 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
                   Text(
                     _invalidQuantities.isNotEmpty
                         ? 'Kiểm tra lại số lượng đã nhập'
-                        : count == 0 ? 'Giỏ hàng trống' : '$count sản phẩm',
+                        : count == 0
+                            ? 'Giỏ hàng trống'
+                            : '$count sản phẩm',
                     style: const TextStyle(
                       color: AppColors.textMuted,
                     ),

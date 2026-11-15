@@ -24,6 +24,10 @@ void showRootStatus(String message, {bool error = false}) {
   rootFeedback.show(message, error: error);
 }
 
+void showRootUndoStatus(String message, {required VoidCallback onUndo}) {
+  rootFeedback.showUndo(message, onUndo: onUndo);
+}
+
 class _QueuedFeedback {
   const _QueuedFeedback(this.message, this.error);
 
@@ -87,6 +91,29 @@ class RootFeedbackController {
       );
     }
     _present(_QueuedFeedback(normalized, error));
+  }
+
+  void showUndo(String message, {required VoidCallback onUndo}) {
+    final normalized = message.trim();
+    if (normalized.isEmpty) return;
+    final messenger = _messengerKey.currentState;
+    if (messenger == null) return;
+    _activeId++;
+    _activeFingerprint = 'info:$normalized';
+    _activeIsError = false;
+    messenger.clearSnackBars();
+    final controller = messenger.showSnackBar(
+      SnackBar(
+        content: Text(normalized),
+        action: SnackBarAction(label: 'Hoàn tác', onPressed: onUndo),
+        behavior: SnackBarBehavior.floating,
+        duration: _duration,
+      ),
+    );
+    unawaited(controller.closed.then((_) {
+      _activeFingerprint = null;
+      _activeIsError = false;
+    }));
   }
 
   void _present(_QueuedFeedback feedback) {

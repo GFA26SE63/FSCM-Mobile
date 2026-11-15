@@ -15,7 +15,6 @@ import 'package:fscm_mobile/shared/routes.dart';
 import 'package:fscm_mobile/shared/theme/app_colors.dart';
 import 'package:fscm_mobile/shared/widgets/app_card.dart';
 import 'package:fscm_mobile/shared/widgets/empty_state.dart';
-import 'package:fscm_mobile/shared/widgets/info_banner.dart';
 import 'package:fscm_mobile/shared/widgets/section_title.dart';
 
 /// Warehouse Keeper home: picking workload and incoming transfers.
@@ -30,6 +29,8 @@ class WkHomeScreen extends ConsumerWidget {
     final todo =
         pickings.where((p) => p.status != PickingStatus.completed).toList();
     int count(PickingStatus s) => pickings.where((p) => p.status == s).length;
+    final dashboard = ref.watch(warehouseDashboardProvider).valueOrNull;
+    int tile(String key, int fallback) => dashboard?.count(key) ?? fallback;
 
     return Scaffold(
       appBar: AppBar(
