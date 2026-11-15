@@ -19,13 +19,18 @@ class RetailerTodoCard extends ConsumerWidget {
 
     final items = <_TodoItem>[
       if (todo.quotesToConfirm > 0)
-        _TodoItem(Icons.request_quote_outlined,
-            '${todo.quotesToConfirm} báo giá chờ bạn xác nhận', AppColors.primary),
+        _TodoItem(
+            Icons.request_quote_outlined,
+            '${todo.quotesToConfirm} báo giá chờ bạn xác nhận',
+            AppColors.primary),
       if (todo.paymentsPending > 0)
-        _TodoItem(Icons.payments_outlined,
-            '${todo.paymentsPending} đơn chờ thanh toán trước', AppColors.warning),
+        _TodoItem(
+            Icons.payments_outlined,
+            '${todo.paymentsPending} đơn chờ thanh toán trước',
+            AppColors.warning),
       if (todo.deliveriesToReceive > 0)
-        _TodoItem(Icons.qr_code_scanner,
+        _TodoItem(
+            Icons.qr_code_scanner,
             '${todo.deliveriesToReceive} đơn đang giao · quét QR khi nhận hàng',
             AppColors.primary),
       if (todo.overdueCount > 0)
@@ -75,7 +80,8 @@ class RetailerTodoCard extends ConsumerWidget {
           const SizedBox(height: 4),
           for (final item in items)
             InkWell(
-              onTap: item.route == null ? null : () => context.push(item.route!),
+              onTap:
+                  item.route == null ? null : () => context.push(item.route!),
               child: Padding(
                 padding: const EdgeInsets.symmetric(vertical: 4),
                 child: Row(

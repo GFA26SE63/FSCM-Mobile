@@ -15,7 +15,7 @@ class NotificationsApi {
 
   Future<List<AppNotification>> list() async {
     final notifications = <AppNotification>[];
-    for (var page = 1; ; page++) {
+    for (var page = 1;; page++) {
       final data = await _client.get(
         Endpoints.notifications,
         query: {'page': page},

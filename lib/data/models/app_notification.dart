@@ -24,9 +24,8 @@ class AppNotification {
       title: asStr(j['title']),
       text: asStr(j['message'] ?? j['text']),
       createdAt: asDate(j['createdAt']) ?? DateTime.now(),
-      unread: hasServerReadState
-          ? !asBool(j['isRead'])
-          : asBool(j['unread'], true),
+      unread:
+          hasServerReadState ? !asBool(j['isRead']) : asBool(j['unread'], true),
       orderCode: asStr(j['orderCode']),
       kind: asStr(j['type'] ?? j['kind']),
       deepLink: asStr(j['deepLink']),
