@@ -9,14 +9,18 @@ void main() {
       'payment': {'method': 'Prepaid', 'status': 'Unpaid'},
     });
     expect(pending.canPayOnline, isTrue);
-    expect(Order.fromJson({
-      'status': 'PaymentPending',
-      'payment': {'method': 'Prepaid', 'status': 'Paid'},
-    }).canPayOnline, isFalse);
-    expect(Order.fromJson({
-      'status': 'Cancelled',
-      'payment': {'method': 'Prepaid', 'status': 'Cancelled'},
-    }).canPayOnline, isFalse);
+    expect(
+        Order.fromJson({
+          'status': 'PaymentPending',
+          'payment': {'method': 'Prepaid', 'status': 'Paid'},
+        }).canPayOnline,
+        isFalse);
+    expect(
+        Order.fromJson({
+          'status': 'Cancelled',
+          'payment': {'method': 'Prepaid', 'status': 'Cancelled'},
+        }).canPayOnline,
+        isFalse);
   });
 
   test('reads nested payment and server history from order detail', () {
@@ -45,7 +49,8 @@ void main() {
     expect(order.timeline.single.time, isNotNull);
   });
 
-  test('preserves local cached payment and prioritizes server unpaid state', () {
+  test('preserves local cached payment and prioritizes server unpaid state',
+      () {
     final cached = Order.fromJson({'payment': 'Credit', 'paid': true});
     expect(cached.payment, PaymentMethod.credit);
     expect(cached.paid, isTrue);

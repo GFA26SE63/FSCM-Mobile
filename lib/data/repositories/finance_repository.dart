@@ -23,7 +23,8 @@ class FinanceRepository {
 
   final ReceivablesApi _api;
 
-  Future<List<Receivable>> receivables({required bool retailer, String? status}) =>
+  Future<List<Receivable>> receivables(
+          {required bool retailer, String? status}) =>
       _api.list(retailer: retailer, status: status);
 
   Future<Receivable> collect(Receivable receivable) => _api.collect(receivable);

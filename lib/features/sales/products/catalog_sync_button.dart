@@ -6,6 +6,7 @@ import 'package:fscm_mobile/core/network/network_monitor.dart';
 import 'package:fscm_mobile/data/remote/sync_api.dart';
 import 'package:fscm_mobile/data/repositories/catalog_repository.dart';
 import 'package:fscm_mobile/data/repositories/data_version.dart';
+import 'package:fscm_mobile/shared/widgets/dialogs.dart';
 
 final _catalogDownloadingProvider = StateProvider<bool>((ref) => false);
 
@@ -51,19 +52,11 @@ class CatalogSyncButton extends ConsumerWidget {
       ref.read(dataVersionProvider.notifier).state++;
 
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Đã cập nhật sản phẩm, giá và khuyến mãi.'),
-          ),
-        );
+        showAppSnack(context, 'Đã cập nhật sản phẩm, giá và khuyến mãi.');
       }
     } catch (error) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(ApiException.describe(error)),
-          ),
-        );
+        showAppSnack(context, ApiException.describe(error), error: true);
       }
     } finally {
       busy.state = false;

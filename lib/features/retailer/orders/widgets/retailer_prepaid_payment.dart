@@ -1,16 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import 'package:fscm_mobile/core/network/api_exception.dart';
 import 'package:fscm_mobile/core/utils/money.dart';
 import 'package:fscm_mobile/core/utils/status_tone.dart';
 import 'package:fscm_mobile/data/models/order.dart';
+import 'package:fscm_mobile/data/models/payment_result.dart';
 import 'package:fscm_mobile/data/remote/quotes_api.dart';
 import 'package:fscm_mobile/data/repositories/data_version.dart';
+import 'package:fscm_mobile/shared/routes.dart';
 import 'package:fscm_mobile/shared/widgets/app_card.dart';
-import 'package:fscm_mobile/shared/widgets/dialogs.dart';
 import 'package:fscm_mobile/shared/widgets/info_banner.dart';
+import 'package:fscm_mobile/shared/widgets/payos_checkout_result_page.dart';
 
 class RetailerPrepaidPayment extends ConsumerStatefulWidget {
   const RetailerPrepaidPayment({super.key, required this.order});
@@ -36,43 +37,28 @@ class _RetailerPrepaidPaymentState
       if (!mounted) {
         return;
       }
-      final uri = Uri.tryParse(checkout.checkoutUrl);
-      await showDialog<void>(
-        context: context,
-        builder: (dialogContext) => AlertDialog(
-          title: const Text('Thanh toán qua PayOS'),
-          content: SingleChildScrollView(
-              child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                  'Mở trang PayOS để thanh toán, sau đó quay lại app và kiểm tra trạng thái.'),
-              const SizedBox(height: 12),
-              SelectableText(checkout.checkoutUrl),
-            ],
-          )),
-          actions: [
-            TextButton(
-                onPressed: () => Navigator.of(dialogContext).pop(),
-                child: const Text('Đóng')),
-            FilledButton(
-              onPressed: uri == null || !['https', 'http'].contains(uri.scheme)
-                  ? null
-                  : () async {
-                      final opened = await launchUrl(uri,
-                          mode: LaunchMode.externalApplication);
-                      if (!opened && dialogContext.mounted) {
-                        showAppSnack(dialogContext,
-                            'Không mở được trang thanh toán. Hãy sao chép liên kết.',
-                            error: true);
-                      }
-                    },
-              child: const Text('Mở trang thanh toán'),
-            ),
-          ],
+      await Navigator.of(context).push(MaterialPageRoute<void>(
+        builder: (_) => PayOsCheckoutResultPage(
+          checkoutUrl: checkout.checkoutUrl,
+          initial: PayOsCheckoutSnapshot(
+            state: _stateFromCode(checkout.status),
+            amount: checkout.amount,
+            summary: 'Đơn ${widget.order.code}',
+          ),
+          refresh: () async {
+            final payment = await api.paymentForOrder(widget.order.id);
+            return PayOsCheckoutSnapshot(
+              state: _stateFromPayment(payment),
+              amount: payment.amount,
+              summary: 'Đơn ${widget.order.code}',
+            );
+          },
+          onTerminal: () => ref.read(dataVersionProvider.notifier).state++,
+          homeRoute: AppRoutes.rtOrders,
+          reviewRoute: AppRoutes.rtOrderDetail(widget.order.code),
+          reviewLabel: 'Xem lại đơn hàng',
         ),
-      );
+      ));
       if (mounted) {
         ref.read(dataVersionProvider.notifier).state++;
       }
@@ -88,6 +74,21 @@ class _RetailerPrepaidPaymentState
         setState(() => _busy = false);
       }
     }
+  }
+
+  static PayOsCheckoutState _stateFromPayment(PaymentResult payment) {
+    if (payment.isPaid) return PayOsCheckoutState.paid;
+    return _stateFromCode(payment.payOsLinkStatus ?? payment.status);
+  }
+
+  static PayOsCheckoutState _stateFromCode(String value) {
+    return switch (value.toUpperCase()) {
+      'PAID' => PayOsCheckoutState.paid,
+      'CANCELLED' => PayOsCheckoutState.cancelled,
+      'EXPIRED' => PayOsCheckoutState.expired,
+      'FAILED' => PayOsCheckoutState.failed,
+      _ => PayOsCheckoutState.pending,
+    };
   }
 
   @override

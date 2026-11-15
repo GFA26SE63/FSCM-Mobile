@@ -51,7 +51,6 @@ void main() {
       storeSizeSquareMeters: 40,
       purchasingCapacity: 80,
       purchaseFrequencyPerMonth: 8,
-      requestedCreditTermDays: 7,
       assessmentNote: '',
       mlorDeclarations: <MlorDeclaration>[
         MlorDeclaration(productCategoryId: 'cat-1', minimumLifeRatio: 0.6),
@@ -64,6 +63,7 @@ void main() {
 
     expect(created['regionId'], 'region-1');
     expect(created['salesGroupId'], 'group-1');
+    expect(created.containsKey('requestedCreditTermDays'), isFalse);
     expect(created['retailerType'], 'MiniSupermarket');
     expect(created['address'], isNull);
     expect(created['mlorDeclarations'], <Map<String, dynamic>>[

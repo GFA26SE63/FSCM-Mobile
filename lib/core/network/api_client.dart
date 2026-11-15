@@ -328,16 +328,23 @@ class ApiClient {
         ? null
         : (Map<String, dynamic>.of(query)..removeWhere((_, v) => v == null));
 
-    final response = await _transport.send(
-      ApiRequest(
-        method: method,
-        path: path,
-        query: cleanQuery,
-        body: body,
-        headers: headers,
-      ),
-    );
-    if (response.isSuccess) return response.data;
+    ApiResponse response;
+    try {
+      response = await _transport.send(
+        ApiRequest(
+          method: method,
+          path: path,
+          query: cleanQuery,
+          body: body,
+          headers: headers,
+        ),
+      );
+    } on ApiException {
+      rethrow;
+    }
+    if (response.isSuccess) {
+      return response.data;
+    }
 
     final error = ApiException.fromProblem(response.statusCode, response.data);
 

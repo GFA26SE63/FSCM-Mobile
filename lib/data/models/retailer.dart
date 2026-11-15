@@ -12,6 +12,7 @@ class Retailer {
     this.status = '',
     this.region = '',
     this.creditTerm = 0,
+    this.creditLimit = 0,
     this.tier = 'Thành viên',
     this.points = 0,
     this.phone = '',
@@ -28,6 +29,7 @@ class Retailer {
         status: asStr(json['status']),
         region: asStr(json['region']),
         creditTerm: asInt(json['creditTermDays'] ?? json['creditTerm']),
+        creditLimit: asDouble(json['creditLimit']),
         tier: asStr(json['tier'], 'Thành viên'),
         points: asInt(json['points']),
         phone: asStr(json['phone']),
@@ -46,6 +48,7 @@ class Retailer {
 
   final String status;
   final int creditTerm;
+  final double creditLimit;
   final String tier;
   final int points;
   final String phone;
@@ -73,6 +76,7 @@ class Retailer {
         'status': status,
         'region': region,
         'creditTerm': creditTerm,
+        'creditLimit': creditLimit,
         'tier': tier,
         'points': points,
         'phone': phone,

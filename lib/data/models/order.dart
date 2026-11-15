@@ -37,8 +37,7 @@ class BatchAllocation {
       labelCode: asStr(j['labelCode']),
       hasPriceSnapshot: snapshot,
       listUnitPrice: asDouble(j['listUnitPrice']),
-      promotionDiscountPerUnit:
-          asDouble(j['ordinaryPromotionDiscountPerUnit']),
+      promotionDiscountPerUnit: asDouble(j['ordinaryPromotionDiscountPerUnit']),
       baseUnitPrice: asDouble(j['baseUnitPrice']),
       remainingShelfLifePercent: asDouble(j['remainingShelfLifePercent']),
       shelfLifeDiscountPerUnit: asDouble(j['shelfLifeDiscountPerUnit']),
@@ -70,9 +69,8 @@ class BatchAllocation {
   final DateTime? estimatedArrivalAt;
 
   /// Shelf-life discount as a percentage of the post-promotion price.
-  double get shelfLifeDiscountPercent => baseUnitPrice <= 0
-      ? 0
-      : shelfLifeDiscountPerUnit / baseUnitPrice * 100;
+  double get shelfLifeDiscountPercent =>
+      baseUnitPrice <= 0 ? 0 : shelfLifeDiscountPerUnit / baseUnitPrice * 100;
 
   Map<String, dynamic> toJson() => <String, dynamic>{
         'batchCode': batchCode,
@@ -93,6 +91,7 @@ class BatchAllocation {
         },
       };
 }
+
 class OrderLine {
   const OrderLine({
     required this.sku,

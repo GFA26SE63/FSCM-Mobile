@@ -15,13 +15,19 @@ class AuthApi {
 
   final ApiClient _client;
 
+  Future<bool> requiresActivation(String identifier) async {
+    final data = await _client.post(Endpoints.authLoginLookup,
+        body: <String, dynamic>{'identifier': identifier});
+    return asMap(data)['requiresActivation'] == true;
+  }
+
   /// Phone + password. Accounts are created by Admin; first login uses OTP
   /// (see [requestOtp] / [verifyOtp] / [setPassword]).
   Future<Session> login(
       {required String phone, required String password}) async {
     final data = await _client.post(
       Endpoints.authLogin,
-      body: <String, dynamic>{'identifier': phone, 'password': password},
+      body: <String, dynamic>{'identifier': phone, 'password': password.trim()},
     );
     return Session.fromJson(asMap(data));
   }
@@ -38,7 +44,7 @@ class AuthApi {
 
   Future<void> requestOtp(String phone) async {
     await _client.post(Endpoints.authOtpRequest,
-        body: <String, dynamic>{'phone': phone});
+        body: <String, dynamic>{'identifier': phone});
   }
 
   /// Returns a short-lived setup token used by [setPassword].
@@ -46,7 +52,7 @@ class AuthApi {
       {required String phone, required String code}) async {
     final data = await _client.post(
       Endpoints.authOtpVerify,
-      body: <String, dynamic>{'phone': phone, 'code': code},
+      body: <String, dynamic>{'identifier': phone, 'code': code},
     );
     return asStr(asMap(data)['setupToken']);
   }
@@ -55,7 +61,10 @@ class AuthApi {
       {required String setupToken, required String password}) async {
     final data = await _client.post(
       Endpoints.authSetPassword,
-      body: <String, dynamic>{'setupToken': setupToken, 'password': password},
+      body: <String, dynamic>{
+        'setupToken': setupToken,
+        'password': password.trim()
+      },
     );
     return Session.fromJson(asMap(data));
   }

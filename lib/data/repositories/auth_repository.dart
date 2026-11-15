@@ -50,6 +50,7 @@ class AuthController extends StateNotifier<AuthState> {
       if (state.isAuthenticated) {
         state =
             AuthState(status: AuthStatus.authenticated, session: newSession);
+        _refreshProfile();
       }
     });
   }
@@ -59,6 +60,12 @@ class AuthController extends StateNotifier<AuthState> {
   StreamSubscription<Session>? _sessionRefreshedSub;
 
   TokenStore get _tokens => _ref.read(tokenStoreProvider);
+
+  void _refreshProfile() {
+    if (state.isAuthenticated) {
+      unawaited(verifySessionOnResume());
+    }
+  }
 
   Future<void> _handleSessionExpired() async {
     await _tokens.clear();
@@ -91,6 +98,7 @@ class AuthController extends StateNotifier<AuthState> {
             final refreshedSession = Session.fromJson(newJson);
             state = AuthState(
                 status: AuthStatus.authenticated, session: refreshedSession);
+            _refreshProfile();
             unawaited(_registerDevice());
             return;
           }
@@ -104,6 +112,7 @@ class AuthController extends StateNotifier<AuthState> {
       return;
     }
     state = AuthState(status: AuthStatus.authenticated, session: session);
+    _refreshProfile();
     unawaited(_registerDevice());
   }
 
@@ -111,7 +120,7 @@ class AuthController extends StateNotifier<AuthState> {
     try {
       final session = await _ref
           .read(authApiProvider)
-          .login(phone: phone.trim(), password: password);
+          .login(phone: phone.trim(), password: password.trim());
       if (!session.user.role.hasMobileShell) {
         state = const AuthState(
           status: AuthStatus.unauthenticated,
@@ -122,6 +131,7 @@ class AuthController extends StateNotifier<AuthState> {
       }
       await _tokens.save(session.toJson());
       state = AuthState(status: AuthStatus.authenticated, session: session);
+      _refreshProfile();
       unawaited(_registerDevice());
       return true;
     } on ApiException catch (e) {
@@ -130,6 +140,9 @@ class AuthController extends StateNotifier<AuthState> {
       return false;
     }
   }
+
+  Future<bool> requiresActivation(String identifier) =>
+      _ref.read(authApiProvider).requiresActivation(identifier.trim());
 
   Future<void> requestActivationOtp(String phone) =>
       _ref.read(authApiProvider).requestOtp(phone.trim());
@@ -142,9 +155,10 @@ class AuthController extends StateNotifier<AuthState> {
     try {
       final session = await _ref
           .read(authApiProvider)
-          .setPassword(setupToken: setupToken, password: password);
+          .setPassword(setupToken: setupToken, password: password.trim());
       await _tokens.save(session.toJson());
       state = AuthState(status: AuthStatus.authenticated, session: session);
+      _refreshProfile();
       unawaited(_registerDevice());
       return true;
     } on ApiException catch (error) {
@@ -168,6 +182,7 @@ class AuthController extends StateNotifier<AuthState> {
       }
       await _tokens.save(session.toJson());
       state = AuthState(status: AuthStatus.authenticated, session: session);
+      _refreshProfile();
       unawaited(_registerDevice());
       return true;
     } on ApiException catch (e) {
@@ -186,12 +201,22 @@ class AuthController extends StateNotifier<AuthState> {
   /// protected request receives 403.
   Future<void> verifySessionOnResume() async {
     if (!state.isAuthenticated) return;
+    final expectedSession = state.session!;
     try {
       final user = await _ref.read(authApiProvider).me();
+      // A late /me response must not replace a logout, another login or a
+      // refreshed session. Refresh starts its own verification above.
+      if (!mounted || !identical(state.session, expectedSession)) return;
       if (!user.role.hasMobileShell) {
         await logout(callServer: false);
+        return;
       }
+      if (user.id != expectedSession.user.id) return;
+      final updated = expectedSession.copyWith(user: user);
+      state = AuthState(status: AuthStatus.authenticated, session: updated);
+      await _tokens.save(updated.toJson());
     } on ApiException catch (error) {
+      if (!mounted || !identical(state.session, expectedSession)) return;
       if (error.kind == ApiErrorKind.unauthorized ||
           error.kind == ApiErrorKind.forbidden) {
         await logout(callServer: false);

@@ -44,6 +44,28 @@ final retailerCreditProvider =
   return own.single;
 });
 
+/// The signed-in Retailer can read only their own approved credit profile.
+final ownRetailerCreditProvider = FutureProvider<Retailer>((ref) async {
+  final user = ref.watch(currentUserProvider);
+  if (user == null ||
+      user.role != UserRole.retailer ||
+      user.retailerCode == null ||
+      user.retailerCode!.isEmpty) {
+    throw const ApiException(
+        kind: ApiErrorKind.forbidden,
+        message: 'Không xác định được cửa hàng của phiên đăng nhập.');
+  }
+  final snapshot = await ref.watch(syncApiProvider).snapshot();
+  final own =
+      snapshot.retailers.where((item) => item.code == user.retailerCode);
+  if (own.length != 1) {
+    throw const ApiException(
+        kind: ApiErrorKind.forbidden,
+        message: 'Không tìm thấy hồ sơ công nợ của cửa hàng được cấp quyền.');
+  }
+  return own.single;
+});
+
 bool retailerCreditAllowed(Retailer retailer) =>
     retailer.status == 'Active' &&
     const [7, 14, 30].contains(retailer.creditTerm);

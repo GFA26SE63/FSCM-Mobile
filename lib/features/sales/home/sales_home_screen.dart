@@ -14,6 +14,7 @@ import 'package:fscm_mobile/data/repositories/catalog_repository.dart';
 import 'package:fscm_mobile/data/repositories/finance_repository.dart';
 import 'package:fscm_mobile/data/repositories/notification_repository.dart';
 import 'package:fscm_mobile/data/repositories/order_repository.dart';
+import 'package:fscm_mobile/data/repositories/performance_repository.dart';
 import 'package:fscm_mobile/features/common/notifications/notification_bell_button.dart';
 import 'package:fscm_mobile/shared/routes.dart';
 import 'package:fscm_mobile/shared/theme/app_colors.dart';
@@ -42,13 +43,21 @@ class SalesHomeScreen extends ConsumerWidget {
     final today = AppClock.today();
     final todayOrders =
         orders.where((o) => AppDates.isSameDay(o.createdAt, today)).toList();
-    final waiting = orders
+    // Every number under "Đơn hôm nay" is about today's orders only.
+    final waiting = todayOrders
         .where((o) =>
             o.status == OrderStatus.allocating ||
             o.status == OrderStatus.quoted ||
             o.status == OrderStatus.paymentPending)
         .length;
-    final rejected = orders.where((o) => o.status.isRejectedOrCancelled).length;
+    final rejected =
+        todayOrders.where((o) => o.status.isRejectedOrCancelled).length;
+    final delivering =
+        orders.where((o) => o.status == OrderStatus.delivering).length;
+    final kpi = ref.watch(salesKpiProvider('month'));
+    final kpiEntry = kpi.valueOrNull?.entries.isEmpty ?? true
+        ? null
+        : kpi.valueOrNull!.entries.first;
     final unsynced = queue.where((e) => e.status.isUnsent).length;
     final overdue = debts.where((d) => d.isOverdue).toList();
     final promoCount = catalog?.runningPromotions().length ?? 0;
@@ -64,6 +73,7 @@ class SalesHomeScreen extends ConsumerWidget {
       ),
       body: RefreshIndicator(
         onRefresh: () async {
+          ref.invalidate(salesKpiProvider('month'));
           await ref.read(syncServiceProvider.notifier).refreshSnapshot();
         },
         child: ListView(
@@ -103,22 +113,90 @@ class SalesHomeScreen extends ConsumerWidget {
             Row(
               children: <Widget>[
                 Expanded(
-                    child: _Stat(
-                        label: 'Đơn hôm nay', value: '${todayOrders.length}')),
+                    child:
+                        _Stat(label: 'Đã tạo', value: '${todayOrders.length}')),
                 const SizedBox(width: 10),
                 Expanded(
                     child: _Stat(
-                        label: 'Chờ xử lý',
+                        label: 'Đang chờ xử lý',
                         value: '$waiting',
                         tone: StatusTone.info)),
                 const SizedBox(width: 10),
                 Expanded(
                     child: _Stat(
-                        label: 'Bị từ chối',
+                        label: 'Bị từ chối / hủy',
                         value: '$rejected',
                         tone: StatusTone.danger)),
               ],
             ),
+            const SectionTitle('Tháng này'),
+            AppCard(
+              key: const Key('sales_home_kpi'),
+              onTap: () => context.push(AppRoutes.salesKpi),
+              child: kpi.isLoading
+                  ? const Text('Đang tải doanh số tháng...')
+                  : kpiEntry == null
+                      ? const Text(
+                          'Chưa có chỉ tiêu KPI hoặc doanh số ghi nhận trong tháng.',
+                          style: TextStyle(color: AppColors.textMuted))
+                      : Row(
+                          children: <Widget>[
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: <Widget>[
+                                  const Text('Doanh số ghi nhận',
+                                      style: TextStyle(
+                                          color: AppColors.textMuted,
+                                          fontSize: 12.5)),
+                                  Text(
+                                      Money.format(
+                                          kpiEntry.recognizedRevenue.round()),
+                                      style: const TextStyle(
+                                          fontSize: 20,
+                                          fontWeight: FontWeight.w800)),
+                                ],
+                              ),
+                            ),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: <Widget>[
+                                const Text('Hoàn thành KPI',
+                                    style: TextStyle(
+                                        color: AppColors.textMuted,
+                                        fontSize: 12.5)),
+                                Text(
+                                    '${(kpiEntry.overallCompletionRate * 100).toStringAsFixed(1)}%',
+                                    style: TextStyle(
+                                        fontSize: 20,
+                                        fontWeight: FontWeight.w800,
+                                        color:
+                                            kpiEntry.overallCompletionRate >= 1
+                                                ? AppColors.success
+                                                : AppColors.primary)),
+                              ],
+                            ),
+                          ],
+                        ),
+            ),
+            if (delivering > 0)
+              AppCard(
+                onTap: () => context.go(AppRoutes.salesOrders),
+                child: Row(
+                  children: <Widget>[
+                    const Icon(Icons.local_shipping_outlined,
+                        color: AppColors.primary),
+                    const SizedBox(width: 12),
+                    const Expanded(
+                        child: Text('Đơn đang giao',
+                            style: TextStyle(fontWeight: FontWeight.w600))),
+                    Text('$delivering',
+                        style: const TextStyle(color: AppColors.textMuted)),
+                    const SizedBox(width: 6),
+                    const Icon(Icons.chevron_right, color: AppColors.textMuted),
+                  ],
+                ),
+              ),
             const SectionTitle('Công việc'),
             _Shortcut(
                 icon: Icons.local_offer_outlined,

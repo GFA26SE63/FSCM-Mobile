@@ -7,6 +7,7 @@ class Endpoints {
   // Local credentials remain available; Google exchanges a verified ID token
   // for the same internal FSCM session contract.
   static const String authLogin = '/auth/login';
+  static const String authLoginLookup = '/auth/login/lookup';
   static const String authRefresh = '/auth/refresh';
   static const String authOtpRequest = '/auth/otp/request';
   static const String authOtpVerify = '/auth/otp/verify';
@@ -112,4 +113,7 @@ class Endpoints {
   /// `GET /sync/snapshot?since=` - retailers in area, products, prices,
   /// promotions, available stock summary.
   static const String syncSnapshot = '/mobile/snapshot';
+
+  /// Role-scoped dashboard (Warehouse Keeper on mobile).
+  static const String dashboard = '/dashboard';
 }
