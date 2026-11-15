@@ -9,6 +9,9 @@ import 'package:fscm_mobile/shared/routes.dart';
 import 'package:fscm_mobile/shared/widgets/info_banner.dart';
 import 'package:fscm_mobile/shared/widgets/qr_scan_view.dart';
 
+/// Central "Quét QR" of the Warehouse Keeper: classifies the code and opens
+/// the label or picking list. With [labelsOnly] it is the
+/// "Tra cứu tem" screen reached from the home page.
 class WkScanScreen extends ConsumerStatefulWidget {
   const WkScanScreen({
     super.key,
@@ -32,19 +35,31 @@ class _WkScanScreenState extends ConsumerState<WkScanScreen> {
     final kind = IdFormat.classify(code);
 
     String? route;
-
-    if (kind == ScannedCodeKind.label) {
-      route = AppRoutes.wkLabel(code);
-    } else if (!widget.labelsOnly && kind == ScannedCodeKind.pickingList) {
-      route = AppRoutes.wkPickingDetail(code);
+    switch (kind) {
+      case ScannedCodeKind.label:
+        // Make sure the label exists before navigating.
+        try {
+          await ref.read(warehouseRepositoryProvider).label(code);
+        } on ApiException catch (e) {
+          if (mounted) setState(() => _error = e.message);
+          return;
+        }
+        route = AppRoutes.wkLabel(code);
+        break;
+      case ScannedCodeKind.pickingList:
+        route = widget.labelsOnly ? null : AppRoutes.wkPickingDetail(code);
+        break;
+      case ScannedCodeKind.document:
+        route = null;
+        break;
+      default:
+        route = null;
     }
 
     if (route == null) {
-      setState(() {
-        _error = widget.labelsOnly
-            ? 'Mã không phải tem QR hợp lệ. Ví dụ: TEM-001010.'
-            : 'Hãy quét mã tem hoặc mã phiếu picking hợp lệ.';
-      });
+      setState(() => _error = widget.labelsOnly
+          ? 'Mã "$code" không phải tem (TEM-000000).'
+          : 'Không nhận diện được mã "$code". Quét tem hoặc phiếu picking (DH-000000A).');
       return;
     }
 
@@ -75,9 +90,11 @@ class _WkScanScreenState extends ConsumerState<WkScanScreen> {
           InfoBanner(
             icon: Icons.qr_code_scanner,
             text: widget.labelsOnly
-                ? 'Quét hoặc nhập mã tem để xem sản phẩm, batch, '
-                    'số lượng, kho và lịch sử. Tra cứu cần kết nối mạng.'
+                ? 'Quét tem để xem batch, số lượng, vị trí, tem gốc/con và lịch sử.'
                 : 'Quét tem để tra cứu hoặc phiếu picking để lấy hàng.',
+          ),
+          QrScanView(
+            onCode: _onCode,
           ),
           const SizedBox(height: 12),
           if (_opening)

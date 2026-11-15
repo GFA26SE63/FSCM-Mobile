@@ -31,7 +31,8 @@ final pickingDetailProvider =
   return ref.watch(warehouseRepositoryProvider).pickingList(code);
 });
 
-// Các màn transfer đã được lưu trữ, không mở thêm route trong task này.
+// Kept for the archived transfer screens only. No active route or navigation
+// exposes these providers in the current direct-to-retailer scope.
 final transfersProvider = FutureProvider.autoDispose<List<Transfer>>((ref) {
   ref.watch(dataVersionProvider);
   ref.watch(currentUserProvider);

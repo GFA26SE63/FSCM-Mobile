@@ -30,9 +30,6 @@ class WkHomeScreen extends ConsumerWidget {
     final todo =
         pickings.where((p) => p.status != PickingStatus.completed).toList();
     int count(PickingStatus s) => pickings.where((p) => p.status == s).length;
-    final dashboard = ref.watch(warehouseDashboardProvider).valueOrNull;
-    // Server totals for the assigned warehouses; fall back to the loaded list.
-    int tile(String key, int fallback) => dashboard?.count(key) ?? fallback;
 
     return Scaffold(
       appBar: AppBar(
@@ -46,7 +43,6 @@ class WkHomeScreen extends ConsumerWidget {
       body: RefreshIndicator(
         onRefresh: () async {
           ref.invalidate(pickingListsProvider);
-          ref.invalidate(warehouseDashboardProvider);
         },
         child: ListView(
           padding: const EdgeInsets.all(16),
@@ -76,36 +72,6 @@ class WkHomeScreen extends ConsumerWidget {
                         StatusTone.success)),
               ],
             ),
-            if (dashboard != null) ...<Widget>[
-              const SizedBox(height: 10),
-              Row(
-                children: <Widget>[
-                  Expanded(
-                      child: _Stat('Phiếu nhập chờ',
-                          dashboard.count('receiptPending'), StatusTone.info)),
-                  const SizedBox(width: 10),
-                  Expanded(
-                      child: _Stat('Thùng cận hạn',
-                          dashboard.count('nearExpiry'), StatusTone.warning)),
-                  const SizedBox(width: 10),
-                  Expanded(
-                      child: _Stat('Thùng hết hạn', dashboard.count('expired'),
-                          StatusTone.danger)),
-                ],
-              ),
-              if (dashboard.count('lowStock') > 0)
-                Padding(
-                  padding: const EdgeInsets.only(top: 10),
-                  child: InfoBanner(
-                    tone: StatusTone.danger,
-                    icon: Icons.inventory_outlined,
-                    title:
-                        '${dashboard.count('lowStock')} SKU dưới ngưỡng tồn khu vực',
-                    text:
-                        'Xem chi tiết ở Portal › Tổng quan › Tồn kho để đề xuất bổ sung hàng.',
-                  ),
-                ),
-            ],
             const SizedBox(height: 10),
             AppCard(
               onTap: () => context.push(AppRoutes.wkLabelLookup),
