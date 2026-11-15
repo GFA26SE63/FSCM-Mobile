@@ -7,6 +7,7 @@ import 'package:fscm_mobile/core/utils/status_tone.dart';
 import 'package:fscm_mobile/data/repositories/auth_repository.dart';
 import 'package:fscm_mobile/shared/routes.dart';
 import 'package:fscm_mobile/shared/theme/app_colors.dart';
+import 'package:fscm_mobile/shared/widgets/fscm_logo.dart';
 import 'package:fscm_mobile/shared/widgets/info_banner.dart';
 
 /// Phone + password or Google login.
@@ -104,9 +105,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: <Widget>[
-                    const Icon(Icons.ac_unit,
-                        size: 44, color: AppColors.primary),
-                    const SizedBox(height: 8),
+                    const Align(
+                      alignment: Alignment.centerLeft,
+                      child: FscmLogo(
+                        size: 56,
+                        borderRadius: 16,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
                     const Text(
                       'FSCM',
                       style: TextStyle(

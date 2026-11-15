@@ -39,6 +39,7 @@ import 'package:fscm_mobile/shared/widgets/empty_state.dart';
 import 'package:fscm_mobile/shared/widgets/info_banner.dart';
 import 'package:fscm_mobile/shared/widgets/online_chip.dart';
 import 'package:fscm_mobile/shared/widgets/quantity_stepper.dart';
+import 'package:fscm_mobile/shared/widgets/order_quantity_field.dart';
 import 'package:fscm_mobile/sync/sync_service.dart';
 
 final _orderAvailabilityProvider = FutureProvider.autoDispose
@@ -69,6 +70,7 @@ class OrderCreateScreen extends ConsumerStatefulWidget {
 
 class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
   final Map<String, int> _cart = <String, int>{};
+  final Set<String> _invalidQuantities = <String>{};
   final String _clientOrderKey = const Uuid().v4();
 
   String _query = '';
@@ -329,7 +331,8 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
   }
 
   void _validateQuantities(int step) {
-    if (_lines.any((line) => line.qty <= 0 || line.qty % step != 0)) {
+    if (_invalidQuantities.isNotEmpty ||
+        _lines.any((line) => line.qty <= 0 || line.qty % step != 0)) {
       throw ApiException(
           kind: ApiErrorKind.validation,
           message: 'Số lượng phải là số thùng nguyên dương theo bước $step. '
@@ -376,99 +379,124 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
       ));
     }
 
-    return AppCard(
-      onTap: _busy ? null : openDetail,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  '${product.sku} · ${product.name}',
-                  style: const TextStyle(fontWeight: FontWeight.w700),
+    return Padding(
+      key: ValueKey(product.sku),
+      padding: const EdgeInsets.only(bottom: 10),
+      child: AppCard(
+        margin: EdgeInsets.zero,
+        onTap: _busy ? null : openDetail,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    '${product.sku} · ${product.name}',
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  ),
                 ),
-              ),
-              IconButton(
-                onPressed: _busy ? null : openDetail,
-                tooltip: 'Chi tiết ${product.name}',
-                icon: const Icon(Icons.chevron_right),
-              ),
-            ],
-          ),
-          Text(
-            price == null
-                ? '${product.pack} · Chưa có giá hiệu lực trong snapshot'
-                : '${product.pack} · '
-                    '${Money.format(price)}/thùng · dự kiến',
-            style: TextStyle(
-              color: price == null ? AppColors.warning : AppColors.textMuted,
+                IconButton(
+                  onPressed: _busy ? null : openDetail,
+                  tooltip: 'Chi tiết ${product.name}',
+                  icon: const Icon(Icons.chevron_right),
+                ),
+              ],
             ),
-          ),
-          const SizedBox(height: 6),
-          if (availability != null)
-            OrderStockSummary(
-              availability: availability,
-              viewerRole: viewerRole,
-              onViewAll: _busy ? null : openDetail,
+            Text(
+              price == null
+                  ? '${product.pack} · Chưa có giá hiệu lực trong snapshot'
+                  : '${product.pack} · '
+                      '${Money.format(price)}/thùng · dự kiến',
+              style: TextStyle(
+                color: price == null ? AppColors.warning : AppColors.textMuted,
+              ),
             ),
-          Row(
-            children: [
-              Expanded(
+            const SizedBox(height: 6),
+            if (availability != null)
+              OrderStockSummary(
+                availability: availability,
+                viewerRole: viewerRole,
+                onViewAll: _busy ? null : openDetail,
+              ),
+            OrderQuantityField(
+              label: maximum == 0
+                  ? (availability == null
+                      ? 'Chưa kiểm tra được tồn đủ điều kiện'
+                      : availability.quantity <= 0
+                          ? 'Không có hàng đủ điều kiện để giao'
+                          : 'Chưa đủ hàng theo bước $_step thùng')
+                  : _step == 1
+                      ? 'Số lượng (thùng)'
+                      : 'Số lượng · bội $_step thùng',
+              labelColor:
+                  maximum == 0 ? AppColors.warning : AppColors.textMuted,
+              showRemove: quantity > 0,
+              onRemove: _busy ? null : () => _removeProduct(product),
+              control: maximum > 0 || quantity > 0
+                  ? QuantityStepper(
+                      editable: true,
+                      enabled: !_busy,
+                      value: quantity,
+                      step: _step,
+                      max: quantity > maximum ? quantity : maximum,
+                      onValidationChanged: (valid) => setState(() {
+                        if (valid) {
+                          _invalidQuantities.remove(product.sku);
+                        } else {
+                          _invalidQuantities.add(product.sku);
+                        }
+                      }),
+                      onChanged: (value) {
+                        if (_busy) {
+                          return;
+                        }
+                        setState(() => _cart[product.sku] = value);
+                      },
+                    )
+                  : null,
+            ),
+            if (pricedLines.isNotEmpty && pricedLines.first.hasDiscount)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
                 child: Text(
-                  maximum == 0
-                      ? (availability == null
-                          ? 'Chưa kiểm tra được tồn đủ điều kiện'
-                          : availability.quantity <= 0
-                              ? 'Không có hàng đủ điều kiện để giao'
-                              : 'Chưa đủ hàng theo bước $_step thùng')
-                      : _step == 1
-                          ? 'Chọn số lượng thùng'
-                          : 'Chọn số lượng · bội $_step thùng',
-                  style: TextStyle(
-                    color:
-                        maximum == 0 ? AppColors.warning : AppColors.textMuted,
-                    fontSize: 13,
+                  '${pricedLines.first.promoName.isEmpty ? 'Khuyến mãi' : pricedLines.first.promoName} · '
+                  'giảm dự kiến '
+                  '${Money.format(pricedLines.first.discount)}',
+                  style: const TextStyle(
+                    color: AppColors.success,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ),
-              if (maximum > 0 || quantity > 0)
-                QuantityStepper(
-                  value: quantity,
-                  step: _step,
-                  max: quantity > maximum ? quantity : maximum,
-                  onChanged: (value) {
-                    if (_busy) {
-                      return;
-                    }
-                    setState(() => _cart[product.sku] = value);
-                  },
-                ),
-              if (quantity > 0)
-                IconButton(
-                    tooltip: 'Bỏ sản phẩm khỏi giỏ',
-                    onPressed: _busy
-                        ? null
-                        : () => setState(() => _cart.remove(product.sku)),
-                    icon: const Icon(Icons.close)),
-            ],
-          ),
-          if (pricedLines.isNotEmpty && pricedLines.first.hasDiscount)
-            Padding(
-              padding: const EdgeInsets.only(top: 4),
-              child: Text(
-                '${pricedLines.first.promoName.isEmpty ? 'Khuyến mãi' : pricedLines.first.promoName} · '
-                'giảm dự kiến '
-                '${Money.format(pricedLines.first.discount)}',
-                style: const TextStyle(
-                  color: AppColors.success,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-        ],
+          ],
+        ),
       ),
     );
+  }
+
+  void _removeProduct(Product product) {
+    if (_busy) {
+      return;
+    }
+    final previous = _cart[product.sku];
+    final ownerId = ref.read(currentUserProvider)?.id;
+    if (previous == null || previous <= 0 || ownerId == null) {
+      return;
+    }
+    setState(() {
+      _cart.remove(product.sku);
+      _invalidQuantities.remove(product.sku);
+    });
+    showAppUndoSnack('Đã bỏ ${product.name} khỏi giỏ.', onUndo: () {
+      if (!_isCurrentUser(ownerId) || _busy || (_cart[product.sku] ?? 0) > 0) {
+        return;
+      }
+      setState(() {
+        _cart[product.sku] = previous;
+        _invalidQuantities.remove(product.sku);
+      });
+    });
   }
 
   Widget _bottomBar(
@@ -497,7 +525,11 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    count == 0 ? 'Giỏ hàng trống' : '$count sản phẩm',
+                    _invalidQuantities.isNotEmpty
+                        ? 'Kiểm tra lại số lượng đã nhập'
+                        : count == 0
+                            ? 'Giỏ hàng trống'
+                            : '$count sản phẩm',
                     style: const TextStyle(
                       color: AppColors.textMuted,
                     ),
@@ -534,7 +566,7 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
             SizedBox(
               width: 160,
               child: FilledButton(
-                onPressed: count == 0 || _busy
+                onPressed: count == 0 || _busy || _invalidQuantities.isNotEmpty
                     ? null
                     : () => _review(data, retailer, online),
                 child: Text(

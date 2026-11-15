@@ -32,6 +32,14 @@ class OrdersApi {
     return OrderPage.fromJson(asMap(data));
   }
 
+  /// Number of orders in [status] within the caller's scope, read from the
+  /// page total rather than counting a page of rows.
+  Future<int> countByStatus(String status) async {
+    final data = await _client.get(Endpoints.orders,
+        query: <String, dynamic>{'status': status, 'page': 1, 'pageSize': 1});
+    return OrderPage.fromJson(asMap(data)).totalCount;
+  }
+
   /// Sales: own + group orders. Retailer: own orders (scoped by the token).
   Future<List<Order>> list({
     String? status,

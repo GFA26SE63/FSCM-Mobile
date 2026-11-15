@@ -57,34 +57,41 @@ class FscmLogo extends StatelessWidget {
     super.key,
     this.size = 56,
     this.iconSize = 30,
-    this.backgroundColor = const Color(0xFF14655B),
-    this.iconColor = Colors.white,
+    this.backgroundColor = Colors.white,
+    this.iconColor,
     this.borderRadius = 16,
     this.strokeWidth = 1.8,
+    this.padding,
   });
 
   final double size;
   final double iconSize;
-  final Color backgroundColor;
-  final Color iconColor;
+  final Color? backgroundColor;
+  final Color? iconColor;
   final double borderRadius;
   final double strokeWidth;
+  final EdgeInsetsGeometry? padding;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return SizedBox(
       width: size,
       height: size,
-      decoration: BoxDecoration(
-        color: backgroundColor,
-        borderRadius: BorderRadius.circular(borderRadius),
-      ),
-      child: Center(
-        child: CustomPaint(
-          size: Size(iconSize, iconSize),
-          painter: FscmCubePainter(
-            color: iconColor,
-            strokeWidth: strokeWidth,
+      child: AspectRatio(
+        aspectRatio: 1.0,
+        child: Container(
+          padding: padding,
+          decoration: BoxDecoration(
+            color: backgroundColor ?? Colors.white,
+            borderRadius: BorderRadius.circular(borderRadius),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: Center(
+            child: Image.asset(
+              'assets/images/fscm_logo.png',
+              fit: BoxFit.contain,
+              filterQuality: FilterQuality.high,
+            ),
           ),
         ),
       ),
