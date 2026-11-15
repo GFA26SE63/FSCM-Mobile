@@ -40,11 +40,10 @@ class SalesHomeScreen extends ConsumerWidget {
         ref.watch(receivablesProvider).valueOrNull ?? const <Receivable>[];
     final notes = ref.watch(notificationsProvider).valueOrNull ?? const [];
 
-    final today = AppClock.today();
+    final today = AppClock.now();
     final todayOrders =
-        orders.where((o) => AppDates.isSameDay(o.createdAt, today)).toList();
-    // Every number under "Đơn hôm nay" is about today's orders only.
-    final waiting = todayOrders
+        orders.where((o) => AppDates.isSameVietnamDay(o.createdAt, today)).toList();
+    final waiting = orders
         .where((o) =>
             o.status == OrderStatus.allocating ||
             o.status == OrderStatus.quoted ||
