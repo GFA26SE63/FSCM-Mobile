@@ -9,6 +9,7 @@ import 'package:fscm_mobile/data/models/retailer_declaration.dart';
 import 'package:fscm_mobile/data/models/map_place.dart';
 import 'package:fscm_mobile/data/repositories/data_version.dart';
 import 'package:fscm_mobile/data/repositories/retailer_repository.dart';
+import 'package:fscm_mobile/features/sales/declare/declaration_errors.dart';
 import 'package:fscm_mobile/shared/widgets/dialogs.dart';
 import 'package:fscm_mobile/shared/widgets/info_banner.dart';
 import 'package:fscm_mobile/shared/widgets/section_title.dart';
@@ -44,6 +45,8 @@ class _DeclareRetailerScreenState extends ConsumerState<DeclareRetailerScreen> {
   late RetailerTypeOption _type;
   late List<MlorDeclaration> _mlors;
   String? _salesGroupId;
+  DeclarationConflict? _conflict;
+  String? _conflictValue;
   bool _busy = false;
   double? _latitude;
   double? _longitude;
@@ -103,6 +106,13 @@ class _DeclareRetailerScreenState extends ConsumerState<DeclareRetailerScreen> {
     }
     super.dispose();
   }
+
+  /// The server's duplicate error for [field], while the input still holds the
+  /// value it rejected.
+  String? _conflictFor(String field, String value) =>
+      _conflict?.field == field && _conflictValue == value
+          ? _conflict!.message
+          : null;
 
   String? _required(String? v, String message) =>
       (v == null || v.trim().isEmpty) ? message : null;
@@ -196,7 +206,25 @@ class _DeclareRetailerScreenState extends ConsumerState<DeclareRetailerScreen> {
               : 'Đã lưu nháp ${result.code}.');
       context.pop();
     } on ApiException catch (e) {
-      if (mounted) showAppSnack(context, e.message, error: true);
+      if (!mounted) return;
+      final conflict = declarationConflictOf(e);
+      if (conflict == null) {
+        showAppSnack(context, e.message, error: true);
+        return;
+      }
+      // Remember the rejected value so the error shows under that input and
+      // clears as soon as Sales changes it.
+      setState(() {
+        _conflict = conflict;
+        _conflictValue = switch (conflict.field) {
+          'phone' => _digits(_phone.text),
+          'email' => _email.text.trim().toLowerCase(),
+          'name' => _name.text.trim().toLowerCase(),
+          _ => null,
+        };
+      });
+      _form.currentState?.validate();
+      showAppSnack(context, conflict.message, error: true);
     } on StateError {
       if (mounted) {
         showAppSnack(context, 'Tài khoản chưa được gán nhóm Sales nào.',
@@ -251,7 +279,7 @@ class _DeclareRetailerScreenState extends ConsumerState<DeclareRetailerScreen> {
                 decoration: const InputDecoration(labelText: 'Tên điểm bán'),
                 validator: (v) => (v == null || v.trim().length < 2)
                     ? 'Tên điểm bán tối thiểu 2 ký tự'
-                    : null),
+                    : _conflictFor('name', v.trim().toLowerCase())),
             const SizedBox(height: 10),
             TextFormField(
                 controller: _address,
@@ -295,9 +323,10 @@ class _DeclareRetailerScreenState extends ConsumerState<DeclareRetailerScreen> {
                   helperText: 'Dùng để Retailer đăng nhập lần đầu'),
               validator: (v) {
                 final d = _digits(v ?? '');
-                return d.length == 10 && d.startsWith('0')
-                    ? null
-                    : 'Số điện thoại gồm 10 chữ số, bắt đầu bằng 0';
+                if (!(d.length == 10 && d.startsWith('0'))) {
+                  return 'Số điện thoại gồm 10 chữ số, bắt đầu bằng 0';
+                }
+                return _conflictFor('phone', d);
               },
             ),
             const SizedBox(height: 10),
@@ -309,7 +338,7 @@ class _DeclareRetailerScreenState extends ConsumerState<DeclareRetailerScreen> {
                   helperText: 'Nhận thông báo tạo tài khoản và mã OTP'),
               validator: (v) => RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$')
                       .hasMatch((v ?? '').trim())
-                  ? null
+                  ? _conflictFor('email', (v ?? '').trim().toLowerCase())
                   : 'Nhập email hợp lệ',
             ),
             const SectionTitle('Đánh giá tiềm năng'),
