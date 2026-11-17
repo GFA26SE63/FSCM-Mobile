@@ -1,208 +1,211 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
 import 'package:fscm_mobile/core/network/api_exception.dart';
-import 'package:fscm_mobile/core/utils/dates.dart';
 import 'package:fscm_mobile/data/models/loyalty.dart';
+import 'package:fscm_mobile/data/models/redemption_attempt.dart';
+import 'package:fscm_mobile/data/repositories/auth_repository.dart';
 import 'package:fscm_mobile/data/repositories/data_version.dart';
 import 'package:fscm_mobile/data/repositories/loyalty_repository.dart';
-import 'package:fscm_mobile/shared/theme/app_colors.dart';
+import 'package:fscm_mobile/features/retailer/loyalty/widgets/gift_catalog_tile.dart';
+import 'package:fscm_mobile/features/retailer/loyalty/widgets/gift_redemption_tile.dart';
+import 'package:fscm_mobile/features/retailer/loyalty/widgets/gift_redeem_sheet.dart';
 import 'package:fscm_mobile/shared/widgets/app_card.dart';
 import 'package:fscm_mobile/shared/widgets/async_body.dart';
 import 'package:fscm_mobile/shared/widgets/dialogs.dart';
 import 'package:fscm_mobile/shared/widgets/info_banner.dart';
 import 'package:fscm_mobile/shared/widgets/section_title.dart';
-import 'package:fscm_mobile/shared/widgets/status_chip.dart';
 
-/// Gift catalog + own redemption requests. Redeeming holds the points until
-/// the request is processed (refunded if rejected).
+/// Catalogue, independent own-request history and explicit retry of uncertain sends.
 class GiftsScreen extends ConsumerStatefulWidget {
   const GiftsScreen({super.key, this.redemptionId});
   final String? redemptionId;
-
   @override
   ConsumerState<GiftsScreen> createState() => _GiftsScreenState();
 }
 
 class _GiftsScreenState extends ConsumerState<GiftsScreen> {
-  String _busyGift = '';
+  bool _busy = false;
+  bool _refreshing = false;
+  String? _error;
 
-  Future<void> _redeem(Gift g) async {
-    final state = ref.read(loyaltyAccountProvider);
-    if (state.isLoading ||
-        state.hasError ||
-        state.valueOrNull == null ||
-        state.requireValue.hasNegativeBalance ||
-        state.requireValue.balance < g.points) {
-      showAppSnack(context, 'Chưa đủ điểm khả dụng đã xác minh để đổi quà.',
-          error: true);
+  Future<void> _reload() async {
+    if (_refreshing) {
       return;
     }
-    final ok = await confirmDialog(
-      context,
-      title: 'Đổi quà',
-      message:
-          'Đổi "${g.name}" với ${g.points} điểm? Điểm sẽ được giữ cho đến khi yêu cầu được xử lý.',
-      confirmLabel: 'Đổi quà',
-    );
-    if (!ok || !mounted) {
-      return;
-    }
-    final latest = ref.read(loyaltyAccountProvider);
-    if (latest.isLoading ||
-        latest.hasError ||
-        latest.valueOrNull == null ||
-        latest.requireValue.hasNegativeBalance ||
-        latest.requireValue.balance < g.points) {
-      showAppSnack(
-          context, 'Điểm khả dụng đã thay đổi. Hãy tải lại thẻ tích điểm.',
-          error: true);
-      return;
-    }
-    setState(() => _busyGift = g.code);
+    setState(() => _refreshing = true);
+    ref.invalidate(loyaltyAccountProvider);
+    ref.invalidate(giftsProvider);
+    ref.invalidate(redemptionsProvider);
+    ref.invalidate(pendingRedemptionProvider);
     try {
-      final r = await ref.read(loyaltyRepositoryProvider).redeem(g);
-      ref.invalidate(giftsProvider);
-      ref.invalidate(redemptionsProvider);
-      ref.read(dataVersionProvider.notifier).state++;
+      await Future.wait<Object?>([
+        ref.read(loyaltyAccountProvider.future), ref.read(giftsProvider.future),
+        ref.read(redemptionsProvider.future), ref.read(pendingRedemptionProvider.future),
+      ]);
+    } catch (_) {
+      // Each independent section displays its actual provider error.
+    } finally {
       if (mounted) {
-        showAppSnack(context,
-            'Đã gửi yêu cầu ${r.code}. ${r.points} điểm đang được giữ.');
+        setState(() => _refreshing = false);
       }
-    } on ApiException catch (e) {
-      if (mounted) {
-        showAppSnack(context, e.message, error: true);
+    }
+  }
+
+  Future<void> _run(Future<void> Function() action) async {
+    if (_busy || _refreshing) {
+      return;
+    }
+    setState(() { _busy = true; _error = null; });
+    final owner = ref.read(currentUserProvider)?.id;
+    try {
+      await action();
+    } catch (error) {
+      if (mounted && ref.read(currentUserProvider)?.id == owner) {
+        setState(() => _error = ApiException.describe(error));
       }
     } finally {
       if (mounted) {
-        setState(() => _busyGift = '');
+        ref.invalidate(pendingRedemptionProvider);
+        setState(() => _busy = false);
       }
     }
+  }
+
+  void _checkOwner(String owner) {
+    if (!mounted || ref.read(currentUserProvider)?.id != owner) {
+      throw const ApiException(kind: ApiErrorKind.unauthorized,
+        message: 'Phiên đăng nhập đã thay đổi.');
+    }
+  }
+
+  Future<void> _redeem(Gift gift) => _run(() async {
+    final owner = ref.read(currentUserProvider)?.id;
+    if (owner == null) {
+      return;
+    }
+    final card = ref.read(loyaltyAccountProvider).valueOrNull;
+    if (card == null || card.balance < gift.points || card.hasNegativeBalance || card.program?.isActive != true) {
+      return;
+    }
+    final quantity = await showModalBottomSheet<int>(context: context, isScrollControlled: true,
+      builder: (_) => GiftRedeemSheet(gift: gift, balance: card.balance));
+    if (quantity == null) {
+      return;
+    }
+    _checkOwner(owner);
+    final latest = ref.read(loyaltyAccountProvider);
+    if (latest.isLoading || latest.hasError || latest.valueOrNull == null ||
+        latest.requireValue.retailerId != card.retailerId ||
+        latest.requireValue.programId != gift.programId ||
+        latest.requireValue.balance < gift.points * quantity || latest.requireValue.program?.isActive != true) {
+      throw const ApiException(kind: ApiErrorKind.conflict,
+        message: 'Thông tin điểm hoặc chương trình đã thay đổi. Hãy tải lại trước khi đổi quà.');
+    }
+    final attempt = await ref.read(redemptionAttemptStoreProvider).create(
+      ownerId: owner, retailerId: card.retailerId, gift: gift, quantity: quantity);
+    _checkOwner(owner);
+    ref.invalidate(pendingRedemptionProvider);
+    await _submit(attempt);
+  });
+
+  Future<void> _submit(RedemptionAttempt attempt) async {
+    _checkOwner(attempt.ownerId);
+    final repository = ref.read(loyaltyRepositoryProvider);
+    final store = ref.read(redemptionAttemptStoreProvider);
+    // Reconcile before POST, including after an app restart. No automatic send.
+    final history = await repository.redemptions();
+    _checkOwner(attempt.ownerId);
+    final existing = history.where((r) => r.clientRequestId == attempt.operationKey);
+    GiftRedemption result;
+    if (existing.isNotEmpty) {
+      result = existing.first;
+    } else {
+      final card = await ref.read(loyaltyAccountProvider.future);
+      _checkOwner(attempt.ownerId);
+      if (card.retailerId != attempt.retailerId) {
+        throw const ApiException(kind: ApiErrorKind.forbidden,
+          message: 'Yêu cầu đổi quà thuộc điểm bán khác.');
+      }
+      await store.markSent(attempt);
+      _checkOwner(attempt.ownerId);
+      try {
+        result = await repository.redeem(attempt);
+      } on ApiException catch (error) {
+        // A first explicit business rejection has a known result. An earlier
+        // uncertain send keeps its key even when a later retry is rejected.
+        if (!attempt.mayHaveSucceeded &&
+            [400, 404, 409, 422].contains(error.statusCode)) {
+          await store.complete(attempt.ownerId, attempt.operationKey);
+        }
+        rethrow;
+      }
+    }
+    await store.complete(attempt.ownerId, attempt.operationKey);
+    _checkOwner(attempt.ownerId);
+    ref.invalidate(giftsProvider);
+    ref.invalidate(redemptionsProvider);
+    ref.read(dataVersionProvider.notifier).state++;
+    if (!mounted) {
+      return;
+    }
+    showAppSnack(context, 'Đã xác nhận yêu cầu ${result.code}: ${result.status.label}.');
   }
 
   @override
   Widget build(BuildContext context) {
     final gifts = ref.watch(giftsProvider);
     final accountState = ref.watch(loyaltyAccountProvider);
-    final account = accountState.isLoading || accountState.hasError
-        ? null
-        : accountState.valueOrNull;
-    final redemptionState = ref.watch(redemptionsProvider);
-    final redemptions = redemptionState.valueOrNull ?? const <GiftRedemption>[];
+    final account = accountState.isLoading || accountState.hasError ? null : accountState.valueOrNull;
+    final requests = ref.watch(redemptionsProvider);
+    final pending = ref.watch(pendingRedemptionProvider);
+    final blocked = _busy || _refreshing || pending.isLoading || pending.hasError ||
+        pending.valueOrNull != null || account?.program?.isActive != true;
     return Scaffold(
-      appBar: AppBar(title: const Text('Đổi quà')),
-      body: AsyncBody<List<Gift>>(
-        value: gifts,
-        onRetry: () => ref.invalidate(giftsProvider),
-        builder: (list) => ListView(
-          padding: const EdgeInsets.all(16),
-          children: <Widget>[
-            if (accountState.isLoading) const LinearProgressIndicator(),
-            if (accountState.hasError) ...[
-              InfoBanner(text: ApiException.describe(accountState.error!)),
-              TextButton(
-                  onPressed: () => ref.invalidate(loyaltyAccountProvider),
-                  child: const Text('Tải lại thẻ tích điểm')),
-            ],
-            if (account?.hasNegativeBalance == true)
-              const InfoBanner(
-                  text: 'Số dư điểm đang âm sau điều chỉnh. '
-                      'Chưa thể gửi yêu cầu đổi quà mới; bạn vẫn xem được yêu cầu trước đó.'),
-            if (account != null)
-              InfoBanner(
-                icon: Icons.stars_outlined,
-                text: 'Bạn có ${account.balance} điểm khả dụng'
-                    '${account.held > 0 ? ' (đang giữ ${account.held} điểm)' : ''}.',
-              ),
-            for (final g in list) _giftTile(g, account),
-            if (redemptionState.isLoading) const LinearProgressIndicator(),
-            if (redemptionState.hasError) ...[
-              InfoBanner(text: ApiException.describe(redemptionState.error!)),
-              TextButton(
-                  onPressed: () => ref.invalidate(redemptionsProvider),
-                  child: const Text('Tải lại yêu cầu đổi quà')),
-            ],
-            if (widget.redemptionId != null &&
-                !redemptionState.isLoading &&
-                !redemptionState.hasError &&
-                redemptionState.hasValue &&
-                !redemptions.any((r) => r.code == widget.redemptionId))
-              const InfoBanner(
-                  text:
-                      'Không tìm thấy yêu cầu đổi quà nguồn trong tài khoản hiện tại.'),
-            if (redemptions.isNotEmpty) ...<Widget>[
-              const SectionTitle('Yêu cầu đổi quà của bạn'),
-              for (final r in redemptions)
-                AppCard(
-                  color: r.code == widget.redemptionId
-                      ? AppColors.primarySoft
-                      : null,
-                  child: Row(
-                    children: <Widget>[
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: <Widget>[
-                            Text(r.giftName,
-                                style: const TextStyle(
-                                    fontWeight: FontWeight.w700)),
-                            Text(
-                              '${r.code} · ${AppDates.timeDay(r.requestedAt)} · ${r.points} điểm',
-                              style: const TextStyle(
-                                  color: AppColors.textMuted, fontSize: 12),
-                            ),
-                          ],
-                        ),
-                      ),
-                      StatusChip(label: r.status.label, tone: r.status.tone),
-                    ],
-                  ),
-                ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _giftTile(Gift g, LoyaltyAccount? account) {
-    final enough = account != null &&
-        !account.hasNegativeBalance &&
-        account.balance >= g.points;
-    final available = g.stock > 0;
-    return AppCard(
-      child: Row(
-        children: <Widget>[
-          const CircleAvatar(
-            backgroundColor: AppColors.primarySoft,
-            child: Icon(Icons.card_giftcard, color: AppColors.primary),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Text(g.name,
-                    style: const TextStyle(fontWeight: FontWeight.w700)),
-                Text('${g.code} · còn ${g.stock}',
-                    style: const TextStyle(
-                        color: AppColors.textMuted, fontSize: 12)),
-                Text('${g.points} điểm',
-                    style: const TextStyle(
-                        color: AppColors.primary, fontWeight: FontWeight.w800)),
-              ],
-            ),
-          ),
-          FilledButton(
-            onPressed: enough && available && _busyGift.isEmpty
-                ? () => _redeem(g)
-                : null,
-            child: Text(_busyGift == g.code
-                ? '...'
-                : (!available ? 'Hết quà' : (enough ? 'Đổi' : 'Thiếu điểm'))),
-          ),
+      appBar: AppBar(title: const Text('Đổi quà'), actions: [IconButton(
+        tooltip: 'Tải lại quà, điểm và yêu cầu', onPressed: _busy || _refreshing ? null : () => unawaited(_reload()),
+        icon: const Icon(Icons.refresh))]),
+      body: RefreshIndicator(onRefresh: _reload, child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(), padding: const EdgeInsets.all(16), children: [
+        if (_error != null) InfoBanner(text: _error!),
+        if (accountState.isLoading || pending.isLoading) const LinearProgressIndicator(),
+        if (accountState.hasError) InfoBanner(text: ApiException.describe(accountState.error!)),
+        if (account != null) InfoBanner(icon: Icons.stars_outlined,
+          text: 'Bạn có ${account.balance} điểm khả dụng (đang giữ ${account.held} điểm).'),
+        if (account?.program?.isActive == false) const InfoBanner(
+          text: 'Chương trình đang tạm dừng. Chưa thể gửi yêu cầu đổi quà mới; bạn vẫn xem được các yêu cầu đã gửi.'),
+        if (account?.hasNegativeBalance == true) const InfoBanner(
+          text: 'Số dư điểm đang âm sau điều chỉnh. Chưa thể gửi yêu cầu đổi quà mới; bạn vẫn xem được yêu cầu trước đó.'),
+        if (pending.hasError) ...[
+          InfoBanner(text: ApiException.describe(pending.error!)),
+          TextButton(onPressed: _busy ? null : () => ref.invalidate(pendingRedemptionProvider), child: const Text('Tải lại yêu cầu trên máy')),
         ],
-      ),
+        if (pending.valueOrNull case final RedemptionAttempt attempt) AppCard(child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          const Text('Yêu cầu chưa xác nhận kết quả', style: TextStyle(fontWeight: FontWeight.w700)),
+          Text('${attempt.giftName} · ${attempt.quantity} quà · ${attempt.totalPoints} điểm khi gửi'),
+          const Text('Kiểm tra hoặc thử lại yêu cầu này trước khi đổi quà mới. Nội dung yêu cầu được giữ nguyên.'),
+          FilledButton(onPressed: _busy || _refreshing ? null : () => unawaited(_run(() => _submit(attempt))),
+            child: Text(_busy ? 'Đang xử lý…' : 'Kiểm tra và thử lại')),
+        ])),
+        const SectionTitle('Danh mục quà'),
+        AsyncBody<List<Gift>>(value: gifts, onRetry: () => unawaited(_reload()), builder: (list) => Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          if (list.isEmpty) Text(account?.programId == null
+              ? 'Chưa có chương trình áp dụng để đổi quà.' : 'Chưa có quà đang hoạt động trong chương trình này.'),
+          for (final gift in list) GiftCatalogTile(gift: gift, account: account, busy: blocked,
+            onRedeem: () => unawaited(_redeem(gift))),
+        ])),
+        const SectionTitle('Yêu cầu đổi quà của bạn'),
+        AsyncBody<List<GiftRedemption>>(value: requests,
+          onRetry: () => ref.invalidate(redemptionsProvider), builder: (list) => Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          if (widget.redemptionId != null && !list.any((r) => r.code == widget.redemptionId))
+            const InfoBanner(text: 'Không tìm thấy yêu cầu đổi quà nguồn trong tài khoản hiện tại.'),
+          if (list.isEmpty) const Text('Chưa có yêu cầu đổi quà.'),
+          for (final request in list) GiftRedemptionTile(request: request, highlight: request.code == widget.redemptionId),
+        ])),
+      ])),
     );
   }
 }

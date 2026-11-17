@@ -78,7 +78,7 @@ class LoyaltyLedgerTile extends StatelessWidget {
   String _redemptionStatus(String value) => switch (value) {
         'Pending' => 'Chờ xử lý',
         'Approved' => 'Đã duyệt',
-        'Delivered' => 'Đã giao',
+        'Delivered' => 'Đã giao quà',
         'Completed' => 'Hoàn tất',
         'Rejected' => 'Từ chối',
         'Cancelled' => 'Đã hủy',
