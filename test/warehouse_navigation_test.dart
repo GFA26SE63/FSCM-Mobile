@@ -49,7 +49,7 @@ void main() {
       expect(find.byType(NavigationDestination), findsNWidgets(4));
       expect(find.byType(FloatingActionButton), findsNothing);
       for (final entry in <String, String>{
-        'Picking': AppRoutes.wkPicking,
+        'Nhập/Xuất': AppRoutes.wkPicking,
         'Tài khoản': AppRoutes.wkAccount,
         'Trang chủ': AppRoutes.wkHome,
       }.entries) {
@@ -60,7 +60,7 @@ void main() {
             tester
                 .widget<NavigationBar>(find.byType(NavigationBar))
                 .selectedIndex,
-            entry.key == 'Picking'
+            entry.key == 'Nhập/Xuất'
                 ? 1
                 : entry.key == 'Tài khoản'
                     ? 3
