@@ -33,7 +33,7 @@ class WarehouseShell extends StatelessWidget {
           NavigationDestination(
             icon: Icon(Icons.fact_check_outlined),
             selectedIcon: Icon(Icons.fact_check),
-            label: 'Picking',
+            label: 'Nhập/Xuất',
           ),
           NavigationDestination(
             icon: Icon(Icons.qr_code_scanner),
