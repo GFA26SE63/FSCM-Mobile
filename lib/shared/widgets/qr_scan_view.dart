@@ -11,6 +11,7 @@ class QrScanView extends StatefulWidget {
     this.hint = 'Đưa mã QR vào khung',
     this.manualLabel = 'Hoặc nhập mã thủ công',
     this.height = 260,
+    this.allowManual = true,
   });
 
   /// Called with the raw text of each (de-duplicated) scan.
@@ -18,6 +19,7 @@ class QrScanView extends StatefulWidget {
   final String hint;
   final String manualLabel;
   final double height;
+  final bool allowManual;
 
   @override
   State<QrScanView> createState() => _QrScanViewState();
@@ -69,7 +71,7 @@ class _QrScanViewState extends State<QrScanView> {
                     }
                   },
                   errorBuilder: (context, error, child) =>
-                      const _CameraUnavailable(),
+                      _CameraUnavailable(allowManual: widget.allowManual),
                 ),
                 IgnorePointer(
                   child: Center(
@@ -101,27 +103,28 @@ class _QrScanViewState extends State<QrScanView> {
             ),
           ),
         ),
-        const SizedBox(height: 12),
-        Row(
-          children: <Widget>[
-            Expanded(
-              child: TextField(
-                controller: _manual,
-                textCapitalization: TextCapitalization.characters,
-                decoration: InputDecoration(labelText: widget.manualLabel),
-                onSubmitted: _submitManual,
+        if (widget.allowManual) const SizedBox(height: 12),
+        if (widget.allowManual)
+          Row(
+            children: <Widget>[
+              Expanded(
+                child: TextField(
+                  controller: _manual,
+                  textCapitalization: TextCapitalization.characters,
+                  decoration: InputDecoration(labelText: widget.manualLabel),
+                  onSubmitted: _submitManual,
+                ),
               ),
-            ),
-            const SizedBox(width: 8),
-            FilledButton(
-              style: FilledButton.styleFrom(
-                minimumSize: const Size(64, 48),
+              const SizedBox(width: 8),
+              FilledButton(
+                style: FilledButton.styleFrom(
+                  minimumSize: const Size(64, 48),
+                ),
+                onPressed: () => _submitManual(_manual.text),
+                child: const Text('OK'),
               ),
-              onPressed: () => _submitManual(_manual.text),
-              child: const Text('OK'),
-            ),
-          ],
-        ),
+            ],
+          ),
       ],
     );
   }
@@ -134,19 +137,22 @@ class _QrScanViewState extends State<QrScanView> {
 }
 
 class _CameraUnavailable extends StatelessWidget {
-  const _CameraUnavailable();
+  const _CameraUnavailable({required this.allowManual});
+  final bool allowManual;
 
   @override
   Widget build(BuildContext context) {
-    return const ColoredBox(
-      color: Color(0xFF1B1F1D),
+    return ColoredBox(
+      color: const Color(0xFF1B1F1D),
       child: Center(
         child: Padding(
-          padding: EdgeInsets.all(24),
+          padding: const EdgeInsets.all(24),
           child: Text(
-            'Không mở được camera. Cấp quyền camera hoặc nhập mã thủ công bên dưới.',
+            allowManual
+                ? 'Không mở được camera. Cấp quyền camera hoặc nhập mã thủ công bên dưới.'
+                : 'Không mở được camera. Cấp quyền camera để quét hàng thực tế.',
             textAlign: TextAlign.center,
-            style: TextStyle(color: Colors.white70),
+            style: const TextStyle(color: Colors.white70),
           ),
         ),
       ),

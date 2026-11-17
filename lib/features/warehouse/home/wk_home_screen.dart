@@ -54,6 +54,14 @@ class WkHomeScreen extends ConsumerWidget {
             Text('${user?.role.label ?? ''} · ${user?.scopeText ?? ''}',
                 style: const TextStyle(color: AppColors.textMuted)),
             const SizedBox(height: 14),
+            AppCard(
+                onTap: () => context.push('/wk/operations'),
+                child: const ListTile(
+                    leading: Icon(Icons.warehouse),
+                    title: Text('Nhập · Xuất kho'),
+                    subtitle: Text(
+                        'Nhập nhà máy · Nhập luân chuyển\nXuất bán hàng · Xuất luân chuyển'),
+                    trailing: Icon(Icons.chevron_right))),
             Row(
               children: <Widget>[
                 Expanded(
