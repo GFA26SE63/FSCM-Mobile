@@ -42,7 +42,11 @@ class WarehouseDocumentsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final operationError = ref.watch(warehouseOperationErrorProvider);
-    final scope = ref.watch(currentUserProvider)?.warehouseIds ?? <String>[];
+    final user = ref.watch(currentUserProvider);
+    final scope = user?.warehouseIds ?? <String>[];
+    String warehouseName(Object? id) =>
+        user?.warehouseLabels.where((w) => w.id == id).firstOrNull?.name ??
+        asStr(id);
     final value = ref.watch(warehouseDocumentsProvider);
     final arrivals = operation == WarehouseOperation.factoryReceipt
         ? ref.watch(factoryArrivalsProvider)
@@ -100,7 +104,7 @@ class WarehouseDocumentsScreen extends ConsumerWidget {
                                         child: ListTile(
                                             title: Text(asStr(p['palletCode'])),
                                             subtitle: Text(
-                                                '${p['sku']} · ${p['cartonCount']} carton\nKho đích đã được nhà máy chỉ định'),
+                                                '${p['sku']} · ${p['cartonCount']} carton\nKho nhận: ${warehouseName(p['destinationWarehouseId'])} (cố định)'),
                                             trailing:
                                                 const Icon(Icons.chevron_right),
                                             onTap: () async {
@@ -150,7 +154,7 @@ class WarehouseDocumentsScreen extends ConsumerWidget {
                             child: ListTile(
                                 title: Text(asStr(w.document['code'])),
                                 subtitle: Text(
-                                    '${warehouseStatus(w.document['status'])} · ${w.lines.fold<num>(0, (n, l) => n + (l['quantity'] as num? ?? 0))} carton'),
+                                    '${warehouseName(w.document['warehouseId'])} · ${warehouseStatus(w.document['status'])} · ${w.lines.fold<num>(0, (n, l) => n + (l['quantity'] as num? ?? 0))} carton'),
                                 trailing: const Icon(Icons.chevron_right),
                                 onTap: () =>
                                     context.push('/wk/document/${w.id}'))),
