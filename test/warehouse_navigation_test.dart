@@ -66,7 +66,7 @@ void main() {
                     ? 3
                     : 0);
       }
-      await tester.tap(find.text('Quét QR'));
+      await tester.tap(find.text('Quét theo phiếu'));
       await tester.pumpAndSettle();
       expect(find.text('Scan page'), findsOneWidget);
       await tester.pageBack();

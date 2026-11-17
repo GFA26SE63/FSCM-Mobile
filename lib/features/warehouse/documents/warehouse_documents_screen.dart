@@ -19,9 +19,6 @@ class WarehouseOperationsScreen extends StatelessWidget {
         appBar: AppBar(title: const Text('Nhập · Xuất kho')),
         body: ListView(padding: const EdgeInsets.all(16), children: [
           const Text('Chọn nghiệp vụ để mở chứng từ và quét hàng thực tế.'),
-          TextButton(
-              onPressed: () => context.push('/wk/order-picking'),
-              child: const Text('Danh sách soạn đơn bán hàng')),
           for (final operation in WarehouseOperation.values)
             Card(
                 child: ListTile(
@@ -36,11 +33,18 @@ class WarehouseOperationsScreen extends StatelessWidget {
       );
 }
 
+final warehouseHistoryProvider = StateProvider.autoDispose
+    .family<bool, WarehouseOperation>((ref, operation) => false);
+
 class WarehouseDocumentsScreen extends ConsumerWidget {
-  const WarehouseDocumentsScreen({super.key, required this.operation});
+  const WarehouseDocumentsScreen(
+      {super.key, required this.operation, this.initialHistory = false});
+  final bool initialHistory;
   final WarehouseOperation operation;
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final history =
+        ref.watch(warehouseHistoryProvider(operation)) || initialHistory;
     final operationError = ref.watch(warehouseOperationErrorProvider);
     final user = ref.watch(currentUserProvider);
     final scope = user?.warehouseIds ?? <String>[];
@@ -66,9 +70,14 @@ class WarehouseDocumentsScreen extends ConsumerWidget {
                 final works = all
                     .where((w) =>
                         operation.includes(w.document) &&
-                        scope.contains(w.document['warehouseId']))
+                        (w.document['kind'] != 'Request' ||
+                            !all.any((child) =>
+                                child.document['sourceDocumentId'] == w.id)) &&
+                        scope.contains(w.document['warehouseId']) &&
+                        (history ? w.historic : w.pending))
                     .toList();
-                final incoming = operation == WarehouseOperation.transferReceipt
+                final incoming = !history &&
+                        operation == WarehouseOperation.transferReceipt
                     ? all
                         .where((w) =>
                             w.document['reason'] == 'Transfer' &&
@@ -84,10 +93,27 @@ class WarehouseDocumentsScreen extends ConsumerWidget {
                     physics: const AlwaysScrollableScrollPhysics(),
                     padding: const EdgeInsets.all(16),
                     children: [
+                      if (!initialHistory)
+                        SegmentedButton<bool>(
+                            segments: const [
+                              ButtonSegment(
+                                  value: false, label: Text('Cần xử lý')),
+                              ButtonSegment(value: true, label: Text('Lịch sử'))
+                            ],
+                            selected: {
+                              history
+                            },
+                            onSelectionChanged: (v) => ref
+                                .read(warehouseHistoryProvider(operation)
+                                    .notifier)
+                                .state = v.single),
+                      if (history)
+                        const Text(
+                            'Chứng từ đã hoàn tất chỉ dùng để xem; không quét lại.'),
                       if (operationError != null)
                         Text(operationError,
                             style: const TextStyle(color: Colors.red)),
-                      if (arrivals != null) ...[
+                      if (arrivals != null && !history) ...[
                         const Text('Hàng nhà máy đã xuất về kho của bạn',
                             style: TextStyle(fontWeight: FontWeight.bold)),
                         AsyncBody(
@@ -140,8 +166,8 @@ class WarehouseDocumentsScreen extends ConsumerWidget {
                                     Text('Chờ nhận: ${issue.document['code']}'),
                                 subtitle: const Text(
                                     'Kho gửi đã xuất. Mở phiếu nhập kho đích để quét từng carton.'),
-                                onTap: () =>
-                                    context.push('/wk/document/${issue.id}'))),
+                                onTap: () => context.push(
+                                    '/wk/document/${issue.id}?mode=transferReceipt'))),
                       const SizedBox(height: 16),
                       const Text('Chứng từ kho',
                           style: TextStyle(fontWeight: FontWeight.bold)),
@@ -156,8 +182,8 @@ class WarehouseDocumentsScreen extends ConsumerWidget {
                                 subtitle: Text(
                                     '${warehouseName(w.document['warehouseId'])} · ${warehouseStatus(w.document['status'])} · ${w.lines.fold<num>(0, (n, l) => n + (l['quantity'] as num? ?? 0))} carton'),
                                 trailing: const Icon(Icons.chevron_right),
-                                onTap: () =>
-                                    context.push('/wk/document/${w.id}'))),
+                                onTap: () => context.push(
+                                    '/wk/document/${w.id}?mode=${operation.name}'))),
                     ]);
               }),
         ));
@@ -174,7 +200,8 @@ String warehouseStatus(Object? value) => switch (value) {
     };
 
 class WarehouseDocumentScreen extends ConsumerStatefulWidget {
-  const WarehouseDocumentScreen({super.key, required this.id});
+  const WarehouseDocumentScreen({super.key, required this.id, this.mode});
+  final String? mode;
   final String id;
   @override
   ConsumerState<WarehouseDocumentScreen> createState() =>
@@ -248,7 +275,8 @@ class _WarehouseDocumentScreenState
               final d = w.document;
               final own =
                   user?.warehouseIds.contains(d['warehouseId']) ?? false;
-              final incoming = d['kind'] == 'Issue' &&
+              final incoming = widget.mode == 'transferReceipt' &&
+                  d['kind'] == 'Issue' &&
                   d['reason'] == 'Transfer' &&
                   d['status'] == 'Posted' &&
                   (user?.warehouseIds.contains(d['destinationWarehouseId']) ??
@@ -290,6 +318,9 @@ class _WarehouseDocumentScreenState
                   Text(error!, style: const TextStyle(color: Colors.red)),
                 if (notice != null)
                   Text(notice!, style: const TextStyle(color: Colors.green)),
+                if (d['status'] == 'Posted')
+                  const Text(
+                      'Phiếu đã ghi sổ. Đây là lịch sử xuất/nhập, không quét lại.'),
                 if (busy) const LinearProgressIndicator(),
                 for (final l in w.lines)
                   Card(
@@ -307,14 +338,15 @@ class _WarehouseDocumentScreenState
                                     .child(w.id);
                                 if (context.mounted) {
                                   context.pushReplacement(
-                                      '/wk/document/${child.id}');
+                                      '/wk/document/${child.id}?mode=${widget.mode ?? ''}');
                                 }
                               }),
                       child: Text(incoming
                           ? 'Mở phiếu nhập luân chuyển'
-                          : 'Mở phiếu soạn để xuất kho')),
+                          : 'Tạo phiếu xuất kho để quét QR')),
                 if (editable &&
-                    (d['kind'] == 'Receipt' || d['kind'] == 'Picking') &&
+                    (d['kind'] == 'Receipt' ||
+                        (d['kind'] == 'Picking' || d['kind'] == 'Issue')) &&
                     scan == null)
                   FilledButton.icon(
                       onPressed:
@@ -441,7 +473,10 @@ class _WarehouseDocumentScreenState
                       subtitle: Text(c['scannedAt'] == null
                           ? 'Chưa quét'
                           : 'Đã quét: ${c['scannedAt']}')),
-                if (own && (d['kind'] == 'Receipt' || d['kind'] == 'Picking'))
+                if (own &&
+                    w.pending &&
+                    (d['kind'] == 'Receipt' ||
+                        (d['kind'] == 'Picking' || d['kind'] == 'Issue')))
                   FilledButton(
                       onPressed: canPost && scan == null
                           ? () => act(() async {
@@ -450,7 +485,7 @@ class _WarehouseDocumentScreenState
                                     .post(w);
                                 if (context.mounted && result.id != w.id) {
                                   context.pushReplacement(
-                                      '/wk/document/${result.id}');
+                                      '/wk/document/${result.id}?mode=${widget.mode ?? ''}');
                                 } else if (mounted) {
                                   setState(
                                       () => notice = 'Đã ghi sổ chứng từ.');
@@ -459,7 +494,7 @@ class _WarehouseDocumentScreenState
                           : null,
                       child: Text(d['kind'] == 'Receipt'
                           ? 'Hoàn tất phiếu nhập kho'
-                          : 'Xác nhận xuất và lập phiếu xuất kho')),
+                          : 'Xác nhận xuất và ghi sổ PXK')),
                 if (scanHistory.isNotEmpty)
                   const Text('Lịch sử quét pallet',
                       style: TextStyle(fontWeight: FontWeight.bold)),
