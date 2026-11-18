@@ -1,168 +1,110 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-
-import 'package:fscm_mobile/core/utils/dates.dart';
-import 'package:fscm_mobile/core/utils/status_tone.dart';
-import 'package:fscm_mobile/data/models/enums.dart';
-import 'package:fscm_mobile/data/models/picking.dart';
 import 'package:fscm_mobile/data/repositories/auth_repository.dart';
-import 'package:fscm_mobile/data/repositories/home_summary_repository.dart';
-import 'package:fscm_mobile/data/repositories/warehouse_repository.dart';
+import 'package:fscm_mobile/data/models/json_utils.dart';
 import 'package:fscm_mobile/features/common/notifications/notification_bell_button.dart';
-import 'package:fscm_mobile/features/warehouse/picking/picking_list_tile.dart';
+import 'package:fscm_mobile/features/warehouse/documents/warehouse_documents_api.dart';
 import 'package:fscm_mobile/shared/routes.dart';
-import 'package:fscm_mobile/shared/theme/app_colors.dart';
-import 'package:fscm_mobile/shared/widgets/app_card.dart';
-import 'package:fscm_mobile/shared/widgets/empty_state.dart';
-import 'package:fscm_mobile/shared/widgets/section_title.dart';
+import 'package:fscm_mobile/shared/widgets/async_body.dart';
 
-/// Warehouse Keeper home: picking workload and incoming transfers.
 class WkHomeScreen extends ConsumerWidget {
   const WkHomeScreen({super.key});
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(currentUserProvider);
-    final pickings =
-        ref.watch(pickingListsProvider).valueOrNull ?? const <PickingList>[];
-    final todo =
-        pickings.where((p) => p.status != PickingStatus.completed).toList();
-    int count(PickingStatus s) => pickings.where((p) => p.status == s).length;
-    final dashboard = ref.watch(warehouseDashboardProvider).valueOrNull;
-    int tile(String key, int fallback) => dashboard?.count(key) ?? fallback;
-
+    final documents = ref.watch(warehouseDocumentsProvider);
+    final arrivals = ref.watch(factoryArrivalsProvider);
+    final scope = user?.warehouseIds ?? <String>[];
     return Scaffold(
       appBar: AppBar(
-        title: Text(user?.warehouseName ?? 'Kho'),
-        actions: const <Widget>[
-          Padding(
-              padding: EdgeInsets.only(right: 4),
-              child: NotificationBellButton())
-        ],
-      ),
+          title: const Text('Công việc kho'),
+          actions: const [NotificationBellButton()]),
       body: RefreshIndicator(
-        onRefresh: () async {
-          ref.invalidate(pickingListsProvider);
-        },
-        child: ListView(
-          padding: const EdgeInsets.all(16),
-          children: <Widget>[
-            Text('Xin chào, ${user?.fullName ?? ''}',
-                style:
-                    const TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
-            Text('${user?.role.label ?? ''} · ${user?.scopeText ?? ''}',
-                style: const TextStyle(color: AppColors.textMuted)),
-            const SizedBox(height: 14),
-            AppCard(
-                onTap: () => context.push('/wk/operations'),
-                child: const ListTile(
-                    leading: Icon(Icons.warehouse),
-                    title: Text('Nhập · Xuất kho'),
-                    subtitle: Text(
-                        'Nhập nhà máy · Nhập luân chuyển\nXuất bán hàng · Xuất luân chuyển'),
-                    trailing: Icon(Icons.chevron_right))),
-            Row(
-              children: <Widget>[
-                Expanded(
-                    child: _Stat(
-                        'Chờ lấy',
-                        tile('pickingPending', count(PickingStatus.pending)),
-                        StatusTone.info)),
-                const SizedBox(width: 10),
-                Expanded(
-                    child: _Stat(
-                        'Đang lấy',
-                        tile('pickingActive', count(PickingStatus.picking)),
-                        StatusTone.purple)),
-                const SizedBox(width: 10),
-                Expanded(
-                    child: _Stat('Chờ xuất kho', tile('shipmentsReady', 0),
-                        StatusTone.success)),
-              ],
-            ),
-            const SizedBox(height: 10),
-            AppCard(
-              onTap: () => context.push(AppRoutes.wkLabelLookup),
-              child: const Row(
-                children: <Widget>[
-                  Icon(Icons.qr_code_2, color: AppColors.primary),
-                  SizedBox(width: 12),
-                  Expanded(
-                      child: Text('Tra cứu tem',
-                          style: TextStyle(fontWeight: FontWeight.w600))),
-                  Icon(Icons.chevron_right, color: AppColors.textMuted),
-                ],
-              ),
-            ),
-            AppCard(
-              onTap: () => context.push(AppRoutes.wkShipped),
-              child: const Row(
-                children: <Widget>[
-                  Icon(Icons.local_shipping_outlined, color: AppColors.primary),
-                  SizedBox(width: 12),
-                  Expanded(
-                      child: Text('Danh sách đã xuất kho',
-                          style: TextStyle(fontWeight: FontWeight.w600))),
-                  Icon(Icons.chevron_right, color: AppColors.textMuted),
-                ],
-              ),
-            ),
-            SectionTitle(
-              'Picking list cần lấy',
-              trailing: TextButton(
-                  onPressed: () => context.go(AppRoutes.wkPicking),
-                  child: const Text('Xem tất cả')),
-            ),
-            if (todo.isEmpty)
-              const EmptyState(
-                icon: Icons.task_alt,
-                title: 'Không còn picking list cần lấy.',
-                message:
-                    'Picking list được tạo sau khi Retailer chấp nhận báo giá và đơn đủ điều kiện trở thành PO. Mỗi kho tham gia có một picking list riêng.',
-              )
-            else
-              for (final p in todo.take(3)) PickingListTile(list: p),
-            const SizedBox(height: 6),
-            Text(
-              dashboard == null
-                  ? 'Đang tải số liệu kho...'
-                  : 'Cập nhật ${AppDates.timeDay(dashboard.loadedAt)}',
-              textAlign: TextAlign.center,
-              style: const TextStyle(color: AppColors.textMuted, fontSize: 12),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _Stat extends StatelessWidget {
-  const _Stat(this.label, this.value, this.tone);
-
-  final String label;
-  final int value;
-  final StatusTone tone;
-
-  @override
-  Widget build(BuildContext context) {
-    final c = AppColors.tone(tone);
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-          color: c.background, borderRadius: BorderRadius.circular(14)),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Text('$value',
-              style: TextStyle(
-                  fontSize: 26,
-                  fontWeight: FontWeight.w800,
-                  color: c.foreground)),
-          Text(label, style: TextStyle(color: c.foreground, fontSize: 12.5)),
-        ],
-      ),
+          onRefresh: () async {
+            ref.invalidate(warehouseDocumentsProvider);
+            ref.invalidate(factoryArrivalsProvider);
+            await ref.read(warehouseDocumentsProvider.future);
+          },
+          child: AsyncBody(
+              value: documents,
+              onRetry: () => ref.invalidate(warehouseDocumentsProvider),
+              builder: (all) {
+                final pending = all
+                    .where((w) =>
+                        w.pending &&
+                        scope.contains(w.document['warehouseId']) &&
+                        (w.document['kind'] != 'Request' ||
+                            !all.any((child) =>
+                                child.document['sourceDocumentId'] == w.id)))
+                    .toList();
+                final incoming = all
+                    .where((w) =>
+                        w.document['reason'] == 'Transfer' &&
+                        w.document['kind'] == 'Issue' &&
+                        w.document['status'] == 'Posted' &&
+                        scope.contains(w.document['destinationWarehouseId']) &&
+                        !all.any((r) => r.document['sourceDocumentId'] == w.id))
+                    .length;
+                return ListView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: const EdgeInsets.all(16),
+                    children: [
+                      Text('Xin chào, ${user?.fullName ?? ''}',
+                          style: Theme.of(context).textTheme.titleLarge),
+                      Text(user?.scopeText ?? ''),
+                      const SizedBox(height: 16),
+                      const Text('Chọn nghiệp vụ',
+                          style: TextStyle(fontWeight: FontWeight.bold)),
+                      for (final operation in WarehouseOperation.values)
+                        Card(
+                            child: ListTile(
+                                leading: Icon(operation.index < 2
+                                    ? Icons.move_to_inbox
+                                    : Icons.outbox),
+                                title: Text(operation.title),
+                                subtitle: Text(operation ==
+                                        WarehouseOperation.factoryReceipt
+                                    ? arrivals.isLoading
+                                        ? 'Đang tải hàng chờ nhận...'
+                                        : arrivals.hasError
+                                            ? 'Không tải được hàng chờ nhận — mở để thử lại'
+                                            : '${arrivals.valueOrNull?.length ?? 0} pallet chờ nhận'
+                                    : operation ==
+                                            WarehouseOperation.transferReceipt
+                                        ? '$incoming chuyến chờ mở PNK · ${pending.where((w) => operation.includes(w.document)).length} phiếu đang xử lý'
+                                        : '${pending.where((w) => operation.includes(w.document)).length} yêu cầu / PXK cần xử lý'),
+                                trailing: const Icon(Icons.chevron_right),
+                                onTap: () => context
+                                    .push('/wk/documents/${operation.name}'))),
+                      const SizedBox(height: 16),
+                      const Text('Chứng từ cần xử lý',
+                          style: TextStyle(fontWeight: FontWeight.bold)),
+                      if (pending.isEmpty)
+                        const ListTile(
+                            title: Text('Không có chứng từ đang chờ xử lý.')),
+                      for (final w in pending.take(5))
+                        Card(
+                            child: ListTile(
+                                title: Text(asStr(w.document['code'])),
+                                subtitle: Text(w.document['kind'] == 'Request'
+                                    ? 'Chờ tạo phiếu xuất kho, sau đó quét QR'
+                                    : w.document['kind'] == 'Receipt'
+                                        ? 'Phiếu nhập đang xử lý'
+                                        : 'Phiếu xuất đang xử lý'),
+                                trailing: const Icon(Icons.chevron_right),
+                                onTap: () =>
+                                    context.push('/wk/document/${w.id}'))),
+                      const SizedBox(height: 12),
+                      OutlinedButton.icon(
+                          onPressed: () =>
+                              context.push(AppRoutes.wkLabelLookup),
+                          icon: const Icon(Icons.search),
+                          label: const Text('Tra cứu QR')),
+                      const Text(
+                          'Đơn bán hàng và kế hoạch luân chuyển phải có yêu cầu xuất trước. Mở yêu cầu để tạo PXK; chỉ xác nhận xuất sau khi quét đủ hàng.'),
+                    ]);
+              })),
     );
   }
 }

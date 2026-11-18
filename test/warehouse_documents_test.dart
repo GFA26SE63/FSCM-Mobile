@@ -1,3 +1,8 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:fscm_mobile/core/auth/session.dart';
+import 'package:fscm_mobile/core/auth/user_role.dart';
+import 'package:fscm_mobile/data/repositories/auth_repository.dart';
+import 'package:fscm_mobile/features/warehouse/home/wk_home_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
@@ -29,6 +34,93 @@ class RecordingTransport implements ApiTransport {
 }
 
 void main() {
+  const keeper = AppUser(
+      id: 'keeper',
+      fullName: 'Thủ kho',
+      phone: '',
+      role: UserRole.warehouseKeeper,
+      warehouseIds: ['source', 'destination']);
+  WarehouseWork issue(String state) => WarehouseWork({
+        'document': {
+          'id': 'draft',
+          'code': 'PXK-DRAFT',
+          'kind': 'Issue',
+          'reason': 'Transfer',
+          'status': state,
+          'warehouseId': 'source',
+          'destinationWarehouseId': 'destination',
+          'version': 1
+        },
+        'lines': [
+          {'sku': 'SKU', 'productName': 'Sữa', 'quantity': 1}
+        ],
+        'cartons': []
+      });
+  for (final state in ['Open', 'Posted']) {
+    testWidgets('issue $state only offers scanning while the PXK is pending',
+        (tester) async {
+      final t = RecordingTransport();
+      await tester.pumpWidget(ProviderScope(
+          overrides: [
+            currentUserProvider.overrideWith((ref) => keeper),
+            warehouseDocumentProvider('draft')
+                .overrideWith((ref) async => issue(state)),
+            warehouseDocumentsApiProvider.overrideWith((ref) =>
+                WarehouseDocumentsApi(
+                    ApiClient(transport: t, tokenReader: () => null))),
+          ],
+          child: const MaterialApp(
+              home: WarehouseDocumentScreen(
+                  id: 'draft', mode: 'transferIssue'))));
+      await tester.pumpAndSettle();
+      expect(find.text('Quét carton thực tế'),
+          state == 'Open' ? findsOneWidget : findsNothing);
+      expect(find.text('Mở phiếu nhập luân chuyển'), findsNothing);
+      if (state == 'Open') {
+        final button = tester.widget<FilledButton>(
+            find.widgetWithText(FilledButton, 'Xác nhận xuất và ghi sổ PXK'));
+        expect(button.onPressed, isNull);
+      }
+      expect(t.requests.where((r) => r.method == 'POST'), isEmpty);
+    });
+  }
+  testWidgets('home lists only pending documents and no legacy picking lists',
+      (tester) async {
+    await tester.pumpWidget(ProviderScope(overrides: [
+      currentUserProvider.overrideWith((ref) => keeper),
+      warehouseDocumentsProvider.overrideWith((ref) async {
+        final open = issue('Open');
+        open.document['sourceDocumentId'] = 'parent';
+        final done = issue('Posted');
+        done.document['code'] = 'PXK-HISTORY';
+        return [
+          open,
+          done,
+          WarehouseWork({
+            'document': {
+              'id': 'parent',
+              'code': 'YCK-HIDDEN',
+              'kind': 'Request',
+              'reason': 'Transfer',
+              'status': 'Open',
+              'warehouseId': 'source'
+            }
+          })
+        ];
+      }),
+      factoryArrivalsProvider
+          .overrideWith((ref) async => <Map<String, dynamic>>[]),
+    ], child: const MaterialApp(home: WkHomeScreen())));
+    await tester.pumpAndSettle();
+    expect(find.text('Picking list cần lấy'), findsNothing);
+    expect(find.text('PXK-DRAFT'), findsOneWidget);
+    expect(find.text('PXK-HISTORY'), findsNothing);
+    expect(find.text('YCK-HIDDEN'), findsNothing);
+    for (final op in WarehouseOperation.values) {
+      expect(find.text(op.title), findsOneWidget);
+    }
+  });
+
   test(
       'factory scan records camera signal without sending receipt confirmation',
       () async {
