@@ -41,7 +41,7 @@ class LabelDetailContent extends StatelessWidget {
               ),
               const SizedBox(height: 12),
               KvRow('Sản phẩm', '${label.sku} · ${label.name}'),
-              KvRow('Batch', label.batchCode),
+              KvRow('Lô hàng', label.batchCode),
               KvRow('Kho', label.warehouseName),
               KvRow('Số lượng', '${label.qty} thùng', bold: true),
               KvRow('Hạn sử dụng', AppDates.date(label.expiry)),
@@ -75,7 +75,7 @@ class LabelDetailContent extends StatelessWidget {
         const Padding(
           padding: EdgeInsets.only(bottom: 8),
           child: Text(
-            'Lịch sử do backend trả về cho chuỗi tem gốc và các tem con.',
+            'Lịch sử do máy chủ trả về cho chuỗi tem gốc và các tem con.',
           ),
         ),
         if (detail.events.isEmpty)

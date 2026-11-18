@@ -139,7 +139,7 @@ class _TransferDetailScreenState extends ConsumerState<TransferDetailScreen> {
             icon: Icons.schedule,
             title: 'Luân chuyển cận hạn',
             text:
-                'Lô gần hết hạn được chuyển sang kho có nhu cầu bán nhanh hơn. Ưu tiên xếp lên kệ FEFO.',
+                'Lô gần hết hạn được chuyển sang kho có nhu cầu bán nhanh hơn. Ưu tiên xếp hàng hết hạn trước ra trước (FEFO).',
           ),
         if (t.note.isNotEmpty) InfoBanner(icon: Icons.notes, text: t.note),
         SectionTitle(
@@ -196,7 +196,7 @@ class _TransferDetailScreenState extends ConsumerState<TransferDetailScreen> {
               children: <Widget>[
                 Text('${l.sku} · ${l.name}',
                     style: const TextStyle(fontWeight: FontWeight.w700)),
-                Text('Batch ${l.batchCode}',
+                Text('Lô hàng ${l.batchCode}',
                     style: const TextStyle(fontSize: 13)),
                 Text(
                   'HSD ${AppDates.date(l.expiry)} · ${l.labelCode}',

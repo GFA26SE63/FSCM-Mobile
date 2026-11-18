@@ -156,7 +156,7 @@ class _PickLineScreenState extends ConsumerState<PickLineScreen> {
                     Text('${line.sku} · ${line.name}',
                         style: const TextStyle(fontWeight: FontWeight.w800)),
                     Text(
-                        'Batch ${line.batchCode} · HSD ${AppDates.date(line.expiry)} · vị trí ${line.location}'),
+                        'Lô hàng ${line.batchCode} · HSD ${AppDates.date(line.expiry)} · vị trí ${line.location}'),
                     Text('Cần lấy ${line.need} thùng (đã lấy ${line.picked})',
                         style: const TextStyle(fontWeight: FontWeight.w700)),
                   ],
@@ -273,7 +273,7 @@ class _PickLineScreenState extends ConsumerState<PickLineScreen> {
         const SizedBox(height: 10),
         FilledButton(
             onPressed: () => context.pop(),
-            child: const Text('Về danh sách picking')),
+            child: const Text('Về danh sách phiếu soạn hàng')),
       ],
     );
   }

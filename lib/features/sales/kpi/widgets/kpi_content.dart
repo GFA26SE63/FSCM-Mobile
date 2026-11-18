@@ -21,7 +21,7 @@ class KpiContent extends StatelessWidget {
           Text('Cấu hình #${report.configurationVersion} · hiệu lực '
               '${report.configurationEffectiveFrom}'),
           const InfoBanner(
-              text: 'KPI và doanh thu do máy chủ tính từ đơn Completed, '
+              text: 'KPI và doanh thu do máy chủ tính từ đơn Hoàn tất, '
                   'sau khuyến mãi và điều chỉnh. Đơn chưa hoàn tất hoặc chưa gửi không được ghi nhận.'),
           if (report.entries.isEmpty)
             const AppCard(

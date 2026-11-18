@@ -218,7 +218,7 @@ class SalesHomeScreen extends ConsumerWidget {
                 route: AppRoutes.salesDebts),
             const _Shortcut(
                 icon: Icons.person_add_alt_1_outlined,
-                label: 'Khai báo retailer',
+                label: 'Khai báo điểm bán',
                 route: AppRoutes.salesDeclarations),
             if (notes.isNotEmpty) ...<Widget>[
               SectionTitle(

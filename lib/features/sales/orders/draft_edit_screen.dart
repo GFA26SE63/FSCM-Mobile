@@ -91,8 +91,8 @@ class _DraftEditScreenState extends ConsumerState<DraftEditScreen> {
               ),
               const SizedBox(height: 12),
               const InfoBanner(
-                text: 'Sửa draft chưa gửi. Khi lưu, bạn sẽ xem lại '
-                    'giá và khuyến mãi tạm tính từ snapshot trên máy. '
+                text: 'Sửa bản nháp chưa gửi. Khi lưu, bạn sẽ xem lại '
+                    'giá và khuyến mãi tạm tính từ dữ liệu đồng bộ trên máy. '
                     'Thao tác này chưa gửi đơn và chưa giữ hàng.',
               ),
               const SizedBox(height: 12),
@@ -101,7 +101,7 @@ class _DraftEditScreenState extends ConsumerState<DraftEditScreen> {
               if (_lines.isEmpty)
                 const Padding(
                   padding: EdgeInsets.symmetric(vertical: 16),
-                  child: Text('Draft chưa có sản phẩm.'),
+                  child: Text('Bản nháp chưa có sản phẩm.'),
                 ),
               const SizedBox(height: 12),
               DropdownButton<String>(
@@ -162,7 +162,7 @@ class _DraftEditScreenState extends ConsumerState<DraftEditScreen> {
                         ? null
                         : () => _save(data),
                 child: Text(
-                  _saving ? 'Đang lưu...' : 'Xem lại tạm tính và lưu draft',
+                  _saving ? 'Đang lưu...' : 'Xem lại tạm tính và lưu bản nháp',
                 ),
               ),
             ),
@@ -193,7 +193,7 @@ class _DraftEditScreenState extends ConsumerState<DraftEditScreen> {
               OrderQuantityField(
                 label: 'Số lượng (thùng)',
                 showRemove: true,
-                removeLabel: 'Bỏ khỏi draft',
+                removeLabel: 'Bỏ khỏi bản nháp',
                 onRemove: _saving ? null : () => _removeLine(line),
                 control: QuantityStepper(
                   editable: true,
@@ -235,7 +235,7 @@ class _DraftEditScreenState extends ConsumerState<DraftEditScreen> {
       _lines.removeAt(index);
       _invalidQuantities.remove(line.sku);
     });
-    showAppUndoSnack('Đã bỏ ${line.sku} khỏi draft.', onUndo: () {
+    showAppUndoSnack('Đã bỏ ${line.sku} khỏi bản nháp.', onUndo: () {
       if (!mounted ||
           _saving ||
           ref.read(currentUserProvider)?.id != ownerId ||
@@ -271,14 +271,15 @@ class _DraftEditScreenState extends ConsumerState<DraftEditScreen> {
       if (snapshot == null || retailer == null) {
         throw const ApiException(
           kind: ApiErrorKind.validation,
-          message: 'Snapshot chưa có đủ dữ liệu điểm bán để sửa draft.',
+          message:
+              'Dữ liệu đồng bộ chưa có đủ dữ liệu điểm bán để sửa bản nháp.',
         );
       }
 
       if (retailer.id != widget.entry.payload.retailerId) {
         throw const ApiException(
           kind: ApiErrorKind.validation,
-          message: 'Thông tin điểm bán không khớp draft.',
+          message: 'Thông tin điểm bán không khớp bản nháp.',
         );
       }
 
@@ -290,7 +291,7 @@ class _DraftEditScreenState extends ConsumerState<DraftEditScreen> {
         if (product == null || product.id != line.productId) {
           throw ApiException(
             kind: ApiErrorKind.validation,
-            message: 'Sản phẩm ${line.sku} không còn trong snapshot.',
+            message: 'Sản phẩm ${line.sku} không còn trong dữ liệu đồng bộ.',
           );
         }
       }

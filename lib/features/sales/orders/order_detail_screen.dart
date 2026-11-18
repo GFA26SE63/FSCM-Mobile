@@ -141,20 +141,20 @@ class _Detail extends ConsumerWidget {
             icon: Icons.save_alt,
             text: 'Đơn đang lưu trên máy. Giá và khuyến mãi là bản '
                 'tạm tính lúc lưu, không phải báo giá cuối. '
-                'Backend sẽ tính lại khi nhận đơn.',
+                'Máy chủ sẽ tính lại khi nhận đơn.',
           ),
         if (localQueued && !hasStoredQuote)
           const InfoBanner(
             tone: StatusTone.warning,
             text: 'Đơn cũ chỉ còn số tiền tạm tính đã lưu, không có '
                 'bản giá chi tiết từng dòng. Ứng dụng không dùng '
-                'catalog mới để thay thế giá ban đầu.',
+                'danh mục sản phẩm mới để thay thế giá ban đầu.',
           ),
         if (!localQueued && localAmount != null)
           PriceDifferenceCard(
             localAmount: localAmount,
             serverAmount: order.finalAmount,
-            title: 'Đối chiếu với bản offline',
+            title: 'Đối chiếu với bản ngoại tuyến',
             serverLabel: 'Giá hệ thống hiện tại',
           ),
         if (entry?.status == SyncStatus.synced && entry?.finalAmount != null)
@@ -162,7 +162,7 @@ class _Detail extends ConsumerWidget {
             localAmount: entry!.payload.localFinal,
             serverAmount: entry!.finalAmount!,
             title: 'Đối chiếu tại thời điểm gửi',
-            serverLabel: 'Kết quả server lúc gửi',
+            serverLabel: 'Kết quả máy chủ lúc gửi',
           ),
         if (!localQueued && order.changeReason.isNotEmpty)
           InfoBanner(text: order.changeReason),
@@ -209,7 +209,7 @@ class _Detail extends ConsumerWidget {
               ),
               KvRow(
                 'Kênh tạo',
-                order.isOffline ? 'Offline (OFF)' : 'Online',
+                order.isOffline ? 'Ngoại tuyến (OFF)' : 'Trực tuyến',
               ),
               KvRow(
                 'Đặt hàng lúc',
@@ -225,9 +225,9 @@ class _Detail extends ConsumerWidget {
               else if (entry != null)
                 KvRow('Mã tạm trên máy', entry!.localCode),
               if (entry?.serverOrderCode.isNotEmpty == true)
-                KvRow('Mã đơn server', entry!.serverOrderCode)
+                KvRow('Mã đơn máy chủ', entry!.serverOrderCode)
               else if (order.code.isNotEmpty)
-                KvRow('Mã đơn server', order.code),
+                KvRow('Mã đơn máy chủ', order.code),
               if (order.syncedAt != null)
                 KvRow(
                   'Đồng bộ lúc',

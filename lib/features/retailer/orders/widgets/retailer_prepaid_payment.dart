@@ -101,7 +101,7 @@ class _RetailerPrepaidPaymentState
           Text(
               'Số tiền cần thanh toán: ${Money.format(widget.order.finalAmount)}'),
           const Text(
-              'PO và phiếu soạn được tạo sau khi hệ thống xác nhận đã thu đủ.'),
+              'đơn thực hiện và phiếu soạn được tạo sau khi hệ thống xác nhận đã thu đủ.'),
           if (_error != null)
             InfoBanner(tone: StatusTone.danger, text: _error!),
           const SizedBox(height: 8),

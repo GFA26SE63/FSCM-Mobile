@@ -314,7 +314,7 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
                 const Text(
-                    'Máy chủ sẽ snapshot số tiền có thể thu của từng đơn. Khoản đang tranh chấp không được tính.'),
+                    'Máy chủ sẽ dữ liệu đồng bộ số tiền có thể thu của từng đơn. Khoản đang tranh chấp không được tính.'),
                 const SizedBox(height: 12),
                 ...rows.map((r) => Padding(
                       padding: const EdgeInsets.symmetric(vertical: 4),

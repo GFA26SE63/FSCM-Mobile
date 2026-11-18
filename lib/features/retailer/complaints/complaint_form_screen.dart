@@ -221,7 +221,8 @@ class _ComplaintFormScreenState extends ConsumerState<ComplaintFormScreen> {
                                 initialValue: target?.allocationId,
                                 isExpanded: true,
                                 decoration: const InputDecoration(
-                                    labelText: 'Sản phẩm · batch · phần giao'),
+                                    labelText:
+                                        'Sản phẩm · lô hàng · phần giao'),
                                 items: targets
                                     .map((t) => DropdownMenuItem(
                                         value: t.allocationId,
@@ -292,7 +293,7 @@ class _ComplaintFormScreenState extends ConsumerState<ComplaintFormScreen> {
                                         : (v) => setState(
                                             () => _collect = v ?? false)),
                               const Text(
-                                  'Giảm nợ trong đơn gốc trước; phần tiền đã thu thừa được lập phiếu hoàn. Admin xác nhận phương án; yêu cầu xử lý hàng chờ đối soát thực tế.'),
+                                  'Giảm nợ trong đơn gốc trước; phần tiền đã thu thừa được lập phiếu hoàn. quản trị viên xác nhận phương án; yêu cầu xử lý hàng chờ đối soát thực tế.'),
                               TextField(
                                   key: const ValueKey(
                                       'complaint_affected_quantity'),

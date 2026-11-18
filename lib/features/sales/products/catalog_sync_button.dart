@@ -19,7 +19,7 @@ class CatalogSyncButton extends ConsumerWidget {
     final online = ref.watch(networkMonitorProvider).online;
 
     return IconButton(
-      tooltip: online ? 'Cập nhật catalog' : 'Đang offline',
+      tooltip: online ? 'Cập nhật danh mục sản phẩm' : 'Đang ngoại tuyến',
       onPressed: busy || !online ? null : () => _download(context, ref),
       icon: busy
           ? const SizedBox(

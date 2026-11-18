@@ -1,3 +1,5 @@
+import 'package:fscm_mobile/features/warehouse/documents/warehouse_documents_api.dart';
+import 'package:fscm_mobile/features/warehouse/documents/warehouse_documents_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -253,6 +255,22 @@ List<RouteBase> _salesRoutes() => <RouteBase>[
 // -------------------------------------------------------------- warehouse
 
 List<RouteBase> _warehouseRoutes() => <RouteBase>[
+      GoRoute(
+          path: '/wk/order-picking',
+          builder: (c, s) => const PickingListsScreen()),
+      GoRoute(
+          path: '/wk/operations',
+          builder: (c, s) => const WarehouseOperationsScreen()),
+      GoRoute(
+          path: '/wk/documents/:operation',
+          builder: (c, s) => WarehouseDocumentsScreen(
+              operation: WarehouseOperation.values.firstWhere(
+                  (o) => o.name == s.pathParameters['operation'],
+                  orElse: () => WarehouseOperation.factoryReceipt))),
+      GoRoute(
+          path: '/wk/document/:id',
+          builder: (c, s) =>
+              WarehouseDocumentScreen(id: s.pathParameters['id']!)),
       StatefulShellRoute.indexedStack(
         builder: (context, state, shell) =>
             WarehouseShell(navigationShell: shell),
@@ -265,7 +283,7 @@ List<RouteBase> _warehouseRoutes() => <RouteBase>[
           StatefulShellBranch(routes: <RouteBase>[
             GoRoute(
                 path: AppRoutes.wkPicking,
-                builder: (c, s) => const PickingListsScreen()),
+                builder: (c, s) => const WarehouseOperationsScreen()),
           ]),
           StatefulShellBranch(routes: <RouteBase>[
             GoRoute(

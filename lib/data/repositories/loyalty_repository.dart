@@ -27,7 +27,7 @@ final loyaltyAccountProvider =
   if (user == null || user.role != UserRole.retailer) {
     throw const ApiException(
         kind: ApiErrorKind.forbidden,
-        message: 'Cần đăng nhập Retailer để xem thẻ tích điểm của mình.');
+        message: 'Cần đăng nhập điểm bán để xem thẻ tích điểm của mình.');
   }
   var disposed = false;
   ref.onDispose(() => disposed = true);

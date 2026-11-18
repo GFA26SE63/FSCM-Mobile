@@ -54,6 +54,14 @@ class WkHomeScreen extends ConsumerWidget {
             Text('${user?.role.label ?? ''} · ${user?.scopeText ?? ''}',
                 style: const TextStyle(color: AppColors.textMuted)),
             const SizedBox(height: 14),
+            AppCard(
+                onTap: () => context.push('/wk/operations'),
+                child: const ListTile(
+                    leading: Icon(Icons.warehouse),
+                    title: Text('Nhập · Xuất kho'),
+                    subtitle: Text(
+                        'Nhập nhà máy · Nhập luân chuyển\nXuất bán hàng · Xuất luân chuyển'),
+                    trailing: Icon(Icons.chevron_right))),
             Row(
               children: <Widget>[
                 Expanded(
@@ -101,7 +109,7 @@ class WkHomeScreen extends ConsumerWidget {
               ),
             ),
             SectionTitle(
-              'Picking list cần lấy',
+              'Phiếu soạn hàng cần lấy',
               trailing: TextButton(
                   onPressed: () => context.go(AppRoutes.wkPicking),
                   child: const Text('Xem tất cả')),
@@ -109,9 +117,9 @@ class WkHomeScreen extends ConsumerWidget {
             if (todo.isEmpty)
               const EmptyState(
                 icon: Icons.task_alt,
-                title: 'Không còn picking list cần lấy.',
+                title: 'Không còn phiếu soạn hàng cần lấy.',
                 message:
-                    'Picking list được tạo sau khi Retailer chấp nhận báo giá và đơn đủ điều kiện trở thành PO. Mỗi kho tham gia có một picking list riêng.',
+                    'Phiếu soạn hàng được tạo sau khi điểm bán chấp nhận báo giá và đơn đủ điều kiện trở thành đơn thực hiện. Mỗi kho tham gia có một phiếu soạn hàng riêng.',
               )
             else
               for (final p in todo.take(3)) PickingListTile(list: p),

@@ -92,7 +92,7 @@ class RetailerOrderActions {
       throw const ApiException(
           kind: ApiErrorKind.forbidden,
           message:
-              'Cần đăng nhập đúng tài khoản Retailer để quyết định báo giá.');
+              'Cần đăng nhập đúng tài khoản điểm bán để quyết định báo giá.');
     }
     if (order.id != quote.salesOrderId || order.status != OrderStatus.quoted) {
       throw const ApiException(
