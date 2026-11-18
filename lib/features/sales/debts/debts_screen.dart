@@ -90,7 +90,7 @@ class _DebtsScreenState extends ConsumerState<DebtsScreen> {
                       ),
                       const InfoBanner(
                         text:
-                            'Hạn trả = ngày giao + kỳ hạn của điểm bán (7 / 14 / 30 ngày). Không quản lý hạn mức; khoản quá hạn được nhắc để bạn đi truy thu. Chuyển khoản do Operator xác nhận trên Portal.',
+                            'Hạn trả = ngày giao + kỳ hạn của điểm bán (7 / 14 / 30 ngày). Không quản lý hạn mức; khoản quá hạn được nhắc để bạn đi truy thu. Chuyển khoản do nhân viên vận hành xác nhận trên Portal.',
                       ),
                       if (list.isEmpty) const SizedBox(height: 40),
                       if (list.isEmpty)

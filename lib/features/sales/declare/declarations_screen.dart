@@ -18,7 +18,7 @@ import 'package:fscm_mobile/shared/widgets/info_banner.dart';
 import 'package:fscm_mobile/shared/widgets/kv_row.dart';
 import 'package:fscm_mobile/shared/widgets/status_chip.dart';
 
-/// "Khai báo retailer": declarations created by the signed-in Sales
+/// "Khai báo điểm bán": declarations created by the signed-in Sales
 /// (`GET /retailers?scope=mine`) and their approval state.
 class DeclarationsScreen extends ConsumerWidget {
   const DeclarationsScreen({super.key});
@@ -27,7 +27,7 @@ class DeclarationsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final value = ref.watch(declarationsProvider);
     return Scaffold(
-      appBar: AppBar(title: const Text('Khai báo retailer')),
+      appBar: AppBar(title: const Text('Khai báo điểm bán')),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => context.push(AppRoutes.salesDeclare),
         icon: const Icon(Icons.add),
@@ -43,7 +43,7 @@ class DeclarationsScreen extends ConsumerWidget {
             children: <Widget>[
               const InfoBanner(
                   text:
-                      'Admin / Operator duyệt, cấp mã điểm bán 8 số và tạo tài khoản Retailer App.'),
+                      'Quản trị viên / nhân viên vận hành duyệt, cấp mã điểm bán 8 số và tạo tài khoản điểm bán trên ứng dụng.'),
               if (list.isEmpty)
                 const EmptyState(title: 'Chưa có khai báo nào.'),
               for (final d in list) _Tile(declaration: d),
@@ -70,7 +70,8 @@ class _TileState extends ConsumerState<_Tile> {
   Future<void> _submit() async {
     final d = widget.declaration;
     if (d.mlorDeclarations.isEmpty) {
-      showAppSnack(context, 'Cần thêm ít nhất 1 MLOR trước khi gửi duyệt.',
+      showAppSnack(context,
+          'Cần thêm ít nhất một yêu cầu hạn sử dụng trước khi gửi duyệt.',
           error: true);
       return;
     }
@@ -85,7 +86,8 @@ class _TileState extends ConsumerState<_Tile> {
       await ref.read(retailerRepositoryProvider).submitForReview(d.id);
       ref.read(dataVersionProvider.notifier).state++;
       if (mounted) {
-        showAppSnack(context, 'Đã gửi ${d.code} cho Admin / Operator.');
+        showAppSnack(context,
+            'Đã gửi ${d.code} cho quản trị viên / nhân viên vận hành.');
       }
     } on ApiException catch (e) {
       if (mounted) showAppSnack(context, e.message, error: true);
@@ -124,12 +126,12 @@ class _TileState extends ConsumerState<_Tile> {
             if (d.status == DeclarationStatus.pendingApproval)
               const InfoBanner(
                   text:
-                      'Đang chờ Admin / Operator kiểm tra. Chưa đặt hàng được cho điểm bán này.'),
+                      'Đang chờ quản trị viên / nhân viên vận hành kiểm tra. Chưa đặt hàng được cho điểm bán này.'),
             if (d.status == DeclarationStatus.active)
               InfoBanner(
                   tone: StatusTone.success,
                   text:
-                      'Đã duyệt · hạn thanh toán ${d.creditTermDays} ngày. Tài khoản Retailer đã được tạo và email thông báo đã gửi tới ${d.email}.'),
+                      'Đã duyệt · hạn thanh toán ${d.creditTermDays} ngày. Tài khoản điểm bán đã được tạo và email thông báo đã gửi tới ${d.email}.'),
             KvRow('Người liên hệ', d.contactName),
             KvRow('Số điện thoại', d.phone),
             KvRow('Email', d.email),

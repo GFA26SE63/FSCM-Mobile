@@ -35,7 +35,7 @@ class RetailerDetailScreen extends ConsumerWidget {
           if (!data.hasSnapshot || retailer == null) {
             return const EmptyState(
               icon: Icons.storefront_outlined,
-              title: 'Không có điểm bán trong snapshot hiện tại',
+              title: 'Không có điểm bán trong dữ liệu đồng bộ hiện tại',
               message:
                   'Điểm bán có thể chưa được tải hoặc phân công đã thay đổi. '
                   'Hãy cập nhật dữ liệu.',
@@ -51,7 +51,7 @@ class RetailerDetailScreen extends ConsumerWidget {
               InfoBanner(
                 text: timestamp == null
                     ? 'Thông tin lấy từ dữ liệu đã lưu trên máy.'
-                    : 'Thông tin theo snapshot '
+                    : 'Thông tin theo dữ liệu đồng bộ '
                         '${_stamp(timestamp)}. '
                         'Trạng thái và công nợ có thể đã thay đổi; '
                         'xem kết quả kiểm tra bên dưới trước khi đặt hàng.',

@@ -32,7 +32,7 @@ class BatchPriceBreakdown extends StatelessWidget {
           const Padding(
             padding: EdgeInsets.only(top: 6),
             child: Text(
-              'Đơn này chưa có giá chi tiết theo batch.',
+              'Đơn này chưa có giá chi tiết theo lô hàng.',
               style: TextStyle(fontSize: 12, color: AppColors.textMuted),
             ),
           ),

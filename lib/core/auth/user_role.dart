@@ -2,12 +2,12 @@
 /// Only [sales], [warehouseKeeper] and [retailer] have a shell in the mobile
 /// app; [admin], [operator], and [salesManager] use the Portal.
 enum UserRole {
-  sales('Sales', 'Sales Representative'),
-  warehouseKeeper('WarehouseKeeper', 'Warehouse Keeper'),
+  sales('Sales', 'Nhân viên bán hàng'),
+  warehouseKeeper('WarehouseKeeper', 'Thủ kho'),
   retailer('Retailer', 'Điểm bán'),
-  admin('Admin', 'Admin'),
-  operator('Operator', 'Operator'),
-  salesManager('SalesManager', 'Sales Manager');
+  admin('Admin', 'Quản trị viên'),
+  operator('Operator', 'Nhân viên vận hành'),
+  salesManager('SalesManager', 'Quản lý bán hàng');
 
   const UserRole(this.code, this.label);
 

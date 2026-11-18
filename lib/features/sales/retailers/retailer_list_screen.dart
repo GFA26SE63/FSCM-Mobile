@@ -78,8 +78,8 @@ class _RetailerListScreenState extends ConsumerState<RetailerListScreen> {
                           ? Icons.info_outline
                           : Icons.cloud_off_outlined,
                       text:
-                          '${online ? 'Dữ liệu đã lưu' : 'Đang dùng cache offline'}'
-                          ' · Snapshot ${_stamp(data.lastSyncAt)}.\n'
+                          '${online ? 'Dữ liệu đã lưu' : 'Đang dùng dữ liệu đã lưu'}'
+                          ' · Dữ liệu đồng bộ ${_stamp(data.lastSyncAt)}.\n'
                           'Danh sách theo phân công tại lần cập nhật này. '
                           'Điều kiện đặt hàng được kiểm tra lại với máy chủ.',
                     ),
@@ -93,7 +93,7 @@ class _RetailerListScreenState extends ConsumerState<RetailerListScreen> {
                         icon: Icons.storefront_outlined,
                         title: 'Chưa có điểm bán được phân công',
                         message:
-                            'Nếu vừa được phân công, hãy cập nhật snapshot.',
+                            'Nếu vừa được phân công, hãy cập nhật dữ liệu đồng bộ.',
                       )
                     else if (retailers.isEmpty)
                       const EmptyState(
