@@ -161,11 +161,18 @@ class WarehouseDocumentsScreen extends ConsumerWidget {
                       ],
                       for (final issue in incoming)
                         Card(
+                            color: Colors.blue.shade50,
                             child: ListTile(
-                                title:
-                                    Text('Chờ nhận: ${issue.document['code']}'),
-                                subtitle: const Text(
-                                    'Kho gửi đã xuất. Mở phiếu nhập kho đích để quét từng carton.'),
+                                leading: const Icon(Icons.move_to_inbox,
+                                    color: Colors.blue),
+                                title: Text(
+                                    'Hàng đang đến: ${issue.document['code']}',
+                                    style: const TextStyle(
+                                        fontWeight: FontWeight.bold)),
+                                subtitle: Text(
+                                    'Từ ${warehouseName(issue.document['warehouseId'])} · Đã xuất ${issue.lines.fold<num>(0, (n, l) => n + (l['quantity'] as num? ?? 0))} carton\nBấm để mở phiếu nhập & bắt đầu quét carton'),
+                                isThreeLine: true,
+                                trailing: const Icon(Icons.chevron_right),
                                 onTap: () => context.push(
                                     '/wk/document/${issue.id}?mode=transferReceipt'))),
                       const SizedBox(height: 16),
@@ -180,7 +187,7 @@ class WarehouseDocumentsScreen extends ConsumerWidget {
                             child: ListTile(
                                 title: Text(asStr(w.document['code'])),
                                 subtitle: Text(
-                                    '${warehouseName(w.document['warehouseId'])} · ${warehouseStatus(w.document['status'])} · ${w.lines.fold<num>(0, (n, l) => n + (l['quantity'] as num? ?? 0))} thùng'),
+                                    '${documentTypeTitle(w.document)} · ${warehouseName(w.document['warehouseId'])}${w.document['destinationWarehouseId'] != null && w.document['destinationWarehouseId'] != w.document['warehouseId'] ? ' → ${warehouseName(w.document['destinationWarehouseId'])}' : ''} · ${warehouseStatus(w.document['status'])} · ${w.lines.fold<num>(0, (n, l) => n + (l['quantity'] as num? ?? 0))} carton'),
                                 trailing: const Icon(Icons.chevron_right),
                                 onTap: () => context.push(
                                     '/wk/document/${w.id}?mode=${operation.name}'))),
@@ -188,6 +195,22 @@ class WarehouseDocumentsScreen extends ConsumerWidget {
               }),
         ));
   }
+}
+
+String documentTypeTitle(Map<String, dynamic> d) {
+  final kind = d['kind'];
+  final reason = d['reason'];
+  if (kind == 'Request' && reason == 'Transfer') return 'Lệnh điều chuyển kho';
+  if (kind == 'Issue' && reason == 'Transfer') return 'Phiếu xuất luân chuyển';
+  if (kind == 'Receipt' && reason == 'Transfer') return 'Phiếu nhập luân chuyển';
+  if (kind == 'Request' && reason == 'Order') return 'Lệnh xuất bán hàng';
+  if (kind == 'Issue' && reason == 'Order') return 'Phiếu xuất bán hàng';
+  if (kind == 'Receipt' && reason == 'Factory') return 'Phiếu nhập từ nhà máy';
+  if (kind == 'Request') return 'Lệnh xuất / điều chuyển';
+  if (kind == 'Issue') return 'Phiếu xuất kho';
+  if (kind == 'Receipt') return 'Phiếu nhập kho';
+  if (kind == 'Picking') return 'Phiếu soạn hàng';
+  return asStr(kind);
 }
 
 String warehouseStatus(Object? value) => switch (value) {
@@ -208,9 +231,15 @@ String receiptDispositionLabel(Object? value) => switch (value) {
     };
 
 class WarehouseDocumentScreen extends ConsumerStatefulWidget {
-  const WarehouseDocumentScreen({super.key, required this.id, this.mode});
+  const WarehouseDocumentScreen({
+    super.key,
+    required this.id,
+    this.mode,
+    this.autoScan = false,
+  });
   final String? mode;
   final String id;
+  final bool autoScan;
   @override
   ConsumerState<WarehouseDocumentScreen> createState() =>
       _WarehouseDocumentScreenState();
@@ -226,6 +255,7 @@ class _WarehouseDocumentScreenState
   @override
   void initState() {
     super.initState();
+    camera = widget.autoScan;
     loadHistory();
   }
 
@@ -316,19 +346,64 @@ class _WarehouseDocumentScreenState
                 Text(asStr(d['code']),
                     style: Theme.of(context).textTheme.titleLarge),
                 Text(
-                    '${d['kind'] == 'Receipt' ? 'Phiếu nhập kho' : d['kind'] == 'Issue' ? 'Phiếu xuất kho' : d['kind'] == 'Request' ? 'Yêu cầu kho' : 'Phiếu soạn hàng'} · ${warehouseStatus(d['status'])}'),
+                    '${documentTypeTitle(d)} · ${warehouseStatus(d['status'])}',
+                    style: const TextStyle(fontWeight: FontWeight.bold)),
+                if (d['sourceDocumentId'] != null)
+                  Text('Theo chứng từ nguồn: ${asStr(d['sourceDocumentId'])}'),
                 Text(
-                    'Kho: ${user?.warehouseLabels.where((s) => s.id == d['warehouseId']).map((s) => s.name).firstOrNull ?? d['warehouseId']}'),
+                    'Kho phụ trách: ${user?.warehouseLabels.where((s) => s.id == d['warehouseId']).map((s) => s.name).firstOrNull ?? d['warehouseId']}'),
+                if (d['destinationWarehouseId'] != null &&
+                    d['destinationWarehouseId'] != d['warehouseId'])
+                  Text(
+                      'Kho đích: ${user?.warehouseLabels.where((s) => s.id == d['destinationWarehouseId']).map((s) => s.name).firstOrNull ?? d['destinationWarehouseId']}'),
                 Text('Ngày lập: ${d['createdAt']}'),
                 if (d['postedAt'] != null) Text('Ghi sổ: ${d['postedAt']}'),
-                if (d['note'] != null) Text(asStr(d['note'])),
+                if (d['note'] != null && asStr(d['note']).isNotEmpty)
+                  Text('Ghi chú: ${asStr(d['note'])}'),
                 if (error != null)
-                  Text(error!, style: const TextStyle(color: Colors.red)),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    child: Text(error!, style: const TextStyle(color: Colors.red)),
+                  ),
                 if (notice != null)
-                  Text(notice!, style: const TextStyle(color: Colors.green)),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    child: Text(notice!, style: const TextStyle(color: Colors.green)),
+                  ),
+                if (incoming)
+                  Container(
+                    margin: const EdgeInsets.symmetric(vertical: 8),
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.blue.shade200),
+                    ),
+                    child: const Text(
+                      'Lô hàng này đã được kho gửi xuất đi. Nhấn "Bắt đầu kiểm nhận & quét QR" để mở phiếu nhập kho đích và quét từng carton.',
+                      style: TextStyle(color: Colors.blue),
+                    ),
+                  ),
+                if (request && d['reason'] == 'Transfer')
+                  Container(
+                    margin: const EdgeInsets.symmetric(vertical: 8),
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.orange.shade200),
+                    ),
+                    child: const Text(
+                      'Đây là Lệnh điều chuyển kho do Admin phát hành. Nhấn "Bắt đầu xuất luân chuyển & quét QR" để bắt đầu soạn và quét carton xuất kho.',
+                      style: TextStyle(color: Colors.deepOrange),
+                    ),
+                  ),
                 if (d['status'] == 'Posted')
-                  const Text(
-                      'Phiếu đã ghi sổ. Đây là lịch sử xuất/nhập, không quét lại.'),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 4),
+                    child: Text(
+                        'Phiếu đã ghi sổ. Đây là lịch sử xuất/nhập, không quét lại.'),
+                  ),
                 if (busy) const LinearProgressIndicator(),
                 for (final l in w.lines)
                   Card(
@@ -337,21 +412,27 @@ class _WarehouseDocumentScreenState
                           subtitle: Text(
                               '${l['batchCode'] ?? l['sourceLotCode'] ?? ''}\nHSD: ${l['expirationDate']} · ${l['quantity']} thùng'))),
                 if (request || incoming)
-                  FilledButton(
-                      onPressed: busy
-                          ? null
-                          : () => act(() async {
-                                final child = await ref
-                                    .read(warehouseDocumentsApiProvider)
-                                    .child(w.id);
-                                if (context.mounted) {
-                                  context.pushReplacement(
-                                      '/wk/document/${child.id}?mode=${widget.mode ?? ''}');
-                                }
-                              }),
-                      child: Text(incoming
-                          ? 'Mở phiếu nhập luân chuyển'
-                          : 'Tạo phiếu xuất kho để quét QR')),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    child: FilledButton.icon(
+                        icon: const Icon(Icons.qr_code_scanner),
+                        onPressed: busy
+                            ? null
+                            : () => act(() async {
+                                  final child = await ref
+                                      .read(warehouseDocumentsApiProvider)
+                                      .child(w.id);
+                                  if (context.mounted) {
+                                    context.pushReplacement(
+                                        '/wk/document/${child.id}?mode=${widget.mode ?? ''}&scan=1');
+                                  }
+                                }),
+                        label: Text(incoming
+                            ? 'Bắt đầu kiểm nhận & quét QR'
+                            : d['reason'] == 'Transfer'
+                                ? 'Bắt đầu xuất luân chuyển & quét QR'
+                                : 'Bắt đầu xuất kho & quét QR')),
+                  ),
                 if (editable &&
                     (d['kind'] == 'Receipt' ||
                         (d['kind'] == 'Picking' || d['kind'] == 'Issue')) &&
@@ -501,8 +582,12 @@ class _WarehouseDocumentScreenState
                               })
                           : null,
                       child: Text(d['kind'] == 'Receipt'
-                          ? 'Hoàn tất phiếu nhập kho'
-                          : 'Xác nhận xuất và ghi sổ PXK')),
+                          ? (d['reason'] == 'Transfer'
+                              ? 'Xác nhận nhập kho & ghi sổ PNK'
+                              : 'Hoàn tất phiếu nhập kho')
+                          : (d['reason'] == 'Transfer'
+                              ? 'Xác nhận xuất luân chuyển & ghi sổ PXK'
+                              : 'Xác nhận xuất và ghi sổ PXK'))),
                 if (scanHistory.isNotEmpty)
                   const Text('Lịch sử quét pallet',
                       style: TextStyle(fontWeight: FontWeight.bold)),

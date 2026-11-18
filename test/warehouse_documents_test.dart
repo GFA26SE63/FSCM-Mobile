@@ -78,7 +78,7 @@ void main() {
       expect(find.text('Mở phiếu nhập luân chuyển'), findsNothing);
       if (state == 'Open') {
         final button = tester.widget<FilledButton>(
-            find.widgetWithText(FilledButton, 'Xác nhận xuất và ghi sổ PXK'));
+            find.widgetWithText(FilledButton, 'Xác nhận xuất luân chuyển & ghi sổ PXK'));
         expect(button.onPressed, isNull);
       }
       expect(t.requests.where((r) => r.method == 'POST'), isEmpty);
