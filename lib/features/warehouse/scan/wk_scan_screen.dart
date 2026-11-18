@@ -61,7 +61,7 @@ class _WkScanScreenState extends ConsumerState<WkScanScreen> {
     if (route == null) {
       setState(() => _error = widget.labelsOnly
           ? 'Mã "$code" không phải tem (TEM-000000).'
-          : 'Không nhận diện được mã "$code". Quét tem hoặc phiếu picking (DH-000000A).');
+          : 'Không nhận diện được mã "$code". Quét tem hoặc phiếu soạn hàng (DH-000000A).');
       return;
     }
 
@@ -93,8 +93,8 @@ class _WkScanScreenState extends ConsumerState<WkScanScreen> {
           InfoBanner(
             icon: Icons.qr_code_scanner,
             text: widget.labelsOnly
-                ? 'Quét tem để xem batch, số lượng, vị trí, tem gốc/con và lịch sử.'
-                : 'Quét tem để tra cứu hoặc phiếu picking để lấy hàng.',
+                ? 'Quét tem để xem lô hàng, số lượng, vị trí, tem gốc/con và lịch sử.'
+                : 'Quét tem để tra cứu hoặc phiếu soạn hàng để lấy hàng.',
           ),
           const SizedBox(height: 12),
           if (_opening)

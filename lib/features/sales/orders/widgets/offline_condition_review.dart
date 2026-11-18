@@ -39,7 +39,7 @@ class OfflineConditionReview extends StatelessWidget {
                         '${(line.expectedMlorRatio * 100).toStringAsFixed(2)}% → '
                             '${(line.currentMlorRatio * 100).toStringAsFixed(2)}%'),
                   if (line.expectedMlorVersion != line.currentMlorVersion)
-                    KvRow('Phiên bản MLOR',
+                    KvRow('Phiên bản yêu cầu hạn sử dụng',
                         '${line.expectedMlorVersion} → ${line.currentMlorVersion}'),
                 ],
               ),
@@ -84,7 +84,7 @@ class OfflineConditionReviewSheet extends StatelessWidget {
               ),
               TextButton(
                 onPressed: () => Navigator.of(context).pop(false),
-                child: const Text('Để sau, giữ draft trên máy'),
+                child: const Text('Để sau, giữ bản nháp trên máy'),
               ),
             ],
           ),

@@ -44,13 +44,13 @@ class SyncSnapshot {
 
     if (generatedAt == null) {
       throw const FormatException(
-        'Snapshot thiếu generatedAt hợp lệ.',
+        'Dữ liệu đồng bộ thiếu generatedAt hợp lệ.',
       );
     }
 
     if (json['deltaMode'] != 'Full') {
       throw const FormatException(
-        'Mobile hiện chỉ hỗ trợ Full snapshot.',
+        'Ứng dụng hiện chỉ hỗ trợ bản đồng bộ đầy đủ.',
       );
     }
 
@@ -316,7 +316,7 @@ class SyncSnapshot {
     final value = json[key];
 
     if (value is! List || value.any((item) => item is! Map)) {
-      throw FormatException('Snapshot có $key không hợp lệ.');
+      throw FormatException('Dữ liệu đồng bộ có $key không hợp lệ.');
     }
 
     return value.map((item) => Map<String, dynamic>.from(item as Map)).toList();
@@ -329,7 +329,7 @@ class SyncSnapshot {
     final value = row[key];
 
     if (value is! String || value.trim().isEmpty) {
-      throw FormatException('Snapshot thiếu $key.');
+      throw FormatException('Dữ liệu đồng bộ thiếu $key.');
     }
 
     return value;
@@ -342,7 +342,7 @@ class SyncSnapshot {
     final value = row[key];
 
     if (value is! num || !value.isFinite) {
-      throw FormatException('Snapshot có $key không hợp lệ.');
+      throw FormatException('Dữ liệu đồng bộ có $key không hợp lệ.');
     }
 
     return value;

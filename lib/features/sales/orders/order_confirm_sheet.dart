@@ -51,12 +51,13 @@ class OrderConfirmSheet extends StatelessWidget {
             const SizedBox(height: 12),
             InfoBanner(
               text: estimated
-                  ? 'Tạm tính trên máy từ snapshot đã lưu. '
-                      'Backend sẽ tính lại khi nhận đơn.'
+                  ? 'Tạm tính trên máy từ dữ liệu đồng bộ đã lưu. '
+                      'Máy chủ sẽ tính lại khi nhận đơn.'
                   : 'Giá dự kiến được máy chủ tính lại cho giỏ hàng này. '
                       'Chưa phải báo giá cuối sau phân bổ.',
             ),
-            if (snapshotAt != null) Text('Snapshot: ${_stamp(snapshotAt!)}'),
+            if (snapshotAt != null)
+              Text('Dữ liệu đồng bộ lúc: ${_stamp(snapshotAt!)}'),
             if (estimatedAt != null)
               Text('Tính trên máy lúc: ${_stamp(estimatedAt!)}'),
             const SizedBox(height: 10),
@@ -102,7 +103,7 @@ class OrderConfirmSheet extends StatelessWidget {
                 KvRow(promo.name, Money.minus(promo.amount)),
             const SectionTitle('Thanh toán'),
             const InfoBanner(
-              text: 'Retailer chọn phương thức thanh toán sau khi '
+              text: 'Điểm bán chọn phương thức thanh toán sau khi '
                   'hệ thống phân bổ và gửi báo giá chính thức.',
             ),
             if (quote.isComplete) ...[
@@ -121,7 +122,7 @@ class OrderConfirmSheet extends StatelessWidget {
                   ? () => Navigator.of(context).pop(true)
                   : null,
               child: Text(
-                online ? 'Xác nhận tạo SO' : 'Lưu SO trên máy',
+                online ? 'Gửi đơn hàng' : 'Lưu bản nháp trên máy',
               ),
             ),
             TextButton(

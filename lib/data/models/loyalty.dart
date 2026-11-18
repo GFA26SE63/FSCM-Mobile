@@ -233,28 +233,45 @@ class Gift {
     required this.name,
     required this.points,
     required this.stock,
+    this.programId,
+    this.description,
+    this.imageUrl,
+    this.isActive = true,
   });
 
-  factory Gift.fromJson(Map<String, dynamic> j) => Gift(
-        id: asStr(j['id']),
-        code: asStr(j['code']),
-        name: asStr(j['name']),
-        points: asInt(j['requiredPoints'] ?? j['points']),
-        stock: asInt(j['availableQuantity'] ?? j['stock'], 999999),
-      );
+  factory Gift.fromJson(Map<String, dynamic> j) {
+    if (!j.containsKey('availableQuantity') || j['isActive'] is! bool) {
+      invalidLoyaltyResponse();
+    }
+    final points = _requiredInt(j, 'requiredPoints');
+    final stock = j['availableQuantity'] == null ? null : _requiredInt(j, 'availableQuantity');
+    if (points <= 0 || (stock != null && stock < 0)) {
+      invalidLoyaltyResponse();
+    }
+    return Gift(id: _requiredText(j, 'id'), code: _requiredText(j, 'code'),
+      name: _requiredText(j, 'name'), programId: _requiredText(j, 'loyaltyProgramId'),
+      points: points, stock: stock, description: asStrOrNull(j['description']),
+      imageUrl: asStrOrNull(j['imageUrl']), isActive: j['isActive'] as bool);
+  }
 
   final String id;
   final String code;
   final String name;
   final int points;
-  final int stock;
+  final int? stock;
+  final String? programId, description, imageUrl;
+  final bool isActive;
 
   Map<String, dynamic> toJson() => <String, dynamic>{
         'id': id,
         'code': code,
         'name': name,
-        'points': points,
-        'stock': stock,
+        'requiredPoints': points,
+        'availableQuantity': stock,
+        'loyaltyProgramId': programId,
+        'description': description,
+        'imageUrl': imageUrl,
+        'isActive': isActive,
       };
 }
 
@@ -267,16 +284,28 @@ class GiftRedemption {
     required this.points,
     required this.status,
     this.requestedAt,
+    this.quantity,
+    this.quantityIsEstimated = false,
+    this.clientRequestId,
   });
 
-  factory GiftRedemption.fromJson(Map<String, dynamic> j) => GiftRedemption(
-        code: asStr(j['id'] ?? j['code']),
-        giftCode: asStr(j['rewardCode'] ?? j['giftCode']),
-        giftName: asStr(j['rewardName'] ?? j['giftName']),
-        points: asInt(j['redeemedPoints'] ?? j['points']),
-        status: GiftRequestStatus.fromCode(asStrOrNull(j['status'])),
-        requestedAt: asDate(j['createdAt'] ?? j['requestedAt']),
+  factory GiftRedemption.fromJson(Map<String, dynamic> j) {
+    if (j['quantityIsEstimated'] is! bool || _requiredInt(j, 'quantity') <= 0 ||
+        _requiredInt(j, 'redeemedPoints') < 0) {
+      invalidLoyaltyResponse();
+    }
+    return GiftRedemption(
+        code: _requiredText(j, 'id'),
+        giftCode: _requiredText(j, 'rewardCode'),
+        giftName: _requiredText(j, 'rewardName'),
+        points: _requiredInt(j, 'redeemedPoints'),
+        status: GiftRequestStatus.fromCode(_requiredText(j, 'status')),
+        requestedAt: _requiredDate(j, 'createdAt'),
+        quantity: _requiredInt(j, 'quantity'),
+        quantityIsEstimated: j['quantityIsEstimated'] as bool,
+        clientRequestId: _requiredText(j, 'clientRequestId'),
       );
+  }
 
   final String code;
   final String giftCode;
@@ -284,14 +313,20 @@ class GiftRedemption {
   final int points;
   final GiftRequestStatus status;
   final DateTime? requestedAt;
+  final int? quantity;
+  final bool quantityIsEstimated;
+  final String? clientRequestId;
 
   Map<String, dynamic> toJson() => <String, dynamic>{
-        'code': code,
-        'giftCode': giftCode,
-        'giftName': giftName,
-        'points': points,
+        'id': code,
+        'rewardCode': giftCode,
+        'rewardName': giftName,
+        'redeemedPoints': points,
         'status': status.code,
-        'requestedAt': isoOrNull(requestedAt),
+        'createdAt': isoOrNull(requestedAt),
+        'quantity': quantity,
+        'quantityIsEstimated': quantityIsEstimated,
+        'clientRequestId': clientRequestId,
       };
 }
 

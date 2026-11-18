@@ -2,6 +2,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:typed_data';
 import 'package:fscm_mobile/core/auth/user_role.dart';
 import 'package:fscm_mobile/core/network/api_exception.dart';
+import 'package:fscm_mobile/core/config/env.dart';
+import 'package:fscm_mobile/data/local/redemption_attempt_store.dart';
+import 'package:fscm_mobile/data/models/redemption_attempt.dart';
 
 import 'package:fscm_mobile/data/models/complaint.dart';
 import 'package:fscm_mobile/data/models/loyalty.dart';
@@ -24,7 +27,7 @@ final loyaltyAccountProvider =
   if (user == null || user.role != UserRole.retailer) {
     throw const ApiException(
         kind: ApiErrorKind.forbidden,
-        message: 'Cần đăng nhập Retailer để xem thẻ tích điểm của mình.');
+        message: 'Cần đăng nhập điểm bán để xem thẻ tích điểm của mình.');
   }
   var disposed = false;
   ref.onDispose(() => disposed = true);
@@ -43,14 +46,31 @@ final loyaltyAccountProvider =
   return result;
 });
 
-final giftsProvider = FutureProvider.autoDispose<List<Gift>>((ref) {
-  ref.watch(currentUserProvider);
-  return ref.watch(loyaltyRepositoryProvider).gifts();
+final giftsProvider = FutureProvider.autoDispose<List<Gift>>((ref) async {
+  final card = ref.watch(loyaltyAccountProvider.future);
+  final repository = ref.watch(loyaltyRepositoryProvider);
+  final account = await card;
+  if (account.programId == null) {
+    return <Gift>[];
+  }
+  return repository.gifts(programId: account.programId!);
+});
+
+final redemptionAttemptStoreProvider = Provider<RedemptionAttemptStore>((ref) =>
+    RedemptionAttemptStore(server: Env.effectiveApiBaseUrl));
+
+final pendingRedemptionProvider = FutureProvider.autoDispose<RedemptionAttempt?>((ref) {
+  final user = ref.watch(currentUserProvider);
+  if (user == null) {
+    return null;
+  }
+  return ref.watch(redemptionAttemptStoreProvider).read(user.id);
 });
 
 final redemptionsProvider =
     FutureProvider.autoDispose<List<GiftRedemption>>((ref) {
   ref.watch(currentUserProvider);
+  ref.watch(dataVersionProvider);
   return ref.watch(loyaltyRepositoryProvider).redemptions();
 });
 
@@ -90,12 +110,13 @@ class LoyaltyRepository {
 
   Future<LoyaltyAccount> account() => _loyalty.account();
 
-  Future<List<Gift>> gifts() => _loyalty.gifts();
+  Future<List<Gift>> gifts({required String programId}) => _loyalty.gifts(programId: programId);
 
   Future<List<GiftRedemption>> redemptions() => _loyalty.redemptions();
 
   /// Points are held right away; refunded if the request is rejected.
-  Future<GiftRedemption> redeem(Gift gift) => _loyalty.redeem(gift);
+  Future<GiftRedemption> redeem(RedemptionAttempt attempt) => _loyalty.redeem(
+      rewardId: attempt.rewardId, quantity: attempt.quantity, operationKey: attempt.operationKey);
 
   Future<List<Complaint>> complaints() => _complaints.list();
 

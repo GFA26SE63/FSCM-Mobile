@@ -130,7 +130,7 @@ class WarehouseDocumentsScreen extends ConsumerWidget {
                                         child: ListTile(
                                             title: Text(asStr(p['palletCode'])),
                                             subtitle: Text(
-                                                '${p['sku']} · ${p['cartonCount']} carton\nKho nhận: ${warehouseName(p['destinationWarehouseId'])} (cố định)'),
+                                                '${p['sku']} · ${p['cartonCount']} thùng\nKho nhận: ${warehouseName(p['destinationWarehouseId'])} (cố định)'),
                                             trailing:
                                                 const Icon(Icons.chevron_right),
                                             onTap: () async {
@@ -218,7 +218,15 @@ String warehouseStatus(Object? value) => switch (value) {
       'Prepared' => 'Đã soạn đủ',
       'Posted' => 'Đã ghi sổ',
       'Executed' => 'Đã thực hiện',
+      'Fulfilled' => 'Đã thực hiện',
       'Cancelled' => 'Đã hủy',
+      _ => asStr(value),
+    };
+
+String receiptDispositionLabel(Object? value) => switch (value) {
+      'Accepted' => 'Đạt',
+      'Damaged' => 'Hỏng — cách ly',
+      'Missing' => 'Thiếu',
       _ => asStr(value),
     };
 
@@ -402,7 +410,7 @@ class _WarehouseDocumentScreenState
                       child: ListTile(
                           title: Text('${l['sku']} · ${l['productName']}'),
                           subtitle: Text(
-                              '${l['batchCode'] ?? l['sourceLotCode'] ?? ''}\nHSD: ${l['expirationDate']} · ${l['quantity']} carton'))),
+                              '${l['batchCode'] ?? l['sourceLotCode'] ?? ''}\nHSD: ${l['expirationDate']} · ${l['quantity']} thùng'))),
                 if (request || incoming)
                   Padding(
                     padding: const EdgeInsets.symmetric(vertical: 8),
@@ -441,7 +449,7 @@ class _WarehouseDocumentScreenState
                       allowManual: false,
                       hint: w.factory
                           ? 'Quét đúng QR pallet trên phiếu'
-                          : 'Quét QR từng carton',
+                          : 'Quét QR từng thùng',
                       onCode: (code) => act(() async {
                             final api = ref.read(warehouseDocumentsApiProvider);
                             if (w.factory) {
@@ -465,7 +473,7 @@ class _WarehouseDocumentScreenState
                               await api.scanCarton(w, code);
                               if (mounted) {
                                 setState(() => notice =
-                                    'Đã ghi nhận carton. Chờ xác nhận ghi sổ.');
+                                    'Đã ghi nhận thùng. Chờ xác nhận ghi sổ.');
                               }
                             }
                           })),
@@ -532,7 +540,7 @@ class _WarehouseDocumentScreenState
                                     scan = null;
                                     inspection = [];
                                     notice =
-                                        'Đã nhận pallet. Chỉ carton đạt được cộng tồn.';
+                                        'Đã nhận pallet. Chỉ thùng đạt được cộng tồn.';
                                   });
                                 }
                               }),
@@ -547,7 +555,7 @@ class _WarehouseDocumentScreenState
                       child: const Text('Hủy kiểm đếm chưa xác nhận')),
                 ],
                 if (!w.factory)
-                  Text('Đã quét $scanned / $requiredQuantity carton'),
+                  Text('Đã quét $scanned / $requiredQuantity thùng'),
                 for (final c in w.cartons)
                   ListTile(
                       title: Text(asStr(c['cartonId'])),
@@ -594,7 +602,7 @@ class _WarehouseDocumentScreenState
                     ListTile(
                         title: Text(asStr(c['cartonCode'])),
                         subtitle: Text(
-                            '${c['disposition']} · ${c['reason'] ?? ''} · ${c['quarantineLocation'] ?? ''}'))
+                            '${receiptDispositionLabel(c['disposition'])} · ${c['reason'] ?? ''} · ${c['quarantineLocation'] ?? ''}'))
                 ],
               ]);
             }));

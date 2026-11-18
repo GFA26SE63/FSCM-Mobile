@@ -121,6 +121,7 @@ screen/widget → Riverpod repository/provider → remote API → ApiClient → 
 - Logic thuần (ordering, pricing tạm, formatter) tách khỏi widget để unit test. Kết quả pricing/allocation cuối cùng luôn lấy từ server sau sync.
 - Route mới được khai báo ở `shared/routes.dart`, ghép vào đúng role branch trong `app/router.dart`; redirect theo role là UX guard, backend vẫn enforce quyền/scope.
 - Widget chỉ đưa vào `shared/widgets` khi không mang ngữ nghĩa riêng của Sales/WK/Retailer; nếu có, đặt cạnh feature sử dụng.
+- **Chi tiết mở bằng popup.** Màn có danh sách mà mỗi mục có thể xem chi tiết thì mỗi mục phải có nút/thao tác **"Chi tiết"**; bấm vào mở popup (`showDialog` hoặc `showModalBottomSheet`) hoặc màn chi tiết riêng qua route. **Không** mở rộng phần chi tiết ngay trong danh sách hay đẩy xuống cuối màn hình. Popup phải đóng được bằng nút "Đóng" và thao tác back của hệ điều hành.
 - Khi thêm GraphQL, đặt client ở `core/network`, adapter ở `data/remote`, repository quyết định cache. GraphQL chỉ đọc; mọi create/update/scan/approve tiếp tục dùng REST theo backend hiện tại.
 
 ### Cách thêm một luồng mới

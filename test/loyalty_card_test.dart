@@ -182,6 +182,7 @@ void main() {
         loyaltyCardFixture(balance: -1, programId: null));
     await tester.pumpWidget(ProviderScope(
         overrides: [
+          currentUserProvider.overrideWithValue(null),
           loyaltyAccountProvider.overrideWith((ref) async => card),
           giftsProvider.overrideWith((ref) async => [
                 const Gift(

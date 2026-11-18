@@ -137,8 +137,9 @@ class OrdersApi {
           OrderSyncResult(
             clientRequestId: payload.clientRequestId,
             accepted: false,
-            reason: 'Draft thiếu điều kiện giá/MLOR tại thời điểm lưu. '
-                'Hãy tạo draft mới sau khi kiểm tra snapshot; '
+            reason:
+                'Bản nháp thiếu điều kiện giá/hạn sử dụng tối thiểu tại thời điểm lưu. '
+                'Hãy tạo bản nháp mới sau khi kiểm tra dữ liệu đồng bộ; '
                 'bản cũ được giữ lại để đối chiếu.',
           ),
         );
@@ -171,7 +172,7 @@ class OrdersApi {
       promoChanged: order.finalAmount != payload.localFinal,
       changeReason: order.finalAmount == payload.localFinal
           ? ''
-          : 'Giá dự kiến được backend tính lại khi nhận đơn. '
+          : 'Giá dự kiến được máy chủ tính lại khi nhận đơn. '
               'Giá sau giảm HSD được xác định khi phân bổ.',
     );
   }
