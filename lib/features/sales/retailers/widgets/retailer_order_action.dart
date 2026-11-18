@@ -23,7 +23,7 @@ class RetailerOrderAction extends ConsumerWidget {
 
     if (retailer.id.isEmpty) {
       return const InfoBanner(
-        text: 'Điểm bán thiếu ID máy chủ. Hãy cập nhật snapshot.',
+        text: 'Điểm bán thiếu ID máy chủ. Hãy cập nhật dữ liệu đồng bộ.',
       );
     }
 
@@ -42,11 +42,11 @@ class RetailerOrderAction extends ConsumerWidget {
                 context.push(AppRoutes.salesNewOrder(retailer.code));
               },
               icon: const Icon(Icons.edit_note),
-              label: const Text('Chuẩn bị đơn offline'),
+              label: const Text('Chuẩn bị đơn ngoại tuyến'),
             )
           else
             const InfoBanner(
-              text: 'Theo snapshot hiện có, điểm bán chưa hoạt động. '
+              text: 'Theo dữ liệu đồng bộ hiện có, điểm bán chưa hoạt động. '
                   'Kết nối mạng để kiểm tra lại.',
             ),
         ],

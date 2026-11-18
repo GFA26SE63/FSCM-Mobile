@@ -25,7 +25,7 @@ class SyncApi {
     } on FormatException catch (error) {
       throw ApiException(
         kind: ApiErrorKind.server,
-        message: 'Dữ liệu catalog từ máy chủ không hợp lệ.',
+        message: 'Dữ liệu danh mục sản phẩm từ máy chủ không hợp lệ.',
         details: error.message,
       );
     }

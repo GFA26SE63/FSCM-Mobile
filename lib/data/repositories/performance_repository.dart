@@ -44,7 +44,8 @@ class PerformanceRepository {
     if (!isSales || userId.isEmpty) {
       throw const ApiException(
           kind: ApiErrorKind.forbidden,
-          message: 'Chỉ Sales được xem KPI của mình trên màn hình này.');
+          message:
+              'Chỉ nhân viên bán hàng được xem KPI của mình trên màn hình này.');
     }
     return PerformancePeriod.forKey(key, AppClock.now());
   }

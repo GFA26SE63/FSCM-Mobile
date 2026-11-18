@@ -42,7 +42,7 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
           if (!data.hasSnapshot) {
             return const EmptyState(
               icon: Icons.cloud_download_outlined,
-              title: 'Chưa có catalog trên máy',
+              title: 'Chưa có danh mục sản phẩm trên máy',
               message: 'Kết nối mạng và bấm nút cập nhật ở góc trên.',
             );
           }
@@ -98,8 +98,8 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                   children: [
                     InfoBanner(
                       text:
-                          '${online ? 'Đang online' : 'Đang dùng cache offline'}'
-                          ' · Snapshot ${AppDates.timeDay(data.lastSyncAt)}\n'
+                          '${online ? 'Đang trực tuyến' : 'Đang dùng dữ liệu đã lưu'}'
+                          ' · Dữ liệu đồng bộ ${AppDates.timeDay(data.lastSyncAt)}\n'
                           '${data.stockDisclaimer}\n'
                           '${data.priceDisclaimer}',
                     ),
@@ -154,7 +154,7 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
           const SizedBox(height: 8),
           Text(
             price == null
-                ? 'Chưa có giá hiện hành trong cache'
+                ? 'Chưa có giá hiện hành trong dữ liệu đã lưu'
                 : '${Money.format(price)} / ${product.pack}',
             style: const TextStyle(
               fontWeight: FontWeight.w700,
@@ -220,7 +220,7 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
               Text('Đơn vị: ${product.pack}'),
               Text(
                 price == null
-                    ? 'Giá: chưa có giá hiện hành trong cache'
+                    ? 'Giá: chưa có giá hiện hành trong dữ liệu đã lưu'
                     : 'Giá cơ sở dự kiến: ${Money.format(price)}',
               ),
               Text(

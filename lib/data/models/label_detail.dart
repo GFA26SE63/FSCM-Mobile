@@ -50,7 +50,7 @@ class LabelEvent {
       'Issued': 'Xuất hàng',
       'Received': 'Nhận hàng',
       'Dispatched': 'Giao vận chuyển',
-      'RetailerReceived': 'Retailer nhận hàng',
+      'RetailerReceived': 'Điểm bán nhận hàng',
       'Invalidated': 'Vô hiệu hóa tem',
     };
 

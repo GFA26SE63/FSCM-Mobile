@@ -44,7 +44,7 @@ class PriceDifferenceCard extends StatelessWidget {
           const SizedBox(height: 6),
           const Text(
             'Giá trước phân bổ chưa bao gồm kết quả giảm theo '
-            'hạn sử dụng của batch được chọn.',
+            'hạn sử dụng của lô hàng được chọn.',
             style: TextStyle(fontSize: 12),
           ),
         ],

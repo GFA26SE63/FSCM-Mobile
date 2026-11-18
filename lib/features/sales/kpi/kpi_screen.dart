@@ -25,7 +25,7 @@ class _KpiScreenState extends ConsumerState<KpiScreen> {
     if (user == null || user.role != UserRole.sales) {
       return Scaffold(
           appBar: AppBar(title: const Text('KPI của tôi')),
-          body: const Center(child: Text('Chức năng dành cho Sales.')));
+          body: const Center(child: Text('Chức năng dành cho nhân viên bán hàng.')));
     }
     return DefaultTabController(
       length: 3,

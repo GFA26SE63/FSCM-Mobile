@@ -9,13 +9,14 @@ import 'package:fscm_mobile/data/models/retailer_declaration.dart';
 import 'package:fscm_mobile/data/models/map_place.dart';
 import 'package:fscm_mobile/data/repositories/data_version.dart';
 import 'package:fscm_mobile/data/repositories/retailer_repository.dart';
+import 'package:fscm_mobile/features/sales/declare/declaration_errors.dart';
 import 'package:fscm_mobile/shared/widgets/dialogs.dart';
 import 'package:fscm_mobile/shared/widgets/info_banner.dart';
 import 'package:fscm_mobile/shared/widgets/section_title.dart';
 import 'package:fscm_mobile/shared/widgets/search_picker_field.dart';
 import 'package:fscm_mobile/shared/widgets/map_location_picker.dart';
 
-/// "Khai báo retailer mới" (`POST /retailers`) or edit of a Draft / Rejected
+/// "Khai báo điểm bán mới" (`POST /retailers`) or edit of a Draft / Rejected
 /// declaration (`PUT /retailers/{id}/declaration`). Sales can save a draft or
 /// submit for Admin / Operator review; submitting needs at least one MLOR.
 class DeclareRetailerScreen extends ConsumerStatefulWidget {
@@ -44,6 +45,8 @@ class _DeclareRetailerScreenState extends ConsumerState<DeclareRetailerScreen> {
   late RetailerTypeOption _type;
   late List<MlorDeclaration> _mlors;
   String? _salesGroupId;
+  DeclarationConflict? _conflict;
+  String? _conflictValue;
   bool _busy = false;
   double? _latitude;
   double? _longitude;
@@ -103,6 +106,13 @@ class _DeclareRetailerScreenState extends ConsumerState<DeclareRetailerScreen> {
     }
     super.dispose();
   }
+
+  /// The server's duplicate error for [field], while the input still holds the
+  /// value it rejected.
+  String? _conflictFor(String field, String value) =>
+      _conflict?.field == field && _conflictValue == value
+          ? _conflict!.message
+          : null;
 
   String? _required(String? v, String message) =>
       (v == null || v.trim().isEmpty) ? message : null;
@@ -170,7 +180,8 @@ class _DeclareRetailerScreenState extends ConsumerState<DeclareRetailerScreen> {
     }
     if (submit && _mlors.isEmpty) {
       showAppSnack(
-          context, 'Cần ít nhất 1 MLOR (ngành hàng hoặc SKU) để gửi duyệt.',
+          context,
+          'Cần ít nhất một yêu cầu hạn sử dụng (danh mục hoặc SKU) để gửi duyệt.',
           error: true);
       return;
     }
@@ -192,14 +203,32 @@ class _DeclareRetailerScreenState extends ConsumerState<DeclareRetailerScreen> {
       showAppSnack(
           context,
           submit
-              ? 'Đã gửi khai báo ${result.code}. Chờ Admin / Operator duyệt.'
+              ? 'Đã gửi khai báo ${result.code}. Chờ quản trị viên / nhân viên vận hành duyệt.'
               : 'Đã lưu nháp ${result.code}.');
       context.pop();
     } on ApiException catch (e) {
-      if (mounted) showAppSnack(context, e.message, error: true);
+      if (!mounted) return;
+      final conflict = declarationConflictOf(e);
+      if (conflict == null) {
+        showAppSnack(context, e.message, error: true);
+        return;
+      }
+      // Remember the rejected value so the error shows under that input and
+      // clears as soon as Sales changes it.
+      setState(() {
+        _conflict = conflict;
+        _conflictValue = switch (conflict.field) {
+          'phone' => _digits(_phone.text),
+          'email' => _email.text.trim().toLowerCase(),
+          'name' => _name.text.trim().toLowerCase(),
+          _ => null,
+        };
+      });
+      _form.currentState?.validate();
+      showAppSnack(context, conflict.message, error: true);
     } on StateError {
       if (mounted) {
-        showAppSnack(context, 'Tài khoản chưa được gán nhóm Sales nào.',
+        showAppSnack(context, 'Tài khoản chưa được gán nhóm bán hàng nào.',
             error: true);
       }
     } finally {
@@ -228,7 +257,7 @@ class _DeclareRetailerScreenState extends ConsumerState<DeclareRetailerScreen> {
       appBar: AppBar(
           title: Text(_isEdit
               ? 'Sửa khai báo ${initial!.code}'
-              : 'Khai báo retailer mới')),
+              : 'Khai báo điểm bán mới')),
       body: Form(
         key: _form,
         child: ListView(
@@ -236,7 +265,7 @@ class _DeclareRetailerScreenState extends ConsumerState<DeclareRetailerScreen> {
           children: <Widget>[
             const InfoBanner(
               text:
-                  'Gửi Admin / Operator duyệt. Sau khi duyệt, hệ thống cấp mã điểm bán 8 chữ số và tạo tài khoản Retailer App, email thông báo được gửi tới địa chỉ bên dưới.',
+                  'Gửi quản trị viên / nhân viên vận hành duyệt. Sau khi duyệt, hệ thống cấp mã điểm bán 8 chữ số và tạo tài khoản điểm bán trên ứng dụng, email thông báo được gửi tới địa chỉ bên dưới.',
             ),
             if (initial?.status == DeclarationStatus.rejected &&
                 initial!.reviewReason.isNotEmpty)
@@ -251,7 +280,7 @@ class _DeclareRetailerScreenState extends ConsumerState<DeclareRetailerScreen> {
                 decoration: const InputDecoration(labelText: 'Tên điểm bán'),
                 validator: (v) => (v == null || v.trim().length < 2)
                     ? 'Tên điểm bán tối thiểu 2 ký tự'
-                    : null),
+                    : _conflictFor('name', v.trim().toLowerCase())),
             const SizedBox(height: 10),
             TextFormField(
                 controller: _address,
@@ -292,12 +321,13 @@ class _DeclareRetailerScreenState extends ConsumerState<DeclareRetailerScreen> {
               keyboardType: TextInputType.phone,
               decoration: const InputDecoration(
                   labelText: 'Số điện thoại',
-                  helperText: 'Dùng để Retailer đăng nhập lần đầu'),
+                  helperText: 'Dùng để điểm bán đăng nhập lần đầu'),
               validator: (v) {
                 final d = _digits(v ?? '');
-                return d.length == 10 && d.startsWith('0')
-                    ? null
-                    : 'Số điện thoại gồm 10 chữ số, bắt đầu bằng 0';
+                if (!(d.length == 10 && d.startsWith('0'))) {
+                  return 'Số điện thoại gồm 10 chữ số, bắt đầu bằng 0';
+                }
+                return _conflictFor('phone', d);
               },
             ),
             const SizedBox(height: 10),
@@ -309,7 +339,7 @@ class _DeclareRetailerScreenState extends ConsumerState<DeclareRetailerScreen> {
                   helperText: 'Nhận thông báo tạo tài khoản và mã OTP'),
               validator: (v) => RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$')
                       .hasMatch((v ?? '').trim())
-                  ? null
+                  ? _conflictFor('email', (v ?? '').trim().toLowerCase())
                   : 'Nhập email hợp lệ',
             ),
             const SectionTitle('Đánh giá tiềm năng'),
@@ -381,7 +411,7 @@ class _DeclareRetailerScreenState extends ConsumerState<DeclareRetailerScreen> {
                   labelText: 'Ghi chú đánh giá',
                   hintText: 'Số tủ mát, vị trí, đối thủ gần đó...'),
             ),
-            SectionTitle('MLOR (hạn dùng còn lại tối thiểu)',
+            SectionTitle('Yêu cầu hạn sử dụng tối thiểu (MLOR)',
                 trailing: TextButton.icon(
                     onPressed: _busy ? null : _addMlor,
                     icon: const Icon(Icons.add),
@@ -390,7 +420,7 @@ class _DeclareRetailerScreenState extends ConsumerState<DeclareRetailerScreen> {
               const InfoBanner(
                   tone: StatusTone.warning,
                   text:
-                      'Chưa có MLOR. Có thể lưu nháp, nhưng cần ít nhất 1 dòng để gửi duyệt.'),
+                      'Chưa có yêu cầu hạn sử dụng. Có thể lưu nháp, nhưng cần ít nhất 1 dòng để gửi duyệt.'),
             for (var i = 0; i < _mlors.length; i++)
               ListTile(
                 contentPadding: EdgeInsets.zero,
@@ -404,7 +434,7 @@ class _DeclareRetailerScreenState extends ConsumerState<DeclareRetailerScreen> {
                     'Tối thiểu ${(_mlors[i].minimumLifeRatio * 100).round()}% hạn dùng'
                     '${_mlors[i].minimumLifeHours == null ? '' : ' · ${_mlors[i].minimumLifeHours} giờ'}'),
                 trailing: IconButton(
-                  tooltip: 'Xóa MLOR',
+                  tooltip: 'Xóa yêu cầu hạn sử dụng',
                   icon: const Icon(Icons.delete_outline),
                   onPressed: _busy
                       ? null
@@ -441,20 +471,20 @@ class _DeclareRetailerScreenState extends ConsumerState<DeclareRetailerScreen> {
             child: LinearProgressIndicator()),
         error: (e, _) => InfoBanner(
             tone: StatusTone.danger,
-            title: 'Không tải được nhóm Sales',
+            title: 'Không tải được nhóm bán hàng',
             text: ApiException.describe(e)),
         data: (list) {
           if (list.isEmpty) {
             return const InfoBanner(
                 tone: StatusTone.danger,
                 text:
-                    'Tài khoản chưa được gán nhóm Sales nào nên chưa khai báo được retailer.');
+                    'Tài khoản chưa được gán nhóm bán hàng nào nên chưa khai báo được điểm bán.');
           }
           _salesGroupId ??= list.first.salesGroupId;
           return DropdownButtonFormField<String>(
             initialValue: _salesGroupId,
             decoration:
-                const InputDecoration(labelText: 'Nhóm Sales · khu vực'),
+                const InputDecoration(labelText: 'Nhóm bán hàng · khu vực'),
             items: list
                 .map((t) => DropdownMenuItem<String>(
                     value: t.salesGroupId, child: Text(t.label)))
@@ -519,7 +549,7 @@ class _MlorEditorState extends ConsumerState<_MlorEditor> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: <Widget>[
-            const Text('Thêm MLOR',
+            const Text('Thêm yêu cầu hạn sử dụng',
                 style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
             const SizedBox(height: 12),
             SegmentedButton<bool>(
@@ -547,7 +577,9 @@ class _MlorEditorState extends ConsumerState<_MlorEditor> {
                 onChanged: (v) => setState(() => _option = v),
                 validator: (v) {
                   if (v == null) return 'Chọn phạm vi áp dụng';
-                  if (_duplicate(v)) return 'Phạm vi này đã có MLOR';
+                  if (_duplicate(v)) {
+                    return 'Phạm vi này đã có yêu cầu hạn sử dụng';
+                  }
                   return null;
                 },
               ),
@@ -585,7 +617,7 @@ class _MlorEditorState extends ConsumerState<_MlorEditor> {
               ),
             ],
             const SizedBox(height: 16),
-            FilledButton(onPressed: _confirm, child: const Text('Thêm MLOR')),
+            FilledButton(onPressed: _confirm, child: const Text('Thêm yêu cầu hạn sử dụng')),
           ],
         ),
       ),

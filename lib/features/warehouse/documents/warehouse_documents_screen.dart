@@ -130,7 +130,7 @@ class WarehouseDocumentsScreen extends ConsumerWidget {
                                         child: ListTile(
                                             title: Text(asStr(p['palletCode'])),
                                             subtitle: Text(
-                                                '${p['sku']} · ${p['cartonCount']} carton\nKho nhận: ${warehouseName(p['destinationWarehouseId'])} (cố định)'),
+                                                '${p['sku']} · ${p['cartonCount']} thùng\nKho nhận: ${warehouseName(p['destinationWarehouseId'])} (cố định)'),
                                             trailing:
                                                 const Icon(Icons.chevron_right),
                                             onTap: () async {
@@ -180,7 +180,7 @@ class WarehouseDocumentsScreen extends ConsumerWidget {
                             child: ListTile(
                                 title: Text(asStr(w.document['code'])),
                                 subtitle: Text(
-                                    '${warehouseName(w.document['warehouseId'])} · ${warehouseStatus(w.document['status'])} · ${w.lines.fold<num>(0, (n, l) => n + (l['quantity'] as num? ?? 0))} carton'),
+                                    '${warehouseName(w.document['warehouseId'])} · ${warehouseStatus(w.document['status'])} · ${w.lines.fold<num>(0, (n, l) => n + (l['quantity'] as num? ?? 0))} thùng'),
                                 trailing: const Icon(Icons.chevron_right),
                                 onTap: () => context.push(
                                     '/wk/document/${w.id}?mode=${operation.name}'))),
@@ -195,7 +195,15 @@ String warehouseStatus(Object? value) => switch (value) {
       'Prepared' => 'Đã soạn đủ',
       'Posted' => 'Đã ghi sổ',
       'Executed' => 'Đã thực hiện',
+      'Fulfilled' => 'Đã thực hiện',
       'Cancelled' => 'Đã hủy',
+      _ => asStr(value),
+    };
+
+String receiptDispositionLabel(Object? value) => switch (value) {
+      'Accepted' => 'Đạt',
+      'Damaged' => 'Hỏng — cách ly',
+      'Missing' => 'Thiếu',
       _ => asStr(value),
     };
 
@@ -203,8 +211,7 @@ class WarehouseDocumentScreen extends ConsumerStatefulWidget {
   const WarehouseDocumentScreen({super.key, required this.id, this.mode});
   final String? mode;
   final String id;
-  @override
-  ConsumerState<WarehouseDocumentScreen> createState() =>
+  @override ConsumerState<WarehouseDocumentScreen> createState() =>
       _WarehouseDocumentScreenState();
 }
 
@@ -327,7 +334,7 @@ class _WarehouseDocumentScreenState
                       child: ListTile(
                           title: Text('${l['sku']} · ${l['productName']}'),
                           subtitle: Text(
-                              '${l['batchCode'] ?? l['sourceLotCode'] ?? ''}\nHSD: ${l['expirationDate']} · ${l['quantity']} carton'))),
+                              '${l['batchCode'] ?? l['sourceLotCode'] ?? ''}\nHSD: ${l['expirationDate']} · ${l['quantity']} thùng'))),
                 if (request || incoming)
                   FilledButton(
                       onPressed: busy
@@ -354,13 +361,13 @@ class _WarehouseDocumentScreenState
                       icon: const Icon(Icons.qr_code_scanner),
                       label: Text(w.factory
                           ? 'Quét pallet thực tế'
-                          : 'Quét carton thực tế')),
+                          : 'Quét thùng thực tế')),
                 if (camera && !busy)
                   QrScanView(
                       allowManual: false,
                       hint: w.factory
                           ? 'Quét đúng QR pallet trên phiếu'
-                          : 'Quét QR từng carton',
+                          : 'Quét QR từng thùng',
                       onCode: (code) => act(() async {
                             final api = ref.read(warehouseDocumentsApiProvider);
                             if (w.factory) {
@@ -384,7 +391,7 @@ class _WarehouseDocumentScreenState
                               await api.scanCarton(w, code);
                               if (mounted) {
                                 setState(() => notice =
-                                    'Đã ghi nhận carton. Chờ xác nhận ghi sổ.');
+                                    'Đã ghi nhận thùng. Chờ xác nhận ghi sổ.');
                               }
                             }
                           })),
@@ -451,7 +458,7 @@ class _WarehouseDocumentScreenState
                                     scan = null;
                                     inspection = [];
                                     notice =
-                                        'Đã nhận pallet. Chỉ carton đạt được cộng tồn.';
+                                        'Đã nhận pallet. Chỉ thùng đạt được cộng tồn.';
                                   });
                                 }
                               }),
@@ -466,7 +473,7 @@ class _WarehouseDocumentScreenState
                       child: const Text('Hủy kiểm đếm chưa xác nhận')),
                 ],
                 if (!w.factory)
-                  Text('Đã quét $scanned / $requiredQuantity carton'),
+                  Text('Đã quét $scanned / $requiredQuantity thùng'),
                 for (final c in w.cartons)
                   ListTile(
                       title: Text(asStr(c['cartonId'])),
@@ -509,7 +516,7 @@ class _WarehouseDocumentScreenState
                     ListTile(
                         title: Text(asStr(c['cartonCode'])),
                         subtitle: Text(
-                            '${c['disposition']} · ${c['reason'] ?? ''} · ${c['quarantineLocation'] ?? ''}'))
+                            '${receiptDispositionLabel(c['disposition'])} · ${c['reason'] ?? ''} · ${c['quarantineLocation'] ?? ''}'))
                 ],
               ]);
             }));

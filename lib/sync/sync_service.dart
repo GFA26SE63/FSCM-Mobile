@@ -157,7 +157,7 @@ class SyncService extends StateNotifier<SyncState> {
 
     if (!_online) {
       state = state.copyWith(
-        lastError: 'Đang offline. Draft được giữ trên máy.',
+        lastError: 'Đang ngoại tuyến. Bản nháp được giữ trên máy.',
         clearSummary: true,
       );
       return false;
@@ -208,7 +208,7 @@ class SyncService extends StateNotifier<SyncState> {
         throw ApiException(
           kind: ApiErrorKind.validation,
           message: result.reason.isEmpty
-              ? 'Máy chủ chưa chấp nhận draft.'
+              ? 'Máy chủ chưa chấp nhận bản nháp.'
               : result.reason,
         );
       }
@@ -216,7 +216,7 @@ class SyncService extends StateNotifier<SyncState> {
       if (result.orderCode.isEmpty) {
         throw const ApiException(
           kind: ApiErrorKind.server,
-          message: 'Chưa nhận được mã đơn server. Giữ draft để gửi lại.',
+          message: 'Chưa nhận được mã đơn máy chủ. Giữ bản nháp để gửi lại.',
         );
       }
 
@@ -240,7 +240,7 @@ class SyncService extends StateNotifier<SyncState> {
         state = state.copyWith(
           lastSummary: saved
               ? 'Đã gửi ${sending.localCode} → ${result.orderCode}.'
-              : 'Lần gửi này đã được thay thế. Hãy tải lại draft.',
+              : 'Lần gửi này đã được thay thế. Hãy tải lại bản nháp.',
         );
       }
 

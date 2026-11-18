@@ -49,7 +49,8 @@ class _QuotePaymentSheetState extends ConsumerState<QuotePaymentSheet> {
               selected: _method == PaymentMethod.prepaid,
               leading: const Icon(Icons.qr_code),
               title: const Text('Trả trước'),
-              subtitle: const Text('Thanh toán đủ để hệ thống phát hành PO.'),
+              subtitle: const Text(
+                  'Thanh toán đủ để hệ thống phát hành đơn thực hiện.'),
               trailing: Icon(_method == PaymentMethod.prepaid
                   ? Icons.radio_button_checked
                   : Icons.radio_button_off),

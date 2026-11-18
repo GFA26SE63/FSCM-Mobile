@@ -32,7 +32,7 @@ class SyncQueueScreen extends ConsumerWidget {
       length: 3,
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('Draft trên máy'),
+          title: const Text('Bản nháp trên máy'),
           actions: [
             IconButton(
               tooltip: 'Tải lại hàng đợi',
@@ -57,9 +57,9 @@ class SyncQueueScreen extends ConsumerWidget {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   const InfoBanner(
-                    text: 'Draft chỉ được gửi khi bạn bấm Gửi. '
+                    text: 'Bản nháp chỉ được gửi khi bạn bấm Gửi. '
                         'Đăng nhập, có mạng trở lại và cập nhật '
-                        'snapshot không tự gửi đơn.',
+                        'dữ liệu đồng bộ không tự gửi đơn.',
                   ),
                   OutlinedButton.icon(
                     onPressed: sync.busy
@@ -71,7 +71,7 @@ class SyncQueueScreen extends ConsumerWidget {
                     label: Text(
                       sync.phase == SyncPhase.pulling
                           ? 'Đang cập nhật dữ liệu...'
-                          : 'Cập nhật snapshot',
+                          : 'Cập nhật dữ liệu đồng bộ',
                     ),
                   ),
                   if (sync.lastError != null)
@@ -138,7 +138,7 @@ class _DraftList extends StatelessWidget {
     if (entries.isEmpty) {
       return const EmptyState(
         icon: Icons.receipt_long_outlined,
-        title: 'Không có draft trong mục này.',
+        title: 'Không có bản nháp trong mục này.',
       );
     }
 
@@ -185,7 +185,7 @@ class _DraftCard extends StatelessWidget {
             'Tạm tính ${Money.format(payload.localFinal)}',
           ),
           if (entry.serverOrderCode.isNotEmpty)
-            Text('Mã server: ${entry.serverOrderCode}'),
+            Text('Mã máy chủ: ${entry.serverOrderCode}'),
           if (entry.status == SyncStatus.synced && entry.finalAmount != null)
             PriceDifferenceCard(
               localAmount: payload.localFinal,

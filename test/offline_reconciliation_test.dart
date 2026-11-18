@@ -130,7 +130,7 @@ void main() {
       matching: find.byType(Scrollable),
     );
     final confirmButton = find.text('Đồng ý điều kiện mới và gửi');
-    final deferButton = find.text('Để sau, giữ draft trên máy');
+    final deferButton = find.text('Để sau, giữ bản nháp trên máy');
 
     // ListView builds lower children lazily; scroll as a user would.
     await tester.scrollUntilVisible(

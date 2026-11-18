@@ -146,7 +146,7 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
           if (retailer == null) {
             return const EmptyState(
               title: 'Không tìm thấy điểm bán',
-              message: 'Cập nhật snapshot rồi mở lại màn đặt hàng.',
+              message: 'Cập nhật dữ liệu đồng bộ rồi mở lại màn đặt hàng.',
             );
           }
 
@@ -155,8 +155,9 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
               !_cachedRetailerIsActive(data, retailer)) {
             return const EmptyState(
               icon: Icons.lock_outline,
-              title: 'Chưa thể chuẩn bị đơn offline',
-              message: 'Theo snapshot hiện có, điểm bán chưa có trạng thái '
+              title: 'Chưa thể chuẩn bị đơn ngoại tuyến',
+              message:
+                  'Theo dữ liệu đồng bộ hiện có, điểm bán chưa có trạng thái '
                   'hoạt động hợp lệ. Kết nối mạng và cập nhật dữ liệu.',
             );
           }
@@ -239,9 +240,9 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
                     ),
                     Text(
                       retailer.creditAllowed
-                          ? 'Kỳ hạn công nợ theo snapshot: '
+                          ? 'Kỳ hạn công nợ theo dữ liệu đồng bộ: '
                               '${retailer.creditTerm} ngày'
-                          : 'Không mua công nợ theo snapshot',
+                          : 'Không mua công nợ theo dữ liệu đồng bộ',
                       style: const TextStyle(
                         color: AppColors.primary,
                         fontWeight: FontWeight.w600,
@@ -254,15 +255,15 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
                 InfoBanner(
                   tone: StatusTone.warning,
                   icon: Icons.cloud_off,
-                  title: 'Đang offline',
+                  title: 'Đang ngoại tuyến',
                   text: isRetailer
                       ? 'Kết nối mạng để kiểm tra giá và gửi đơn.'
                       : 'Giá và khuyến mãi chỉ là tạm tính. '
-                          'Đơn lưu trên máy được backend kiểm tra lại '
+                          'Đơn lưu trên máy được máy chủ kiểm tra lại '
                           'khi nhận.',
                 ),
               InfoBanner(
-                text: 'Snapshot lúc ${_stamp(data.lastSyncAt)}. '
+                text: 'Dữ liệu đồng bộ lúc ${_stamp(data.lastSyncAt)}. '
                     'Giá và khuyến mãi trên giỏ được tính từ dữ liệu '
                     'đã lưu; chưa phải báo giá cuối sau phân bổ.',
               ),
@@ -278,7 +279,7 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
                 text: online
                     ? 'Đang dùng kết quả kiểm tra availability '
                         'cho giới hạn chọn hiện tại.'
-                    : 'Tồn snapshot chỉ là tham khảo, '
+                    : 'Tồn dữ liệu đồng bộ chỉ là tham khảo, '
                         'không phải hàng đã giữ cho điểm bán.',
               ),
               if (!quote.isComplete)
@@ -286,7 +287,7 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
                   tone: StatusTone.warning,
                   text: 'Chưa có giá hiệu lực cho: '
                       '${quote.missingPriceSkus.join(', ')}. '
-                      'Hãy cập nhật snapshot hoặc kiểm tra giá online.',
+                      'Hãy cập nhật dữ liệu đồng bộ hoặc kiểm tra giá trực tuyến.',
                 ),
               TextField(
                 enabled: !_busy,
@@ -302,7 +303,8 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
               if (products.isEmpty)
                 const EmptyState(
                   title: 'Không có sản phẩm phù hợp',
-                  message: 'Kiểm tra từ khóa hoặc cập nhật snapshot sản phẩm.',
+                  message:
+                      'Kiểm tra từ khóa hoặc cập nhật dữ liệu đồng bộ sản phẩm.',
                 )
               else
                 for (final product in products)
@@ -405,7 +407,7 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
             ),
             Text(
               price == null
-                  ? '${product.pack} · Chưa có giá hiệu lực trong snapshot'
+                  ? '${product.pack} · Chưa có giá hiệu lực trong dữ liệu đồng bộ'
                   : '${product.pack} · '
                       '${Money.format(price)}/thùng · dự kiến',
               style: TextStyle(
@@ -601,14 +603,15 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
     if (user.role != UserRole.sales) {
       throw const ApiException(
         kind: ApiErrorKind.forbidden,
-        message: 'Tài khoản không được sử dụng luồng đặt hàng Sales.',
+        message:
+            'Tài khoản không được sử dụng luồng đặt hàng nhân viên bán hàng.',
       );
     }
 
     if (retailer.id.isEmpty) {
       throw const ApiException(
         kind: ApiErrorKind.validation,
-        message: 'Điểm bán thiếu ID máy chủ. Hãy cập nhật snapshot.',
+        message: 'Điểm bán thiếu ID máy chủ. Hãy cập nhật dữ liệu đồng bộ.',
       );
     }
 
@@ -668,7 +671,7 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
     if (!online && user.role == UserRole.retailer) {
       showAppSnack(
         context,
-        'Retailer cần kết nối mạng để gửi đơn.',
+        'Điểm bán cần kết nối mạng để gửi đơn.',
         error: true,
       );
       return;
@@ -679,7 +682,7 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
         !_cachedRetailerIsActive(data, retailer)) {
       showAppSnack(
         context,
-        'Điểm bán chưa hoạt động theo snapshot hiện có.',
+        'Điểm bán chưa hoạt động theo dữ liệu đồng bộ hiện có.',
         error: true,
       );
       return;
@@ -738,7 +741,7 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
           kind: ApiErrorKind.validation,
           message: 'Chưa có giá hiệu lực cho '
               '${quote.missingPriceSkus.join(', ')}. '
-              'Hãy cập nhật snapshot hoặc kiểm tra giá online.',
+              'Hãy cập nhật dữ liệu đồng bộ hoặc kiểm tra giá trực tuyến.',
         );
       }
 
@@ -819,8 +822,8 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
         lines.any((line) => line.productId.isEmpty)) {
       showAppSnack(
         context,
-        'Retailer hoặc sản phẩm thiếu ID máy chủ. '
-        'Hãy cập nhật snapshot.',
+        'Điểm bán hoặc sản phẩm thiếu ID máy chủ. '
+        'Hãy cập nhật dữ liệu đồng bộ.',
         error: true,
       );
       return;
@@ -863,8 +866,8 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
         if (estimate == null || !estimate.isComplete) {
           throw const ApiException(
             kind: ApiErrorKind.validation,
-            message: 'Chưa có bản giá offline đầy đủ để lưu đơn. '
-                'Hãy cập nhật snapshot rồi thử lại.',
+            message: 'Chưa có bản giá ngoại tuyến đầy đủ để lưu đơn. '
+                'Hãy cập nhật dữ liệu đồng bộ rồi thử lại.',
           );
         }
 
@@ -931,8 +934,8 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
           code = order.id;
           message = order.status.isRejectedOrCancelled
               ? 'Đơn ${order.code} bị từ chối: ${order.rejectReason}'
-              : 'Đã tạo SO ${order.code}. '
-                  'Hệ thống đang phân bổ và sẽ gửi báo giá cho Retailer.';
+              : 'Đã tạo đơn bán hàng ${order.code}. '
+                  'Hệ thống đang phân bổ và sẽ gửi báo giá cho điểm bán.';
         } on ApiException catch (error) {
           if (!error.isNetwork || user.role != UserRole.sales) {
             rethrow;
@@ -940,9 +943,9 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
 
           await saveOffline(
             attemptedOnlineRequest == null
-                ? 'Mất kết nối — đã lưu draft trên máy. Mở draft để chủ động gửi lại.'
-                : 'Chưa nhận được kết quả gửi online. Đã giữ nguyên yêu cầu trên máy; '
-                    'mở draft và bấm Gửi để kiểm tra hoặc hoàn tất cùng yêu cầu.',
+                ? 'Mất kết nối — đã lưu bản nháp trên máy. Mở bản nháp để chủ động gửi lại.'
+                : 'Chưa nhận được kết quả gửi trực tuyến. Đã giữ nguyên yêu cầu trên máy; '
+                    'mở bản nháp và bấm Gửi để kiểm tra hoặc hoàn tất cùng yêu cầu.',
           );
         }
       } else {

@@ -43,7 +43,7 @@ class OfflineConditionBuilder {
       final product = products[productId];
 
       if (product == null) {
-        throw _invalid('Snapshot không có sản phẩm $productId.');
+        throw _invalid('Dữ liệu đồng bộ không có sản phẩm $productId.');
       }
 
       final price = snapshot.priceForProduct(productId, at);
@@ -82,7 +82,7 @@ class OfflineConditionBuilder {
 
           if (category == null) {
             throw _invalid(
-              'Snapshot thiếu dữ liệu cây danh mục để xác định MLOR.',
+              'Dữ liệu đồng bộ thiếu dữ liệu cây danh mục để xác định hạn sử dụng tối thiểu.',
             );
           }
 
@@ -119,7 +119,7 @@ class OfflineConditionBuilder {
             effectiveFrom == null ||
             at.isBefore(effectiveFrom)) {
           throw _invalid(
-            'Snapshot chưa có cấu hình MLOR mặc định hợp lệ.',
+            'Dữ liệu đồng bộ chưa có cấu hình hạn sử dụng tối thiểu mặc định hợp lệ.',
           );
         }
 
@@ -138,7 +138,7 @@ class OfflineConditionBuilder {
 
       if (!condition.isValid) {
         throw _invalid(
-          'Điều kiện giá/MLOR của ${asStr(product['sku'])} '
+          'Điều kiện giá/hạn sử dụng tối thiểu của ${asStr(product['sku'])} '
           'không hợp lệ.',
         );
       }
@@ -168,7 +168,7 @@ class OfflineConditionBuilder {
     final end = asDate(row['effectiveTo']);
 
     if (start == null || (row['effectiveTo'] != null && end == null)) {
-      throw _invalid('Thời gian hiệu lực MLOR không hợp lệ.');
+      throw _invalid('Thời gian hiệu lực yêu cầu hạn sử dụng không hợp lệ.');
     }
 
     return !at.isBefore(start) && (end == null || at.isBefore(end));
@@ -181,7 +181,7 @@ class OfflineConditionBuilder {
     final value = json[key];
 
     if (value is! List || value.any((item) => item is! Map)) {
-      throw _invalid('Snapshot thiếu hoặc sai dữ liệu $key.');
+      throw _invalid('Dữ liệu đồng bộ thiếu hoặc sai dữ liệu $key.');
     }
 
     return value.map((item) => Map<String, dynamic>.from(item as Map)).toList();
@@ -189,6 +189,6 @@ class OfflineConditionBuilder {
 
   static ApiException _invalid(String detail) => ApiException(
         kind: ApiErrorKind.validation,
-        message: '$detail Hãy cập nhật snapshot trước khi lưu draft.',
+        message: '$detail Hãy cập nhật dữ liệu đồng bộ trước khi lưu bản nháp.',
       );
 }

@@ -136,7 +136,7 @@ class OfflineOrderDao {
       if (!SyncQueueLogic.canEdit(current)) {
         throw const ApiException(
           kind: ApiErrorKind.conflict,
-          message: 'Draft đã bắt đầu gửi nên không thể sửa nội dung.',
+          message: 'Bản nháp đã bắt đầu gửi nên không thể sửa nội dung.',
         );
       }
 
@@ -150,7 +150,7 @@ class OfflineOrderDao {
           jsonEncode(normalizedOriginal.toJson())) {
         throw const ApiException(
           kind: ApiErrorKind.conflict,
-          message: 'Draft đã thay đổi. Hãy đóng màn sửa và mở lại.',
+          message: 'Bản nháp đã thay đổi. Hãy đóng màn sửa và mở lại.',
         );
       }
 
@@ -160,7 +160,7 @@ class OfflineOrderDao {
           !replacement.createdAt.isAtSameMomentAs(current.payload.createdAt)) {
         throw const ApiException(
           kind: ApiErrorKind.validation,
-          message: 'Không được thay định danh hoặc điểm bán của draft.',
+          message: 'Không được thay định danh hoặc điểm bán của bản nháp.',
         );
       }
 
@@ -200,7 +200,8 @@ class OfflineOrderDao {
       if (!SyncQueueLogic.canEdit(current)) {
         throw const ApiException(
           kind: ApiErrorKind.conflict,
-          message: 'Draft đã bắt đầu gửi. Giữ lại để đối chiếu hoặc gửi lại.',
+          message:
+              'Bản nháp đã bắt đầu gửi. Giữ lại để đối chiếu hoặc gửi lại.',
         );
       }
 
@@ -246,7 +247,7 @@ class OfflineOrderDao {
       } else if (!SyncQueueLogic.canSend(current, now)) {
         throw const ApiException(
           kind: ApiErrorKind.conflict,
-          message: 'Draft đang gửi hoặc đã có kết quả. Hãy tải lại.',
+          message: 'Bản nháp đang gửi hoặc đã có kết quả. Hãy tải lại.',
         );
       }
 
