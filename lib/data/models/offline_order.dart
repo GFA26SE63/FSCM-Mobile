@@ -131,7 +131,7 @@ class OfflineOrderPayload {
           online.lines.any((line) => quantities[line.productId] != line.qty)) {
         throw const ApiException(
           kind: ApiErrorKind.validation,
-          message: 'Yêu cầu online đang chờ kết quả đã bị thay đổi.',
+          message: 'Yêu cầu trực tuyến đang chờ kết quả đã bị thay đổi.',
         );
       }
       return online.toJson();
@@ -139,7 +139,7 @@ class OfflineOrderPayload {
     if (!hasCompleteExpectedConditions) {
       throw const ApiException(
         kind: ApiErrorKind.validation,
-        message: 'Draft thiếu điều kiện giá/MLOR gốc. '
+        message: 'Bản nháp thiếu điều kiện giá/hạn sử dụng tối thiểu gốc. '
             'Không thể gửi bằng dữ liệu điều kiện mới thay thế.',
       );
     }

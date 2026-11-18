@@ -36,7 +36,7 @@ class ProductDetailScreen extends StatelessWidget {
                 Text('Đơn vị: ${product.pack}'),
                 Text('Hạn dùng: ${product.shelfLifeDays} ngày'),
                 Text(unitPrice == null
-                    ? 'Chưa có giá hiệu lực trong snapshot'
+                    ? 'Chưa có giá hiệu lực trong dữ liệu đồng bộ'
                     : '${Money.format(unitPrice!)} / ${product.pack} · dự kiến'),
               ])),
           if (availability != null) ...[
@@ -48,7 +48,7 @@ class ProductDetailScreen extends StatelessWidget {
             const Padding(
                 padding: EdgeInsets.only(bottom: 16),
                 child: Text(
-                    'Tồn được kiểm tra cho cửa hàng đang đặt đơn. Hệ thống tự chọn kho và batch khi gửi đơn; số lượng có thể thay đổi.')),
+                    'Tồn được kiểm tra cho cửa hàng đang đặt đơn. Hệ thống tự chọn kho và lô hàng khi gửi đơn; số lượng có thể thay đổi.')),
           ] else
             const Text(
                 'Kết nối mạng tại màn đặt hàng để kiểm tra tồn đáp ứng điều kiện giao cho cửa hàng.'),

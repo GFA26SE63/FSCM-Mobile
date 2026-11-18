@@ -10,7 +10,8 @@ enum OrderStatus {
   outOfStock('OutOfStock', 'Thiếu hàng', StatusTone.danger),
   allocationConflict('AllocationConflict', 'Xung đột tồn', StatusTone.warning),
   paymentPending('PaymentPending', 'Chờ thanh toán', StatusTone.warning),
-  convertedToPo('ConvertedToPo', 'Đã tạo PO', StatusTone.primary),
+  convertedToPo(
+      'ConvertedToPo', 'Đã phát hành đơn thực hiện', StatusTone.primary),
   picking('Picking', 'Đang soạn hàng', StatusTone.purple),
   issued('Issued', 'Đã xuất kho', StatusTone.primary),
   delivering('Delivering', 'Đang giao', StatusTone.purple),
@@ -127,8 +128,8 @@ enum ReceivableStatus {
 }
 
 enum PickingStatus {
-  pending('Pending', 'Chưa pick', StatusTone.info),
-  picking('InProgress', 'Đang pick', StatusTone.purple),
+  pending('Pending', 'Chưa soạn hàng', StatusTone.info),
+  picking('InProgress', 'Đang soạn hàng', StatusTone.purple),
   completed('Completed', 'Đã soạn xong', StatusTone.success),
   exception('Exception', 'Có ngoại lệ', StatusTone.danger);
 

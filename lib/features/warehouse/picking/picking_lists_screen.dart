@@ -28,7 +28,7 @@ class _PickingListsScreenState extends ConsumerState<PickingListsScreen> {
     final value = ref.watch(pickingListsProvider);
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.shippedOnly ? 'Đã xuất kho' : 'Picking list'),
+        title: Text(widget.shippedOnly ? 'Đã xuất kho' : 'Phiếu soạn hàng'),
         actions: widget.shippedOnly
             ? null
             : const <Widget>[
@@ -44,8 +44,10 @@ class _PickingListsScreenState extends ConsumerState<PickingListsScreen> {
             ChipFilterBar<PickingStatus?>(
               options: const <ChipOption<PickingStatus?>>[
                 ChipOption<PickingStatus?>(null, 'Tất cả'),
-                ChipOption<PickingStatus?>(PickingStatus.pending, 'Chưa pick'),
-                ChipOption<PickingStatus?>(PickingStatus.picking, 'Đang pick'),
+                ChipOption<PickingStatus?>(
+                    PickingStatus.pending, 'Chưa soạn hàng'),
+                ChipOption<PickingStatus?>(
+                    PickingStatus.picking, 'Đang soạn hàng'),
                 ChipOption<PickingStatus?>(
                     PickingStatus.completed, 'Đã soạn xong'),
                 ChipOption<PickingStatus?>(PickingStatus.exception, 'Ngoại lệ'),
@@ -70,7 +72,7 @@ class _PickingListsScreenState extends ConsumerState<PickingListsScreen> {
                   child: list.isEmpty
                       ? ListView(children: const <Widget>[
                           SizedBox(height: 80),
-                          EmptyState(title: 'Không có picking list phù hợp.')
+                          EmptyState(title: 'Không có phiếu soạn hàng phù hợp.')
                         ])
                       : ListView(
                           padding: const EdgeInsets.all(16),

@@ -75,7 +75,7 @@ class RetailerOrdersController
       state = const AsyncError(
           ApiException(
               kind: ApiErrorKind.forbidden,
-              message: 'Cần đăng nhập Retailer để xem đơn của cửa hàng.'),
+              message: 'Cần đăng nhập điểm bán để xem đơn của cửa hàng.'),
           StackTrace.empty);
       return;
     }

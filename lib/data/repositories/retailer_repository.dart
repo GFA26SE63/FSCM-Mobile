@@ -47,7 +47,7 @@ final retailerOrderEligibilityProvider = FutureProvider.autoDispose
   if (user == null || user.role != UserRole.sales) {
     throw const ApiException(
       kind: ApiErrorKind.forbidden,
-      message: 'Chức năng kiểm tra này dành cho Sales.',
+      message: 'Chức năng kiểm tra này dành cho nhân viên bán hàng.',
     );
   }
 

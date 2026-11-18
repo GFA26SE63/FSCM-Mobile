@@ -60,7 +60,7 @@ class _SalesScanScreenState extends ConsumerState<SalesScanScreen> {
       if (retailer == null) {
         showAppSnack(
           context,
-          'Điểm bán $code không có trong snapshot hiện tại. '
+          'Điểm bán $code không có trong dữ liệu đồng bộ hiện tại. '
           'Hãy cập nhật danh sách điểm bán phụ trách rồi thử lại.',
           error: true,
         );

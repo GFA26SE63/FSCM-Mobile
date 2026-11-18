@@ -61,7 +61,7 @@ void main() {
             home: ComplaintFormScreen(orderCode: 'DH-001024'))));
     await tester.pumpAndSettle();
     expect(find.text('DH-001024'), findsOneWidget);
-    await tester.tap(find.text('Sản phẩm · batch · phần giao'));
+    await tester.tap(find.text('Sản phẩm · lô hàng · phần giao'));
     await tester.pumpAndSettle();
     expect(find.textContaining('SKU001 · BATCH-1 · PH-001'), findsOneWidget);
     expect(tester.takeException(), isNull);

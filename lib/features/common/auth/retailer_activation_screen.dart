@@ -145,7 +145,7 @@ class _RetailerActivationScreenState
             style: Theme.of(context).textTheme.headlineSmall),
         const SizedBox(height: 8),
         Text(_step == 0
-            ? 'Nhập số điện thoại đã được liên kết với tài khoản Retailer.'
+            ? 'Nhập số điện thoại đã được liên kết với tài khoản điểm bán.'
             : _step == 1
                 ? 'Kiểm tra email đã đăng ký. OTP có hiệu lực 5 phút.'
                 : 'Tạo mật khẩu để hoàn tất kích hoạt.'),

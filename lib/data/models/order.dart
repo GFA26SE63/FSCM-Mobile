@@ -275,7 +275,7 @@ class Order {
       changeReason: asStr(
         j['changeReason'],
         asBool(j['hasOfflineDifference'])
-            ? 'Giá hệ thống khác với bản tạm tính khi lưu offline.'
+            ? 'Giá hệ thống khác với bản tạm tính khi lưu ngoại tuyến.'
             : '',
       ),
       localFinal: (j['localFinal'] ?? j['offlineEstimatedAmount']) == null

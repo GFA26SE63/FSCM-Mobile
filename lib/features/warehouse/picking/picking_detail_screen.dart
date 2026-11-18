@@ -65,7 +65,7 @@ class PickingDetailScreen extends ConsumerWidget {
               InfoBanner(
                 icon: Icons.check_circle_outline,
                 text:
-                    'Đã soạn xong lúc ${AppDates.timeDay(p.shippedAt)}. Portal sẽ tạo shipment để xác nhận xuất kho và điều phối giao.',
+                    'Đã soạn xong lúc ${AppDates.timeDay(p.shippedAt)}. Portal sẽ tạo phiếu giao hàng để xác nhận xuất kho và điều phối giao.',
               )
             else ...<Widget>[
               FilledButton.icon(
@@ -76,7 +76,7 @@ class PickingDetailScreen extends ConsumerWidget {
               const SizedBox(height: 6),
               Text(
                 p.allDone
-                    ? 'Bước này chỉ đóng phiếu soạn; tồn thực tế chỉ trừ khi shipment được xác nhận xuất.'
+                    ? 'Bước này chỉ đóng phiếu soạn; tồn thực tế chỉ trừ khi phiếu giao hàng được xác nhận xuất.'
                     : 'Quét đủ tất cả dòng để hoàn tất phiếu soạn.',
                 textAlign: TextAlign.center,
                 style:
@@ -95,7 +95,7 @@ class PickingDetailScreen extends ConsumerWidget {
       context,
       title: 'Hoàn tất soạn hàng ${p.code}?',
       message:
-          'Hệ thống sẽ đóng phiếu soạn và tạo shipment sẵn sàng xuất. Tồn chưa bị trừ ở bước này.',
+          'Hệ thống sẽ đóng phiếu soạn và tạo phiếu giao hàng sẵn sàng xuất. Tồn chưa bị trừ ở bước này.',
       confirmLabel: 'Hoàn tất',
     );
     if (!ok) return;
@@ -133,14 +133,14 @@ class _LineCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 4),
-          Text('Batch ${l.batchCode}',
+          Text('Lô hàng ${l.batchCode}',
               style: const TextStyle(color: AppColors.textMuted)),
           Text(
               'HSD ${AppDates.date(l.expiry)}${l.location.isEmpty ? '' : ' · Vị trí ${l.location}'}'),
           Text('Cần lấy: ${l.need} thùng (đã lấy ${l.picked})',
               style: const TextStyle(fontWeight: FontWeight.w700)),
           if (l.suggestedLabel.isNotEmpty)
-            Text('Tem gợi ý (FEFO): ${l.suggestedLabel}',
+            Text('Tem gợi ý (ưu tiên hết hạn trước): ${l.suggestedLabel}',
                 style: const TextStyle(
                     color: AppColors.primary, fontWeight: FontWeight.w600)),
           if (l.outLabel.isNotEmpty) Text('Tem mang đi: ${l.outLabel}'),

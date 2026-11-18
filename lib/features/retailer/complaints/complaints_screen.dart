@@ -114,7 +114,7 @@ class ComplaintsScreen extends ConsumerWidget {
                     Text('${c.orderCode} · ${c.sku} ${c.name}'),
                     Text('${c.typeText} · Đề nghị: ${c.settlementText}'),
                     if (c.approvedSettlementMethod.isNotEmpty)
-                      Text('Admin duyệt: ${c.approvedSettlementText}'),
+                      Text('Quản trị viên duyệt: ${c.approvedSettlementText}'),
                     Text(
                       'Yêu cầu ${c.requestedQuantity == 0 ? c.shortfall : c.requestedQuantity} thùng · duyệt ${c.approvedQuantity ?? '—'} · xử lý ${c.handledQuantity ?? '—'}',
                       style: const TextStyle(

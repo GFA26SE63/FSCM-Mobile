@@ -83,7 +83,7 @@ class OfflineDraftActions extends ConsumerWidget {
           const Padding(
             padding: EdgeInsets.only(top: 6),
             child: Text(
-              'Đang offline. Có mạng trở lại vẫn cần bấm Gửi.',
+              'Đang ngoại tuyến. Có mạng trở lại vẫn cần bấm Gửi.',
             ),
           ),
         if (entry.status == SyncStatus.syncing && !sendable)
@@ -111,12 +111,12 @@ class OfflineDraftActions extends ConsumerWidget {
                         );
                       },
                 icon: const Icon(Icons.edit_outlined),
-                label: const Text('Sửa draft'),
+                label: const Text('Sửa bản nháp'),
               ),
               TextButton.icon(
                 onPressed: sync.busy ? null : () => _delete(context, ref),
                 icon: const Icon(Icons.delete_outline),
-                label: const Text('Xóa draft'),
+                label: const Text('Xóa bản nháp'),
               ),
             ],
           )
@@ -124,7 +124,7 @@ class OfflineDraftActions extends ConsumerWidget {
           const Padding(
             padding: EdgeInsets.only(top: 6),
             child: Text(
-              'Draft đã bắt đầu gửi. Nội dung được giữ nguyên '
+              'Bản nháp đã bắt đầu gửi. Nội dung được giữ nguyên '
               'để gửi lại bằng cùng key.',
             ),
           ),
@@ -153,8 +153,8 @@ class OfflineDraftActions extends ConsumerWidget {
         : await confirmDialog(
             context,
             title: 'Gửi ${entry.localCode}?',
-            message: 'Gửi riêng draft này lên hệ thống. '
-                'Backend sẽ kiểm tra lại giá, MLOR và phạm vi điểm bán.',
+            message: 'Gửi riêng bản nháp này lên hệ thống. '
+                'Máy chủ sẽ kiểm tra lại giá, hạn sử dụng tối thiểu và phạm vi điểm bán.',
             confirmLabel: 'Gửi',
           );
 
@@ -176,10 +176,10 @@ class OfflineDraftActions extends ConsumerWidget {
     showAppSnack(
       context,
       sent
-          ? state.lastSummary ?? 'Đã gửi draft.'
+          ? state.lastSummary ?? 'Đã gửi bản nháp.'
           : state.lastError ??
               state.lastSummary ??
-              'Chưa gửi được. Draft vẫn được giữ.',
+              'Chưa gửi được. Bản nháp vẫn được giữ.',
       error: !sent && state.lastError != null,
     );
   }
@@ -192,9 +192,9 @@ class OfflineDraftActions extends ConsumerWidget {
 
     final confirmed = await confirmDialog(
       context,
-      title: 'Xóa draft?',
+      title: 'Xóa bản nháp?',
       message: 'Xóa ${entry.localCode} khỏi máy. '
-          'Chỉ draft chưa từng gửi mới được xóa.',
+          'Chỉ bản nháp chưa từng gửi mới được xóa.',
       confirmLabel: 'Xóa',
     );
 
@@ -210,7 +210,7 @@ class OfflineDraftActions extends ConsumerWidget {
       }
 
       ref.read(dataVersionProvider.notifier).state++;
-      showAppSnack(context, 'Đã xóa draft.');
+      showAppSnack(context, 'Đã xóa bản nháp.');
       onDeleted?.call();
     } catch (error) {
       if (context.mounted) {
