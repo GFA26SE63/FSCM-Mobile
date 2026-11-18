@@ -86,12 +86,12 @@ class _RetailerQuotePanelState extends ConsumerState<RetailerQuotePanel> {
                 InfoBanner(
                     tone: StatusTone.warning,
                     text: quote.status == 'Accepted'
-                        ? 'Báo giá đã được chấp nhận. Tải lại đơn để xem thanh toán và PO.'
+                        ? 'Báo giá đã được chấp nhận. Tải lại đơn để xem thanh toán và đơn thực hiện.'
                         : quote.status == 'Rejected'
                             ? 'Bạn đã từ chối báo giá này.'
                             : 'Báo giá đã hết hạn hoặc không còn chờ quyết định. Hãy tải lại đơn.'),
               if (quote.purchaseOrderCode != null)
-                Text('PO: ${quote.purchaseOrderCode}'),
+                Text('Đơn thực hiện (PO): ${quote.purchaseOrderCode}'),
               if (quote.rejectionReason?.isNotEmpty == true)
                 Text(quote.rejectionReason!),
               if (_error != null)

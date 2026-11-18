@@ -30,7 +30,7 @@ class WarehouseAvailability {
         'BelowMlor' => 'Hạn dùng khi giao không đạt yêu cầu',
         'MissingMlor' => 'Chưa có điều kiện hạn dùng',
         'NoIssuableStock' => 'Không còn tồn có thể cấp',
-        _ => 'Không có batch đủ điều kiện giao',
+        _ => 'Không có lô hàng đủ điều kiện giao',
       };
 }
 

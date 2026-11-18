@@ -13,7 +13,7 @@ class OnlineChip extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final online = ref.watch(networkMonitorProvider).online;
     return StatusChip(
-      label: online ? 'Đang online' : 'Đang offline',
+      label: online ? 'Đang trực tuyến' : 'Đang ngoại tuyến',
       tone: online ? StatusTone.success : StatusTone.warning,
     );
   }

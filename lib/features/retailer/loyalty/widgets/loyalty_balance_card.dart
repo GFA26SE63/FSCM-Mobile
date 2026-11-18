@@ -100,7 +100,7 @@ class LoyaltyProgramCard extends StatelessWidget {
                 ? 'Không đặt hạn'
                 : AppDates.timeDay(account.pointsExpireAt)),
         const SizedBox(height: 8),
-        const Text('Điểm chỉ được cộng khi đơn Completed: nhận đủ hàng, '
+        const Text('Điểm chỉ được cộng khi đơn Hoàn tất: nhận đủ hàng, '
             'thanh toán đủ và không còn khiếu nại đang xử lý. '
             'Số điểm làm tròn xuống theo máy chủ.'),
         if (program != null)

@@ -36,7 +36,7 @@ class _PromotionsScreenState extends ConsumerState<PromotionsScreen> {
           if (!data.hasSnapshot) {
             return const EmptyState(
               title: 'Chưa có khuyến mãi trên máy',
-              message: 'Kết nối mạng và cập nhật catalog.',
+              message: 'Kết nối mạng và cập nhật danh mục sản phẩm.',
             );
           }
 
@@ -54,9 +54,10 @@ class _PromotionsScreenState extends ConsumerState<PromotionsScreen> {
             padding: const EdgeInsets.all(16),
             children: [
               InfoBanner(
-                text: 'Snapshot ${AppDates.timeDay(data.lastSyncAt)}.\n'
+                text:
+                    'Dữ liệu đồng bộ lúc ${AppDates.timeDay(data.lastSyncAt)}.\n'
                     'Mỗi dòng nhận tối đa một khuyến mãi đủ điều kiện. '
-                    'Giá được backend kiểm tra lại khi gửi đơn.',
+                    'Giá được máy chủ kiểm tra lại khi gửi đơn.',
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
@@ -68,7 +69,7 @@ class _PromotionsScreenState extends ConsumerState<PromotionsScreen> {
                 items: [
                   const DropdownMenuItem(
                     value: '',
-                    child: Text('Tất cả chương trình trong snapshot'),
+                    child: Text('Tất cả chương trình trong dữ liệu đồng bộ'),
                   ),
                   for (final retailer in data.retailers)
                     DropdownMenuItem(
@@ -123,7 +124,7 @@ class _PromotionsScreenState extends ConsumerState<PromotionsScreen> {
                           ),
                           if (productNames.isEmpty)
                             const Text(
-                              'Không có SKU phù hợp trong catalog hiện tại.',
+                              'Không có SKU phù hợp trong danh mục sản phẩm hiện tại.',
                             ),
                           for (final name in productNames) Text('• $name'),
                           const SizedBox(height: 8),

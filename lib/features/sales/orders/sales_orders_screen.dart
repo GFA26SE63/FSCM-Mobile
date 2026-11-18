@@ -98,7 +98,7 @@ class _SalesOrdersScreenState extends ConsumerState<SalesOrdersScreen> {
               ChipOption<_OrderFilter>(_OrderFilter.inProgress, 'Đang xử lý'),
               ChipOption<_OrderFilter>(_OrderFilter.delivered, 'Đã giao'),
               ChipOption<_OrderFilter>(_OrderFilter.rejected, 'Từ chối / hủy'),
-              ChipOption<_OrderFilter>(_OrderFilter.offline, 'Đơn offline'),
+              ChipOption<_OrderFilter>(_OrderFilter.offline, 'Đơn ngoại tuyến'),
             ],
             selected: _filter,
             onSelected: (v) => setState(() => _filter = v),
@@ -125,7 +125,7 @@ class _SalesOrdersScreenState extends ConsumerState<SalesOrdersScreen> {
                                 tone: StatusTone.warning,
                                 icon: Icons.cloud_off,
                                 text:
-                                    'Đang offline - chỉ hiển thị các đơn lưu trên máy.',
+                                    'Đang ngoại tuyến - chỉ hiển thị các đơn lưu trên máy.',
                               );
                             }
                             final o = list[i - (result.offlineOnly ? 1 : 0)];

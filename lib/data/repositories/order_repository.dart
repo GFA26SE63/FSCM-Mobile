@@ -124,7 +124,7 @@ class OrderRepository {
     if (salesOnly && !_isSales) {
       throw const ApiException(
         kind: ApiErrorKind.forbidden,
-        message: 'Chỉ Sales được quản lý draft offline.',
+        message: 'Chỉ nhân viên bán hàng được quản lý bản nháp ngoại tuyến.',
       );
     }
   }
@@ -258,14 +258,14 @@ class OrderRepository {
     if (lines.map((line) => line.productId).toSet().length != lines.length) {
       throw const ApiException(
         kind: ApiErrorKind.validation,
-        message: 'Mỗi sản phẩm chỉ được có một dòng trong draft.',
+        message: 'Mỗi sản phẩm chỉ được có một dòng trong bản nháp.',
       );
     }
 
     if (!estimate.isComplete || estimate.lines.isEmpty) {
       throw const ApiException(
         kind: ApiErrorKind.validation,
-        message: 'Chưa đủ giá để lưu bản tạm tính offline.',
+        message: 'Chưa đủ giá để lưu bản tạm tính ngoại tuyến.',
       );
     }
 
@@ -299,7 +299,8 @@ class OrderRepository {
     if (snapshot == null && pendingOnlineRequest == null) {
       throw const ApiException(
         kind: ApiErrorKind.validation,
-        message: 'Chưa có snapshot để lưu điều kiện giá/MLOR.',
+        message:
+            'Chưa có dữ liệu đồng bộ để lưu điều kiện giá/hạn sử dụng tối thiểu.',
       );
     }
 

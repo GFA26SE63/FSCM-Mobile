@@ -18,7 +18,7 @@ class SalesRankingContent extends StatelessWidget {
     final mine = report.entries.where((entry) => entry.salesUserId == userId);
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       ReportHeader(report: report),
-      const SectionTitle('Bảng xếp hạng Sales'),
+      const SectionTitle('Bảng xếp hạng nhân viên bán hàng'),
       const Text('Theo doanh thu ghi nhận sau khuyến mãi và điều chỉnh.'),
       if (mine.isEmpty)
         const AppCard(

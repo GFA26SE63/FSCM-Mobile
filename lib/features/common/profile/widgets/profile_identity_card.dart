@@ -82,7 +82,7 @@ class ProfileIdentityCard extends StatelessWidget {
       case UserRole.sales:
         return <Widget>[
           _ScopeSection(
-            title: 'Nhóm Sales',
+            title: 'Nhóm bán hàng',
             labels: user.salesGroupLabels,
             legacyCode: user.salesGroup,
           ),
