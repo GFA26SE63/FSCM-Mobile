@@ -219,9 +219,10 @@ enum TransferStatus {
 enum GiftRequestStatus {
   requested('Pending', 'Chờ duyệt', StatusTone.info),
   approved('Approved', 'Đã duyệt', StatusTone.primary),
-  delivered('Delivered', 'Đang giao quà', StatusTone.purple),
+  delivered('Delivered', 'Đã giao quà', StatusTone.purple),
   done('Completed', 'Hoàn tất', StatusTone.success),
-  rejected('Rejected', 'Bị từ chối', StatusTone.danger);
+  rejected('Rejected', 'Bị từ chối', StatusTone.danger),
+  unknown('Unknown', 'Chưa rõ trạng thái', StatusTone.info);
 
   const GiftRequestStatus(this.code, this.label, this.tone);
   final String code;
@@ -233,7 +234,7 @@ enum GiftRequestStatus {
     for (final s in GiftRequestStatus.values) {
       if (s.code.toLowerCase() == c) return s;
     }
-    return GiftRequestStatus.requested;
+    return GiftRequestStatus.unknown;
   }
 }
 
