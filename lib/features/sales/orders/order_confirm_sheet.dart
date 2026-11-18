@@ -56,7 +56,8 @@ class OrderConfirmSheet extends StatelessWidget {
                   : 'Giá dự kiến được máy chủ tính lại cho giỏ hàng này. '
                       'Chưa phải báo giá cuối sau phân bổ.',
             ),
-            if (snapshotAt != null) Text('Dữ liệu đồng bộ lúc: ${_stamp(snapshotAt!)}'),
+            if (snapshotAt != null)
+              Text('Dữ liệu đồng bộ lúc: ${_stamp(snapshotAt!)}'),
             if (estimatedAt != null)
               Text('Tính trên máy lúc: ${_stamp(estimatedAt!)}'),
             const SizedBox(height: 10),

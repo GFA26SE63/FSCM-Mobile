@@ -179,8 +179,7 @@ class _DeclareRetailerScreenState extends ConsumerState<DeclareRetailerScreen> {
       return;
     }
     if (submit && _mlors.isEmpty) {
-      showAppSnack(
-          context,
+      showAppSnack(context,
           'Cần ít nhất một yêu cầu hạn sử dụng (danh mục hoặc SKU) để gửi duyệt.',
           error: true);
       return;
@@ -617,7 +616,9 @@ class _MlorEditorState extends ConsumerState<_MlorEditor> {
               ),
             ],
             const SizedBox(height: 16),
-            FilledButton(onPressed: _confirm, child: const Text('Thêm yêu cầu hạn sử dụng')),
+            FilledButton(
+                onPressed: _confirm,
+                child: const Text('Thêm yêu cầu hạn sử dụng')),
           ],
         ),
       ),

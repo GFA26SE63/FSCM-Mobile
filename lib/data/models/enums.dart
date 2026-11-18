@@ -10,7 +10,8 @@ enum OrderStatus {
   outOfStock('OutOfStock', 'Thiếu hàng', StatusTone.danger),
   allocationConflict('AllocationConflict', 'Xung đột tồn', StatusTone.warning),
   paymentPending('PaymentPending', 'Chờ thanh toán', StatusTone.warning),
-  convertedToPo('ConvertedToPo', 'Đã phát hành đơn thực hiện', StatusTone.primary),
+  convertedToPo(
+      'ConvertedToPo', 'Đã phát hành đơn thực hiện', StatusTone.primary),
   picking('Picking', 'Đang soạn hàng', StatusTone.purple),
   issued('Issued', 'Đã xuất kho', StatusTone.primary),
   delivering('Delivering', 'Đang giao', StatusTone.purple),
