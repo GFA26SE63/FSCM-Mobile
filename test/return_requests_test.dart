@@ -64,7 +64,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Trả hàng').last);
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Sản phẩm · batch · phần giao'));
+    await tester.tap(find.text('Sản phẩm · lô hàng · phần giao'));
     await tester.pumpAndSettle();
     await tester.tap(find.textContaining('SKU001 · BATCH-1 · PH-1').last);
     await tester.pumpAndSettle();
