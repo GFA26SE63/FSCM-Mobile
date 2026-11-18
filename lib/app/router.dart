@@ -271,7 +271,8 @@ List<RouteBase> _warehouseRoutes() => <RouteBase>[
           path: '/wk/document/:id',
           builder: (c, s) => WarehouseDocumentScreen(
               id: s.pathParameters['id']!,
-              mode: s.uri.queryParameters['mode'])),
+              mode: s.uri.queryParameters['mode'],
+              autoScan: s.uri.queryParameters['scan'] == '1')),
       StatefulShellRoute.indexedStack(
         builder: (context, state, shell) =>
             WarehouseShell(navigationShell: shell),
