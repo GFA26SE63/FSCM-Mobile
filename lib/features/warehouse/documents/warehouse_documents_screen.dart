@@ -211,7 +211,8 @@ class WarehouseDocumentScreen extends ConsumerStatefulWidget {
   const WarehouseDocumentScreen({super.key, required this.id, this.mode});
   final String? mode;
   final String id;
-  @override ConsumerState<WarehouseDocumentScreen> createState() =>
+  @override
+  ConsumerState<WarehouseDocumentScreen> createState() =>
       _WarehouseDocumentScreenState();
 }
 
@@ -361,7 +362,7 @@ class _WarehouseDocumentScreenState
                       icon: const Icon(Icons.qr_code_scanner),
                       label: Text(w.factory
                           ? 'Quét pallet thực tế'
-                          : 'Quét thùng thực tế')),
+                          : 'Quét carton thực tế')),
                 if (camera && !busy)
                   QrScanView(
                       allowManual: false,
