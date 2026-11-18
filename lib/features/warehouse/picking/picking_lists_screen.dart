@@ -44,8 +44,10 @@ class _PickingListsScreenState extends ConsumerState<PickingListsScreen> {
             ChipFilterBar<PickingStatus?>(
               options: const <ChipOption<PickingStatus?>>[
                 ChipOption<PickingStatus?>(null, 'Tất cả'),
-                ChipOption<PickingStatus?>(PickingStatus.pending, 'Chưa soạn hàng'),
-                ChipOption<PickingStatus?>(PickingStatus.picking, 'Đang soạn hàng'),
+                ChipOption<PickingStatus?>(
+                    PickingStatus.pending, 'Chưa soạn hàng'),
+                ChipOption<PickingStatus?>(
+                    PickingStatus.picking, 'Đang soạn hàng'),
                 ChipOption<PickingStatus?>(
                     PickingStatus.completed, 'Đã soạn xong'),
                 ChipOption<PickingStatus?>(PickingStatus.exception, 'Ngoại lệ'),

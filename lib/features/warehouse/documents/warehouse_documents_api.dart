@@ -29,6 +29,11 @@ class WarehouseWork {
   String get id => asStr(document['id']);
   int get version => asInt(document['version']);
   bool get factory => document['reason'] == 'Factory';
+  bool get pending => const ['Open', 'Prepared'].contains(document['status']);
+  bool get historic =>
+      document['kind'] != 'Request' &&
+      document['kind'] != 'Picking' &&
+      !pending;
 }
 
 final warehouseDocumentsApiProvider = Provider((ref) {

@@ -37,7 +37,7 @@ class WarehouseShell extends StatelessWidget {
           ),
           NavigationDestination(
             icon: Icon(Icons.qr_code_scanner),
-            label: 'Quét QR',
+            label: 'Quét theo phiếu',
           ),
           NavigationDestination(
             icon: Icon(Icons.person_outline),
