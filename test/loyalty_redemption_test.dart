@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:fscm_mobile/core/auth/session.dart';
 import 'package:fscm_mobile/core/auth/user_role.dart';
 import 'package:fscm_mobile/core/utils/status_tone.dart';
+import 'package:fscm_mobile/core/config/env.dart';
 import 'package:fscm_mobile/core/network/api_client.dart';
 import 'package:fscm_mobile/core/network/api_exception.dart';
 import 'package:fscm_mobile/core/network/api_transport.dart';
@@ -258,6 +259,17 @@ void main() {
       Map<String, dynamic>? accepted;
       var posts = 0;
       final transport = _Transport((request) {
+        // The history list is read through GraphQL (also a POST); only the
+        // REST POST is the redemption itself.
+        if (request.path == Env.effectiveGraphQlEndpoint) {
+          return ApiResponse(statusCode: 200, data: {
+            'data': {
+              'entities': {
+                'redemptionReads': accepted == null ? [] : [accepted],
+              },
+            },
+          });
+        }
         if (request.method == 'POST') {
           posts++;
           expect(request.body, {'rewardId': 'gift-1', 'quantity': 2});
@@ -305,8 +317,8 @@ void main() {
       await tester.tap(find.text('Kiểm tra và thử lại'));
       await tester.pumpAndSettle();
       expect(posts, acceptedBeforeTimeout ? 1 : 2);
-      for (final request
-          in transport.requests.where((r) => r.method == 'POST')) {
+      for (final request in transport.requests.where((r) =>
+          r.method == 'POST' && r.path != Env.effectiveGraphQlEndpoint)) {
         expect(request.headers['Idempotency-Key'], saved.operationKey);
         expect(request.body, {'rewardId': 'gift-1', 'quantity': 2});
       }

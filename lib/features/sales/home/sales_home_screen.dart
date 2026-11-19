@@ -2,16 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import 'package:fscm_mobile/core/utils/clock.dart';
 import 'package:fscm_mobile/core/utils/dates.dart';
 import 'package:fscm_mobile/core/utils/money.dart';
 import 'package:fscm_mobile/core/utils/status_tone.dart';
-import 'package:fscm_mobile/data/models/enums.dart';
-import 'package:fscm_mobile/data/models/order.dart';
+import 'package:fscm_mobile/data/models/app_notification.dart';
 import 'package:fscm_mobile/data/models/receivable.dart';
 import 'package:fscm_mobile/data/repositories/auth_repository.dart';
 import 'package:fscm_mobile/data/repositories/catalog_repository.dart';
 import 'package:fscm_mobile/data/repositories/finance_repository.dart';
+import 'package:fscm_mobile/data/repositories/home_summary_repository.dart';
 import 'package:fscm_mobile/data/repositories/notification_repository.dart';
 import 'package:fscm_mobile/data/repositories/order_repository.dart';
 import 'package:fscm_mobile/data/repositories/performance_repository.dart';
@@ -32,28 +31,18 @@ class SalesHomeScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(currentUserProvider);
     final sync = ref.watch(syncServiceProvider);
-    final orders =
-        ref.watch(ordersProvider).valueOrNull?.orders ?? const <Order>[];
+    final stats = ref.watch(salesOrderStatsProvider).valueOrNull ??
+        const SalesOrderStats();
     final queue = ref.watch(offlineQueueProvider).valueOrNull ?? const [];
     final catalog = ref.watch(catalogProvider).valueOrNull;
     final debts =
         ref.watch(receivablesProvider).valueOrNull ?? const <Receivable>[];
-    final notes = ref.watch(notificationsProvider).valueOrNull ?? const [];
+    final notes = ref.watch(notificationsProvider).valueOrNull?.items ??
+        const <AppNotification>[];
 
-    final today = AppClock.now();
-    final todayOrders = orders
-        .where((o) => AppDates.isSameVietnamDay(o.createdAt, today))
-        .toList();
-    final waiting = orders
-        .where((o) =>
-            o.status == OrderStatus.allocating ||
-            o.status == OrderStatus.quoted ||
-            o.status == OrderStatus.paymentPending)
-        .length;
-    final rejected =
-        todayOrders.where((o) => o.status.isRejectedOrCancelled).length;
-    final delivering =
-        orders.where((o) => o.status == OrderStatus.delivering).length;
+    final waiting = stats.waiting;
+    final rejected = stats.rejectedToday;
+    final delivering = stats.delivering;
     final kpi = ref.watch(salesKpiProvider('month'));
     final kpiEntry = kpi.valueOrNull?.entries.isEmpty ?? true
         ? null
@@ -114,7 +103,7 @@ class SalesHomeScreen extends ConsumerWidget {
               children: <Widget>[
                 Expanded(
                     child:
-                        _Stat(label: 'Đã tạo', value: '${todayOrders.length}')),
+                        _Stat(label: 'Đã tạo', value: '${stats.createdToday}')),
                 const SizedBox(width: 10),
                 Expanded(
                     child: _Stat(

@@ -92,10 +92,10 @@ void main() {
       () async {
     final transport = ReportTransport((request) {
       final data = envelope([]);
-      if (request.path.endsWith('best-selling-products')) {
+      if (isGraphQl(request) && graphQlQuery(request).contains('bestSelling')) {
         data['criterion'] = 'Revenue';
       }
-      return ApiResponse(statusCode: 200, data: data);
+      return graphQlOrRest(request, data);
     });
     final api = PerformanceApi(
         ApiClient(transport: transport, tokenReader: () => null));
@@ -103,18 +103,28 @@ void main() {
     await api.kpi(period);
     await api.salesRanking(period);
     await api.productRanking(period, 'Revenue');
-    expect(transport.requests.map((r) => r.path), [
-      '/reports/sales-kpis',
-      '/reports/sales-ranking',
-      '/reports/best-selling-products',
-    ]);
-    for (final request in transport.requests) {
-      expect(request.query!['fromDate'], period.fromDate);
-      expect(request.query!['toDate'], period.toDate);
-      expect(request.query!.containsKey('period'), isFalse);
-      expect(request.query!.containsKey('salesUserId'), isFalse);
+
+    // KPI and best-selling go through GraphQL; Sales ranking stays REST.
+    expect(transport.requests.map((r) => isGraphQl(r) ? 'graphql' : r.path),
+        ['graphql', '/reports/sales-ranking', 'graphql']);
+    final kpi = graphQlQuery(transport.requests[0]);
+    expect(
+        kpi,
+        contains(
+            'salesKpis(query: { fromDate: "2026-11-01", toDate: "2026-11-11" })'));
+    final ranking = transport.requests[1];
+    expect(ranking.query!['fromDate'], period.fromDate);
+    expect(ranking.query!['toDate'], period.toDate);
+    expect(ranking.query!.containsKey('period'), isFalse);
+    expect(ranking.query!.containsKey('salesUserId'), isFalse);
+    final products = graphQlQuery(transport.requests[2]);
+    expect(products, contains('fromDate: "2026-11-01", toDate: "2026-11-11"'));
+    expect(products, contains('criterion: "Revenue"'));
+    // No client-chosen user or group: scope comes from the token.
+    for (final query in <String>[kpi, products]) {
+      expect(query, isNot(contains('salesUserId: "')));
+      expect(query, isNot(contains('salesGroupId: "')));
     }
-    expect(transport.requests.last.query!['criterion'], 'Revenue');
   });
 
   test('forbidden reports propagate and non-Sales cannot request personal KPI',
@@ -133,12 +143,15 @@ void main() {
   });
 
   test('personal KPI rejects data belonging to another Sales', () async {
-    final transport =
-        ReportTransport((request) => ApiResponse(statusCode: 200, data: {
-              ...envelope([entry(userId: 'other')]),
-              'fromDate': request.query!['fromDate'],
-              'toDate': request.query!['toDate'],
-            }));
+    final transport = ReportTransport((request) {
+      final dates = RegExp(r'fromDate: "([^"]+)", toDate: "([^"]+)"')
+          .firstMatch(graphQlQuery(request))!;
+      return graphQlOrRest(request, {
+        ...envelope([entry(userId: 'other')]),
+        'fromDate': dates.group(1),
+        'toDate': dates.group(2),
+      });
+    });
     final repository = PerformanceRepository(
         PerformanceApi(
             ApiClient(transport: transport, tokenReader: () => null)),
@@ -193,6 +206,21 @@ void main() {
     expect(find.text('#7 · Hoàng (bạn)'), findsOneWidget);
     expect(find.textContaining('Tháng 9'), findsNothing);
     expect(tester.takeException(), isNull);
+  });
+}
+
+bool isGraphQl(ApiRequest r) => r.path.endsWith('/graphql');
+
+String graphQlQuery(ApiRequest r) => (r.body! as Map)['query'] as String;
+
+/// GraphQL requests get `{data: {<field>: result}}`; REST gets the result.
+ApiResponse graphQlOrRest(ApiRequest request, Map<String, dynamic> result) {
+  if (!isGraphQl(request)) return ApiResponse(statusCode: 200, data: result);
+  final field = graphQlQuery(request).contains('bestSelling')
+      ? 'bestSellingProducts'
+      : 'salesKpis';
+  return ApiResponse(statusCode: 200, data: {
+    'data': {field: result}
   });
 }
 

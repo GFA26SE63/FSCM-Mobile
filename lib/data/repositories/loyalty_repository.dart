@@ -75,7 +75,15 @@ final redemptionsProvider =
 });
 
 final complaintsProvider = FutureProvider.autoDispose<List<Complaint>>((ref) {
-  ref.watch(currentUserProvider);
+  final user = ref.watch(currentUserProvider);
+  // GraphQL `complaintReads` is open to any signed-in role and only a Retailer
+  // is limited to own complaints, whereas REST refuses other roles. The list is
+  // a Retailer screen, so anyone else is refused here, as REST would.
+  if (user?.role != UserRole.retailer) {
+    throw const ApiException(
+        kind: ApiErrorKind.forbidden,
+        message: 'Chỉ điểm bán được xem danh sách khiếu nại này.');
+  }
   return ref.watch(loyaltyRepositoryProvider).complaints();
 });
 
