@@ -166,11 +166,6 @@ List<RouteBase> _salesRoutes() => <RouteBase>[
           ]),
           StatefulShellBranch(routes: <RouteBase>[
             GoRoute(
-                path: AppRoutes.salesScan,
-                builder: (c, s) => const SalesScanScreen()),
-          ]),
-          StatefulShellBranch(routes: <RouteBase>[
-            GoRoute(
                 path: AppRoutes.salesSync,
                 builder: (c, s) => const SyncQueueScreen()),
           ]),
@@ -211,6 +206,9 @@ List<RouteBase> _salesRoutes() => <RouteBase>[
           ]),
         ],
       ),
+      GoRoute(
+          path: AppRoutes.salesScan,
+          builder: (c, s) => const SalesScanScreen()),
       GoRoute(
           path: AppRoutes.salesRetailers,
           builder: (c, s) => const RetailerListScreen()),
@@ -304,9 +302,6 @@ List<RouteBase> _warehouseRoutes() => <RouteBase>[
           ]),
         ],
       ),
-      GoRoute(
-          path: AppRoutes.wkScan,
-          builder: (c, s) => const WarehouseOperationsScreen()),
       GoRoute(
         path: AppRoutes.wkShipped,
         builder: (c, s) => const WarehouseDocumentsScreen(
