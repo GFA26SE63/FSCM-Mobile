@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
+import 'package:fscm_mobile/core/config/env.dart';
 import 'package:fscm_mobile/core/auth/session.dart';
 import 'package:fscm_mobile/core/auth/user_role.dart';
 import 'package:fscm_mobile/core/network/api_client.dart';
@@ -21,17 +22,28 @@ import 'fixtures/loyalty_fixture.dart';
 void main() {
   test('card reads exact inactive program and preserves decimal earning rate',
       () async {
+    // The card is REST; the exact program on it is read through GraphQL.
     final transport = LoyaltyTransport((request) => ApiResponse(
           statusCode: 200,
           data: request.path == '/loyalty/cards/me'
               ? loyaltyCardFixture()
-              : loyaltyProgramFixture(),
+              : {
+                  'data': {
+                    'entities': {
+                      'loyaltyPrograms': {
+                        'nodes': [loyaltyProgramFixture()],
+                      },
+                    },
+                  },
+                },
         ));
     final client = ApiClient(transport: transport, tokenReader: () => null);
     addTearDown(client.dispose);
     final card = await LoyaltyApi(client).account();
     expect(transport.requests.map((r) => r.path),
-        ['/loyalty/cards/me', '/loyalty/programs/program-1']);
+        ['/loyalty/cards/me', Env.effectiveGraphQlEndpoint]);
+    expect((transport.requests.last.body! as Map)['variables'],
+        {'id': 'program-1'});
     expect(card.program!.isActive, isFalse);
     expect(card.program!.amountPerPoint, 12345.67);
     expect(card.balance, 500);

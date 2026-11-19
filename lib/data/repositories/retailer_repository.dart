@@ -20,7 +20,14 @@ final retailerRepositoryProvider = Provider<RetailerRepository>(
 final declarationsProvider =
     FutureProvider.autoDispose<List<RetailerDeclaration>>((ref) {
   ref.watch(dataVersionProvider);
-  ref.watch(currentUserProvider);
+  final user = ref.watch(currentUserProvider);
+  // Declarations belong to Sales. The Backend also refuses `scope=mine` for any
+  // other role; this keeps the request from being sent at all.
+  if (user?.role != UserRole.sales) {
+    throw const ApiException(
+        kind: ApiErrorKind.forbidden,
+        message: 'Chỉ nhân viên bán hàng được xem khai báo điểm bán.');
+  }
   return ref.watch(retailerRepositoryProvider).myDeclarations();
 });
 
