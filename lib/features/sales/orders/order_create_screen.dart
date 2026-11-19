@@ -332,6 +332,9 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
     return AppDates.timeDay(value.toLocal());
   }
 
+  String _pct(num v) =>
+      v == v.roundToDouble() ? v.round().toString() : v.toString();
+
   void _validateQuantities(int step) {
     if (_invalidQuantities.isNotEmpty ||
         _lines.any((line) => line.qty <= 0 || line.qty % step != 0)) {
@@ -461,14 +464,40 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
             if (pricedLines.isNotEmpty && pricedLines.first.hasDiscount)
               Padding(
                 padding: const EdgeInsets.only(top: 4),
-                child: Text(
-                  '${pricedLines.first.promoName.isEmpty ? 'Khuyến mãi' : pricedLines.first.promoName} · '
-                  'giảm dự kiến '
-                  '${Money.format(pricedLines.first.discount)}',
-                  style: const TextStyle(
-                    color: AppColors.success,
-                    fontWeight: FontWeight.w600,
-                  ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: AppColors.success.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(4),
+                        border: Border.all(
+                            color: AppColors.success.withValues(alpha: 0.3)),
+                      ),
+                      child: Text(
+                        'KM Tối ưu: −${_pct(pricedLines.first.pct)}%',
+                        style: const TextStyle(
+                          color: AppColors.success,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 11,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        '${pricedLines.first.promoName.isEmpty ? 'Khuyến mãi' : pricedLines.first.promoName} · '
+                        'giảm ${Money.format(pricedLines.first.discount)}',
+                        style: const TextStyle(
+                          color: AppColors.success,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 12,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
                 ),
               ),
           ],
