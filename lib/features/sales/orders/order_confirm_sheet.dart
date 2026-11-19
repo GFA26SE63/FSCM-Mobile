@@ -96,6 +96,11 @@ class OrderConfirmSheet extends StatelessWidget {
                 ),
               ),
             const SectionTitle('Khuyến mãi áp dụng'),
+            const InfoBanner(
+              text: 'Hệ thống tự động áp dụng chương trình có mức giảm cao nhất cho từng sản phẩm (không cộng dồn các CTKM thương mại). '
+                  'Chiết khấu HSD (nếu phân bổ trúng lô cận date) sẽ được tính thêm trên báo giá chính thức.',
+            ),
+            const SizedBox(height: 8),
             if (quote.applied.isEmpty)
               const Text('Chưa có khuyến mãi áp dụng.')
             else
