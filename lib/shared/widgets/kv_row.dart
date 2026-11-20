@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 
 import 'package:fscm_mobile/shared/theme/app_colors.dart';
+import 'package:fscm_mobile/shared/theme/app_text.dart';
+import 'package:fscm_mobile/shared/theme/app_tokens.dart';
 
-/// "Label ........ value" row used in detail screens.
+/// Label / value row (prototype `.kv`): muted label, right-aligned value.
 class KvRow extends StatelessWidget {
   const KvRow(this.label, this.value,
       {super.key, this.bold = false, this.valueColor});
@@ -15,22 +17,22 @@ class KvRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
           Expanded(
             flex: 4,
-            child:
-                Text(label, style: const TextStyle(color: AppColors.textMuted)),
+            child: Text(label,
+                style: AppText.bodyMedium.copyWith(color: AppColors.textMuted)),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: AppSpacing.sm),
           Expanded(
             flex: 6,
             child: Text(
               value,
               textAlign: TextAlign.right,
-              style: TextStyle(
+              style: AppText.bodyMedium.copyWith(
                 fontWeight: bold ? FontWeight.w700 : FontWeight.w500,
                 color: valueColor ?? AppColors.text,
               ),

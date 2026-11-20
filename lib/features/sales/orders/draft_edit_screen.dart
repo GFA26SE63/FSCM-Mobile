@@ -11,6 +11,8 @@ import 'package:fscm_mobile/data/repositories/data_version.dart';
 import 'package:fscm_mobile/data/repositories/order_repository.dart';
 import 'package:fscm_mobile/data/repositories/auth_repository.dart';
 import 'package:fscm_mobile/features/sales/orders/order_confirm_sheet.dart';
+import 'package:fscm_mobile/shared/theme/app_text.dart';
+import 'package:fscm_mobile/shared/theme/app_tokens.dart';
 import 'package:fscm_mobile/shared/widgets/async_body.dart';
 import 'package:fscm_mobile/shared/widgets/dialogs.dart';
 import 'package:fscm_mobile/shared/widgets/info_banner.dart';
@@ -83,27 +85,27 @@ class _DraftEditScreenState extends ConsumerState<DraftEditScreen> {
       children: [
         Expanded(
           child: ListView(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(AppSpacing.lg),
             children: [
               Text(
                 '${widget.entry.payload.retailerName} · '
                 '${widget.entry.payload.retailerCode}',
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: AppSpacing.md),
               const InfoBanner(
                 text: 'Sửa bản nháp chưa gửi. Khi lưu, bạn sẽ xem lại '
                     'giá và khuyến mãi tạm tính từ dữ liệu đồng bộ trên máy. '
                     'Thao tác này chưa gửi đơn và chưa giữ hàng.',
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: AppSpacing.md),
               for (var index = 0; index < _lines.length; index++)
                 _line(data, index, step),
               if (_lines.isEmpty)
                 const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 16),
+                  padding: EdgeInsets.symmetric(vertical: AppSpacing.lg),
                   child: Text('Bản nháp chưa có sản phẩm.'),
                 ),
-              const SizedBox(height: 12),
+              const SizedBox(height: AppSpacing.md),
               DropdownButton<String>(
                 isExpanded: true,
                 value: selected,
@@ -153,7 +155,7 @@ class _DraftEditScreenState extends ConsumerState<DraftEditScreen> {
         SafeArea(
           top: false,
           child: Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(AppSpacing.lg),
             child: SizedBox(
               width: double.infinity,
               child: FilledButton(
@@ -178,17 +180,17 @@ class _DraftEditScreenState extends ConsumerState<DraftEditScreen> {
 
     return Padding(
       key: ValueKey(line.sku),
-      padding: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
       child: Card(
         margin: EdgeInsets.zero,
         child: Padding(
-          padding: const EdgeInsets.all(12),
+          padding: const EdgeInsets.all(AppSpacing.md),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 '${line.sku} · $name',
-                style: const TextStyle(fontWeight: FontWeight.w700),
+                style: AppText.strong,
               ),
               OrderQuantityField(
                 label: 'Số lượng (thùng)',

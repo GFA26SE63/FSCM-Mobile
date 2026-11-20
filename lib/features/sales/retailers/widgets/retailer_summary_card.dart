@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:fscm_mobile/data/models/retailer.dart';
+import 'package:fscm_mobile/shared/theme/app_tokens.dart';
 import 'package:fscm_mobile/shared/widgets/app_card.dart';
 
 class RetailerSummaryCard extends StatelessWidget {
@@ -23,7 +24,7 @@ class RetailerSummaryCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Icon(Icons.storefront_outlined),
-          const SizedBox(width: 12),
+          const SizedBox(width: AppSpacing.md),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -34,17 +35,17 @@ class RetailerSummaryCard extends StatelessWidget {
                     fontWeight: FontWeight.w700,
                   ),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: AppSpacing.xs),
                 Text('Mã điểm bán: ${retailer.code}'),
-                const SizedBox(height: 4),
+                const SizedBox(height: AppSpacing.xs),
                 Text(
                   retailer.address.isEmpty
                       ? 'Chưa có địa chỉ'
                       : retailer.address,
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: AppSpacing.sm),
                 Text('Trạng thái: ${retailer.statusLabel}'),
-                const SizedBox(height: 4),
+                const SizedBox(height: AppSpacing.xs),
                 Text(
                   retailer.creditAllowed
                       ? 'Kỳ hạn công nợ: ${retailer.creditTerm} ngày'

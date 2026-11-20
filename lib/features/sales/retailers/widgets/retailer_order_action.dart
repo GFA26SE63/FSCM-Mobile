@@ -7,6 +7,7 @@ import 'package:fscm_mobile/core/network/network_monitor.dart';
 import 'package:fscm_mobile/data/models/retailer.dart';
 import 'package:fscm_mobile/data/repositories/retailer_repository.dart';
 import 'package:fscm_mobile/shared/routes.dart';
+import 'package:fscm_mobile/shared/theme/app_tokens.dart';
 import 'package:fscm_mobile/shared/widgets/info_banner.dart';
 
 class RetailerOrderAction extends ConsumerWidget {
@@ -61,7 +62,7 @@ class RetailerOrderAction extends ConsumerWidget {
       skipLoadingOnRefresh: false,
       skipLoadingOnReload: false,
       loading: () => const Padding(
-        padding: EdgeInsets.all(16),
+        padding: EdgeInsets.all(AppSpacing.lg),
         child: Center(child: CircularProgressIndicator()),
       ),
       error: (error, _) => Column(
@@ -98,7 +99,7 @@ class RetailerOrderAction extends ConsumerWidget {
                 icon: const Icon(Icons.shopping_cart_outlined),
                 label: const Text('Tạo đơn hàng'),
               ),
-            const SizedBox(height: 8),
+            const SizedBox(height: AppSpacing.sm),
             OutlinedButton.icon(
               onPressed: () {
                 ref.invalidate(

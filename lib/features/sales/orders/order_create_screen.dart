@@ -16,6 +16,8 @@ import 'package:fscm_mobile/core/utils/status_tone.dart';
 import 'package:fscm_mobile/data/models/json_utils.dart';
 import 'package:fscm_mobile/data/models/order.dart';
 import 'package:fscm_mobile/data/models/order_availability.dart';
+import 'package:fscm_mobile/shared/theme/app_text.dart';
+import 'package:fscm_mobile/shared/theme/app_tokens.dart';
 import 'package:fscm_mobile/shared/widgets/order_stock_summary.dart';
 import 'package:fscm_mobile/data/models/price_quote.dart';
 import 'package:fscm_mobile/data/models/product.dart';
@@ -130,7 +132,7 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
         title: const Text('Tạo đơn hàng'),
         actions: const [
           Padding(
-            padding: EdgeInsets.only(right: 12),
+            padding: EdgeInsets.only(right: AppSpacing.md),
             child: OnlineChip(),
           ),
         ],
@@ -219,7 +221,7 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
       children: [
         Expanded(
           child: ListView(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(AppSpacing.lg),
             children: [
               AppCard(
                 child: Column(
@@ -227,26 +229,18 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
                   children: [
                     Text(
                       retailer.name,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w800,
-                        fontSize: 16,
-                      ),
+                      style: AppText.strong.copyWith(fontSize: 16),
                     ),
                     Text(
                       'Mã ${retailer.code} · ${retailer.address}',
-                      style: const TextStyle(
-                        color: AppColors.textMuted,
-                      ),
+                      style: AppText.muted,
                     ),
                     Text(
                       retailer.creditAllowed
                           ? 'Kỳ hạn công nợ theo dữ liệu đồng bộ: '
                               '${retailer.creditTerm} ngày'
                           : 'Không mua công nợ theo dữ liệu đồng bộ',
-                      style: const TextStyle(
-                        color: AppColors.primary,
-                        fontWeight: FontWeight.w600,
-                      ),
+                      style: AppText.strong.copyWith(color: AppColors.primary),
                     ),
                   ],
                 ),
@@ -299,7 +293,7 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
                   setState(() => _query = value.trim().toLowerCase());
                 },
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: AppSpacing.s10),
               if (products.isEmpty)
                 const EmptyState(
                   title: 'Không có sản phẩm phù hợp',
@@ -386,7 +380,7 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
 
     return Padding(
       key: ValueKey(product.sku),
-      padding: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.only(bottom: AppSpacing.s10),
       child: AppCard(
         margin: EdgeInsets.zero,
         onTap: _busy ? null : openDetail,
@@ -398,7 +392,7 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
                 Expanded(
                   child: Text(
                     '${product.sku} · ${product.name}',
-                    style: const TextStyle(fontWeight: FontWeight.w700),
+                    style: AppText.strong,
                   ),
                 ),
                 IconButton(
@@ -417,7 +411,7 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
                 color: price == null ? AppColors.warning : AppColors.textMuted,
               ),
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: AppSpacing.s6),
             if (availability != null)
               OrderStockSummary(
                 availability: availability,
@@ -463,7 +457,7 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
             ),
             if (pricedLines.isNotEmpty && pricedLines.first.hasDiscount)
               Padding(
-                padding: const EdgeInsets.only(top: 4),
+                padding: const EdgeInsets.only(top: AppSpacing.xs),
                 child: Row(
                   children: [
                     Container(
@@ -484,7 +478,7 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
                         ),
                       ),
                     ),
-                    const SizedBox(width: 6),
+                    const SizedBox(width: AppSpacing.s6),
                     Expanded(
                       child: Text(
                         '${pricedLines.first.promoName.isEmpty ? 'Khuyến mãi' : pricedLines.first.promoName} · '
@@ -541,7 +535,8 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
     return SafeArea(
       top: false,
       child: Container(
-        padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
+        padding: const EdgeInsets.fromLTRB(
+            AppSpacing.lg, AppSpacing.s10, AppSpacing.lg, AppSpacing.s10),
         decoration: const BoxDecoration(
           color: AppColors.surface,
           border: Border(
@@ -561,39 +556,29 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
                         : count == 0
                             ? 'Giỏ hàng trống'
                             : '$count sản phẩm',
-                    style: const TextStyle(
-                      color: AppColors.textMuted,
-                    ),
+                    style: AppText.muted,
                   ),
                   Text(
                     quote.isComplete
                         ? Money.format(quote.finalAmount)
                         : 'Chưa đủ dữ liệu giá',
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w800,
-                    ),
+                    style: AppText.pageTitle,
                   ),
                   if (count > 0 && quote.isComplete)
                     const Text(
                       'Tạm tính trên máy',
-                      style: TextStyle(
-                        color: AppColors.textMuted,
-                        fontSize: 12,
-                      ),
+                      style: AppText.mutedSmall,
                     ),
                   if (quote.isComplete && quote.discount > 0)
                     Text(
                       'Giảm dự kiến ${Money.format(quote.discount)}',
-                      style: const TextStyle(
-                        color: AppColors.success,
-                        fontSize: 12.5,
-                      ),
+                      style:
+                          AppText.bodySmall.copyWith(color: AppColors.success),
                     ),
                 ],
               ),
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: AppSpacing.sm),
             SizedBox(
               width: 160,
               child: FilledButton(

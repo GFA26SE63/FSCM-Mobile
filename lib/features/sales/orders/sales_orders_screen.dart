@@ -12,6 +12,8 @@ import 'package:fscm_mobile/data/repositories/sales_orders_controller.dart';
 import 'package:fscm_mobile/features/common/notifications/notification_bell_button.dart';
 import 'package:fscm_mobile/shared/routes.dart';
 import 'package:fscm_mobile/shared/theme/app_colors.dart';
+import 'package:fscm_mobile/shared/theme/app_text.dart';
+import 'package:fscm_mobile/shared/theme/app_tokens.dart';
 import 'package:fscm_mobile/shared/widgets/app_card.dart';
 import 'package:fscm_mobile/shared/widgets/async_body.dart';
 import 'package:fscm_mobile/shared/widgets/chip_filter_bar.dart';
@@ -64,8 +66,8 @@ class _SalesOrdersScreenState extends ConsumerState<SalesOrdersScreen> {
   Widget _footer(SalesOrdersState s, bool filteredEmpty) {
     if (s.loadingMore) {
       return const Padding(
-        padding: EdgeInsets.all(16),
-        child: Center(child: CircularProgressIndicator()),
+        padding: EdgeInsets.all(AppSpacing.lg),
+        child: Center(child: CircularProgressIndicator(strokeWidth: 3)),
       );
     }
     final notifier = ref.read(salesOrdersProvider(_key).notifier);
@@ -80,17 +82,16 @@ class _SalesOrdersScreenState extends ConsumerState<SalesOrdersScreen> {
           const Text(
               'Gồm đơn ngoại tuyến lưu trên máy và các đơn đã tải; '
               'đơn ngoại tuyến đã đồng bộ chưa tải sẽ hiện khi tải thêm.',
-              style: TextStyle(color: AppColors.textMuted)),
+              style: AppText.muted),
         if (s.moreError != null)
           Padding(
-            padding: const EdgeInsets.only(top: 8),
+            padding: const EdgeInsets.only(top: AppSpacing.sm),
             child: InfoBanner(text: s.moreError!),
           ),
         if (end)
           const Padding(
-            padding: EdgeInsets.all(12),
-            child: Text('Đã hiển thị tất cả đơn',
-                style: TextStyle(color: AppColors.textMuted)),
+            padding: EdgeInsets.all(AppSpacing.md),
+            child: Text('Đã hiển thị tất cả đơn', style: AppText.muted),
           )
         else
           OutlinedButton(
@@ -109,7 +110,7 @@ class _SalesOrdersScreenState extends ConsumerState<SalesOrdersScreen> {
         title: const Text('Đơn hàng'),
         actions: const <Widget>[
           Padding(
-              padding: EdgeInsets.only(right: 4),
+              padding: EdgeInsets.only(right: AppSpacing.xs),
               child: NotificationBellButton())
         ],
       ),
@@ -120,37 +121,54 @@ class _SalesOrdersScreenState extends ConsumerState<SalesOrdersScreen> {
       ),
       body: Column(
         children: <Widget>[
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-            child: TextField(
-              decoration: const InputDecoration(
-                hintText: 'Tìm mã đơn hoặc tên cửa hàng',
-                prefixIcon: Icon(Icons.search),
-              ),
-              onChanged: (v) {
-                _searchDebounce?.cancel();
-                _searchDebounce = Timer(const Duration(milliseconds: 350), () {
-                  if (mounted) {
-                    setState(() => _query = v.trim().toLowerCase());
-                  }
-                });
-              },
+          // Toolbar strip (prototype: white band under the header holding
+          // the search field and the status filters).
+          Container(
+            decoration: const BoxDecoration(
+              color: AppColors.surface,
+              border: Border(bottom: BorderSide(color: AppColors.divider)),
             ),
-          ),
-          ChipFilterBar<SalesOrderGroup>(
-            options: const <ChipOption<SalesOrderGroup>>[
-              ChipOption<SalesOrderGroup>(SalesOrderGroup.all, 'Tất cả'),
-              ChipOption<SalesOrderGroup>(SalesOrderGroup.pending, 'Chờ xử lý'),
-              ChipOption<SalesOrderGroup>(
-                  SalesOrderGroup.inProgress, 'Đang xử lý'),
-              ChipOption<SalesOrderGroup>(SalesOrderGroup.delivered, 'Đã giao'),
-              ChipOption<SalesOrderGroup>(
-                  SalesOrderGroup.rejected, 'Từ chối / hủy'),
-              ChipOption<SalesOrderGroup>(
-                  SalesOrderGroup.offline, 'Đơn ngoại tuyến'),
-            ],
-            selected: _filter,
-            onSelected: (v) => setState(() => _filter = v),
+            padding: const EdgeInsets.only(bottom: AppSpacing.s10),
+            child: Column(
+              children: <Widget>[
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(AppSpacing.lg,
+                      AppSpacing.md, AppSpacing.lg, AppSpacing.s10),
+                  child: TextField(
+                    decoration: const InputDecoration(
+                      hintText: 'Tìm mã đơn hoặc tên cửa hàng',
+                      prefixIcon: Icon(Icons.search),
+                    ),
+                    onChanged: (v) {
+                      _searchDebounce?.cancel();
+                      _searchDebounce =
+                          Timer(const Duration(milliseconds: 350), () {
+                        if (mounted) {
+                          setState(() => _query = v.trim().toLowerCase());
+                        }
+                      });
+                    },
+                  ),
+                ),
+                ChipFilterBar<SalesOrderGroup>(
+                  options: const <ChipOption<SalesOrderGroup>>[
+                    ChipOption<SalesOrderGroup>(SalesOrderGroup.all, 'Tất cả'),
+                    ChipOption<SalesOrderGroup>(
+                        SalesOrderGroup.pending, 'Chờ xử lý'),
+                    ChipOption<SalesOrderGroup>(
+                        SalesOrderGroup.inProgress, 'Đang xử lý'),
+                    ChipOption<SalesOrderGroup>(
+                        SalesOrderGroup.delivered, 'Đã giao'),
+                    ChipOption<SalesOrderGroup>(
+                        SalesOrderGroup.rejected, 'Từ chối / hủy'),
+                    ChipOption<SalesOrderGroup>(
+                        SalesOrderGroup.offline, 'Đơn ngoại tuyến'),
+                  ],
+                  selected: _filter,
+                  onSelected: (v) => setState(() => _filter = v),
+                ),
+              ],
+            ),
           ),
           Expanded(
             child: AsyncBody<SalesOrdersState>(
@@ -193,7 +211,8 @@ class _SalesOrdersScreenState extends ConsumerState<SalesOrdersScreen> {
                           },
                           child: ListView.builder(
                             physics: const AlwaysScrollableScrollPhysics(),
-                            padding: const EdgeInsets.fromLTRB(16, 8, 16, 90),
+                            padding: const EdgeInsets.fromLTRB(AppSpacing.lg,
+                                AppSpacing.sm, AppSpacing.lg, 90),
                             itemCount: banner + list.length + footer,
                             itemBuilder: (context, i) {
                               if (i < banner) {
@@ -239,42 +258,65 @@ class SalesOrderTile extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Row(
+          // Header: order code + status chip (prototype card header).
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: AppSpacing.sm,
+            runSpacing: AppSpacing.xs,
             children: <Widget>[
-              Expanded(
-                child: Text(code,
-                    style: const TextStyle(
-                        fontWeight: FontWeight.w800, fontSize: 15)),
-              ),
+              Text(code, style: AppText.strong),
               OrderStatusChip(o),
             ],
           ),
-          const SizedBox(height: 2),
           if (o.offlineCode.isNotEmpty && o.offlineCode != code)
-            Text('Mã trên máy: ${o.offlineCode}',
-                style: const TextStyle(color: AppColors.textMuted)),
-          Text('${o.retailerName} · ${AppDates.timeDay(o.createdAt)}',
-              style: const TextStyle(color: AppColors.textMuted)),
-          const SizedBox(height: 4),
-          Text(o.itemsSummary,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 13)),
-          const SizedBox(height: 6),
-          Row(
-            children: <Widget>[
-              Text(Money.format(o.finalAmount),
-                  style: const TextStyle(fontWeight: FontWeight.w800)),
-              const Spacer(),
-              if (o.isOffline)
-                const StatusChip(label: 'Offline', tone: StatusTone.neutral),
-              if (o.promoChanged) ...<Widget>[
-                const SizedBox(width: 6),
-                const StatusChip(
-                    label: 'KM thay đổi', tone: StatusTone.warning),
+            Text('Mã trên máy: ${o.offlineCode}', style: AppText.mutedSmall),
+          const SizedBox(height: AppSpacing.sm),
+          Text.rich(
+            TextSpan(
+              text: o.retailerName,
+              children: <InlineSpan>[
+                if (o.retailerCode.isNotEmpty)
+                  TextSpan(
+                      text: ' · ${o.retailerCode}',
+                      style: AppText.mutedSmall.copyWith(fontSize: 12)),
               ],
+            ),
+            style: AppText.bodyMedium,
+          ),
+          if (o.itemsSummary.isNotEmpty) ...<Widget>[
+            const SizedBox(height: AppSpacing.xs),
+            Text(o.itemsSummary,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: AppText.bodySmall.copyWith(color: AppColors.textLabel)),
+          ],
+          const SizedBox(height: AppSpacing.sm),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: <Widget>[
+              Expanded(
+                child: Text(AppDates.timeDay(o.createdAt),
+                    style: AppText.mutedSmall),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Text(Money.format(o.finalAmount), style: AppText.strong),
             ],
           ),
+          if (o.isOffline || o.promoChanged) ...<Widget>[
+            const SizedBox(height: AppSpacing.s10),
+            Wrap(
+              spacing: AppSpacing.s6,
+              runSpacing: AppSpacing.s6,
+              children: <Widget>[
+                if (o.isOffline)
+                  const StatusChip(label: 'Offline', tone: StatusTone.neutral),
+                if (o.promoChanged)
+                  const StatusChip(
+                      label: 'KM thay đổi', tone: StatusTone.warning),
+              ],
+            ),
+          ],
         ],
       ),
     );

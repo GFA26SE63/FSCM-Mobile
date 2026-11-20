@@ -4,7 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fscm_mobile/core/utils/dates.dart';
 import 'package:fscm_mobile/data/models/json_utils.dart';
 import 'package:fscm_mobile/data/repositories/catalog_repository.dart';
-import 'package:fscm_mobile/shared/theme/app_colors.dart';
+import 'package:fscm_mobile/shared/theme/app_text.dart';
+import 'package:fscm_mobile/shared/theme/app_tokens.dart';
 import 'package:fscm_mobile/shared/widgets/app_card.dart';
 import 'package:fscm_mobile/shared/widgets/async_body.dart';
 import 'package:fscm_mobile/shared/widgets/empty_state.dart';
@@ -51,7 +52,7 @@ class _PromotionsScreenState extends ConsumerState<PromotionsScreen> {
           );
 
           return ListView(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(AppSpacing.lg),
             children: [
               InfoBanner(
                 text:
@@ -59,7 +60,7 @@ class _PromotionsScreenState extends ConsumerState<PromotionsScreen> {
                     'Mỗi dòng nhận tối đa một khuyến mãi đủ điều kiện. '
                     'Giá được máy chủ kiểm tra lại khi gửi đơn.',
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: AppSpacing.md),
               DropdownButtonFormField<String>(
                 key: ValueKey(selectedCode ?? 'all'),
                 initialValue: selectedCode ?? '',
@@ -86,7 +87,7 @@ class _PromotionsScreenState extends ConsumerState<PromotionsScreen> {
                 ),
                 isExpanded: true,
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: AppSpacing.md),
               if (promotions.isEmpty)
                 const EmptyState(
                   title: 'Không có khuyến mãi phù hợp đang chạy.',
@@ -107,50 +108,39 @@ class _PromotionsScreenState extends ConsumerState<PromotionsScreen> {
                         children: [
                           Text(
                             promotion.name,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w700,
-                              fontSize: 15,
-                            ),
+                            style: AppText.strong,
                           ),
-                          const SizedBox(height: 8),
+                          const SizedBox(height: AppSpacing.sm),
                           for (final condition in promotion.conditionLines)
                             Text(condition),
-                          const SizedBox(height: 6),
+                          const SizedBox(height: AppSpacing.s6),
                           const Text(
                             'Sản phẩm trong phạm vi:',
-                            style: TextStyle(
-                              fontWeight: FontWeight.w600,
-                            ),
+                            style: AppText.cardTitle,
                           ),
                           if (productNames.isEmpty)
                             const Text(
                               'Không có SKU phù hợp trong danh mục sản phẩm hiện tại.',
                             ),
                           for (final name in productNames) Text('• $name'),
-                          const SizedBox(height: 8),
+                          const SizedBox(height: AppSpacing.sm),
                           Text(
                             'Hiệu lực: '
                             '${AppDates.timeDay(promotion.validFrom)}'
                             ' → ${AppDates.timeDay(promotion.validTo)}',
                           ),
-                          const SizedBox(height: 4),
+                          const SizedBox(height: AppSpacing.xs),
                           Text(
                             promotion.retailerCodes == null
                                 ? 'Áp dụng cho tất cả điểm bán.'
                                 : 'Điểm bán được áp dụng trong scope: '
                                     '${promotion.retailerCodes!.join(', ')}',
-                            style: const TextStyle(
-                              color: AppColors.textMuted,
-                              fontSize: 12.5,
-                            ),
+                            style: AppText.mutedSmall,
                           ),
                           if (asStrList(record['categoryIds']).isNotEmpty)
                             const Text(
                               'Phạm vi gồm danh mục sản phẩm.',
-                              style: TextStyle(
-                                color: AppColors.textMuted,
-                                fontSize: 12.5,
-                              ),
+                              style: AppText.mutedSmall,
                             ),
                         ],
                       );

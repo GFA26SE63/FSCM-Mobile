@@ -9,7 +9,8 @@ import 'package:fscm_mobile/data/models/retailer_declaration.dart';
 import 'package:fscm_mobile/data/repositories/data_version.dart';
 import 'package:fscm_mobile/data/repositories/retailer_repository.dart';
 import 'package:fscm_mobile/shared/routes.dart';
-import 'package:fscm_mobile/shared/theme/app_colors.dart';
+import 'package:fscm_mobile/shared/theme/app_text.dart';
+import 'package:fscm_mobile/shared/theme/app_tokens.dart';
 import 'package:fscm_mobile/shared/widgets/app_card.dart';
 import 'package:fscm_mobile/shared/widgets/async_body.dart';
 import 'package:fscm_mobile/shared/widgets/dialogs.dart';
@@ -39,7 +40,8 @@ class DeclarationsScreen extends ConsumerWidget {
         builder: (list) => RefreshIndicator(
           onRefresh: () => ref.refresh(declarationsProvider.future),
           child: ListView(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 90),
+            padding: const EdgeInsets.fromLTRB(
+                AppSpacing.lg, AppSpacing.lg, AppSpacing.lg, 90),
             children: <Widget>[
               const InfoBanner(
                   text:
@@ -108,15 +110,13 @@ class _TileState extends ConsumerState<_Tile> {
           title: Row(
             children: <Widget>[
               Expanded(
-                  child: Text('${d.code} · ${d.name}',
-                      style: const TextStyle(fontWeight: FontWeight.w800))),
+                  child: Text('${d.code} · ${d.name}', style: AppText.strong)),
               StatusChip(label: d.status.label, tone: d.status.tone),
             ],
           ),
           subtitle: Text(
               '${d.address.isEmpty ? '—' : d.address}\nNhóm ${d.salesGroupCode}',
-              style:
-                  const TextStyle(color: AppColors.textMuted, fontSize: 12.5)),
+              style: AppText.mutedSmall),
           children: <Widget>[
             if (d.status == DeclarationStatus.rejected)
               InfoBanner(
@@ -149,7 +149,7 @@ class _TileState extends ConsumerState<_Tile> {
                     : '${d.mlorDeclarations.length} dòng'),
             if (d.assessmentNote.isNotEmpty) KvRow('Ghi chú', d.assessmentNote),
             if (d.status.isEditable) ...<Widget>[
-              const SizedBox(height: 8),
+              const SizedBox(height: AppSpacing.sm),
               Row(
                 children: <Widget>[
                   Expanded(
@@ -162,7 +162,7 @@ class _TileState extends ConsumerState<_Tile> {
                       label: const Text('Sửa'),
                     ),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: AppSpacing.md),
                   Expanded(
                     child: FilledButton.icon(
                       onPressed: _busy ? null : _submit,
@@ -173,7 +173,7 @@ class _TileState extends ConsumerState<_Tile> {
                 ],
               ),
             ],
-            const SizedBox(height: 8),
+            const SizedBox(height: AppSpacing.sm),
           ],
         ),
       ),

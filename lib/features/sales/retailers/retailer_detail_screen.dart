@@ -5,6 +5,7 @@ import 'package:fscm_mobile/data/repositories/catalog_repository.dart';
 import 'package:fscm_mobile/features/sales/products/catalog_sync_button.dart';
 import 'package:fscm_mobile/features/sales/retailers/widgets/retailer_order_action.dart';
 import 'package:fscm_mobile/features/sales/retailers/widgets/retailer_summary_card.dart';
+import 'package:fscm_mobile/shared/theme/app_tokens.dart';
 import 'package:fscm_mobile/shared/widgets/async_body.dart';
 import 'package:fscm_mobile/shared/widgets/empty_state.dart';
 import 'package:fscm_mobile/shared/widgets/info_banner.dart';
@@ -45,7 +46,7 @@ class RetailerDetailScreen extends ConsumerWidget {
           final timestamp = data.lastSyncAt?.toLocal();
 
           return ListView(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(AppSpacing.lg),
             children: [
               RetailerSummaryCard(retailer: retailer),
               InfoBanner(
@@ -56,12 +57,12 @@ class RetailerDetailScreen extends ConsumerWidget {
                         'Trạng thái và công nợ có thể đã thay đổi; '
                         'xem kết quả kiểm tra bên dưới trước khi đặt hàng.',
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: AppSpacing.sm),
               Text(
                 'Đặt hàng',
                 style: Theme.of(context).textTheme.titleMedium,
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: AppSpacing.md),
               RetailerOrderAction(
                 key: ValueKey(retailer.id),
                 retailer: retailer,

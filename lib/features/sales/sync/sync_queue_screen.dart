@@ -9,6 +9,8 @@ import 'package:fscm_mobile/data/models/offline_order.dart';
 import 'package:fscm_mobile/data/repositories/order_repository.dart';
 import 'package:fscm_mobile/features/sales/orders/widgets/offline_draft_actions.dart';
 import 'package:fscm_mobile/features/sales/orders/widgets/price_difference_card.dart';
+import 'package:fscm_mobile/shared/theme/app_text.dart';
+import 'package:fscm_mobile/shared/theme/app_tokens.dart';
 import 'package:fscm_mobile/shared/widgets/status_chip.dart';
 import 'package:fscm_mobile/shared/routes.dart';
 import 'package:fscm_mobile/shared/widgets/app_card.dart';
@@ -52,7 +54,8 @@ class SyncQueueScreen extends ConsumerWidget {
         body: Column(
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+              padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.lg, AppSpacing.md, AppSpacing.lg, 0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -143,9 +146,9 @@ class _DraftList extends StatelessWidget {
     }
 
     return ListView.separated(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(AppSpacing.lg),
       itemCount: entries.length,
-      separatorBuilder: (_, index) => const SizedBox(height: 8),
+      separatorBuilder: (_, index) => const SizedBox(height: AppSpacing.sm),
       itemBuilder: (_, index) => _DraftCard(
         entry: entries[index],
       ),
@@ -168,14 +171,14 @@ class _DraftCard extends StatelessWidget {
         children: [
           Text(
             entry.localCode,
-            style: const TextStyle(fontWeight: FontWeight.w800),
+            style: AppText.strong,
           ),
           Align(
             alignment: Alignment.centerLeft,
             child:
                 StatusChip(label: entry.status.label, tone: entry.status.tone),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: AppSpacing.s6),
           Text('${payload.retailerName} · ${payload.retailerCode}'),
           Text(
             AppDates.timeDay(entry.createdAt.toLocal()),

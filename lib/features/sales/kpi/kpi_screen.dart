@@ -7,6 +7,7 @@ import 'package:fscm_mobile/data/repositories/performance_repository.dart';
 import 'package:fscm_mobile/features/sales/kpi/widgets/kpi_content.dart';
 import 'package:fscm_mobile/features/sales/kpi/widgets/ranking_content.dart';
 import 'package:fscm_mobile/features/sales/kpi/widgets/report_body.dart';
+import 'package:fscm_mobile/shared/theme/app_tokens.dart';
 import 'package:fscm_mobile/shared/widgets/chip_filter_bar.dart';
 
 class KpiScreen extends ConsumerStatefulWidget {
@@ -40,7 +41,7 @@ class _KpiScreenState extends ConsumerState<KpiScreen> {
             ])),
         body: Column(children: [
           Padding(
-              padding: const EdgeInsets.only(top: 8),
+              padding: const EdgeInsets.only(top: AppSpacing.sm),
               child: ChipFilterBar<String>(
                   options: const [
                     ChipOption('today', 'Hôm nay'),

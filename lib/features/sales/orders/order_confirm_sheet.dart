@@ -4,6 +4,8 @@ import 'package:fscm_mobile/core/utils/money.dart';
 import 'package:fscm_mobile/data/models/price_quote.dart';
 import 'package:fscm_mobile/data/models/retailer.dart';
 import 'package:fscm_mobile/features/sales/orders/widgets/price_difference_card.dart';
+import 'package:fscm_mobile/shared/theme/app_text.dart';
+import 'package:fscm_mobile/shared/theme/app_tokens.dart';
 import 'package:fscm_mobile/shared/widgets/info_banner.dart';
 import 'package:fscm_mobile/shared/widgets/kv_row.dart';
 import 'package:fscm_mobile/shared/widgets/section_title.dart';
@@ -38,17 +40,15 @@ class OrderConfirmSheet extends StatelessWidget {
         maxChildSize: 0.95,
         builder: (context, controller) => ListView(
           controller: controller,
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          padding: const EdgeInsets.fromLTRB(
+              AppSpacing.lg, 0, AppSpacing.lg, AppSpacing.lg),
           children: [
             const Text(
               'Xác nhận đơn hàng',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.w800,
-              ),
+              style: AppText.display,
             ),
             Text('${retailer.name} · ${retailer.code}'),
-            const SizedBox(height: 12),
+            const SizedBox(height: AppSpacing.md),
             InfoBanner(
               text: estimated
                   ? 'Tạm tính trên máy từ dữ liệu đồng bộ đã lưu. '
@@ -60,7 +60,7 @@ class OrderConfirmSheet extends StatelessWidget {
               Text('Dữ liệu đồng bộ lúc: ${_stamp(snapshotAt!)}'),
             if (estimatedAt != null)
               Text('Tính trên máy lúc: ${_stamp(estimatedAt!)}'),
-            const SizedBox(height: 10),
+            const SizedBox(height: AppSpacing.s10),
             if (!estimated && localEstimate?.isComplete == true)
               PriceDifferenceCard(
                 localAmount: localEstimate!.finalAmount,
@@ -74,7 +74,7 @@ class OrderConfirmSheet extends StatelessWidget {
             const SectionTitle('Sản phẩm'),
             for (final line in quote.lines)
               Padding(
-                padding: const EdgeInsets.symmetric(vertical: 6),
+                padding: const EdgeInsets.symmetric(vertical: AppSpacing.s6),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -97,10 +97,11 @@ class OrderConfirmSheet extends StatelessWidget {
               ),
             const SectionTitle('Khuyến mãi áp dụng'),
             const InfoBanner(
-              text: 'Hệ thống tự động áp dụng chương trình có mức giảm cao nhất cho từng sản phẩm (không cộng dồn các CTKM thương mại). '
+              text:
+                  'Hệ thống tự động áp dụng chương trình có mức giảm cao nhất cho từng sản phẩm (không cộng dồn các CTKM thương mại). '
                   'Chiết khấu HSD (nếu phân bổ trúng lô cận date) sẽ được tính thêm trên báo giá chính thức.',
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: AppSpacing.sm),
             if (quote.applied.isEmpty)
               const Text('Chưa có khuyến mãi áp dụng.')
             else
@@ -121,7 +122,7 @@ class OrderConfirmSheet extends StatelessWidget {
                 bold: true,
               ),
             ],
-            const SizedBox(height: 16),
+            const SizedBox(height: AppSpacing.lg),
             FilledButton(
               onPressed: quote.isComplete
                   ? () => Navigator.of(context).pop(true)

@@ -13,6 +13,8 @@ import 'package:fscm_mobile/data/repositories/data_version.dart';
 import 'package:fscm_mobile/data/repositories/order_repository.dart';
 import 'package:fscm_mobile/features/sales/orders/widgets/price_difference_card.dart';
 import 'package:fscm_mobile/shared/theme/app_colors.dart';
+import 'package:fscm_mobile/shared/theme/app_text.dart';
+import 'package:fscm_mobile/shared/theme/app_tokens.dart';
 import 'package:fscm_mobile/shared/widgets/app_card.dart';
 import 'package:fscm_mobile/shared/widgets/async_body.dart';
 import 'package:fscm_mobile/shared/widgets/allocation_retry_button.dart';
@@ -99,28 +101,47 @@ class _Detail extends ConsumerWidget {
     final estimatedAt = entry?.payload.estimatedAt;
 
     return ListView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(AppSpacing.lg),
       children: [
-        Row(
-          children: [
-            Expanded(
-              child: Text(
-                order.displayCode,
-                style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w800,
-                ),
+        // Header card (prototype: code + status chip, created at / by).
+        AppCard(
+          margin: const EdgeInsets.only(bottom: AppSpacing.s10),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Wrap(
+                alignment: WrapAlignment.spaceBetween,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: AppSpacing.sm,
+                runSpacing: AppSpacing.xs,
+                children: [
+                  Text(
+                    order.displayCode,
+                    style: AppText.display.copyWith(color: AppColors.text),
+                  ),
+                  OrderStatusChip(order),
+                ],
               ),
-            ),
-            OrderStatusChip(order),
-          ],
+              const SizedBox(height: AppSpacing.xs),
+              Text(
+                'Tạo lúc ${AppDates.timeDay(order.createdAt.toLocal())}'
+                '${order.createdByName.isEmpty ? '' : ' · ${order.createdByName}'}',
+                style: AppText.mutedSmall,
+              ),
+            ],
+          ),
         ),
-        const SizedBox(height: 4),
-        Text(
-          '${order.retailerName} · ${order.retailerCode}',
-          style: const TextStyle(color: AppColors.textMuted),
+        const SectionTitle('Điểm bán'),
+        AppCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(order.retailerName, style: AppText.cardTitle),
+              if (order.retailerCode.isNotEmpty)
+                Text('Mã ${order.retailerCode}', style: AppText.muted),
+            ],
+          ),
         ),
-        const SizedBox(height: 10),
         AllocationRetryButton(order: order),
         if (order.syncStatus == SyncStatus.synced && entry?.serverOrder != null)
           const InfoBanner(
@@ -178,7 +199,7 @@ class _Detail extends ConsumerWidget {
             order.appliedPromos,
             emptyText: 'Không có khuyến mãi.',
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: AppSpacing.s10),
           if (localQueued)
             const InfoBanner(
               text: 'Các khoản tiền bên dưới là tạm tính đã lưu trên máy.',
@@ -211,6 +232,25 @@ class _Detail extends ConsumerWidget {
                 'Kênh tạo',
                 order.isOffline ? 'Ngoại tuyến (OFF)' : 'Trực tuyến',
               ),
+              if (order.offlineCode.isNotEmpty)
+                KvRow('Mã tạm trên máy', order.offlineCode)
+              else if (entry != null)
+                KvRow('Mã tạm trên máy', entry!.localCode),
+              if (entry?.serverOrderCode.isNotEmpty == true)
+                KvRow('Mã đơn máy chủ', entry!.serverOrderCode)
+              else if (order.code.isNotEmpty)
+                KvRow('Mã đơn máy chủ', order.code),
+              if (order.syncMode.isNotEmpty)
+                KvRow('Cách đồng bộ', order.syncMode)
+              else if (entry?.syncMode.isNotEmpty == true)
+                KvRow('Cách đồng bộ', entry!.syncMode),
+            ],
+          ),
+        ),
+        const SectionTitle('Thời gian'),
+        AppCard(
+          child: Column(
+            children: [
               KvRow(
                 'Đặt hàng lúc',
                 AppDates.timeDay(order.createdAt.toLocal()),
@@ -220,14 +260,6 @@ class _Detail extends ConsumerWidget {
                   'Tạm tính trên máy lúc',
                   AppDates.timeDay(estimatedAt.toLocal()),
                 ),
-              if (order.offlineCode.isNotEmpty)
-                KvRow('Mã tạm trên máy', order.offlineCode)
-              else if (entry != null)
-                KvRow('Mã tạm trên máy', entry!.localCode),
-              if (entry?.serverOrderCode.isNotEmpty == true)
-                KvRow('Mã đơn máy chủ', entry!.serverOrderCode)
-              else if (order.code.isNotEmpty)
-                KvRow('Mã đơn máy chủ', order.code),
               if (order.syncedAt != null)
                 KvRow(
                   'Đồng bộ lúc',
@@ -238,10 +270,6 @@ class _Detail extends ConsumerWidget {
                   'Đồng bộ lúc',
                   AppDates.timeDay(entry!.syncedAt!.toLocal()),
                 ),
-              if (order.syncMode.isNotEmpty)
-                KvRow('Cách đồng bộ', order.syncMode)
-              else if (entry?.syncMode.isNotEmpty == true)
-                KvRow('Cách đồng bộ', entry!.syncMode),
             ],
           ),
         ),
@@ -251,7 +279,7 @@ class _Detail extends ConsumerWidget {
             child: TimelineList(order.timeline),
           ),
         ],
-        const SizedBox(height: 8),
+        const SizedBox(height: AppSpacing.sm),
         if (entry != null)
           OfflineDraftActions(
             entry: entry!,
@@ -259,6 +287,10 @@ class _Detail extends ConsumerWidget {
           ),
         if (order.syncStatus == null && order.status == OrderStatus.allocating)
           OutlinedButton.icon(
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.danger,
+              side: const BorderSide(color: AppColors.dangerBorder, width: 1.5),
+            ),
             onPressed: () => _cancel(context, ref),
             icon: const Icon(Icons.cancel_outlined),
             label: const Text('Hủy đơn'),

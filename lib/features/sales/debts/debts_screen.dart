@@ -9,6 +9,8 @@ import 'package:fscm_mobile/data/models/receivable.dart';
 import 'package:fscm_mobile/data/repositories/data_version.dart';
 import 'package:fscm_mobile/data/repositories/finance_repository.dart';
 import 'package:fscm_mobile/shared/theme/app_colors.dart';
+import 'package:fscm_mobile/shared/theme/app_text.dart';
+import 'package:fscm_mobile/shared/theme/app_tokens.dart';
 import 'package:fscm_mobile/shared/widgets/app_card.dart';
 import 'package:fscm_mobile/shared/widgets/async_body.dart';
 import 'package:fscm_mobile/shared/widgets/chip_filter_bar.dart';
@@ -50,7 +52,7 @@ class _DebtsScreenState extends ConsumerState<DebtsScreen> {
       appBar: AppBar(title: const Text('Công nợ cần thu')),
       body: Column(
         children: <Widget>[
-          const SizedBox(height: 8),
+          const SizedBox(height: AppSpacing.sm),
           ChipFilterBar<_DebtFilter>(
             options: const <ChipOption<_DebtFilter>>[
               ChipOption<_DebtFilter>(_DebtFilter.all, 'Tất cả'),
@@ -73,18 +75,17 @@ class _DebtsScreenState extends ConsumerState<DebtsScreen> {
                 return RefreshIndicator(
                   onRefresh: () async => ref.invalidate(receivablesProvider),
                   child: ListView(
-                    padding: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.all(AppSpacing.lg),
                     children: <Widget>[
                       AppCard(
                         child: Row(
                           children: <Widget>[
                             const Expanded(
                                 child: Text('Tổng còn phải thu',
-                                    style:
-                                        TextStyle(color: AppColors.textMuted))),
+                                    style: AppText.muted)),
                             Text(Money.format(open),
-                                style: const TextStyle(
-                                    fontSize: 20, fontWeight: FontWeight.w800)),
+                                style: AppText.display
+                                    .copyWith(color: AppColors.text)),
                           ],
                         ),
                       ),
@@ -116,30 +117,26 @@ class _DebtsScreenState extends ConsumerState<DebtsScreen> {
         children: <Widget>[
           Row(
             children: <Widget>[
-              Expanded(
-                  child: Text(r.retailerName,
-                      style: const TextStyle(fontWeight: FontWeight.w800))),
+              Expanded(child: Text(r.retailerName, style: AppText.strong)),
               StatusChip(label: r.status.label, tone: r.status.tone),
             ],
           ),
           Text(
               '${r.orderCode} · giao ${AppDates.dayMonth(r.deliveredAt)} · hạn ${AppDates.date(r.dueDate)}',
-              style: const TextStyle(color: AppColors.textMuted)),
-          const SizedBox(height: 4),
+              style: AppText.muted),
+          const SizedBox(height: AppSpacing.xs),
           Row(
             children: <Widget>[
               Text(Money.format(r.isPaid ? r.amount : r.outstandingAmount),
-                  style: const TextStyle(
-                      fontSize: 17, fontWeight: FontWeight.w800)),
-              const SizedBox(width: 10),
+                  style: AppText.strong.copyWith(fontSize: 17)),
+              const SizedBox(width: AppSpacing.s10),
               if (r.isOverdue)
                 Text('Quá hạn $daysLate ngày',
-                    style: const TextStyle(
-                        color: AppColors.danger, fontWeight: FontWeight.w600)),
+                    style: AppText.cardTitle.copyWith(color: AppColors.danger)),
             ],
           ),
           if (!r.isPaid) ...<Widget>[
-            const SizedBox(height: 8),
+            const SizedBox(height: AppSpacing.sm),
             OutlinedButton.icon(
               onPressed: () => _collect(context, r),
               icon: const Icon(Icons.payments_outlined),

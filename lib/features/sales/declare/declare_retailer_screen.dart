@@ -10,6 +10,9 @@ import 'package:fscm_mobile/data/models/map_place.dart';
 import 'package:fscm_mobile/data/repositories/data_version.dart';
 import 'package:fscm_mobile/data/repositories/retailer_repository.dart';
 import 'package:fscm_mobile/features/sales/declare/declaration_errors.dart';
+import 'package:fscm_mobile/shared/theme/app_colors.dart';
+import 'package:fscm_mobile/shared/theme/app_text.dart';
+import 'package:fscm_mobile/shared/theme/app_tokens.dart';
 import 'package:fscm_mobile/shared/widgets/dialogs.dart';
 import 'package:fscm_mobile/shared/widgets/info_banner.dart';
 import 'package:fscm_mobile/shared/widgets/section_title.dart';
@@ -260,7 +263,8 @@ class _DeclareRetailerScreenState extends ConsumerState<DeclareRetailerScreen> {
       body: Form(
         key: _form,
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+          padding: const EdgeInsets.fromLTRB(
+              AppSpacing.lg, AppSpacing.lg, AppSpacing.lg, 32),
           children: <Widget>[
             const InfoBanner(
               text:
@@ -280,7 +284,7 @@ class _DeclareRetailerScreenState extends ConsumerState<DeclareRetailerScreen> {
                 validator: (v) => (v == null || v.trim().length < 2)
                     ? 'Tên điểm bán tối thiểu 2 ký tự'
                     : _conflictFor('name', v.trim().toLowerCase())),
-            const SizedBox(height: 10),
+            const SizedBox(height: AppSpacing.s10),
             TextFormField(
                 controller: _address,
                 readOnly: _busy,
@@ -297,7 +301,7 @@ class _DeclareRetailerScreenState extends ConsumerState<DeclareRetailerScreen> {
                 },
                 decoration: const InputDecoration(labelText: 'Địa chỉ'),
                 validator: (v) => _required(v, 'Nhập địa chỉ')),
-            const SizedBox(height: 6),
+            const SizedBox(height: AppSpacing.s6),
             OutlinedButton.icon(
               onPressed: _busy ? null : _pickLocation,
               icon: const Icon(Icons.map_outlined),
@@ -309,12 +313,12 @@ class _DeclareRetailerScreenState extends ConsumerState<DeclareRetailerScreen> {
             if (_locationNeedsReview)
               Text('Địa chỉ đã đổi, cần xác nhận lại ghim.',
                   style: TextStyle(color: Theme.of(context).colorScheme.error)),
-            const SizedBox(height: 10),
+            const SizedBox(height: AppSpacing.s10),
             TextFormField(
                 controller: _contact,
                 decoration: const InputDecoration(labelText: 'Người liên hệ'),
                 validator: (v) => _required(v, 'Nhập người liên hệ')),
-            const SizedBox(height: 10),
+            const SizedBox(height: AppSpacing.s10),
             TextFormField(
               controller: _phone,
               keyboardType: TextInputType.phone,
@@ -329,7 +333,7 @@ class _DeclareRetailerScreenState extends ConsumerState<DeclareRetailerScreen> {
                 return _conflictFor('phone', d);
               },
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: AppSpacing.s10),
             TextFormField(
               controller: _email,
               keyboardType: TextInputType.emailAddress,
@@ -351,7 +355,7 @@ class _DeclareRetailerScreenState extends ConsumerState<DeclareRetailerScreen> {
                   .toList(),
               onChanged: (v) => setState(() => _type = v ?? _type),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: AppSpacing.s10),
             Row(
               children: <Widget>[
                 Expanded(
@@ -367,7 +371,7 @@ class _DeclareRetailerScreenState extends ConsumerState<DeclareRetailerScreen> {
                         : 'Nhập diện tích > 0',
                   ),
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: AppSpacing.s10),
                 Expanded(
                   child: TextFormField(
                     controller: _frequency,
@@ -382,7 +386,7 @@ class _DeclareRetailerScreenState extends ConsumerState<DeclareRetailerScreen> {
                 ),
               ],
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: AppSpacing.s10),
             TextFormField(
               controller: _forecast,
               keyboardType: TextInputType.number,
@@ -391,7 +395,7 @@ class _DeclareRetailerScreenState extends ConsumerState<DeclareRetailerScreen> {
               validator: (v) =>
                   Money.parse(v ?? '') == null ? 'Nhập doanh thu dự báo' : null,
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: AppSpacing.s10),
             TextFormField(
               controller: _capacity,
               keyboardType:
@@ -402,7 +406,7 @@ class _DeclareRetailerScreenState extends ConsumerState<DeclareRetailerScreen> {
                   ? null
                   : 'Nhập khả năng nhập hàng',
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: AppSpacing.s10),
             TextFormField(
               controller: _note,
               maxLines: 3,
@@ -441,7 +445,7 @@ class _DeclareRetailerScreenState extends ConsumerState<DeclareRetailerScreen> {
                           List<MlorDeclaration>.of(_mlors)..removeAt(i)),
                 ),
               ),
-            const SizedBox(height: 20),
+            const SizedBox(height: AppSpacing.xl),
             Row(
               children: <Widget>[
                 Expanded(
@@ -449,7 +453,7 @@ class _DeclareRetailerScreenState extends ConsumerState<DeclareRetailerScreen> {
                       onPressed: _busy ? null : () => _save(submit: false),
                       child: const Text('Lưu nháp')),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: AppSpacing.md),
                 Expanded(
                   child: FilledButton(
                       onPressed: _busy ? null : () => _save(submit: true),
@@ -466,7 +470,7 @@ class _DeclareRetailerScreenState extends ConsumerState<DeclareRetailerScreen> {
   Widget _territoryField(AsyncValue<List<SalesTerritory>> territories) =>
       territories.when(
         loading: () => const Padding(
-            padding: EdgeInsets.symmetric(vertical: 12),
+            padding: EdgeInsets.symmetric(vertical: AppSpacing.md),
             child: LinearProgressIndicator()),
         error: (e, _) => InfoBanner(
             tone: StatusTone.danger,
@@ -550,7 +554,7 @@ class _MlorEditorState extends ConsumerState<_MlorEditor> {
           children: <Widget>[
             const Text('Thêm yêu cầu hạn sử dụng',
                 style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
-            const SizedBox(height: 12),
+            const SizedBox(height: AppSpacing.md),
             SegmentedButton<bool>(
               segments: const <ButtonSegment<bool>>[
                 ButtonSegment<bool>(value: false, label: Text('Ngành hàng')),
@@ -562,11 +566,11 @@ class _MlorEditorState extends ConsumerState<_MlorEditor> {
                 _option = null;
               }),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: AppSpacing.md),
             options.when(
               loading: () => const LinearProgressIndicator(),
               error: (e, _) => Text(ApiException.describe(e),
-                  style: const TextStyle(color: Color(0xFFB42318))),
+                  style: AppText.muted.copyWith(color: AppColors.danger)),
               data: (list) => SearchPickerField<MlorScopeOption>(
                 key: ValueKey<bool>(_sku),
                 initialValue: _option,
@@ -583,7 +587,7 @@ class _MlorEditorState extends ConsumerState<_MlorEditor> {
                 },
               ),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: AppSpacing.s10),
             TextFormField(
               controller: _percent,
               keyboardType: TextInputType.number,
@@ -596,7 +600,7 @@ class _MlorEditorState extends ConsumerState<_MlorEditor> {
               },
             ),
             if (_sku) ...<Widget>[
-              const SizedBox(height: 10),
+              const SizedBox(height: AppSpacing.s10),
               TextFormField(
                 controller: _hours,
                 keyboardType: TextInputType.number,
@@ -615,7 +619,7 @@ class _MlorEditorState extends ConsumerState<_MlorEditor> {
                 },
               ),
             ],
-            const SizedBox(height: 16),
+            const SizedBox(height: AppSpacing.lg),
             FilledButton(
                 onPressed: _confirm,
                 child: const Text('Thêm yêu cầu hạn sử dụng')),

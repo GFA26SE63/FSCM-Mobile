@@ -253,11 +253,12 @@ class DeliveryInfoCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final purple = AppColors.tone(StatusTone.purple);
     return AppCard(
-      color: const Color(0xFFF1EAFE),
+      color: purple.background,
       child: Row(
         children: <Widget>[
-          const Icon(Icons.local_shipping_outlined, color: Color(0xFF6D28D9)),
+          Icon(Icons.local_shipping_outlined, color: purple.foreground),
           const SizedBox(width: 12),
           Expanded(
             child: Column(

@@ -3,6 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:fscm_mobile/core/auth/session.dart';
 import 'package:fscm_mobile/core/auth/user_role.dart';
 import 'package:fscm_mobile/shared/theme/app_colors.dart';
+import 'package:fscm_mobile/shared/widgets/status_chip.dart';
+import 'package:fscm_mobile/core/utils/status_tone.dart';
+import 'package:fscm_mobile/shared/theme/app_tokens.dart';
+import 'package:fscm_mobile/shared/theme/app_text.dart';
 import 'package:fscm_mobile/shared/widgets/app_card.dart';
 
 class ProfileIdentityCard extends StatelessWidget {
@@ -24,35 +28,33 @@ class ProfileIdentityCard extends StatelessWidget {
                 radius: 28,
                 backgroundColor: AppColors.primarySoft,
                 child: Text(user.initials,
-                    style: const TextStyle(
-                        color: AppColors.primary,
-                        fontSize: 18,
-                        fontWeight: FontWeight.w800)),
+                    style:
+                        AppText.pageTitle.copyWith(color: AppColors.primary)),
               ),
-              const SizedBox(width: 14),
+              const SizedBox(width: AppSpacing.card),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
                     Text(user.fullName,
-                        style: const TextStyle(
-                            fontSize: 17, fontWeight: FontWeight.w700)),
-                    const SizedBox(height: 2),
-                    Text(user.role.label,
-                        style: const TextStyle(color: AppColors.textMuted)),
+                        style: AppText.pageTitle
+                            .copyWith(fontSize: 17, color: AppColors.text)),
+                    const SizedBox(height: AppSpacing.xs),
+                    StatusChip(
+                        label: user.role.label, tone: StatusTone.primary),
                   ],
                 ),
               ),
             ],
           ),
           if (email.isNotEmpty) ...<Widget>[
-            const SizedBox(height: 12),
-            Text('Email: $email'),
+            const SizedBox(height: AppSpacing.md),
+            Text('Email: $email', style: AppText.bodyMedium),
           ],
           if (phone.isNotEmpty &&
               phone.toLowerCase() != email.toLowerCase()) ...<Widget>[
-            const SizedBox(height: 6),
-            Text('SĐT: $phone'),
+            const SizedBox(height: AppSpacing.s6),
+            Text('SĐT: $phone', style: AppText.bodyMedium),
           ],
           const Divider(height: 24),
           ..._scopeDetails(),
@@ -75,8 +77,9 @@ class ProfileIdentityCard extends StatelessWidget {
             useLegacyCode: true,
           ),
           if (user.retailerAddress?.trim().isNotEmpty == true) ...<Widget>[
-            const SizedBox(height: 6),
-            Text('Địa chỉ: ${user.retailerAddress!.trim()}'),
+            const SizedBox(height: AppSpacing.s6),
+            Text('Địa chỉ: ${user.retailerAddress!.trim()}',
+                style: AppText.bodyMedium),
           ],
         ];
       case UserRole.sales:
@@ -137,16 +140,20 @@ class _ScopeSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-        Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
-        const SizedBox(height: 4),
+        Text(title,
+            style: AppText.label.copyWith(
+                fontWeight: FontWeight.w700, color: AppColors.textMuted)),
+        const SizedBox(height: AppSpacing.xs),
         if (labels.isEmpty)
-          Text(_description(legacyName, legacyCode))
+          Text(_description(legacyName, legacyCode), style: AppText.bodyMedium)
         else
           for (final label in labels)
             Padding(
               padding: const EdgeInsets.only(bottom: 4),
-              child: Text(_description(
-                  label.name, useLegacyCode ? legacyCode : label.code)),
+              child: Text(
+                  _description(
+                      label.name, useLegacyCode ? legacyCode : label.code),
+                  style: AppText.bodyMedium),
             ),
       ],
     );

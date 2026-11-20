@@ -17,6 +17,8 @@ import 'package:fscm_mobile/data/repositories/performance_repository.dart';
 import 'package:fscm_mobile/features/common/notifications/notification_bell_button.dart';
 import 'package:fscm_mobile/shared/routes.dart';
 import 'package:fscm_mobile/shared/theme/app_colors.dart';
+import 'package:fscm_mobile/shared/theme/app_text.dart';
+import 'package:fscm_mobile/shared/theme/app_tokens.dart';
 import 'package:fscm_mobile/shared/widgets/app_card.dart';
 import 'package:fscm_mobile/shared/widgets/info_banner.dart';
 import 'package:fscm_mobile/shared/widgets/online_chip.dart';
@@ -53,11 +55,34 @@ class SalesHomeScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Trang chủ'),
-        actions: const <Widget>[
-          Padding(
-              padding: EdgeInsets.only(right: 4),
-              child: NotificationBellButton())
+        titleSpacing: AppSpacing.lg,
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            Text(
+              'Xin chào, ${user?.fullName ?? ''}',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: AppText.pageTitle.copyWith(color: AppColors.text),
+            ),
+            if ((user?.scopeText ?? '').isNotEmpty)
+              Text(
+                user!.scopeText,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: AppText.mutedSmall,
+              ),
+          ],
+        ),
+        actions: <Widget>[
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 132),
+            child: const FittedBox(fit: BoxFit.scaleDown, child: OnlineChip()),
+          ),
+          const SizedBox(width: AppSpacing.xs),
+          const NotificationBellButton(),
+          const SizedBox(width: AppSpacing.xs),
         ],
       ),
       body: RefreshIndicator(
@@ -66,16 +91,8 @@ class SalesHomeScreen extends ConsumerWidget {
           await ref.read(syncServiceProvider.notifier).refreshSnapshot();
         },
         child: ListView(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(AppSpacing.lg),
           children: <Widget>[
-            Text(
-              'Xin chào, ${user?.fullName ?? ''}',
-              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
-            ),
-            const SizedBox(height: 2),
-            Text(user?.scopeText ?? '',
-                style: const TextStyle(color: AppColors.textMuted)),
-            const SizedBox(height: 12),
             _SyncCard(
                 unsynced: unsynced,
                 busy: sync.busy,
@@ -84,6 +101,7 @@ class SalesHomeScreen extends ConsumerWidget {
                 error: sync.lastError),
             if (overdue.isNotEmpty)
               InkWell(
+                borderRadius: AppRadius.controlAll,
                 onTap: () => context.push(AppRoutes.salesDebts),
                 child: InfoBanner(
                   tone: StatusTone.danger,
@@ -94,30 +112,62 @@ class SalesHomeScreen extends ConsumerWidget {
                 ),
               ),
             FilledButton.icon(
+              style: FilledButton.styleFrom(
+                  minimumSize: const Size.fromHeight(56),
+                  textStyle: AppText.button.copyWith(fontSize: 16)),
               onPressed: () => context.push(AppRoutes.salesRetailers),
               icon: const Icon(Icons.add_shopping_cart),
               label: const Text('Tạo đơn hàng mới'),
             ),
             const SectionTitle('Đơn hôm nay'),
-            Row(
-              children: <Widget>[
-                Expanded(
-                    child:
-                        _Stat(label: 'Đã tạo', value: '${stats.createdToday}')),
-                const SizedBox(width: 10),
-                Expanded(
-                    child: _Stat(
-                        label: 'Đang chờ xử lý',
-                        value: '$waiting',
-                        tone: StatusTone.info)),
-                const SizedBox(width: 10),
-                Expanded(
-                    child: _Stat(
-                        label: 'Bị từ chối / hủy',
-                        value: '$rejected',
-                        tone: StatusTone.danger)),
-              ],
+            IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: <Widget>[
+                  Expanded(
+                      child: _Stat(
+                          label: 'Đã tạo', value: '${stats.createdToday}')),
+                  const SizedBox(width: AppSpacing.s10),
+                  Expanded(
+                      child: _Stat(
+                          label: 'Đang chờ xử lý',
+                          value: '$waiting',
+                          tone: StatusTone.info)),
+                  const SizedBox(width: AppSpacing.s10),
+                  Expanded(
+                      child: _Stat(
+                          label: 'Bị từ chối / hủy',
+                          value: '$rejected',
+                          tone: StatusTone.danger)),
+                ],
+              ),
             ),
+            const SectionTitle('Công việc'),
+            _ShortcutGrid(shortcuts: <_ShortcutData>[
+              _ShortcutData(
+                  icon: Icons.local_offer_outlined,
+                  label: 'Khuyến mãi đang chạy',
+                  note: '$promoCount chương trình',
+                  route: AppRoutes.salesPromotions),
+              const _ShortcutData(
+                  icon: Icons.inventory_2_outlined,
+                  label: 'Sản phẩm & tồn khả dụng',
+                  route: AppRoutes.salesProducts),
+              const _ShortcutData(
+                  icon: Icons.leaderboard_outlined,
+                  label: 'Doanh số & bảng xếp hạng',
+                  route: AppRoutes.salesKpi),
+              _ShortcutData(
+                  icon: Icons.account_balance_wallet_outlined,
+                  label: 'Công nợ cần thu',
+                  note: overdue.isEmpty ? null : '${overdue.length} quá hạn',
+                  noteTone: StatusTone.danger,
+                  route: AppRoutes.salesDebts),
+              const _ShortcutData(
+                  icon: Icons.person_add_alt_1_outlined,
+                  label: 'Khai báo điểm bán',
+                  route: AppRoutes.salesDeclarations),
+            ]),
             const SectionTitle('Tháng này'),
             AppCard(
               key: const Key('sales_home_kpi'),
@@ -127,38 +177,32 @@ class SalesHomeScreen extends ConsumerWidget {
                   : kpiEntry == null
                       ? const Text(
                           'Chưa có chỉ tiêu KPI hoặc doanh số ghi nhận trong tháng.',
-                          style: TextStyle(color: AppColors.textMuted))
-                      : Row(
+                          style: AppText.muted)
+                      : Wrap(
+                          alignment: WrapAlignment.spaceBetween,
+                          runSpacing: AppSpacing.s10,
+                          spacing: AppSpacing.lg,
                           children: <Widget>[
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: <Widget>[
-                                  const Text('Doanh số ghi nhận',
-                                      style: TextStyle(
-                                          color: AppColors.textMuted,
-                                          fontSize: 12.5)),
-                                  Text(
-                                      Money.format(
-                                          kpiEntry.recognizedRevenue.round()),
-                                      style: const TextStyle(
-                                          fontSize: 20,
-                                          fontWeight: FontWeight.w800)),
-                                ],
-                              ),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: <Widget>[
+                                const Text('Doanh số ghi nhận',
+                                    style: AppText.mutedSmall),
+                                Text(
+                                    Money.format(
+                                        kpiEntry.recognizedRevenue.round()),
+                                    style: AppText.display
+                                        .copyWith(color: AppColors.text)),
+                              ],
                             ),
                             Column(
-                              crossAxisAlignment: CrossAxisAlignment.end,
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: <Widget>[
                                 const Text('Hoàn thành KPI',
-                                    style: TextStyle(
-                                        color: AppColors.textMuted,
-                                        fontSize: 12.5)),
+                                    style: AppText.mutedSmall),
                                 Text(
                                     '${(kpiEntry.overallCompletionRate * 100).toStringAsFixed(1)}%',
-                                    style: TextStyle(
-                                        fontSize: 20,
-                                        fontWeight: FontWeight.w800,
+                                    style: AppText.display.copyWith(
                                         color:
                                             kpiEntry.overallCompletionRate >= 1
                                                 ? AppColors.success
@@ -175,40 +219,15 @@ class SalesHomeScreen extends ConsumerWidget {
                   children: <Widget>[
                     const Icon(Icons.local_shipping_outlined,
                         color: AppColors.primary),
-                    const SizedBox(width: 12),
+                    const SizedBox(width: AppSpacing.md),
                     const Expanded(
-                        child: Text('Đơn đang giao',
-                            style: TextStyle(fontWeight: FontWeight.w600))),
-                    Text('$delivering',
-                        style: const TextStyle(color: AppColors.textMuted)),
-                    const SizedBox(width: 6),
+                        child: Text('Đơn đang giao', style: AppText.cardTitle)),
+                    Text('$delivering', style: AppText.muted),
+                    const SizedBox(width: AppSpacing.s6),
                     const Icon(Icons.chevron_right, color: AppColors.textMuted),
                   ],
                 ),
               ),
-            const SectionTitle('Công việc'),
-            _Shortcut(
-                icon: Icons.local_offer_outlined,
-                label: 'Khuyến mãi đang chạy',
-                trailing: '$promoCount',
-                route: AppRoutes.salesPromotions),
-            const _Shortcut(
-                icon: Icons.inventory_2_outlined,
-                label: 'Sản phẩm & tồn khả dụng',
-                route: AppRoutes.salesProducts),
-            const _Shortcut(
-                icon: Icons.leaderboard_outlined,
-                label: 'Doanh số & bảng xếp hạng',
-                route: AppRoutes.salesKpi),
-            _Shortcut(
-                icon: Icons.account_balance_wallet_outlined,
-                label: 'Công nợ cần thu',
-                trailing: overdue.isEmpty ? null : '${overdue.length} quá hạn',
-                route: AppRoutes.salesDebts),
-            const _Shortcut(
-                icon: Icons.person_add_alt_1_outlined,
-                label: 'Khai báo điểm bán',
-                route: AppRoutes.salesDeclarations),
             if (notes.isNotEmpty) ...<Widget>[
               SectionTitle(
                 'Thông báo mới',
@@ -221,7 +240,7 @@ class SalesHomeScreen extends ConsumerWidget {
                 AppCard(
                   onTap: () => context.push(AppRoutes.notifications),
                   child: Text(n.text,
-                      style: TextStyle(
+                      style: AppText.bodyMedium.copyWith(
                           fontWeight:
                               n.unread ? FontWeight.w700 : FontWeight.w400,
                           height: 1.35)),
@@ -234,6 +253,7 @@ class SalesHomeScreen extends ConsumerWidget {
   }
 }
 
+/// Sync status card (prototype: icon tile + count + last sync + action).
 class _SyncCard extends ConsumerWidget {
   const _SyncCard({
     required this.unsynced,
@@ -253,57 +273,83 @@ class _SyncCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return AppCard(
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
-              const OnlineChip(),
-              const Spacer(),
-              Text(
-                'Dữ liệu cập nhật ${AppDates.timeDay(lastSyncAt)}',
-                style:
-                    const TextStyle(fontSize: 12.5, color: AppColors.textMuted),
+              Container(
+                width: 40,
+                height: 40,
+                decoration: const BoxDecoration(
+                    color: AppColors.primarySoft,
+                    borderRadius: AppRadius.controlAll),
+                child: const Icon(Icons.sync, color: AppColors.primary),
+              ),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(
+                      unsynced == 0
+                          ? 'Không có đơn chờ đồng bộ'
+                          : '$unsynced đơn chờ đồng bộ',
+                      style: AppText.cardTitle,
+                    ),
+                    Text(
+                      'Dữ liệu cập nhật ${AppDates.timeDay(lastSyncAt)}',
+                      style: AppText.mutedSmall,
+                    ),
+                  ],
+                ),
               ),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: AppSpacing.md),
           Row(
             children: <Widget>[
               Expanded(
-                child: Text(
-                  unsynced == 0
-                      ? 'Không có đơn chờ đồng bộ'
-                      : '$unsynced đơn chờ đồng bộ',
-                  style: const TextStyle(fontWeight: FontWeight.w700),
+                child: OutlinedButton(
+                  style: OutlinedButton.styleFrom(
+                      minimumSize: const Size(0, AppSizes.touch)),
+                  onPressed: () => context.go(AppRoutes.salesSync),
+                  child: const Text('Mở hàng đợi', textAlign: TextAlign.center),
                 ),
               ),
-              TextButton(
-                onPressed: () => context.go(AppRoutes.salesSync),
-                child: const Text('Mở hàng đợi'),
-              ),
-              FilledButton(
-                style: FilledButton.styleFrom(minimumSize: const Size(0, 38)),
-                onPressed: busy
-                    ? null
-                    : () => ref
-                        .read(syncServiceProvider.notifier)
-                        .refreshSnapshot(),
-                child: Text(busy ? 'Đang đồng bộ...' : 'Đồng bộ'),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: FilledButton(
+                  style: FilledButton.styleFrom(
+                      minimumSize: const Size(0, AppSizes.touch)),
+                  onPressed: busy
+                      ? null
+                      : () => ref
+                          .read(syncServiceProvider.notifier)
+                          .refreshSnapshot(),
+                  child: Text(busy ? 'Đang đồng bộ...' : 'Đồng bộ',
+                      textAlign: TextAlign.center),
+                ),
               ),
             ],
           ),
-          if (summary != null)
-            Text(summary!, style: const TextStyle(color: AppColors.success)),
-          if (error != null)
+          if (summary != null) ...<Widget>[
+            const SizedBox(height: AppSpacing.sm),
+            Text(summary!,
+                style: AppText.bodyMedium.copyWith(color: AppColors.success)),
+          ],
+          if (error != null) ...<Widget>[
+            const SizedBox(height: AppSpacing.sm),
             Text(error!,
-                style:
-                    const TextStyle(color: AppColors.danger, fontSize: 12.5)),
+                style: AppText.bodySmall.copyWith(color: AppColors.danger)),
+          ],
         ],
       ),
     );
   }
 }
 
+/// White stat card: small label above a large coloured number.
 class _Stat extends StatelessWidget {
   const _Stat(
       {required this.label,
@@ -316,58 +362,99 @@ class _Stat extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final c = AppColors.tone(tone);
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-          color: c.background, borderRadius: BorderRadius.circular(14)),
+    final color = tone == StatusTone.neutral
+        ? AppColors.text
+        : AppColors.tone(tone).foreground;
+    return AppCard(
+      margin: EdgeInsets.zero,
+      padding: const EdgeInsets.all(AppSpacing.md),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
+          Text(label, style: AppText.mutedSmall.copyWith(fontSize: 12)),
+          const SizedBox(height: AppSpacing.xs),
           Text(value,
-              style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.w800,
-                  color: c.foreground)),
-          const SizedBox(height: 2),
-          Text(label, style: TextStyle(fontSize: 12.5, color: c.foreground)),
+              style: AppText.display.copyWith(fontSize: 24, color: color)),
         ],
       ),
     );
   }
 }
 
-class _Shortcut extends StatelessWidget {
-  const _Shortcut(
-      {required this.icon,
-      required this.label,
-      required this.route,
-      this.trailing});
+class _ShortcutData {
+  const _ShortcutData({
+    required this.icon,
+    required this.label,
+    required this.route,
+    this.note,
+    this.noteTone,
+  });
 
   final IconData icon;
   final String label;
   final String route;
-  final String? trailing;
+  final String? note;
+  final StatusTone? noteTone;
+}
+
+/// Two-column grid of shortcut cards (prototype: icon above label).
+class _ShortcutGrid extends StatelessWidget {
+  const _ShortcutGrid({required this.shortcuts});
+
+  final List<_ShortcutData> shortcuts;
 
   @override
   Widget build(BuildContext context) {
+    final rows = <Widget>[];
+    for (var i = 0; i < shortcuts.length; i += 2) {
+      final second = i + 1 < shortcuts.length ? shortcuts[i + 1] : null;
+      rows.add(Padding(
+        padding: const EdgeInsets.only(bottom: AppSpacing.s10),
+        child: IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              Expanded(child: _ShortcutCard(shortcuts[i])),
+              const SizedBox(width: AppSpacing.s10),
+              Expanded(
+                  child: second == null
+                      ? const SizedBox.shrink()
+                      : _ShortcutCard(second)),
+            ],
+          ),
+        ),
+      ));
+    }
+    return Column(children: rows);
+  }
+}
+
+class _ShortcutCard extends StatelessWidget {
+  const _ShortcutCard(this.data);
+
+  final _ShortcutData data;
+
+  @override
+  Widget build(BuildContext context) {
+    final noteColor = data.noteTone == null
+        ? AppColors.textMuted
+        : AppColors.tone(data.noteTone!).foreground;
     return AppCard(
-      onTap: () => context.push(route),
-      child: Row(
-        children: <Widget>[
-          Icon(icon, color: AppColors.primary),
-          const SizedBox(width: 12),
-          Expanded(
-              child: Text(label,
-                  style: const TextStyle(fontWeight: FontWeight.w600))),
-          if (trailing != null)
-            Padding(
-              padding: const EdgeInsets.only(right: 6),
-              child: Text(trailing!,
-                  style: const TextStyle(color: AppColors.textMuted)),
-            ),
-          const Icon(Icons.chevron_right, color: AppColors.textMuted),
-        ],
+      margin: EdgeInsets.zero,
+      onTap: () => context.push(data.route),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: 60),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Icon(data.icon, color: AppColors.primary),
+            const SizedBox(height: AppSpacing.sm),
+            Text(data.label, style: AppText.cardTitle.copyWith(fontSize: 14)),
+            if (data.note != null)
+              Text(data.note!,
+                  style: AppText.mutedSmall.copyWith(color: noteColor)),
+          ],
+        ),
       ),
     );
   }

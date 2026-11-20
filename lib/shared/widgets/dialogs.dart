@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:fscm_mobile/app/app.dart';
+import 'package:fscm_mobile/shared/theme/app_tokens.dart';
 
 /// Shows a short toast-like message at the bottom.
 void showAppSnack(BuildContext context, String message, {bool error = false}) {
@@ -23,7 +24,8 @@ Future<bool> confirmDialog(
     builder: (ctx) => AlertDialog(
       title: Text(title),
       content: Text(message),
-      actionsPadding: const EdgeInsets.fromLTRB(24, 0, 24, 20),
+      actionsPadding: const EdgeInsets.fromLTRB(
+          AppSpacing.xxl, 0, AppSpacing.xxl, AppSpacing.xl),
       actions: <Widget>[
         SizedBox(
           width: double.infinity,
@@ -34,7 +36,7 @@ Future<bool> confirmDialog(
                 onPressed: () => Navigator.of(ctx).pop(true),
                 child: Text(confirmLabel),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: AppSpacing.s10),
               OutlinedButton(
                 onPressed: () => Navigator.of(ctx).pop(false),
                 child: Text(cancelLabel),
