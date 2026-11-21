@@ -15,6 +15,10 @@ import 'package:fscm_mobile/shared/widgets/async_body.dart';
 import 'package:fscm_mobile/shared/widgets/dialogs.dart';
 import 'package:fscm_mobile/shared/widgets/empty_state.dart';
 import 'package:fscm_mobile/shared/widgets/status_chip.dart';
+import 'package:fscm_mobile/core/utils/status_tone.dart';
+import 'package:fscm_mobile/shared/theme/app_text.dart';
+import 'package:fscm_mobile/shared/theme/app_tokens.dart';
+import 'package:fscm_mobile/shared/widgets/info_banner.dart';
 
 /// Own complaints (KN-yyMMdd-nn) with their processing status, evidence images, evidence follow-up
 /// and cancel (only while the claim has no decision yet).
@@ -94,7 +98,8 @@ class ComplaintsScreen extends ConsumerWidget {
                 title: 'Chưa có yêu cầu nào.');
           }
           return ListView.builder(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 90),
+            padding: const EdgeInsets.fromLTRB(
+                AppSpacing.lg, AppSpacing.lg, AppSpacing.lg, 90),
             itemCount: list.length,
             itemBuilder: (context, i) {
               final c = list[i];
@@ -102,26 +107,33 @@ class ComplaintsScreen extends ConsumerWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
-                    Row(
+                    // Header: claim code + status chip (prototype complaint card).
+                    Wrap(
+                      alignment: WrapAlignment.spaceBetween,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      spacing: AppSpacing.sm,
+                      runSpacing: AppSpacing.xs,
                       children: <Widget>[
-                        Expanded(
-                            child: Text(c.code,
-                                style: const TextStyle(
-                                    fontWeight: FontWeight.w800))),
+                        Text(c.code, style: AppText.strong),
                         StatusChip(label: c.statusText, tone: c.statusTone),
                       ],
                     ),
-                    Text('${c.orderCode} · ${c.sku} ${c.name}'),
-                    Text('${c.typeText} · Đề nghị: ${c.settlementText}'),
+                    Text(AppDates.timeDay(c.createdAt),
+                        style: AppText.mutedSmall),
+                    const SizedBox(height: AppSpacing.sm),
+                    Text('${c.orderCode} · ${c.sku} ${c.name}',
+                        style: AppText.cardTitle.copyWith(fontSize: 14)),
+                    Text('${c.typeText} · Đề nghị: ${c.settlementText}',
+                        style: AppText.bodyMedium),
                     if (c.approvedSettlementMethod.isNotEmpty)
-                      Text('Quản trị viên duyệt: ${c.approvedSettlementText}'),
+                      Text('Quản trị viên duyệt: ${c.approvedSettlementText}',
+                          style: AppText.bodyMedium),
                     Text(
                       'Yêu cầu ${c.requestedQuantity == 0 ? c.shortfall : c.requestedQuantity} thùng · duyệt ${c.approvedQuantity ?? '—'} · xử lý ${c.handledQuantity ?? '—'}',
-                      style: const TextStyle(
-                          color: AppColors.textMuted, fontSize: 13),
+                      style: AppText.mutedSmall,
                     ),
                     if (c.note.isNotEmpty)
-                      Text('"${c.note}"', style: const TextStyle(fontSize: 13)),
+                      Text('"${c.note}"', style: AppText.bodySmall),
                     _EvidenceStrip(
                         complaintId: c.id,
                         // Images can be replaced only while the claim has no decision yet.
@@ -129,17 +141,19 @@ class ComplaintsScreen extends ConsumerWidget {
                             ? (e) => _removeEvidence(context, ref, c, e)
                             : null),
                     if (c.needsEvidence) ...<Widget>[
-                      const SizedBox(height: 6),
-                      Text(
-                          'Yêu cầu bổ sung: ${c.evidenceRequestReason.isEmpty ? 'Vui lòng gửi thêm ảnh bằng chứng.' : c.evidenceRequestReason}',
-                          style: const TextStyle(
-                              color: AppColors.warning,
-                              fontWeight: FontWeight.w600)),
+                      const SizedBox(height: AppSpacing.s6),
+                      InfoBanner(
+                          tone: StatusTone.warning,
+                          icon: Icons.add_a_photo_outlined,
+                          text:
+                              'Yêu cầu bổ sung: ${c.evidenceRequestReason.isEmpty ? 'Vui lòng gửi thêm ảnh bằng chứng.' : c.evidenceRequestReason}'),
                     ],
                     if (c.response.isNotEmpty) ...<Widget>[
-                      const SizedBox(height: 4),
-                      Text('Phản hồi: ${c.response}',
-                          style: const TextStyle(fontWeight: FontWeight.w600)),
+                      const SizedBox(height: AppSpacing.xs),
+                      InfoBanner(
+                          tone: StatusTone.success,
+                          icon: Icons.chat_bubble_outline,
+                          text: 'Phản hồi: ${c.response}'),
                     ],
                     if (c.financialAdjustmentApplied &&
                         c.debtOffsetAmount + c.refundAmount !=
@@ -151,7 +165,7 @@ class ComplaintsScreen extends ConsumerWidget {
                             c.adjustmentAmount)
                       Text(
                           'Đã chốt: cấn trừ nợ ${Money.format(c.debtOffsetAmount)}; phiếu hoàn ${Money.format(c.refundAmount)}${c.refundId.isEmpty ? '' : ' (đã tạo, đang theo dõi chi trả)'}.',
-                          style: const TextStyle(fontSize: 13)),
+                          style: AppText.bodySmall),
                     for (final doc in c.documents)
                       Padding(
                           padding: const EdgeInsets.only(top: 4),
@@ -172,9 +186,6 @@ class ComplaintsScreen extends ConsumerWidget {
                               label: const Text('Hủy yêu cầu',
                                   style: TextStyle(color: AppColors.danger))),
                       ]),
-                    Text(AppDates.timeDay(c.createdAt),
-                        style: const TextStyle(
-                            color: AppColors.textMuted, fontSize: 12)),
                   ],
                 ),
               );

@@ -300,7 +300,14 @@ class SalesOrderTile extends StatelessWidget {
                     style: AppText.mutedSmall),
               ),
               const SizedBox(width: AppSpacing.sm),
-              Text(Money.format(o.finalAmount), style: AppText.strong),
+              Flexible(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerRight,
+                  child:
+                      Text(Money.format(o.finalAmount), style: AppText.strong),
+                ),
+              ),
             ],
           ),
           if (o.isOffline || o.promoChanged) ...<Widget>[

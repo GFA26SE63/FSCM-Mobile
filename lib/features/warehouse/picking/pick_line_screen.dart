@@ -19,6 +19,10 @@ import 'package:fscm_mobile/shared/widgets/dialogs.dart';
 import 'package:fscm_mobile/shared/widgets/info_banner.dart';
 import 'package:fscm_mobile/shared/widgets/qr_scan_view.dart';
 import 'package:fscm_mobile/shared/widgets/quantity_stepper.dart';
+import 'package:fscm_mobile/shared/theme/app_text.dart';
+import 'package:fscm_mobile/shared/theme/app_tokens.dart';
+import 'package:fscm_mobile/shared/widgets/section_title.dart';
+import 'package:fscm_mobile/shared/widgets/empty_state.dart';
 
 /// Scan the source label of a picking line, choose how many cartons to take
 /// (splitting the label when needed) and confirm.
@@ -143,22 +147,35 @@ class _PickLineScreenState extends ConsumerState<PickLineScreen> {
         onRetry: () => ref.invalidate(pickingDetailProvider(widget.code)),
         builder: (list) {
           if (widget.lineIndex < 0 || widget.lineIndex >= list.lines.length) {
-            return const Center(child: Text('Không tìm thấy dòng cần lấy.'));
+            return const EmptyState(title: 'Không tìm thấy dòng cần lấy.');
           }
           final line = list.lines[widget.lineIndex];
           return ListView(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(AppSpacing.lg),
             children: <Widget>[
               AppCard(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
-                    Text('${line.sku} · ${line.name}',
-                        style: const TextStyle(fontWeight: FontWeight.w800)),
+                    Text('${line.sku} · ${line.name}', style: AppText.strong),
                     Text(
-                        'Lô hàng ${line.batchCode} · HSD ${AppDates.date(line.expiry)} · vị trí ${line.location}'),
+                        'Lô hàng ${line.batchCode} · HSD ${AppDates.date(line.expiry)} · vị trí ${line.location}',
+                        style: AppText.muted),
+                    const SizedBox(height: AppSpacing.sm),
                     Text('Cần lấy ${line.need} thùng (đã lấy ${line.picked})',
-                        style: const TextStyle(fontWeight: FontWeight.w700)),
+                        style:
+                            AppText.strong.copyWith(color: AppColors.primary)),
+                    const SizedBox(height: AppSpacing.s6),
+                    ClipRRect(
+                      borderRadius: AppRadius.pillAll,
+                      child: LinearProgressIndicator(
+                        minHeight: 8,
+                        backgroundColor: AppColors.primarySoft,
+                        value: line.need > 0
+                            ? (line.picked / line.need).clamp(0, 1).toDouble()
+                            : 0,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -166,6 +183,7 @@ class _PickLineScreenState extends ConsumerState<PickLineScreen> {
                 _resultView(_result!)
               else ...<Widget>[
                 if (_label == null) ...<Widget>[
+                  const SectionTitle('Quét tem nguồn'),
                   QrScanView(
                     hint: 'Quét tem nguồn ${line.suggestedLabel}',
                     onCode: (c) => _onScan(line, c),
@@ -173,7 +191,7 @@ class _PickLineScreenState extends ConsumerState<PickLineScreen> {
                 ] else
                   _quantityView(line, _label!),
                 if (_error.isNotEmpty) ...<Widget>[
-                  const SizedBox(height: 10),
+                  const SizedBox(height: AppSpacing.s10),
                   InfoBanner(
                       tone: StatusTone.danger,
                       icon: Icons.error_outline,
@@ -194,22 +212,18 @@ class _PickLineScreenState extends ConsumerState<PickLineScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
-        const SizedBox(height: 10),
+        const SizedBox(height: AppSpacing.s10),
         AppCard(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
-              Text('Tem nguồn ${label.code}',
-                  style: const TextStyle(fontWeight: FontWeight.w800)),
-              Text('Đang có ${label.qty} thùng · ${label.location}'),
+              Text('Tem nguồn ${label.code}', style: AppText.strong),
+              Text('Đang có ${label.qty} thùng · ${label.location}',
+                  style: AppText.muted),
             ],
           ),
         ),
-        const Padding(
-          padding: EdgeInsets.fromLTRB(2, 6, 2, 6),
-          child: Text('Số thùng thực lấy',
-              style: TextStyle(fontWeight: FontWeight.w700)),
-        ),
+        const SectionTitle('Số thùng thực lấy'),
         Center(
             child: QuantityStepper(
                 value: _qty,
@@ -217,7 +231,7 @@ class _PickLineScreenState extends ConsumerState<PickLineScreen> {
                 max: max,
                 step: 1,
                 onChanged: (v) => setState(() => _qty = v))),
-        const SizedBox(height: 10),
+        const SizedBox(height: AppSpacing.s10),
         InfoBanner(
           icon: Icons.call_split,
           title: 'Kết quả sau khi xác nhận',
@@ -239,7 +253,7 @@ class _PickLineScreenState extends ConsumerState<PickLineScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
-        const SizedBox(height: 10),
+        const SizedBox(height: AppSpacing.s10),
         InfoBanner(
           tone: StatusTone.success,
           icon: Icons.check_circle_outline,
@@ -254,8 +268,8 @@ class _PickLineScreenState extends ConsumerState<PickLineScreen> {
             children: <Widget>[
               const Text(
                   'In tem chính thức từ máy chủ. Chọn máy in trong hộp thoại in.',
-                  style: TextStyle(color: AppColors.textMuted)),
-              const SizedBox(height: 8),
+                  style: AppText.muted),
+              const SizedBox(height: AppSpacing.sm),
               OutlinedButton.icon(
                 onPressed: _printing ? null : () => _print(r.childLabel),
                 icon: const Icon(Icons.print_outlined),
@@ -270,7 +284,7 @@ class _PickLineScreenState extends ConsumerState<PickLineScreen> {
             ],
           ),
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: AppSpacing.s10),
         FilledButton(
             onPressed: () => context.pop(),
             child: const Text('Về danh sách phiếu soạn hàng')),

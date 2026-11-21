@@ -7,8 +7,12 @@ import 'package:fscm_mobile/data/repositories/loyalty_repository.dart';
 import 'package:fscm_mobile/features/retailer/loyalty/widgets/loyalty_balance_card.dart';
 import 'package:fscm_mobile/features/retailer/loyalty/widgets/loyalty_ledger_tile.dart';
 import 'package:fscm_mobile/shared/routes.dart';
+import 'package:fscm_mobile/shared/theme/app_tokens.dart';
 import 'package:fscm_mobile/shared/widgets/async_body.dart';
 import 'package:fscm_mobile/shared/widgets/section_title.dart';
+import 'package:fscm_mobile/shared/theme/app_colors.dart';
+import 'package:fscm_mobile/shared/theme/app_text.dart';
+import 'package:fscm_mobile/shared/widgets/app_card.dart';
 
 class LoyaltyScreen extends ConsumerWidget {
   const LoyaltyScreen({super.key});
@@ -39,10 +43,9 @@ class LoyaltyScreen extends ConsumerWidget {
           onRefresh: () => _reload(ref),
           child: ListView(
             physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(AppSpacing.lg),
             children: [
               LoyaltyBalanceCard(account: account),
-              LoyaltyProgramCard(account: account),
               FilledButton.icon(
                 onPressed: () => context.push(AppRoutes.rtGifts),
                 icon: const Icon(Icons.card_giftcard),
@@ -52,12 +55,17 @@ class LoyaltyScreen extends ConsumerWidget {
               ),
               const SectionTitle('Lịch sử điểm'),
               if (account.ledger.isEmpty)
-                const Padding(
-                    padding: EdgeInsets.all(16),
-                    child: Text('Chưa có giao dịch điểm.'))
+                const AppCard(
+                    child: Column(children: [
+                  Icon(Icons.history, size: 32, color: AppColors.textMuted),
+                  SizedBox(height: AppSpacing.sm),
+                  Text('Chưa có giao dịch điểm.', style: AppText.muted),
+                ]))
               else
                 for (final entry in account.ledger)
                   LoyaltyLedgerTile(key: ValueKey(entry.id), entry: entry),
+              const SectionTitle('Chương trình tích điểm'),
+              LoyaltyProgramCard(account: account),
             ],
           ),
         ),

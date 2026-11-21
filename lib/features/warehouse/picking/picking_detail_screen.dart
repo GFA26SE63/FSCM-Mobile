@@ -14,6 +14,9 @@ import 'package:fscm_mobile/shared/widgets/async_body.dart';
 import 'package:fscm_mobile/shared/widgets/dialogs.dart';
 import 'package:fscm_mobile/shared/widgets/info_banner.dart';
 import 'package:fscm_mobile/shared/widgets/status_chip.dart';
+import 'package:fscm_mobile/shared/theme/app_text.dart';
+import 'package:fscm_mobile/shared/theme/app_tokens.dart';
+import 'package:fscm_mobile/shared/widgets/section_title.dart';
 
 /// One picking list: lines to pick (FEFO-suggested label), progress and the
 /// "Hoàn tất soạn" action. Shipment issue and dispatch are separate steps.
@@ -31,36 +34,49 @@ class PickingDetailScreen extends ConsumerWidget {
         value: value,
         onRetry: () => ref.invalidate(pickingDetailProvider(code)),
         builder: (p) => ListView(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(AppSpacing.lg),
           children: <Widget>[
-            Row(
-              children: <Widget>[
-                Expanded(
-                    child: Text(p.retailerName,
-                        style: const TextStyle(
-                            fontSize: 18, fontWeight: FontWeight.w800))),
-                StatusChip(label: p.status.label, tone: p.status.tone),
-              ],
+            // Header card: retailer + status, order/warehouse, overall progress.
+            AppCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Wrap(
+                    alignment: WrapAlignment.spaceBetween,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    spacing: AppSpacing.sm,
+                    runSpacing: AppSpacing.xs,
+                    children: <Widget>[
+                      Text(p.retailerName,
+                          style: AppText.pageTitle
+                              .copyWith(color: AppColors.text)),
+                      StatusChip(label: p.status.label, tone: p.status.tone),
+                    ],
+                  ),
+                  Text('Đơn ${p.orderCode} · ${p.warehouseName}',
+                      style: AppText.muted),
+                  if (p.siblingText.isNotEmpty)
+                    Text('Cùng đơn: ${p.siblingText}',
+                        style: AppText.mutedSmall),
+                  const SizedBox(height: AppSpacing.md),
+                  Text(
+                      'Tiến độ: ${p.doneLines}/${p.lines.length} dòng · ${p.totalPicked}/${p.totalNeed} thùng',
+                      style: AppText.cardTitle),
+                  const SizedBox(height: AppSpacing.s6),
+                  ClipRRect(
+                    borderRadius: AppRadius.pillAll,
+                    child: LinearProgressIndicator(
+                      value: p.lines.isEmpty ? 0 : p.doneLines / p.lines.length,
+                      minHeight: 8,
+                      backgroundColor: AppColors.primarySoft,
+                    ),
+                  ),
+                ],
+              ),
             ),
-            Text('Đơn ${p.orderCode} · ${p.warehouseName}',
-                style: const TextStyle(color: AppColors.textMuted)),
-            if (p.siblingText.isNotEmpty)
-              Text('Cùng đơn: ${p.siblingText}',
-                  style: const TextStyle(
-                      color: AppColors.textMuted, fontSize: 12.5)),
-            const SizedBox(height: 12),
-            Text(
-                'Tiến độ: ${p.doneLines}/${p.lines.length} dòng · ${p.totalPicked}/${p.totalNeed} thùng',
-                style: const TextStyle(fontWeight: FontWeight.w600)),
-            const SizedBox(height: 6),
-            LinearProgressIndicator(
-              value: p.lines.isEmpty ? 0 : p.doneLines / p.lines.length,
-              minHeight: 8,
-              borderRadius: BorderRadius.circular(4),
-            ),
-            const SizedBox(height: 14),
+            const SectionTitle('Các dòng cần lấy'),
             for (final l in p.lines) _LineCard(list: p, line: l),
-            const SizedBox(height: 6),
+            const SizedBox(height: AppSpacing.s6),
             if (p.isCompleted)
               InfoBanner(
                 icon: Icons.check_circle_outline,
@@ -73,14 +89,13 @@ class PickingDetailScreen extends ConsumerWidget {
                 icon: const Icon(Icons.inventory_2_outlined),
                 label: const Text('Hoàn tất soạn hàng'),
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: AppSpacing.s6),
               Text(
                 p.allDone
                     ? 'Bước này chỉ đóng phiếu soạn; tồn thực tế chỉ trừ khi phiếu giao hàng được xác nhận xuất.'
                     : 'Quét đủ tất cả dòng để hoàn tất phiếu soạn.',
                 textAlign: TextAlign.center,
-                style:
-                    const TextStyle(color: AppColors.textMuted, fontSize: 12.5),
+                style: AppText.mutedSmall,
               ),
             ],
           ],
@@ -126,26 +141,24 @@ class _LineCard extends StatelessWidget {
           Row(
             children: <Widget>[
               Expanded(
-                  child: Text('${l.sku} · ${l.name}',
-                      style: const TextStyle(fontWeight: FontWeight.w800))),
+                  child: Text('${l.sku} · ${l.name}', style: AppText.strong)),
               if (l.isDone)
                 const Icon(Icons.check_circle, color: AppColors.success),
             ],
           ),
-          const SizedBox(height: 4),
-          Text('Lô hàng ${l.batchCode}',
-              style: const TextStyle(color: AppColors.textMuted)),
+          const SizedBox(height: AppSpacing.xs),
+          Text('Lô hàng ${l.batchCode}', style: AppText.muted),
           Text(
               'HSD ${AppDates.date(l.expiry)}${l.location.isEmpty ? '' : ' · Vị trí ${l.location}'}'),
           Text('Cần lấy: ${l.need} thùng (đã lấy ${l.picked})',
-              style: const TextStyle(fontWeight: FontWeight.w700)),
+              style: AppText.strong),
           if (l.suggestedLabel.isNotEmpty)
             Text('Tem gợi ý (ưu tiên hết hạn trước): ${l.suggestedLabel}',
-                style: const TextStyle(
-                    color: AppColors.primary, fontWeight: FontWeight.w600)),
+                style: AppText.cardTitle
+                    .copyWith(fontSize: 14, color: AppColors.primary)),
           if (l.outLabel.isNotEmpty) Text('Tem mang đi: ${l.outLabel}'),
           if (!list.isCompleted && !l.isDone) ...<Widget>[
-            const SizedBox(height: 8),
+            const SizedBox(height: AppSpacing.sm),
             OutlinedButton.icon(
               onPressed: () =>
                   context.push(AppRoutes.wkPickLine(list.code, l.index)),

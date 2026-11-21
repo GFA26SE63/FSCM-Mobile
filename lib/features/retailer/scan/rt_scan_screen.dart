@@ -16,6 +16,9 @@ import 'package:fscm_mobile/shared/widgets/info_banner.dart';
 import 'package:fscm_mobile/shared/widgets/kv_row.dart';
 import 'package:fscm_mobile/shared/widgets/qr_scan_view.dart';
 import 'package:fscm_mobile/shared/widgets/status_chip.dart';
+import 'package:fscm_mobile/shared/theme/app_text.dart';
+import 'package:fscm_mobile/shared/theme/app_tokens.dart';
+import 'package:fscm_mobile/shared/widgets/section_title.dart';
 
 /// Retailer "Quét QR" tab: scan a label printed on a carton, see which order
 /// it belongs to and jump to receipt confirmation.
@@ -80,7 +83,7 @@ class _RtScanScreenState extends ConsumerState<RtScanScreen> {
         actions: const <Widget>[NotificationBellButton()],
       ),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(AppSpacing.lg),
         children: <Widget>[
           const InfoBanner(
             icon: Icons.qr_code_scanner,
@@ -91,7 +94,7 @@ class _RtScanScreenState extends ConsumerState<RtScanScreen> {
             onCode: _onScan,
           ),
           if (_error.isNotEmpty) ...<Widget>[
-            const SizedBox(height: 12),
+            const SizedBox(height: AppSpacing.md),
             InfoBanner(
                 tone: StatusTone.danger,
                 icon: Icons.error_outline,
@@ -99,24 +102,28 @@ class _RtScanScreenState extends ConsumerState<RtScanScreen> {
           ],
           if (l != null && l.orderCode.isNotEmpty) ...<Widget>[
             const SizedBox(height: 12),
+            const SectionTitle('Kết quả quét'),
             AppCard(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
-                  Row(
+                  Wrap(
+                    alignment: WrapAlignment.spaceBetween,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    spacing: AppSpacing.sm,
+                    runSpacing: AppSpacing.xs,
                     children: <Widget>[
-                      Expanded(
-                          child: Text(l.code,
-                              style: const TextStyle(
-                                  fontWeight: FontWeight.w800, fontSize: 16))),
+                      Text(l.code,
+                          style: AppText.strong.copyWith(fontSize: 16)),
                       StatusChip(label: l.status.label, tone: l.status.tone),
                     ],
                   ),
+                  const SizedBox(height: AppSpacing.xs),
                   KvRow('Sản phẩm', '${l.sku} · ${l.name}'),
                   KvRow('Số lượng', '${l.qty} thùng'),
                   KvRow('HSD', AppDates.date(l.expiry)),
                   KvRow('Thuộc đơn', l.orderCode, bold: true),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: AppSpacing.sm),
                   if (_canReceive)
                     FilledButton.icon(
                       onPressed: () =>
