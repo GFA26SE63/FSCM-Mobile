@@ -42,6 +42,7 @@ import 'package:fscm_mobile/shared/widgets/info_banner.dart';
 import 'package:fscm_mobile/shared/widgets/online_chip.dart';
 import 'package:fscm_mobile/shared/widgets/quantity_stepper.dart';
 import 'package:fscm_mobile/shared/widgets/order_quantity_field.dart';
+import 'package:fscm_mobile/shared/widgets/status_chip.dart';
 import 'package:fscm_mobile/sync/sync_service.dart';
 
 final _orderAvailabilityProvider = FutureProvider.autoDispose
@@ -224,23 +225,44 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
             padding: const EdgeInsets.all(AppSpacing.lg),
             children: [
               AppCard(
-                child: Column(
+                child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      retailer.name,
-                      style: AppText.strong.copyWith(fontSize: 16),
+                    Container(
+                      width: 44,
+                      height: 44,
+                      decoration: const BoxDecoration(
+                        color: AppColors.primarySoft,
+                        borderRadius: AppRadius.controlAll,
+                      ),
+                      child: const Icon(Icons.storefront_outlined,
+                          color: AppColors.primary),
                     ),
-                    Text(
-                      'Mã ${retailer.code} · ${retailer.address}',
-                      style: AppText.muted,
-                    ),
-                    Text(
-                      retailer.creditAllowed
-                          ? 'Kỳ hạn công nợ theo dữ liệu đồng bộ: '
-                              '${retailer.creditTerm} ngày'
-                          : 'Không mua công nợ theo dữ liệu đồng bộ',
-                      style: AppText.strong.copyWith(color: AppColors.primary),
+                    const SizedBox(width: AppSpacing.md),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            retailer.name,
+                            style: AppText.strong.copyWith(fontSize: 16),
+                          ),
+                          Text(
+                            'Mã ${retailer.code} · ${retailer.address}',
+                            style: AppText.mutedSmall,
+                          ),
+                          const SizedBox(height: AppSpacing.xs),
+                          Text(
+                            retailer.creditAllowed
+                                ? 'Kỳ hạn công nợ theo dữ liệu đồng bộ: '
+                                    '${retailer.creditTerm} ngày'
+                                : 'Không mua công nợ theo dữ liệu đồng bộ',
+                            style: AppText.bodySmall.copyWith(
+                                color: AppColors.primary,
+                                fontWeight: FontWeight.w600),
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                 ),
@@ -407,9 +429,10 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
                   ? '${product.pack} · Chưa có giá hiệu lực trong dữ liệu đồng bộ'
                   : '${product.pack} · '
                       '${Money.format(price)}/thùng · dự kiến',
-              style: TextStyle(
-                color: price == null ? AppColors.warning : AppColors.textMuted,
-              ),
+              style: price == null
+                  ? AppText.bodySmall.copyWith(color: AppColors.warning)
+                  : AppText.bodySmall.copyWith(
+                      color: AppColors.primary, fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: AppSpacing.s6),
             if (availability != null)
@@ -460,34 +483,19 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
                 padding: const EdgeInsets.only(top: AppSpacing.xs),
                 child: Row(
                   children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: AppColors.success.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(4),
-                        border: Border.all(
-                            color: AppColors.success.withValues(alpha: 0.3)),
-                      ),
-                      child: Text(
-                        'KM Tối ưu: −${_pct(pricedLines.first.pct)}%',
-                        style: const TextStyle(
-                          color: AppColors.success,
-                          fontWeight: FontWeight.w700,
-                          fontSize: 11,
-                        ),
-                      ),
+                    StatusChip(
+                      label: 'KM Tối ưu: −${_pct(pricedLines.first.pct)}%',
+                      tone: StatusTone.success,
                     ),
                     const SizedBox(width: AppSpacing.s6),
                     Expanded(
                       child: Text(
                         '${pricedLines.first.promoName.isEmpty ? 'Khuyến mãi' : pricedLines.first.promoName} · '
                         'giảm ${Money.format(pricedLines.first.discount)}',
-                        style: const TextStyle(
-                          color: AppColors.success,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 12,
-                        ),
+                        style: AppText.bodySmall.copyWith(
+                            color: AppColors.success,
+                            fontWeight: FontWeight.w600),
+                        maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
@@ -562,7 +570,10 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
                     quote.isComplete
                         ? Money.format(quote.finalAmount)
                         : 'Chưa đủ dữ liệu giá',
-                    style: AppText.pageTitle,
+                    style: AppText.pageTitle.copyWith(
+                        color: quote.isComplete
+                            ? AppColors.primary
+                            : AppColors.text),
                   ),
                   if (count > 0 && quote.isComplete)
                     const Text(

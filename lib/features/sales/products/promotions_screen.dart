@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fscm_mobile/core/utils/dates.dart';
 import 'package:fscm_mobile/data/models/json_utils.dart';
 import 'package:fscm_mobile/data/repositories/catalog_repository.dart';
+import 'package:fscm_mobile/shared/theme/app_colors.dart';
 import 'package:fscm_mobile/shared/theme/app_text.dart';
 import 'package:fscm_mobile/shared/theme/app_tokens.dart';
 import 'package:fscm_mobile/shared/widgets/app_card.dart';
@@ -88,6 +89,9 @@ class _PromotionsScreenState extends ConsumerState<PromotionsScreen> {
                 isExpanded: true,
               ),
               const SizedBox(height: AppSpacing.md),
+              Text('${promotions.length} chương trình đang chạy',
+                  style: AppText.cardTitle),
+              const SizedBox(height: AppSpacing.sm),
               if (promotions.isEmpty)
                 const EmptyState(
                   title: 'Không có khuyến mãi phù hợp đang chạy.',
@@ -110,10 +114,38 @@ class _PromotionsScreenState extends ConsumerState<PromotionsScreen> {
                             promotion.name,
                             style: AppText.strong,
                           ),
-                          const SizedBox(height: AppSpacing.sm),
-                          for (final condition in promotion.conditionLines)
-                            Text(condition),
-                          const SizedBox(height: AppSpacing.s6),
+                          const SizedBox(height: AppSpacing.xs),
+                          Text(
+                            'Hiệu lực: '
+                            '${AppDates.timeDay(promotion.validFrom)}'
+                            ' → ${AppDates.timeDay(promotion.validTo)}',
+                            style: AppText.mutedSmall,
+                          ),
+                          const SizedBox(height: AppSpacing.s10),
+                          // Conditions block (prototype `.promo` panel).
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: AppSpacing.s10,
+                                vertical: AppSpacing.sm),
+                            decoration: const BoxDecoration(
+                              color: AppColors.warningSoft,
+                              borderRadius: AppRadius.smallAll,
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                for (final condition
+                                    in promotion.conditionLines)
+                                  Text(
+                                    condition,
+                                    style: AppText.bodyMedium
+                                        .copyWith(color: AppColors.warning),
+                                  ),
+                              ],
+                            ),
+                          ),
+                          const Divider(height: AppSpacing.xl),
                           const Text(
                             'Sản phẩm trong phạm vi:',
                             style: AppText.cardTitle,
@@ -124,12 +156,6 @@ class _PromotionsScreenState extends ConsumerState<PromotionsScreen> {
                             ),
                           for (final name in productNames) Text('• $name'),
                           const SizedBox(height: AppSpacing.sm),
-                          Text(
-                            'Hiệu lực: '
-                            '${AppDates.timeDay(promotion.validFrom)}'
-                            ' → ${AppDates.timeDay(promotion.validTo)}',
-                          ),
-                          const SizedBox(height: AppSpacing.xs),
                           Text(
                             promotion.retailerCodes == null
                                 ? 'Áp dụng cho tất cả điểm bán.'

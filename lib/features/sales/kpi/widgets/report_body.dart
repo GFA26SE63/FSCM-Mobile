@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fscm_mobile/core/utils/dates.dart';
 import 'package:fscm_mobile/data/models/performance.dart';
+import 'package:fscm_mobile/shared/theme/app_text.dart';
 import 'package:fscm_mobile/shared/theme/app_tokens.dart';
 import 'package:fscm_mobile/shared/widgets/async_body.dart';
 
@@ -55,9 +56,11 @@ class ReportHeader<T> extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Padding(
         padding: const EdgeInsets.only(bottom: AppSpacing.md),
-        child: Text('Kỳ: ${report.fromDate} → ${report.toDate}\n'
+        child: Text(
+            'Kỳ: ${report.fromDate} → ${report.toDate}\n'
             'Phạm vi: ${report.scope == 'OwnGroup' || report.scope == 'Group' ? 'Nhóm được cấp quyền' : report.scope}\n'
-            'Tải dữ liệu lúc ${AppDates.timeDay(report.loadedAt)} (giờ Việt Nam)'),
+            'Tải dữ liệu lúc ${AppDates.timeDay(report.loadedAt)} (giờ Việt Nam)',
+            style: AppText.mutedSmall),
       );
 }
 

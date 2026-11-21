@@ -230,6 +230,15 @@ ThemeData buildAppTheme() {
       smallSize: 8,
       largeSize: 18,
     ),
+    tabBarTheme: const TabBarThemeData(
+      labelColor: AppColors.primary,
+      unselectedLabelColor: AppColors.textMuted,
+      labelStyle: AppText.buttonSmall,
+      unselectedLabelStyle: AppText.buttonSmall,
+      indicatorColor: AppColors.primary,
+      dividerColor: AppColors.divider,
+      indicatorSize: TabBarIndicatorSize.tab,
+    ),
     progressIndicatorTheme: const ProgressIndicatorThemeData(
       color: AppColors.primary,
       circularTrackColor: AppColors.primarySoft,

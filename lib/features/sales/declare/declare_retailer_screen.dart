@@ -14,6 +14,7 @@ import 'package:fscm_mobile/shared/theme/app_colors.dart';
 import 'package:fscm_mobile/shared/theme/app_text.dart';
 import 'package:fscm_mobile/shared/theme/app_tokens.dart';
 import 'package:fscm_mobile/shared/widgets/dialogs.dart';
+import 'package:fscm_mobile/shared/widgets/app_card.dart';
 import 'package:fscm_mobile/shared/widgets/info_banner.dart';
 import 'package:fscm_mobile/shared/widgets/section_title.dart';
 import 'package:fscm_mobile/shared/widgets/search_picker_field.dart';
@@ -278,141 +279,176 @@ class _DeclareRetailerScreenState extends ConsumerState<DeclareRetailerScreen> {
                   text: initial.reviewReason),
             if (!_isEdit) _territoryField(territories),
             const SectionTitle('Thông tin điểm bán'),
-            TextFormField(
-                controller: _name,
-                decoration: const InputDecoration(labelText: 'Tên điểm bán'),
-                validator: (v) => (v == null || v.trim().length < 2)
-                    ? 'Tên điểm bán tối thiểu 2 ký tự'
-                    : _conflictFor('name', v.trim().toLowerCase())),
-            const SizedBox(height: AppSpacing.s10),
-            TextFormField(
-                controller: _address,
-                readOnly: _busy,
-                onChanged: (value) {
-                  // A manually edited address is not a verified provider place.
-                  setState(() {
-                    _providerPlaceId = value.trim() == _locationAddress
-                        ? _locationPlaceId
-                        : null;
-                    _locationNeedsReview =
-                        MapPlace.validCoordinates(_latitude, _longitude) &&
-                            value.trim() != _locationAddress;
-                  });
-                },
-                decoration: const InputDecoration(labelText: 'Địa chỉ'),
-                validator: (v) => _required(v, 'Nhập địa chỉ')),
-            const SizedBox(height: AppSpacing.s6),
-            OutlinedButton.icon(
-              onPressed: _busy ? null : _pickLocation,
-              icon: const Icon(Icons.map_outlined),
-              label: const Text('Chọn trên bản đồ'),
-            ),
-            if (MapPlace.validCoordinates(_latitude, _longitude))
-              Text(
-                  'Vị trí đã chọn: ${_latitude!.toStringAsFixed(6)}, ${_longitude!.toStringAsFixed(6)}'),
-            if (_locationNeedsReview)
-              Text('Địa chỉ đã đổi, cần xác nhận lại ghim.',
-                  style: TextStyle(color: Theme.of(context).colorScheme.error)),
-            const SizedBox(height: AppSpacing.s10),
-            TextFormField(
-                controller: _contact,
-                decoration: const InputDecoration(labelText: 'Người liên hệ'),
-                validator: (v) => _required(v, 'Nhập người liên hệ')),
-            const SizedBox(height: AppSpacing.s10),
-            TextFormField(
-              controller: _phone,
-              keyboardType: TextInputType.phone,
-              decoration: const InputDecoration(
-                  labelText: 'Số điện thoại',
-                  helperText: 'Dùng để điểm bán đăng nhập lần đầu'),
-              validator: (v) {
-                final d = _digits(v ?? '');
-                if (!(d.length == 10 && d.startsWith('0'))) {
-                  return 'Số điện thoại gồm 10 chữ số, bắt đầu bằng 0';
-                }
-                return _conflictFor('phone', d);
-              },
-            ),
-            const SizedBox(height: AppSpacing.s10),
-            TextFormField(
-              controller: _email,
-              keyboardType: TextInputType.emailAddress,
-              decoration: const InputDecoration(
-                  labelText: 'Email',
-                  helperText: 'Nhận thông báo tạo tài khoản và mã OTP'),
-              validator: (v) => RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$')
-                      .hasMatch((v ?? '').trim())
-                  ? _conflictFor('email', (v ?? '').trim().toLowerCase())
-                  : 'Nhập email hợp lệ',
+            AppCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: <Widget>[
+                  TextFormField(
+                      controller: _name,
+                      decoration:
+                          const InputDecoration(labelText: 'Tên điểm bán'),
+                      validator: (v) => (v == null || v.trim().length < 2)
+                          ? 'Tên điểm bán tối thiểu 2 ký tự'
+                          : _conflictFor('name', v.trim().toLowerCase())),
+                  const SizedBox(height: AppSpacing.s10),
+                  TextFormField(
+                      controller: _address,
+                      readOnly: _busy,
+                      onChanged: (value) {
+                        // A manually edited address is not a verified provider place.
+                        setState(() {
+                          _providerPlaceId = value.trim() == _locationAddress
+                              ? _locationPlaceId
+                              : null;
+                          _locationNeedsReview = MapPlace.validCoordinates(
+                                  _latitude, _longitude) &&
+                              value.trim() != _locationAddress;
+                        });
+                      },
+                      decoration: const InputDecoration(labelText: 'Địa chỉ'),
+                      validator: (v) => _required(v, 'Nhập địa chỉ')),
+                  const SizedBox(height: AppSpacing.s6),
+                  OutlinedButton.icon(
+                    onPressed: _busy ? null : _pickLocation,
+                    icon: const Icon(Icons.map_outlined),
+                    label: const Text('Chọn trên bản đồ'),
+                  ),
+                  if (MapPlace.validCoordinates(_latitude, _longitude))
+                    Text(
+                        'Vị trí đã chọn: ${_latitude!.toStringAsFixed(6)}, ${_longitude!.toStringAsFixed(6)}',
+                        style: AppText.mutedSmall),
+                  if (_locationNeedsReview)
+                    Text('Địa chỉ đã đổi, cần xác nhận lại ghim.',
+                        style: AppText.bodySmall
+                            .copyWith(color: AppColors.danger)),
+                  const SizedBox(height: AppSpacing.s10),
+                  TextFormField(
+                      controller: _contact,
+                      decoration:
+                          const InputDecoration(labelText: 'Người liên hệ'),
+                      validator: (v) => _required(v, 'Nhập người liên hệ')),
+                  const SizedBox(height: AppSpacing.s10),
+                  TextFormField(
+                    controller: _phone,
+                    keyboardType: TextInputType.phone,
+                    decoration: const InputDecoration(
+                        labelText: 'Số điện thoại',
+                        helperText: 'Dùng để điểm bán đăng nhập lần đầu'),
+                    validator: (v) {
+                      final d = _digits(v ?? '');
+                      if (!(d.length == 10 && d.startsWith('0'))) {
+                        return 'Số điện thoại gồm 10 chữ số, bắt đầu bằng 0';
+                      }
+                      return _conflictFor('phone', d);
+                    },
+                  ),
+                  const SizedBox(height: AppSpacing.s10),
+                  TextFormField(
+                    controller: _email,
+                    keyboardType: TextInputType.emailAddress,
+                    decoration: const InputDecoration(
+                        labelText: 'Email',
+                        helperText: 'Nhận thông báo tạo tài khoản và mã OTP'),
+                    validator: (v) => RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$')
+                            .hasMatch((v ?? '').trim())
+                        ? _conflictFor('email', (v ?? '').trim().toLowerCase())
+                        : 'Nhập email hợp lệ',
+                  ),
+                ],
+              ),
             ),
             const SectionTitle('Đánh giá tiềm năng'),
-            DropdownButtonFormField<RetailerTypeOption>(
-              initialValue: _type,
-              decoration: const InputDecoration(labelText: 'Loại hình'),
-              items: RetailerTypeOption.values
-                  .map((t) => DropdownMenuItem<RetailerTypeOption>(
-                      value: t, child: Text(t.label)))
-                  .toList(),
-              onChanged: (v) => setState(() => _type = v ?? _type),
-            ),
-            const SizedBox(height: AppSpacing.s10),
-            Row(
-              children: <Widget>[
-                Expanded(
-                  child: TextFormField(
-                    controller: _area,
+            AppCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: <Widget>[
+                  DropdownButtonFormField<RetailerTypeOption>(
+                    isExpanded: true,
+                    initialValue: _type,
+                    decoration: const InputDecoration(labelText: 'Loại hình'),
+                    items: RetailerTypeOption.values
+                        .map((t) => DropdownMenuItem<RetailerTypeOption>(
+                            value: t, child: Text(t.label)))
+                        .toList(),
+                    onChanged: (v) => setState(() => _type = v ?? _type),
+                  ),
+                  const SizedBox(height: AppSpacing.s10),
+                  LayoutBuilder(
+                    builder: (context, box) {
+                      final area = TextFormField(
+                        controller: _area,
+                        keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true),
+                        decoration: const InputDecoration(
+                            labelText: 'Diện tích (m²)',
+                            helperText: '<30 S · 30–60 M · >60 L'),
+                        validator: (v) => (_decimal(v ?? '') ?? 0) > 0
+                            ? null
+                            : 'Nhập diện tích > 0',
+                      );
+                      final frequency = TextFormField(
+                        controller: _frequency,
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(
+                            labelText: 'Số lần nhập / tháng',
+                            helperText: '1 lần/tuần ≈ 4'),
+                        validator: (v) =>
+                            (int.tryParse((v ?? '').trim()) ?? 0) > 0
+                                ? null
+                                : 'Nhập số > 0',
+                      );
+                      // Side by side only when both helper texts fit.
+                      if (box.maxWidth < 340) {
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: <Widget>[
+                            area,
+                            const SizedBox(height: AppSpacing.s10),
+                            frequency,
+                          ],
+                        );
+                      }
+                      return Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          Expanded(child: area),
+                          const SizedBox(width: AppSpacing.s10),
+                          Expanded(child: frequency),
+                        ],
+                      );
+                    },
+                  ),
+                  const SizedBox(height: AppSpacing.s10),
+                  TextFormField(
+                    controller: _forecast,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(
+                        labelText: 'Doanh thu dự báo / tháng (đ)'),
+                    validator: (v) => Money.parse(v ?? '') == null
+                        ? 'Nhập doanh thu dự báo'
+                        : null,
+                  ),
+                  const SizedBox(height: AppSpacing.s10),
+                  TextFormField(
+                    controller: _capacity,
                     keyboardType:
                         const TextInputType.numberWithOptions(decimal: true),
                     decoration: const InputDecoration(
-                        labelText: 'Diện tích (m²)',
-                        helperText: '<30 S · 30–60 M · >60 L'),
-                    validator: (v) => (_decimal(v ?? '') ?? 0) > 0
+                        labelText: 'Khả năng nhập hàng (thùng / tháng)'),
+                    validator: (v) => (_decimal(v ?? '') ?? -1) >= 0
                         ? null
-                        : 'Nhập diện tích > 0',
+                        : 'Nhập khả năng nhập hàng',
                   ),
-                ),
-                const SizedBox(width: AppSpacing.s10),
-                Expanded(
-                  child: TextFormField(
-                    controller: _frequency,
-                    keyboardType: TextInputType.number,
+                  const SizedBox(height: AppSpacing.s10),
+                  TextFormField(
+                    controller: _note,
+                    maxLines: 3,
                     decoration: const InputDecoration(
-                        labelText: 'Số lần nhập / tháng',
-                        helperText: '1 lần/tuần ≈ 4'),
-                    validator: (v) => (int.tryParse((v ?? '').trim()) ?? 0) > 0
-                        ? null
-                        : 'Nhập số > 0',
+                        labelText: 'Ghi chú đánh giá',
+                        hintText: 'Số tủ mát, vị trí, đối thủ gần đó...'),
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: AppSpacing.s10),
-            TextFormField(
-              controller: _forecast,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                  labelText: 'Doanh thu dự báo / tháng (đ)'),
-              validator: (v) =>
-                  Money.parse(v ?? '') == null ? 'Nhập doanh thu dự báo' : null,
-            ),
-            const SizedBox(height: AppSpacing.s10),
-            TextFormField(
-              controller: _capacity,
-              keyboardType:
-                  const TextInputType.numberWithOptions(decimal: true),
-              decoration: const InputDecoration(
-                  labelText: 'Khả năng nhập hàng (thùng / tháng)'),
-              validator: (v) => (_decimal(v ?? '') ?? -1) >= 0
-                  ? null
-                  : 'Nhập khả năng nhập hàng',
-            ),
-            const SizedBox(height: AppSpacing.s10),
-            TextFormField(
-              controller: _note,
-              maxLines: 3,
-              decoration: const InputDecoration(
-                  labelText: 'Ghi chú đánh giá',
-                  hintText: 'Số tủ mát, vị trí, đối thủ gần đó...'),
+                ],
+              ),
             ),
             SectionTitle('Yêu cầu hạn sử dụng tối thiểu (MLOR)',
                 trailing: TextButton.icon(
@@ -544,16 +580,16 @@ class _MlorEditorState extends ConsumerState<_MlorEditor> {
     final options =
         ref.watch(_sku ? mlorProductsProvider : mlorCategoriesProvider);
     return Padding(
-      padding: EdgeInsets.fromLTRB(
-          16, 16, 16, 16 + MediaQuery.of(context).viewInsets.bottom),
+      padding: EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.lg, AppSpacing.lg,
+          AppSpacing.lg + MediaQuery.of(context).viewInsets.bottom),
       child: Form(
         key: _form,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: <Widget>[
-            const Text('Thêm yêu cầu hạn sử dụng',
-                style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
+            Text('Thêm yêu cầu hạn sử dụng',
+                style: AppText.sectionTitle.copyWith(fontSize: 16)),
             const SizedBox(height: AppSpacing.md),
             SegmentedButton<bool>(
               segments: const <ButtonSegment<bool>>[

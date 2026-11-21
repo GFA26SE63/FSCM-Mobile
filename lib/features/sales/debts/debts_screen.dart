@@ -52,17 +52,22 @@ class _DebtsScreenState extends ConsumerState<DebtsScreen> {
       appBar: AppBar(title: const Text('Công nợ cần thu')),
       body: Column(
         children: <Widget>[
-          const SizedBox(height: AppSpacing.sm),
-          ChipFilterBar<_DebtFilter>(
-            options: const <ChipOption<_DebtFilter>>[
-              ChipOption<_DebtFilter>(_DebtFilter.all, 'Tất cả'),
-              ChipOption<_DebtFilter>(_DebtFilter.overdue, 'Quá hạn'),
-              ChipOption<_DebtFilter>(_DebtFilter.unpaid, 'Chưa đến hạn'),
-              ChipOption<_DebtFilter>(_DebtFilter.paid, 'Đã thu'),
-            ],
-            selected: _filter,
-            onSelected: (v) => setState(() => _filter = v),
-          ),
+          Container(
+              decoration: const BoxDecoration(
+                color: AppColors.surface,
+                border: Border(bottom: BorderSide(color: AppColors.divider)),
+              ),
+              padding: const EdgeInsets.symmetric(vertical: AppSpacing.s10),
+              child: ChipFilterBar<_DebtFilter>(
+                options: const <ChipOption<_DebtFilter>>[
+                  ChipOption<_DebtFilter>(_DebtFilter.all, 'Tất cả'),
+                  ChipOption<_DebtFilter>(_DebtFilter.overdue, 'Quá hạn'),
+                  ChipOption<_DebtFilter>(_DebtFilter.unpaid, 'Chưa đến hạn'),
+                  ChipOption<_DebtFilter>(_DebtFilter.paid, 'Đã thu'),
+                ],
+                selected: _filter,
+                onSelected: (v) => setState(() => _filter = v),
+              )),
           Expanded(
             child: AsyncBody<List<Receivable>>(
               value: value,
@@ -78,14 +83,18 @@ class _DebtsScreenState extends ConsumerState<DebtsScreen> {
                     padding: const EdgeInsets.all(AppSpacing.lg),
                     children: <Widget>[
                       AppCard(
-                        child: Row(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: <Widget>[
-                            const Expanded(
-                                child: Text('Tổng còn phải thu',
-                                    style: AppText.muted)),
+                            const Text('Tổng còn phải thu',
+                                style: AppText.muted),
+                            const SizedBox(height: AppSpacing.xs),
                             Text(Money.format(open),
-                                style: AppText.display
-                                    .copyWith(color: AppColors.text)),
+                                style: AppText.display.copyWith(
+                                    fontSize: 24,
+                                    color: open > 0
+                                        ? AppColors.danger
+                                        : AppColors.text)),
                           ],
                         ),
                       ),
@@ -115,26 +124,34 @@ class _DebtsScreenState extends ConsumerState<DebtsScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Row(
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: AppSpacing.sm,
+            runSpacing: AppSpacing.xs,
             children: <Widget>[
-              Expanded(child: Text(r.retailerName, style: AppText.strong)),
+              Text(r.retailerName, style: AppText.strong),
               StatusChip(label: r.status.label, tone: r.status.tone),
             ],
           ),
           Text(
               '${r.orderCode} · giao ${AppDates.dayMonth(r.deliveredAt)} · hạn ${AppDates.date(r.dueDate)}',
-              style: AppText.muted),
-          const SizedBox(height: AppSpacing.xs),
+              style: AppText.mutedSmall),
+          const SizedBox(height: AppSpacing.s10),
           Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
             children: <Widget>[
+              Expanded(
+                child: Text(r.isPaid ? 'Đã thu' : 'Hiện cần thu',
+                    style: AppText.muted),
+              ),
               Text(Money.format(r.isPaid ? r.amount : r.outstandingAmount),
                   style: AppText.strong.copyWith(fontSize: 17)),
-              const SizedBox(width: AppSpacing.s10),
-              if (r.isOverdue)
-                Text('Quá hạn $daysLate ngày',
-                    style: AppText.cardTitle.copyWith(color: AppColors.danger)),
             ],
           ),
+          if (r.isOverdue)
+            Text('Quá hạn $daysLate ngày',
+                style: AppText.cardTitle.copyWith(color: AppColors.danger)),
           if (!r.isPaid) ...<Widget>[
             const SizedBox(height: AppSpacing.sm),
             OutlinedButton.icon(

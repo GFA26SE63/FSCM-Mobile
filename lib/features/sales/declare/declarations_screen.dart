@@ -47,7 +47,13 @@ class DeclarationsScreen extends ConsumerWidget {
                   text:
                       'Quản trị viên / nhân viên vận hành duyệt, cấp mã điểm bán 8 số và tạo tài khoản điểm bán trên ứng dụng.'),
               if (list.isEmpty)
-                const EmptyState(title: 'Chưa có khai báo nào.'),
+                const EmptyState(title: 'Chưa có khai báo nào.')
+              else
+                Padding(
+                  padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                  child:
+                      Text('${list.length} khai báo', style: AppText.cardTitle),
+                ),
               for (final d in list) _Tile(declaration: d),
             ],
           ),
@@ -107,10 +113,13 @@ class _TileState extends ConsumerState<_Tile> {
         child: ExpansionTile(
           tilePadding: EdgeInsets.zero,
           childrenPadding: EdgeInsets.zero,
-          title: Row(
+          title: Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: AppSpacing.sm,
+            runSpacing: AppSpacing.xs,
             children: <Widget>[
-              Expanded(
-                  child: Text('${d.code} · ${d.name}', style: AppText.strong)),
+              Text('${d.code} · ${d.name}', style: AppText.strong),
               StatusChip(label: d.status.label, tone: d.status.tone),
             ],
           ),

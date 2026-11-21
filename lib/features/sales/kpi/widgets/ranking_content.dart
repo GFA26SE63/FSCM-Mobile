@@ -4,6 +4,7 @@ import 'package:fscm_mobile/data/models/performance.dart';
 import 'package:fscm_mobile/features/sales/kpi/widgets/report_body.dart';
 import 'package:fscm_mobile/shared/theme/app_colors.dart';
 import 'package:fscm_mobile/shared/theme/app_text.dart';
+import 'package:fscm_mobile/shared/theme/app_tokens.dart';
 import 'package:fscm_mobile/shared/widgets/app_card.dart';
 import 'package:fscm_mobile/shared/widgets/kv_row.dart';
 import 'package:fscm_mobile/shared/widgets/section_title.dart';
@@ -34,14 +35,22 @@ class SalesRankingContent extends StatelessWidget {
       for (final entry in report.entries)
         AppCard(
           color: entry.salesUserId == userId ? AppColors.primarySoft : null,
-          child:
-              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(
-                '#${entry.rank} · ${entry.name}${entry.salesUserId == userId ? ' (bạn)' : ''}',
-                style: AppText.strong),
-            Text(entry.group),
-            KvRow('Số đơn', '${entry.orderCount}'),
-            KvRow('Doanh thu ghi nhận', Money.format(entry.recognizedRevenue)),
+          child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            _RankBadge(entry.rank, highlight: entry.salesUserId == userId),
+            const SizedBox(width: AppSpacing.md),
+            Expanded(
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                        '#${entry.rank} · ${entry.name}${entry.salesUserId == userId ? ' (bạn)' : ''}',
+                        style: AppText.strong),
+                    Text(entry.group, style: AppText.mutedSmall),
+                    KvRow('Số đơn', '${entry.orderCount}'),
+                    KvRow('Doanh thu ghi nhận',
+                        Money.format(entry.recognizedRevenue)),
+                  ]),
+            ),
           ]),
         ),
     ]);
@@ -76,5 +85,27 @@ class ProductRankingContent extends StatelessWidget {
                       Money.format(entry.adjustedNetRevenue)),
                 ])),
         ],
+      );
+}
+
+/// Round rank badge (prototype ranking rows).
+class _RankBadge extends StatelessWidget {
+  const _RankBadge(this.rank, {this.highlight = false});
+
+  final int rank;
+  final bool highlight;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        width: 28,
+        height: 28,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: highlight ? AppColors.primary : AppColors.warningSoft,
+        ),
+        child: Text('$rank',
+            style: AppText.caption.copyWith(
+                color: highlight ? AppColors.onPrimary : AppColors.warning)),
       );
 }

@@ -7,6 +7,8 @@ import 'package:fscm_mobile/data/repositories/catalog_repository.dart';
 import 'package:fscm_mobile/features/sales/products/catalog_sync_button.dart';
 import 'package:fscm_mobile/features/sales/retailers/widgets/retailer_summary_card.dart';
 import 'package:fscm_mobile/shared/routes.dart';
+import 'package:fscm_mobile/shared/theme/app_colors.dart';
+import 'package:fscm_mobile/shared/theme/app_text.dart';
 import 'package:fscm_mobile/shared/theme/app_tokens.dart';
 import 'package:fscm_mobile/shared/widgets/async_body.dart';
 import 'package:fscm_mobile/shared/widgets/empty_state.dart';
@@ -34,9 +36,13 @@ class _RetailerListScreenState extends ConsumerState<RetailerListScreen> {
       ),
       body: Column(
         children: [
-          Padding(
+          Container(
+            decoration: const BoxDecoration(
+              color: AppColors.surface,
+              border: Border(bottom: BorderSide(color: AppColors.divider)),
+            ),
             padding: const EdgeInsets.fromLTRB(
-                AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.xs),
+                AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.md),
             child: TextField(
               decoration: const InputDecoration(
                 hintText: 'Tìm mã, tên hoặc địa chỉ',
@@ -87,7 +93,7 @@ class _RetailerListScreenState extends ConsumerState<RetailerListScreen> {
                     ),
                     Text(
                       '${data.retailers.length} điểm bán phụ trách',
-                      style: Theme.of(context).textTheme.titleSmall,
+                      style: AppText.cardTitle,
                     ),
                     const SizedBox(height: AppSpacing.md),
                     if (data.retailers.isEmpty)
