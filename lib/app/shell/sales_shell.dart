@@ -6,7 +6,7 @@ import 'package:fscm_mobile/data/models/offline_order.dart';
 import 'package:fscm_mobile/data/repositories/order_repository.dart';
 import 'package:fscm_mobile/sync/sync_service.dart';
 
-/// Bottom navigation of the Sales role: Trang chủ, Đơn hàng, Quét QR,
+/// Bottom navigation of the Sales role: Trang chủ, Đơn hàng,
 /// Đồng bộ (badge = orders still on the device), Tài khoản.
 class SalesShell extends ConsumerStatefulWidget {
   const SalesShell({super.key, required this.navigationShell});
@@ -52,10 +52,6 @@ class _SalesShellState extends ConsumerState<SalesShell> {
             icon: Icon(Icons.receipt_long_outlined),
             selectedIcon: Icon(Icons.receipt_long),
             label: 'Đơn hàng',
-          ),
-          const NavigationDestination(
-            icon: Icon(Icons.qr_code_scanner),
-            label: 'Quét QR',
           ),
           NavigationDestination(
             icon: Badge(

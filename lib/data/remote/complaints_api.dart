@@ -5,7 +5,9 @@ import 'package:uuid/uuid.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:fscm_mobile/core/network/api_client.dart';
+import 'package:fscm_mobile/core/network/api_exception.dart';
 import 'package:fscm_mobile/core/network/endpoints.dart';
+import 'package:fscm_mobile/core/network/graphql_client.dart';
 import 'package:fscm_mobile/data/models/complaint.dart';
 import 'package:fscm_mobile/data/models/json_utils.dart';
 
@@ -13,9 +15,10 @@ final complaintsApiProvider = Provider<ComplaintsApi>(
     (ref) => ComplaintsApi(ref.watch(apiClientProvider)));
 
 class ComplaintsApi {
-  ComplaintsApi(this._client);
+  ComplaintsApi(this._client) : _graphQl = GraphQlClient(_client);
 
   final ApiClient _client;
+  final GraphQlClient _graphQl;
   final Map<String, String> _pendingRequests = {};
 
   Future<List<ComplaintTarget>> targets(String orderId) async =>
@@ -23,9 +26,47 @@ class ComplaintsApi {
           .map(ComplaintTarget.fromJson)
           .toList();
 
+  // `entities.complaintReads` runs the same ComplaintService.ListAsync as REST
+  // GET /complaints, with the caller's id and role. For a Retailer the store
+  // limits it to the retailer linked to the account. The query has no filter,
+  // sort or paging arguments, as the REST list has none. Only fields the app
+  // reads are selected. Evidence and every write stay REST.
+  static const String _listQuery = '''
+    query Complaints {
+      entities {
+        complaintReads {
+          id code orderCode sku productName expectedQuantity actualQuantity
+          issueType status labelCode note createdAt response
+          finalUnitPrice adjustmentAmount financialAdjustmentApplied
+          resolutionType reviewStatus evidenceRequestReason requestType
+          settlementMethod approvedSettlementMethod requestedQuantity
+          approvedQuantity handledQuantity physicalHandlingCompleted
+          debtOffsetAmount refundAmount refundId
+          documents {
+            id code kind status approvedQuantity actualQuantity completedAt
+            note evidenceReference
+          }
+        }
+      }
+    }''';
+
   Future<List<Complaint>> list() async {
-    final data = await _client.get(Endpoints.complaints);
-    return unwrapItems(data).map(Complaint.fromJson).toList();
+    Object? rows;
+    try {
+      final data =
+          await _graphQl.query(_listQuery, operationName: 'Complaints');
+      rows = asMap(data['entities'])['complaintReads'];
+    } on ApiException catch (error) {
+      if (!GraphQlClient.canFallBackToRest(error)) rethrow;
+      rows = unwrapItems(await _client.get(Endpoints.complaints));
+    }
+    // A malformed answer is an error, not an empty list.
+    if (rows is! List) {
+      throw const ApiException(
+          kind: ApiErrorKind.server,
+          message: 'Phản hồi danh sách khiếu nại không hợp lệ.');
+    }
+    return asMapList(rows).map(Complaint.fromJson).toList();
   }
 
   Future<Complaint> create(NewComplaint request) async {

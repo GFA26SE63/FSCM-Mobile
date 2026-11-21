@@ -153,30 +153,44 @@ class _OrderList extends ConsumerWidget {
     return RefreshIndicator(
       onRefresh: () =>
           ref.read(retailerOrdersProvider(search).notifier).refresh(),
-      child: ListView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.all(16),
-        children: [
-          Text('Đã tải ${state.orders.length}/${state.totalCount} đơn'
-              '${search.isEmpty ? '' : ' khớp mã tìm kiếm'}. '
-              'Tab trạng thái và bộ lọc thời gian chỉ áp dụng trên các đơn đã tải.'),
-          if (state.hasMore && orders.isEmpty)
-            const InfoBanner(
-                text: 'Vẫn còn đơn chưa tải. Chọn "Tải thêm đơn" để tiếp tục '
-                    'kiểm tra kết quả trong tab và khoảng thời gian này.'),
-          if (orders.isEmpty) EmptyState(title: empty),
-          for (final order in orders) RtOrderTile(order: order),
-          if (state.moreError != null) InfoBanner(text: state.moreError!),
-          if (state.hasMore)
-            OutlinedButton(
-              onPressed: state.loadingMore
-                  ? null
-                  : () => ref
-                      .read(retailerOrdersProvider(search).notifier)
-                      .loadMore(),
-              child: Text(state.loadingMore ? 'Đang tải...' : 'Tải thêm đơn'),
-            ),
-        ],
+      child: NotificationListener<ScrollNotification>(
+        onNotification: (n) {
+          // Near the end: next page. The controller ignores the call while a
+          // load runs; after a failure the "Tải thêm đơn" button retries.
+          final now = ref.read(retailerOrdersProvider(search)).valueOrNull;
+          if (n.metrics.extentAfter < 300 &&
+              now != null &&
+              now.hasMore &&
+              now.moreError == null) {
+            ref.read(retailerOrdersProvider(search).notifier).loadMore();
+          }
+          return false;
+        },
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(16),
+          children: [
+            Text('Đã tải ${state.orders.length}/${state.totalCount} đơn'
+                '${search.isEmpty ? '' : ' khớp mã tìm kiếm'}. '
+                'Tab trạng thái và bộ lọc thời gian chỉ áp dụng trên các đơn đã tải.'),
+            if (state.hasMore && orders.isEmpty)
+              const InfoBanner(
+                  text: 'Vẫn còn đơn chưa tải. Chọn "Tải thêm đơn" để tiếp tục '
+                      'kiểm tra kết quả trong tab và khoảng thời gian này.'),
+            if (orders.isEmpty) EmptyState(title: empty),
+            for (final order in orders) RtOrderTile(order: order),
+            if (state.moreError != null) InfoBanner(text: state.moreError!),
+            if (state.hasMore)
+              OutlinedButton(
+                onPressed: state.loadingMore
+                    ? null
+                    : () => ref
+                        .read(retailerOrdersProvider(search).notifier)
+                        .loadMore(),
+                child: Text(state.loadingMore ? 'Đang tải...' : 'Tải thêm đơn'),
+              ),
+          ],
+        ),
       ),
     );
   }

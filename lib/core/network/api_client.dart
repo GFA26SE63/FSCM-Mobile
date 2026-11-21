@@ -36,8 +36,13 @@ class _HttpLoggingInterceptor extends Interceptor {
     debugPrint('--> ${options.method} ${options.uri}');
     if (kDebugMode && options.data != null) {
       final isAuth = options.uri.path.contains('/auth');
+      final data = options.data;
       if (isAuth) {
         debugPrint('    Data: [REDACTED AUTH DATA]');
+      } else if (options.uri.path.endsWith('/graphql')) {
+        // Query text and variables can carry retailer / financial data.
+        final op = data is Map ? data['operationName'] : null;
+        debugPrint('    GraphQL: ${op ?? '[unnamed]'} [body redacted]');
       } else {
         debugPrint('    Data: ${options.data}');
       }
@@ -165,6 +170,16 @@ class ApiClient {
 
   /// Public programmatic token refresh (e.g. on app launch if session is expired).
   Future<bool> tryRefreshToken() => _tryRefreshToken();
+
+  /// Access token currently in use (lets [GraphQlClient] detect a refresh done
+  /// by a concurrent request).
+  String? get accessToken => _tokenReader();
+
+  /// Same logout signal as an unrecoverable HTTP 401, for transports that
+  /// receive authentication failures inside a 200 response (GraphQL).
+  void reportUnauthorized() {
+    if (!_unauthorized.isClosed) _unauthorized.add(null);
+  }
 
   Future<dynamic> get(String path, {Map<String, dynamic>? query}) =>
       _send('GET', path, query: query);

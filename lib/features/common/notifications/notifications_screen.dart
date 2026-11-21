@@ -32,10 +32,11 @@ class NotificationsScreen extends ConsumerWidget {
           ),
         ],
       ),
-      body: AsyncBody<List<AppNotification>>(
+      body: AsyncBody<NotificationsState>(
         value: value,
-        onRetry: () => ref.invalidate(notificationsProvider),
-        builder: (list) {
+        onRetry: () => _refresh(ref),
+        builder: (state) {
+          final list = state.items;
           if (list.isEmpty) {
             return const EmptyState(
               icon: Icons.notifications_off_outlined,
@@ -43,11 +44,13 @@ class NotificationsScreen extends ConsumerWidget {
             );
           }
           return RefreshIndicator(
-            onRefresh: () async => ref.invalidate(notificationsProvider),
+            onRefresh: () => _refresh(ref),
             child: ListView.builder(
               padding: const EdgeInsets.all(16),
-              itemCount: list.length,
-              itemBuilder: (context, i) => _tile(context, ref, list[i]),
+              itemCount: list.length + (state.hasMore ? 1 : 0),
+              itemBuilder: (context, i) => i < list.length
+                  ? _tile(context, ref, list[i])
+                  : _loadMore(ref, state),
             ),
           );
         },
@@ -59,8 +62,7 @@ class NotificationsScreen extends ConsumerWidget {
     return AppCard(
       color: n.unread ? AppColors.primarySoft : null,
       onTap: () async {
-        await ref.read(notificationRepositoryProvider).markRead(n);
-        ref.invalidate(notificationsProvider);
+        await ref.read(notificationsProvider.notifier).markRead(n);
         if (!context.mounted) return;
         final target = _target(ref.read(currentUserProvider)?.role, n);
         if (target != null) unawaited(context.push(target));
@@ -100,9 +102,32 @@ class NotificationsScreen extends ConsumerWidget {
     );
   }
 
-  Future<void> _markAll(WidgetRef ref) async {
-    await ref.read(notificationRepositoryProvider).markAllRead();
-    ref.invalidate(notificationsProvider);
+  Future<void> _markAll(WidgetRef ref) =>
+      ref.read(notificationsProvider.notifier).markAllRead();
+
+  Future<void> _refresh(WidgetRef ref) {
+    ref.invalidate(notificationBadgeProvider);
+    return ref.read(notificationsProvider.notifier).refresh();
+  }
+
+  Widget _loadMore(WidgetRef ref, NotificationsState state) {
+    if (state.loadingMore) {
+      return const Padding(
+        padding: EdgeInsets.all(12),
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
+    return Column(
+      children: <Widget>[
+        if (state.moreError != null)
+          Text(state.moreError!,
+              style: const TextStyle(color: AppColors.textMuted)),
+        TextButton(
+          onPressed: () => ref.read(notificationsProvider.notifier).loadMore(),
+          child: const Text('Tải thêm'),
+        ),
+      ],
+    );
   }
 
   /// Deep link for a notification, per role.

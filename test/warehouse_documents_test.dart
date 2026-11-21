@@ -78,7 +78,7 @@ void main() {
       expect(find.text('Mở phiếu nhập luân chuyển'), findsNothing);
       if (state == 'Open') {
         final button = tester.widget<FilledButton>(
-            find.widgetWithText(FilledButton, 'Xác nhận xuất và ghi sổ PXK'));
+            find.widgetWithText(FilledButton, 'Xác nhận xuất luân chuyển & ghi sổ PXK'));
         expect(button.onPressed, isNull);
       }
       expect(t.requests.where((r) => r.method == 'POST'), isEmpty);
@@ -208,5 +208,43 @@ void main() {
       router.pop();
     }
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Order Request document displays helpful banner for warehouse keeper',
+      (tester) async {
+    final t = RecordingTransport();
+    final orderRequest = WarehouseWork({
+      'document': {
+        'id': 'yck-order',
+        'code': 'YCK-ORDER-1',
+        'kind': 'Request',
+        'reason': 'Order',
+        'status': 'Open',
+        'warehouseId': 'source',
+        'version': 1
+      },
+      'lines': [
+        {'sku': 'SKU1', 'productName': 'Sữa tươi', 'quantity': 5}
+      ],
+      'cartons': []
+    });
+    await tester.pumpWidget(ProviderScope(
+        overrides: [
+          currentUserProvider.overrideWith((ref) => keeper),
+          warehouseDocumentProvider('yck-order')
+              .overrideWith((ref) async => orderRequest),
+          warehouseDocumentsApiProvider.overrideWith((ref) =>
+              WarehouseDocumentsApi(
+                  ApiClient(transport: t, tokenReader: () => null))),
+        ],
+        child: const MaterialApp(
+            home: WarehouseDocumentScreen(
+                id: 'yck-order', mode: 'orderIssue'))));
+    await tester.pumpAndSettle();
+    expect(
+        find.text(
+            'Đây là Lệnh xuất bán hàng do Admin phát hành từ đơn hàng của Đại lý. Nhấn "Bắt đầu xuất kho & quét QR" để mở phiếu xuất và quét từng carton.'),
+        findsOneWidget);
+    expect(find.text('Bắt đầu xuất kho & quét QR'), findsOneWidget);
   });
 }

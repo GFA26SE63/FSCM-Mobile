@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import 'package:fscm_mobile/shared/routes.dart';
-
 /// Warehouse Keeper navigation uses the same style as Retailer and Sales.
 class WarehouseShell extends StatelessWidget {
   const WarehouseShell({super.key, required this.navigationShell});
@@ -15,15 +13,9 @@ class WarehouseShell extends StatelessWidget {
     return Scaffold(
       body: navigationShell,
       bottomNavigationBar: NavigationBar(
-        selectedIndex: branch == 2 ? 3 : branch,
-        onDestinationSelected: (index) {
-          if (index == 2) {
-            context.push(AppRoutes.wkScan);
-            return;
-          }
-          final target = index == 3 ? 2 : index;
-          navigationShell.goBranch(target, initialLocation: target == branch);
-        },
+        selectedIndex: branch,
+        onDestinationSelected: (index) =>
+            navigationShell.goBranch(index, initialLocation: index == branch),
         destinations: const <Widget>[
           NavigationDestination(
             icon: Icon(Icons.home_outlined),
@@ -34,10 +26,6 @@ class WarehouseShell extends StatelessWidget {
             icon: Icon(Icons.fact_check_outlined),
             selectedIcon: Icon(Icons.fact_check),
             label: 'Nhập/Xuất',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.qr_code_scanner),
-            label: 'Quét theo phiếu',
           ),
           NavigationDestination(
             icon: Icon(Icons.person_outline),

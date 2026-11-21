@@ -18,22 +18,17 @@ void main() {
       'retailer pagination loads only requested pages and preserves server search',
       () async {
     final transport = _OrdersTransport((request) {
-      final page = request.query!['page'] as int;
-      return ApiResponse(statusCode: 200, data: {
-        'page': page,
-        'pageSize': 20,
-        'totalCount': 21,
-        'items': [
-          for (var i = page == 1 ? 1 : 21; i <= (page == 1 ? 20 : 21); i++)
-            {
-              'id': 'order-$i',
-              'orderCode': 'DH-$i',
-              'status': 'Quoted',
-              'lineCount': 2,
-              'totalCartons': 30
-            }
-        ],
-      });
+      final page = _vars(request)['page'] as int;
+      return _ordersPage(page: page, totalCount: 21, items: [
+        for (var i = page == 1 ? 1 : 21; i <= (page == 1 ? 20 : 21); i++)
+          {
+            'id': 'order-$i',
+            'orderCode': 'DH-$i',
+            'status': 'Quoted',
+            'lineCount': 2,
+            'totalCartons': 30
+          }
+      ]);
     });
     final client =
         ApiClient(transport: transport, tokenReader: () => 'retailer-token');
@@ -48,11 +43,11 @@ void main() {
     await controller.loadMore();
     expect(controller.state.requireValue.orders.length, 21);
     expect(controller.state.requireValue.hasMore, isFalse);
-    expect(transport.requests.map((request) => request.query!['page']), [1, 2]);
+    expect(transport.requests.map((request) => _vars(request)['page']), [1, 2]);
     expect(
         transport.requests.every((request) =>
-            request.query!['pageSize'] == 20 &&
-            request.query!['search'] == 'DH'),
+            _vars(request)['pageSize'] == 20 &&
+            _vars(request)['search'] == 'DH'),
         isTrue);
     expect(controller.state.requireValue.orders.first.itemsSummary,
         '2 SKU · 30 thùng');
@@ -67,14 +62,9 @@ void main() {
       if (calls == 1) {
         return old.future;
       }
-      return const ApiResponse(statusCode: 200, data: {
-        'page': 1,
-        'pageSize': 20,
-        'totalCount': 1,
-        'items': [
-          {'id': 'new', 'orderCode': 'DH-NEW'}
-        ],
-      });
+      return _ordersPage(page: 1, totalCount: 1, items: [
+        {'id': 'new', 'orderCode': 'DH-NEW'}
+      ]);
     });
     final client =
         ApiClient(transport: transport, tokenReader: () => 'retailer-token');
@@ -83,14 +73,9 @@ void main() {
     addTearDown(controller.dispose);
     addTearDown(client.dispose);
     await controller.refresh();
-    old.complete(const ApiResponse(statusCode: 200, data: {
-      'page': 1,
-      'pageSize': 20,
-      'totalCount': 1,
-      'items': [
-        {'id': 'old', 'orderCode': 'DH-OLD'}
-      ],
-    }));
+    old.complete(_ordersPage(page: 1, totalCount: 1, items: [
+      {'id': 'old', 'orderCode': 'DH-OLD'}
+    ]));
     await Future<void>.delayed(Duration.zero);
     expect(controller.state.requireValue.orders.single.code, 'DH-NEW');
   });
@@ -163,6 +148,29 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 }
+
+Map<String, dynamic> _vars(ApiRequest request) =>
+    (request.body! as Map<String, dynamic>)['variables']
+        as Map<String, dynamic>;
+
+/// `entities.orderReads` response envelope.
+ApiResponse _ordersPage({
+  required int page,
+  required int totalCount,
+  required List<Map<String, dynamic>> items,
+}) =>
+    ApiResponse(statusCode: 200, data: {
+      'data': {
+        'entities': {
+          'orderReads': {
+            'items': items,
+            'page': page,
+            'pageSize': 20,
+            'totalCount': totalCount,
+          },
+        },
+      },
+    });
 
 class _OrdersTransport implements ApiTransport {
   _OrdersTransport(this.handler);

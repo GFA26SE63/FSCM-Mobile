@@ -14,6 +14,7 @@ import 'package:fscm_mobile/data/models/enums.dart';
 import 'package:fscm_mobile/data/models/offline_order.dart';
 import 'package:fscm_mobile/data/models/offline_expected_condition.dart';
 import 'package:fscm_mobile/data/models/order.dart';
+import 'package:fscm_mobile/data/models/order_page.dart';
 import 'package:fscm_mobile/data/models/price_quote.dart';
 import 'package:fscm_mobile/data/models/retailer.dart';
 import 'package:fscm_mobile/data/models/sync_snapshot.dart';
@@ -87,6 +88,42 @@ final offlineQueueProvider =
 
   return ref.watch(offlineOrderDaoProvider).all(ownerId: user.id);
 });
+
+/// Server orders merged with the offline queue, newest first.
+///
+/// A queue row is dropped once the server list holds the same order, matched
+/// by `offlineCode` (when the server sends one) or by `serverOrderCode ==
+/// order.code`. The Backend order summary has no offline code, so in practice
+/// the match is the server code. Unsynchronised rows are never dropped.
+List<Order> mergeServerAndLocalOrders(
+  List<Order> remote,
+  List<OfflineOrder> entries, {
+  required bool offlineOnly,
+}) {
+  final remoteOffline = remote
+      .map((order) => order.offlineCode)
+      .where((code) => code.isNotEmpty)
+      .toSet();
+  final remoteCodes = remote
+      .map((order) => order.code)
+      .where((code) => code.isNotEmpty)
+      .toSet();
+
+  final local = entries
+      .where((entry) => !remoteOffline.contains(entry.localCode))
+      .where((entry) => !remoteCodes.contains(entry.serverOrderCode))
+      .where(
+        (entry) =>
+            offlineOnly ||
+            entry.status != SyncStatus.synced ||
+            entry.serverOrder != null,
+      )
+      .map(orderFromOffline)
+      .toList();
+
+  return <Order>[...local, ...remote]
+    ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+}
 
 class OrderRepository {
   OrderRepository({
@@ -164,31 +201,34 @@ class OrderRepository {
     final entries = await _queue.all(ownerId: _ownerId);
     _requireSession(salesOnly: true);
 
-    final remoteOffline = remote
-        .map((order) => order.offlineCode)
-        .where((code) => code.isNotEmpty)
-        .toSet();
-
-    final local = entries
-        .where((entry) => !remoteOffline.contains(entry.localCode))
-        .where((entry) => !remote.any((order) =>
-            order.code.isNotEmpty && order.code == entry.serverOrderCode))
-        .where(
-          (entry) =>
-              offlineOnly ||
-              entry.status != SyncStatus.synced ||
-              entry.serverOrder != null,
-        )
-        .map(orderFromOffline)
-        .toList();
-
-    final merged = <Order>[...local, ...remote]
-      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
-
     return OrderListResult(
-      orders: merged,
+      orders:
+          mergeServerAndLocalOrders(remote, entries, offlineOnly: offlineOnly),
       offlineOnly: offlineOnly,
     );
+  }
+
+  /// One server page (Retailer and Sales lists). Network errors propagate so
+  /// the caller can fall back to the local queue.
+  Future<OrderPage> fetchOrdersPage(
+      {required int page,
+      required int pageSize,
+      String? search,
+      String? status}) async {
+    _requireSession();
+    final result = await _api.listPage(
+        page: page, pageSize: pageSize, search: search, status: status);
+    _requireSession();
+    return result;
+  }
+
+  /// Offline queue rows of the signed-in Sales user (empty for other roles).
+  Future<List<OfflineOrder>> queueEntries() async {
+    _requireSession();
+    if (!_isSales) return const <OfflineOrder>[];
+    final entries = await _queue.all(ownerId: _ownerId);
+    _requireSession(salesOnly: true);
+    return entries;
   }
 
   Future<Order> getOrder(String code) async {

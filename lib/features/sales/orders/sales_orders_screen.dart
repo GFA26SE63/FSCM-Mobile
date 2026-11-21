@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -5,9 +7,8 @@ import 'package:go_router/go_router.dart';
 import 'package:fscm_mobile/core/utils/dates.dart';
 import 'package:fscm_mobile/core/utils/money.dart';
 import 'package:fscm_mobile/core/utils/status_tone.dart';
-import 'package:fscm_mobile/data/models/enums.dart';
 import 'package:fscm_mobile/data/models/order.dart';
-import 'package:fscm_mobile/data/repositories/order_repository.dart';
+import 'package:fscm_mobile/data/repositories/sales_orders_controller.dart';
 import 'package:fscm_mobile/features/common/notifications/notification_bell_button.dart';
 import 'package:fscm_mobile/shared/routes.dart';
 import 'package:fscm_mobile/shared/theme/app_colors.dart';
@@ -19,8 +20,6 @@ import 'package:fscm_mobile/shared/widgets/info_banner.dart';
 import 'package:fscm_mobile/shared/widgets/order_widgets.dart';
 import 'package:fscm_mobile/shared/widgets/status_chip.dart';
 
-enum _OrderFilter { all, pending, inProgress, delivered, rejected, offline }
-
 /// "Đơn hàng": own orders + orders of the same group, including offline
 /// orders that are still on the device.
 class SalesOrdersScreen extends ConsumerStatefulWidget {
@@ -31,40 +30,80 @@ class SalesOrdersScreen extends ConsumerStatefulWidget {
 }
 
 class _SalesOrdersScreenState extends ConsumerState<SalesOrdersScreen> {
-  _OrderFilter _filter = _OrderFilter.all;
-  String _query = '';
+  SalesOrderGroup _filter = SalesOrderGroup.all;
 
-  bool _matches(Order o) {
-    if (_query.isNotEmpty) {
-      final hay =
-          '${o.displayCode} ${o.retailerName} ${o.retailerCode}'.toLowerCase();
-      if (!hay.contains(_query)) return false;
+  /// Sent to the server; changing it restarts paging at page 1.
+  String _query = '';
+  Timer? _searchDebounce;
+
+  @override
+  void dispose() {
+    _searchDebounce?.cancel();
+    super.dispose();
+  }
+
+  SalesOrdersQuery get _key => SalesOrdersQuery(search: _query, group: _filter);
+
+  Widget _offlineBanner() => const InfoBanner(
+        tone: StatusTone.warning,
+        icon: Icons.cloud_off,
+        text: 'Đang ngoại tuyến - chỉ hiển thị các đơn lưu trên máy.',
+      );
+
+  /// Shown while a status the Backend cannot filter is assembled: the list
+  /// is incomplete until the last page has arrived.
+  Widget _scanBanner(SalesOrdersState s) => InfoBanner(
+        icon: Icons.sync,
+        text: 'Đang tải đầy đủ đơn để lọc theo trạng thái '
+            '(${s.server.length}/${s.totalCount}). Danh sách chưa đầy đủ.',
+      );
+
+  bool _hasFooter(SalesOrdersState s) =>
+      s.hasMore || s.loadingMore || s.moreError != null || s.server.isNotEmpty;
+
+  Widget _footer(SalesOrdersState s, bool filteredEmpty) {
+    if (s.loadingMore) {
+      return const Padding(
+        padding: EdgeInsets.all(16),
+        child: Center(child: CircularProgressIndicator()),
+      );
     }
-    switch (_filter) {
-      case _OrderFilter.all:
-        return true;
-      case _OrderFilter.pending:
-        return o.status == OrderStatus.allocating ||
-            o.status == OrderStatus.quoted ||
-            o.status == OrderStatus.paymentPending;
-      case _OrderFilter.inProgress:
-        return o.status == OrderStatus.convertedToPo ||
-            o.status == OrderStatus.picking ||
-            o.status == OrderStatus.issued ||
-            o.status == OrderStatus.delivering;
-      case _OrderFilter.delivered:
-        return o.status == OrderStatus.delivered ||
-            o.status == OrderStatus.completed;
-      case _OrderFilter.rejected:
-        return o.status.isRejectedOrCancelled;
-      case _OrderFilter.offline:
-        return o.isOffline;
-    }
+    final notifier = ref.read(salesOrdersProvider(_key).notifier);
+    final end = !s.hasMore && s.moreError == null;
+    return Column(
+      children: <Widget>[
+        if (filteredEmpty && !end)
+          const EmptyState(title: 'Chưa có đơn phù hợp trong dữ liệu đã tải.'),
+        if (filteredEmpty && end)
+          const EmptyState(title: 'Không có đơn phù hợp.'),
+        if (_filter == SalesOrderGroup.offline && s.hasMore)
+          const Text(
+              'Gồm đơn ngoại tuyến lưu trên máy và các đơn đã tải; '
+              'đơn ngoại tuyến đã đồng bộ chưa tải sẽ hiện khi tải thêm.',
+              style: TextStyle(color: AppColors.textMuted)),
+        if (s.moreError != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: InfoBanner(text: s.moreError!),
+          ),
+        if (end)
+          const Padding(
+            padding: EdgeInsets.all(12),
+            child: Text('Đã hiển thị tất cả đơn',
+                style: TextStyle(color: AppColors.textMuted)),
+          )
+        else
+          OutlinedButton(
+            onPressed: notifier.loadMore,
+            child: Text(s.moreError != null ? 'Thử lại' : 'Tải thêm đơn'),
+          ),
+      ],
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final value = ref.watch(ordersProvider);
+    final value = ref.watch(salesOrdersProvider(_key));
     return Scaffold(
       appBar: AppBar(
         title: const Text('Đơn hàng'),
@@ -88,49 +127,87 @@ class _SalesOrdersScreenState extends ConsumerState<SalesOrdersScreen> {
                 hintText: 'Tìm mã đơn hoặc tên cửa hàng',
                 prefixIcon: Icon(Icons.search),
               ),
-              onChanged: (v) => setState(() => _query = v.trim().toLowerCase()),
+              onChanged: (v) {
+                _searchDebounce?.cancel();
+                _searchDebounce = Timer(const Duration(milliseconds: 350), () {
+                  if (mounted) {
+                    setState(() => _query = v.trim().toLowerCase());
+                  }
+                });
+              },
             ),
           ),
-          ChipFilterBar<_OrderFilter>(
-            options: const <ChipOption<_OrderFilter>>[
-              ChipOption<_OrderFilter>(_OrderFilter.all, 'Tất cả'),
-              ChipOption<_OrderFilter>(_OrderFilter.pending, 'Chờ xử lý'),
-              ChipOption<_OrderFilter>(_OrderFilter.inProgress, 'Đang xử lý'),
-              ChipOption<_OrderFilter>(_OrderFilter.delivered, 'Đã giao'),
-              ChipOption<_OrderFilter>(_OrderFilter.rejected, 'Từ chối / hủy'),
-              ChipOption<_OrderFilter>(_OrderFilter.offline, 'Đơn ngoại tuyến'),
+          ChipFilterBar<SalesOrderGroup>(
+            options: const <ChipOption<SalesOrderGroup>>[
+              ChipOption<SalesOrderGroup>(SalesOrderGroup.all, 'Tất cả'),
+              ChipOption<SalesOrderGroup>(SalesOrderGroup.pending, 'Chờ xử lý'),
+              ChipOption<SalesOrderGroup>(
+                  SalesOrderGroup.inProgress, 'Đang xử lý'),
+              ChipOption<SalesOrderGroup>(SalesOrderGroup.delivered, 'Đã giao'),
+              ChipOption<SalesOrderGroup>(
+                  SalesOrderGroup.rejected, 'Từ chối / hủy'),
+              ChipOption<SalesOrderGroup>(
+                  SalesOrderGroup.offline, 'Đơn ngoại tuyến'),
             ],
             selected: _filter,
             onSelected: (v) => setState(() => _filter = v),
           ),
           Expanded(
-            child: AsyncBody<OrderListResult>(
+            child: AsyncBody<SalesOrdersState>(
               value: value,
-              onRetry: () => ref.invalidate(ordersProvider),
+              onRetry: () =>
+                  ref.read(salesOrdersProvider(_key).notifier).refresh(),
               builder: (result) {
-                final list = result.orders.where(_matches).toList();
+                final list = result.orders;
+                final banner =
+                    (result.offlineOnly ? 1 : 0) + (result.scanning ? 1 : 0);
+                final footer = _hasFooter(result) ? 1 : 0;
                 return RefreshIndicator(
-                  onRefresh: () async => ref.invalidate(ordersProvider),
-                  child: list.isEmpty
-                      ? ListView(children: const <Widget>[
-                          SizedBox(height: 80),
-                          EmptyState(title: 'Không có đơn phù hợp.')
-                        ])
-                      : ListView.builder(
-                          padding: const EdgeInsets.fromLTRB(16, 8, 16, 90),
-                          itemCount: list.length + (result.offlineOnly ? 1 : 0),
-                          itemBuilder: (context, i) {
-                            if (result.offlineOnly && i == 0) {
-                              return const InfoBanner(
-                                tone: StatusTone.warning,
-                                icon: Icons.cloud_off,
-                                text:
-                                    'Đang ngoại tuyến - chỉ hiển thị các đơn lưu trên máy.',
-                              );
+                  onRefresh: () =>
+                      ref.read(salesOrdersProvider(_key).notifier).refresh(),
+                  child: list.isEmpty && footer == 0
+                      ? ListView(
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          children: <Widget>[
+                              if (result.offlineOnly) _offlineBanner(),
+                              const SizedBox(height: 80),
+                              const EmptyState(title: 'Không có đơn phù hợp.'),
+                            ])
+                      : NotificationListener<ScrollNotification>(
+                          onNotification: (n) {
+                            // Near the end: ask for the next page. The
+                            // controller ignores the call while one is running.
+                            // Current state, not the build-time capture: a
+                            // failure must stop the automatic requests.
+                            final now =
+                                ref.read(salesOrdersProvider(_key)).valueOrNull;
+                            if (n.metrics.extentAfter < 300 &&
+                                now != null &&
+                                now.hasMore &&
+                                now.moreError == null) {
+                              ref
+                                  .read(salesOrdersProvider(_key).notifier)
+                                  .loadMore();
                             }
-                            final o = list[i - (result.offlineOnly ? 1 : 0)];
-                            return SalesOrderTile(order: o);
+                            return false;
                           },
+                          child: ListView.builder(
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            padding: const EdgeInsets.fromLTRB(16, 8, 16, 90),
+                            itemCount: banner + list.length + footer,
+                            itemBuilder: (context, i) {
+                              if (i < banner) {
+                                return result.offlineOnly && i == 0
+                                    ? _offlineBanner()
+                                    : _scanBanner(result);
+                              }
+                              final index = i - banner;
+                              if (index < list.length) {
+                                return SalesOrderTile(order: list[index]);
+                              }
+                              return _footer(result, list.isEmpty);
+                            },
+                          ),
                         ),
                 );
               },
