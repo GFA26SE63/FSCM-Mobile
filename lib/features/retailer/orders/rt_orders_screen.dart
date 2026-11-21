@@ -8,11 +8,14 @@ import 'package:fscm_mobile/core/utils/clock.dart';
 import 'package:fscm_mobile/core/utils/dates.dart';
 import 'package:fscm_mobile/core/utils/money.dart';
 import 'package:fscm_mobile/data/models/order.dart';
+import 'package:fscm_mobile/data/repositories/auth_repository.dart';
 import 'package:fscm_mobile/data/repositories/retailer_orders_controller.dart';
 import 'package:fscm_mobile/features/common/notifications/notification_bell_button.dart';
 import 'package:fscm_mobile/features/retailer/orders/widgets/retailer_todo_card.dart';
 import 'package:fscm_mobile/shared/routes.dart';
 import 'package:fscm_mobile/shared/theme/app_colors.dart';
+import 'package:fscm_mobile/shared/theme/app_text.dart';
+import 'package:fscm_mobile/shared/theme/app_tokens.dart';
 import 'package:fscm_mobile/shared/widgets/app_card.dart';
 import 'package:fscm_mobile/shared/widgets/async_body.dart';
 import 'package:fscm_mobile/shared/widgets/chip_filter_bar.dart';
@@ -55,50 +58,114 @@ class _RtOrdersScreenState extends ConsumerState<RtOrdersScreen> {
   @override
   Widget build(BuildContext context) {
     final value = ref.watch(retailerOrdersProvider(_query));
+    final user = ref.watch(currentUserProvider);
+    final storeName = (user?.retailerName ?? '').trim();
+    final storeCode = (user?.retailerCode ?? '').trim();
+    final storeLine = <String>[
+      if (storeName.isNotEmpty) storeName,
+      if (storeCode.isNotEmpty) 'Mã $storeCode',
+    ].join(' · ');
     return DefaultTabController(
       length: 2,
       child: Scaffold(
-        floatingActionButton: FloatingActionButton.extended(
-          onPressed: () => context.push('/retailer/order/new'),
-          icon: const Icon(Icons.add_shopping_cart),
-          label: const Text('Đặt hàng'),
-        ),
         appBar: AppBar(
-          title: const Text('Đơn hàng'),
-          actions: const <Widget>[NotificationBellButton()],
+          titleSpacing: AppSpacing.lg,
+          title: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              Text('Đơn hàng',
+                  style: AppText.pageTitle.copyWith(color: AppColors.text)),
+              if (storeLine.isNotEmpty)
+                Text(storeLine,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppText.mutedSmall),
+            ],
+          ),
+          actions: <Widget>[
+            // Prototype header action "+ Đặt hàng" (same route as the old FAB).
+            Padding(
+              padding: const EdgeInsets.only(right: AppSpacing.xs),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 124),
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: FilledButton.icon(
+                    style: FilledButton.styleFrom(
+                        minimumSize: const Size(0, 36),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: AppSpacing.md)),
+                    onPressed: () => context.push('/retailer/order/new'),
+                    icon: const Icon(Icons.add, size: 18),
+                    label: const Text('Đặt hàng'),
+                  ),
+                ),
+              ),
+            ),
+            const NotificationBellButton(),
+            const SizedBox(width: AppSpacing.xs),
+          ],
           bottom: const TabBar(
             tabs: <Widget>[Tab(text: 'Đang xử lý'), Tab(text: 'Lịch sử')],
           ),
         ),
         body: Column(
           children: <Widget>[
-            const RetailerTodoCard(),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-              child: TextField(
-                decoration: const InputDecoration(
-                  hintText: 'Tìm mã đơn',
-                  prefixIcon: Icon(Icons.search),
+            // Overview + toolbar scroll inside a bounded area so large fonts
+            // never push the order list off screen.
+            ConstrainedBox(
+              constraints: BoxConstraints(
+                  maxHeight: MediaQuery.sizeOf(context).height * 0.5),
+              child: SingleChildScrollView(
+                child: Column(
+                  children: <Widget>[
+                    const RetailerTodoCard(),
+                    Container(
+                      margin: const EdgeInsets.only(top: AppSpacing.md),
+                      decoration: const BoxDecoration(
+                        color: AppColors.surface,
+                        border: Border.symmetric(
+                            horizontal: BorderSide(color: AppColors.divider)),
+                      ),
+                      padding: const EdgeInsets.only(bottom: AppSpacing.s10),
+                      child: Column(
+                        children: <Widget>[
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(AppSpacing.lg,
+                                AppSpacing.md, AppSpacing.lg, AppSpacing.s10),
+                            child: TextField(
+                              decoration: const InputDecoration(
+                                hintText: 'Tìm mã đơn',
+                                prefixIcon: Icon(Icons.search),
+                              ),
+                              onChanged: (v) {
+                                _searchDebounce?.cancel();
+                                _searchDebounce = Timer(
+                                    const Duration(milliseconds: 350), () {
+                                  if (mounted) {
+                                    setState(
+                                        () => _query = v.trim().toLowerCase());
+                                  }
+                                });
+                              },
+                            ),
+                          ),
+                          ChipFilterBar<_Span>(
+                            selected: _span,
+                            onSelected: (v) => setState(() => _span = v),
+                            options: const <ChipOption<_Span>>[
+                              ChipOption(_Span.all, 'Tất cả'),
+                              ChipOption(_Span.week, '7 ngày'),
+                              ChipOption(_Span.month, '30 ngày'),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
-                onChanged: (v) {
-                  _searchDebounce?.cancel();
-                  _searchDebounce =
-                      Timer(const Duration(milliseconds: 350), () {
-                    if (mounted) {
-                      setState(() => _query = v.trim().toLowerCase());
-                    }
-                  });
-                },
               ),
-            ),
-            ChipFilterBar<_Span>(
-              selected: _span,
-              onSelected: (v) => setState(() => _span = v),
-              options: const <ChipOption<_Span>>[
-                ChipOption(_Span.all, 'Tất cả'),
-                ChipOption(_Span.week, '7 ngày'),
-                ChipOption(_Span.month, '30 ngày'),
-              ],
             ),
             Expanded(
               child: AsyncBody<RetailerOrdersState>(
@@ -168,11 +235,16 @@ class _OrderList extends ConsumerWidget {
         },
         child: ListView(
           physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(AppSpacing.lg),
           children: [
-            Text('Đã tải ${state.orders.length}/${state.totalCount} đơn'
-                '${search.isEmpty ? '' : ' khớp mã tìm kiếm'}. '
-                'Tab trạng thái và bộ lọc thời gian chỉ áp dụng trên các đơn đã tải.'),
+            Padding(
+              padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+              child: Text(
+                  'Đã tải ${state.orders.length}/${state.totalCount} đơn'
+                  '${search.isEmpty ? '' : ' khớp mã tìm kiếm'}. '
+                  'Tab trạng thái và bộ lọc thời gian chỉ áp dụng trên các đơn đã tải.',
+                  style: AppText.mutedSmall),
+            ),
             if (state.hasMore && orders.isEmpty)
               const InfoBanner(
                   text: 'Vẫn còn đơn chưa tải. Chọn "Tải thêm đơn" để tiếp tục '
@@ -210,50 +282,67 @@ class RtOrderTile extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Row(
+          // Header: code + status chip (prototype order card).
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: AppSpacing.sm,
+            runSpacing: AppSpacing.xs,
             children: <Widget>[
-              Expanded(
-                  child: Text(o.code,
-                      style: const TextStyle(
-                          fontWeight: FontWeight.w800, fontSize: 15))),
+              Text(o.code, style: AppText.strong),
               OrderStatusChip(o),
             ],
           ),
-          Text(AppDates.timeDay(o.createdAt),
-              style: const TextStyle(color: AppColors.textMuted)),
-          const SizedBox(height: 4),
-          Text(o.itemsSummary,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 13)),
-          const SizedBox(height: 6),
+          Text(AppDates.timeDay(o.createdAt), style: AppText.mutedSmall),
+          if (o.itemsSummary.isNotEmpty) ...<Widget>[
+            const SizedBox(height: AppSpacing.sm),
+            Text(o.itemsSummary,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: AppText.bodySmall.copyWith(color: AppColors.textLabel)),
+          ],
+          const SizedBox(height: AppSpacing.sm),
           Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
             children: <Widget>[
-              Text(Money.format(o.finalAmount),
-                  style: const TextStyle(fontWeight: FontWeight.w800)),
-              const SizedBox(width: 8),
               Expanded(
-                child: Text(
-                  o.payment.labelWithTerm(o.creditTerm),
-                  textAlign: TextAlign.right,
-                  style:
-                      const TextStyle(fontSize: 12, color: AppColors.textMuted),
+                child: Text(o.payment.labelWithTerm(o.creditTerm),
+                    style: AppText.mutedSmall),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Flexible(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerRight,
+                  child:
+                      Text(Money.format(o.finalAmount), style: AppText.strong),
                 ),
               ),
             ],
           ),
           if (o.status.canConfirmReceipt) ...<Widget>[
-            const SizedBox(height: 6),
-            const Row(
-              children: <Widget>[
-                Icon(Icons.qr_code_scanner, size: 16, color: AppColors.primary),
-                SizedBox(width: 6),
-                Text('Quét QR để xác nhận nhận hàng',
-                    style: TextStyle(
-                        color: AppColors.primary,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 13)),
-              ],
+            const SizedBox(height: AppSpacing.s10),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.s10, vertical: AppSpacing.sm),
+              decoration: const BoxDecoration(
+                color: AppColors.primarySoft,
+                borderRadius: AppRadius.smallAll,
+              ),
+              child: Row(
+                children: <Widget>[
+                  const Icon(Icons.qr_code_scanner,
+                      size: 16, color: AppColors.primary),
+                  const SizedBox(width: AppSpacing.s6),
+                  Expanded(
+                    child: Text('Quét QR để xác nhận nhận hàng',
+                        style: AppText.bodySmall.copyWith(
+                            color: AppColors.primary,
+                            fontWeight: FontWeight.w600)),
+                  ),
+                ],
+              ),
             ),
           ],
         ],

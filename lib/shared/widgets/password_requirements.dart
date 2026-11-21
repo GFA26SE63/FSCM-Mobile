@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import 'package:fscm_mobile/shared/theme/app_colors.dart';
+import 'package:fscm_mobile/shared/theme/app_text.dart';
+import 'package:fscm_mobile/shared/theme/app_tokens.dart';
 
 /// One rule of the account password policy.
 class PasswordRequirement {
@@ -50,20 +52,21 @@ class PasswordRequirementsChecklist extends StatelessWidget {
     return Container(
       key: const Key('password_requirements'),
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+      padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
         color: AppColors.background,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: AppRadius.controlAll,
         border: Border.all(color: AppColors.divider),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          const Text(
+          Text(
             'Yêu cầu mật khẩu',
-            style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+            style: AppText.label
+                .copyWith(fontWeight: FontWeight.w700, color: AppColors.text),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: AppSpacing.s6),
           for (final rule in PasswordPolicy.requirements)
             _RequirementRow(label: rule.label, met: rule.isMet(password)),
         ],
@@ -97,11 +100,11 @@ class _RequirementRow extends StatelessWidget {
                 color: met ? AppColors.success : AppColors.border,
               ),
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: AppSpacing.sm),
             Expanded(
               child: Text(
                 label,
-                style: TextStyle(
+                style: AppText.bodySmall.copyWith(
                   fontSize: 13,
                   color: color,
                   fontWeight: met ? FontWeight.w600 : FontWeight.w400,

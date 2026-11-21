@@ -4,6 +4,9 @@ import 'package:fscm_mobile/core/utils/money.dart';
 import 'package:fscm_mobile/data/models/performance.dart';
 import 'package:fscm_mobile/features/sales/kpi/widgets/report_body.dart';
 import 'package:fscm_mobile/shared/routes.dart';
+import 'package:fscm_mobile/shared/theme/app_colors.dart';
+import 'package:fscm_mobile/shared/theme/app_text.dart';
+import 'package:fscm_mobile/shared/theme/app_tokens.dart';
 import 'package:fscm_mobile/shared/widgets/app_card.dart';
 import 'package:fscm_mobile/shared/widgets/info_banner.dart';
 import 'package:fscm_mobile/shared/widgets/kv_row.dart';
@@ -18,8 +21,11 @@ class KpiContent extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           ReportHeader(report: report),
-          Text('Cấu hình #${report.configurationVersion} · hiệu lực '
-              '${report.configurationEffectiveFrom}'),
+          Text(
+              'Cấu hình #${report.configurationVersion} · hiệu lực '
+              '${report.configurationEffectiveFrom}',
+              style: AppText.mutedSmall),
+          const SizedBox(height: AppSpacing.sm),
           const InfoBanner(
               text: 'KPI và doanh thu do máy chủ tính từ đơn Hoàn tất, '
                   'sau khuyến mãi và điều chỉnh. Đơn chưa hoàn tất hoặc chưa gửi không được ghi nhận.'),
@@ -33,8 +39,17 @@ class KpiContent extends StatelessWidget {
                 child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(entry.groupName,
-                    style: const TextStyle(fontWeight: FontWeight.w700)),
+                Text(entry.groupName, style: AppText.strong),
+                const SizedBox(height: AppSpacing.s10),
+                ClipRRect(
+                  borderRadius: AppRadius.pillAll,
+                  child: LinearProgressIndicator(
+                    minHeight: 10,
+                    backgroundColor: AppColors.primarySoft,
+                    value: entry.overallCompletionRate.clamp(0, 1).toDouble(),
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.sm),
                 KvRow('Hoàn thành tổng thể',
                     reportPercent(entry.overallCompletionRate)),
                 KvRow('Doanh thu ghi nhận',
@@ -53,8 +68,7 @@ class KpiContent extends StatelessWidget {
                 child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(order.code,
-                          style: const TextStyle(fontWeight: FontWeight.w700)),
+                      Text(order.code, style: AppText.strong),
                       Text('${order.retailerName} · ${order.retailerCode}'),
                       KvRow('Ngày ghi nhận', order.recognitionDate),
                       KvRow('Trước khuyến mãi',
@@ -67,7 +81,8 @@ class KpiContent extends StatelessWidget {
                       KvRow('Doanh thu ghi nhận',
                           Money.format(order.recognizedRevenue),
                           bold: true),
-                      const Text('Mở chi tiết đơn hàng →'),
+                      const Text('Mở chi tiết đơn hàng →',
+                          style: AppText.mutedSmall),
                     ]),
               ),
           ],
@@ -90,8 +105,7 @@ class KpiMetricCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) => AppCard(
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(metric.name,
-              style: const TextStyle(fontWeight: FontWeight.w700)),
+          Text(metric.name, style: AppText.strong),
           KvRow(
               metric.code == 'promotionRevenueRatio'
                   ? 'Ngưỡng tối đa'
@@ -99,8 +113,14 @@ class KpiMetricCard extends StatelessWidget {
               _amount(metric.target)),
           KvRow('Thực đạt', _amount(metric.actual)),
           KvRow('Tỷ lệ hoàn thành', reportPercent(metric.completionRate)),
-          LinearProgressIndicator(
-              value: metric.completionRate.clamp(0, 1).toDouble()),
+          ClipRRect(
+            borderRadius: AppRadius.pillAll,
+            child: LinearProgressIndicator(
+                minHeight: 8,
+                backgroundColor: AppColors.primarySoft,
+                value: metric.completionRate.clamp(0, 1).toDouble()),
+          ),
+          const SizedBox(height: AppSpacing.xs),
           KvRow('Trọng số', reportPercent(metric.weight)),
           KvRow('Điểm có trọng số', reportPercent(metric.weightedScore)),
         ]),
@@ -126,7 +146,7 @@ class RetailerRevenueList extends StatelessWidget {
             child:
                 Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text('${rows.first.retailerName} · ${rows.first.retailerCode}',
-              style: const TextStyle(fontWeight: FontWeight.w700)),
+              style: AppText.strong),
           KvRow('Số đơn', '${rows.length}'),
           KvRow(
               'Trước khuyến mãi',

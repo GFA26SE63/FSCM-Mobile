@@ -16,6 +16,8 @@ import 'package:fscm_mobile/core/utils/status_tone.dart';
 import 'package:fscm_mobile/data/models/json_utils.dart';
 import 'package:fscm_mobile/data/models/order.dart';
 import 'package:fscm_mobile/data/models/order_availability.dart';
+import 'package:fscm_mobile/shared/theme/app_text.dart';
+import 'package:fscm_mobile/shared/theme/app_tokens.dart';
 import 'package:fscm_mobile/shared/widgets/order_stock_summary.dart';
 import 'package:fscm_mobile/data/models/price_quote.dart';
 import 'package:fscm_mobile/data/models/product.dart';
@@ -40,6 +42,7 @@ import 'package:fscm_mobile/shared/widgets/info_banner.dart';
 import 'package:fscm_mobile/shared/widgets/online_chip.dart';
 import 'package:fscm_mobile/shared/widgets/quantity_stepper.dart';
 import 'package:fscm_mobile/shared/widgets/order_quantity_field.dart';
+import 'package:fscm_mobile/shared/widgets/status_chip.dart';
 import 'package:fscm_mobile/sync/sync_service.dart';
 
 final _orderAvailabilityProvider = FutureProvider.autoDispose
@@ -130,7 +133,7 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
         title: const Text('Tạo đơn hàng'),
         actions: const [
           Padding(
-            padding: EdgeInsets.only(right: 12),
+            padding: EdgeInsets.only(right: AppSpacing.md),
             child: OnlineChip(),
           ),
         ],
@@ -219,33 +222,46 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
       children: [
         Expanded(
           child: ListView(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(AppSpacing.lg),
             children: [
               AppCard(
-                child: Column(
+                child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      retailer.name,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w800,
-                        fontSize: 16,
+                    Container(
+                      width: 44,
+                      height: 44,
+                      decoration: const BoxDecoration(
+                        color: AppColors.primarySoft,
+                        borderRadius: AppRadius.controlAll,
                       ),
+                      child: const Icon(Icons.storefront_outlined,
+                          color: AppColors.primary),
                     ),
-                    Text(
-                      'Mã ${retailer.code} · ${retailer.address}',
-                      style: const TextStyle(
-                        color: AppColors.textMuted,
-                      ),
-                    ),
-                    Text(
-                      retailer.creditAllowed
-                          ? 'Kỳ hạn công nợ theo dữ liệu đồng bộ: '
-                              '${retailer.creditTerm} ngày'
-                          : 'Không mua công nợ theo dữ liệu đồng bộ',
-                      style: const TextStyle(
-                        color: AppColors.primary,
-                        fontWeight: FontWeight.w600,
+                    const SizedBox(width: AppSpacing.md),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            retailer.name,
+                            style: AppText.strong.copyWith(fontSize: 16),
+                          ),
+                          Text(
+                            'Mã ${retailer.code} · ${retailer.address}',
+                            style: AppText.mutedSmall,
+                          ),
+                          const SizedBox(height: AppSpacing.xs),
+                          Text(
+                            retailer.creditAllowed
+                                ? 'Kỳ hạn công nợ theo dữ liệu đồng bộ: '
+                                    '${retailer.creditTerm} ngày'
+                                : 'Không mua công nợ theo dữ liệu đồng bộ',
+                            style: AppText.bodySmall.copyWith(
+                                color: AppColors.primary,
+                                fontWeight: FontWeight.w600),
+                          ),
+                        ],
                       ),
                     ),
                   ],
@@ -299,7 +315,7 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
                   setState(() => _query = value.trim().toLowerCase());
                 },
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: AppSpacing.s10),
               if (products.isEmpty)
                 const EmptyState(
                   title: 'Không có sản phẩm phù hợp',
@@ -386,7 +402,7 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
 
     return Padding(
       key: ValueKey(product.sku),
-      padding: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.only(bottom: AppSpacing.s10),
       child: AppCard(
         margin: EdgeInsets.zero,
         onTap: _busy ? null : openDetail,
@@ -398,7 +414,7 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
                 Expanded(
                   child: Text(
                     '${product.sku} · ${product.name}',
-                    style: const TextStyle(fontWeight: FontWeight.w700),
+                    style: AppText.strong,
                   ),
                 ),
                 IconButton(
@@ -413,11 +429,12 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
                   ? '${product.pack} · Chưa có giá hiệu lực trong dữ liệu đồng bộ'
                   : '${product.pack} · '
                       '${Money.format(price)}/thùng · dự kiến',
-              style: TextStyle(
-                color: price == null ? AppColors.warning : AppColors.textMuted,
-              ),
+              style: price == null
+                  ? AppText.bodySmall.copyWith(color: AppColors.warning)
+                  : AppText.bodySmall.copyWith(
+                      color: AppColors.primary, fontWeight: FontWeight.w600),
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: AppSpacing.s6),
             if (availability != null)
               OrderStockSummary(
                 availability: availability,
@@ -463,37 +480,22 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
             ),
             if (pricedLines.isNotEmpty && pricedLines.first.hasDiscount)
               Padding(
-                padding: const EdgeInsets.only(top: 4),
+                padding: const EdgeInsets.only(top: AppSpacing.xs),
                 child: Row(
                   children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: AppColors.success.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(4),
-                        border: Border.all(
-                            color: AppColors.success.withValues(alpha: 0.3)),
-                      ),
-                      child: Text(
-                        'KM Tối ưu: −${_pct(pricedLines.first.pct)}%',
-                        style: const TextStyle(
-                          color: AppColors.success,
-                          fontWeight: FontWeight.w700,
-                          fontSize: 11,
-                        ),
-                      ),
+                    StatusChip(
+                      label: 'KM Tối ưu: −${_pct(pricedLines.first.pct)}%',
+                      tone: StatusTone.success,
                     ),
-                    const SizedBox(width: 6),
+                    const SizedBox(width: AppSpacing.s6),
                     Expanded(
                       child: Text(
                         '${pricedLines.first.promoName.isEmpty ? 'Khuyến mãi' : pricedLines.first.promoName} · '
                         'giảm ${Money.format(pricedLines.first.discount)}',
-                        style: const TextStyle(
-                          color: AppColors.success,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 12,
-                        ),
+                        style: AppText.bodySmall.copyWith(
+                            color: AppColors.success,
+                            fontWeight: FontWeight.w600),
+                        maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
@@ -541,7 +543,8 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
     return SafeArea(
       top: false,
       child: Container(
-        padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
+        padding: const EdgeInsets.fromLTRB(
+            AppSpacing.lg, AppSpacing.s10, AppSpacing.lg, AppSpacing.s10),
         decoration: const BoxDecoration(
           color: AppColors.surface,
           border: Border(
@@ -561,39 +564,32 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
                         : count == 0
                             ? 'Giỏ hàng trống'
                             : '$count sản phẩm',
-                    style: const TextStyle(
-                      color: AppColors.textMuted,
-                    ),
+                    style: AppText.muted,
                   ),
                   Text(
                     quote.isComplete
                         ? Money.format(quote.finalAmount)
                         : 'Chưa đủ dữ liệu giá',
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w800,
-                    ),
+                    style: AppText.pageTitle.copyWith(
+                        color: quote.isComplete
+                            ? AppColors.primary
+                            : AppColors.text),
                   ),
                   if (count > 0 && quote.isComplete)
                     const Text(
                       'Tạm tính trên máy',
-                      style: TextStyle(
-                        color: AppColors.textMuted,
-                        fontSize: 12,
-                      ),
+                      style: AppText.mutedSmall,
                     ),
                   if (quote.isComplete && quote.discount > 0)
                     Text(
                       'Giảm dự kiến ${Money.format(quote.discount)}',
-                      style: const TextStyle(
-                        color: AppColors.success,
-                        fontSize: 12.5,
-                      ),
+                      style:
+                          AppText.bodySmall.copyWith(color: AppColors.success),
                     ),
                 ],
               ),
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: AppSpacing.sm),
             SizedBox(
               width: 160,
               child: FilledButton(

@@ -12,6 +12,8 @@ import 'package:fscm_mobile/features/retailer/loyalty/widgets/gift_catalog_tile.
 import 'package:fscm_mobile/features/retailer/loyalty/widgets/gift_redemption_tile.dart';
 import 'package:fscm_mobile/features/retailer/loyalty/widgets/gift_redeem_sheet.dart';
 import 'package:fscm_mobile/features/retailer/loyalty/widgets/gift_points_summary.dart';
+import 'package:fscm_mobile/shared/theme/app_text.dart';
+import 'package:fscm_mobile/shared/theme/app_tokens.dart';
 import 'package:fscm_mobile/shared/widgets/app_card.dart';
 import 'package:fscm_mobile/shared/theme/app_colors.dart';
 import 'package:fscm_mobile/shared/widgets/async_body.dart';
@@ -203,7 +205,7 @@ class _GiftsScreenState extends ConsumerState<GiftsScreen> {
           onRefresh: _reload,
           child: ListView(
               physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(AppSpacing.lg),
               children: [
                 if (account != null) GiftPointsSummary(account: account),
                 if (_error != null)
@@ -244,7 +246,7 @@ class _GiftsScreenState extends ConsumerState<GiftsScreen> {
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
                             const Text('Yêu cầu chưa xác nhận kết quả',
-                                style: TextStyle(fontWeight: FontWeight.w700)),
+                                style: AppText.strong),
                             Text(
                                 '${attempt.giftName} · ${attempt.quantity} quà · ${attempt.totalPoints} điểm khi gửi'),
                             const Text(
@@ -275,9 +277,12 @@ class _GiftsScreenState extends ConsumerState<GiftsScreen> {
                               crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
                                 if (list.isEmpty)
-                                  Text(account?.programId == null
-                                      ? 'Chưa có chương trình áp dụng để đổi quà.'
-                                      : 'Chưa có quà đang hoạt động trong chương trình này.'),
+                                  AppCard(
+                                      child: Text(
+                                          account?.programId == null
+                                              ? 'Chưa có chương trình áp dụng để đổi quà.'
+                                              : 'Chưa có quà đang hoạt động trong chương trình này.',
+                                          style: AppText.muted)),
                                 for (final gift in list)
                                   GiftCatalogTile(
                                       gift: gift,
@@ -308,7 +313,9 @@ class _GiftsScreenState extends ConsumerState<GiftsScreen> {
                                       text:
                                           'Không tìm thấy yêu cầu đổi quà nguồn trong tài khoản hiện tại.'),
                                 if (list.isEmpty)
-                                  const Text('Chưa có yêu cầu đổi quà.'),
+                                  const AppCard(
+                                      child: Text('Chưa có yêu cầu đổi quà.',
+                                          style: AppText.muted)),
                                 for (final request in list)
                                   GiftRedemptionTile(
                                       request: request,

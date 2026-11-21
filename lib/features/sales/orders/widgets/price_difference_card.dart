@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import 'package:fscm_mobile/core/utils/money.dart';
+import 'package:fscm_mobile/shared/theme/app_text.dart';
+import 'package:fscm_mobile/shared/theme/app_tokens.dart';
 import 'package:fscm_mobile/shared/widgets/app_card.dart';
 import 'package:fscm_mobile/shared/widgets/kv_row.dart';
 
@@ -28,9 +30,9 @@ class PriceDifferenceCard extends StatelessWidget {
         children: [
           Text(
             title,
-            style: const TextStyle(fontWeight: FontWeight.w700),
+            style: AppText.strong,
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: AppSpacing.sm),
           KvRow('Tạm tính trên máy', Money.format(localAmount)),
           KvRow(serverLabel, Money.format(serverAmount)),
           KvRow(
@@ -41,11 +43,11 @@ class PriceDifferenceCard extends StatelessWidget {
                     '${Money.format(difference)}',
             bold: true,
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: AppSpacing.s6),
           const Text(
             'Giá trước phân bổ chưa bao gồm kết quả giảm theo '
             'hạn sử dụng của lô hàng được chọn.',
-            style: TextStyle(fontSize: 12),
+            style: AppText.mutedSmall,
           ),
         ],
       ),

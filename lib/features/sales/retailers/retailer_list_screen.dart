@@ -7,6 +7,9 @@ import 'package:fscm_mobile/data/repositories/catalog_repository.dart';
 import 'package:fscm_mobile/features/sales/products/catalog_sync_button.dart';
 import 'package:fscm_mobile/features/sales/retailers/widgets/retailer_summary_card.dart';
 import 'package:fscm_mobile/shared/routes.dart';
+import 'package:fscm_mobile/shared/theme/app_colors.dart';
+import 'package:fscm_mobile/shared/theme/app_text.dart';
+import 'package:fscm_mobile/shared/theme/app_tokens.dart';
 import 'package:fscm_mobile/shared/widgets/async_body.dart';
 import 'package:fscm_mobile/shared/widgets/empty_state.dart';
 import 'package:fscm_mobile/shared/widgets/info_banner.dart';
@@ -33,8 +36,13 @@ class _RetailerListScreenState extends ConsumerState<RetailerListScreen> {
       ),
       body: Column(
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+          Container(
+            decoration: const BoxDecoration(
+              color: AppColors.surface,
+              border: Border(bottom: BorderSide(color: AppColors.divider)),
+            ),
+            padding: const EdgeInsets.fromLTRB(
+                AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.md),
             child: TextField(
               decoration: const InputDecoration(
                 hintText: 'Tìm mã, tên hoặc địa chỉ',
@@ -71,7 +79,7 @@ class _RetailerListScreenState extends ConsumerState<RetailerListScreen> {
                   ..sort((a, b) => a.code.compareTo(b.code));
 
                 return ListView(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(AppSpacing.lg),
                   children: [
                     InfoBanner(
                       icon: online
@@ -85,9 +93,9 @@ class _RetailerListScreenState extends ConsumerState<RetailerListScreen> {
                     ),
                     Text(
                       '${data.retailers.length} điểm bán phụ trách',
-                      style: Theme.of(context).textTheme.titleSmall,
+                      style: AppText.cardTitle,
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: AppSpacing.md),
                     if (data.retailers.isEmpty)
                       const EmptyState(
                         icon: Icons.storefront_outlined,

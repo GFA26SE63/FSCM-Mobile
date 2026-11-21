@@ -8,6 +8,8 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:fscm_mobile/core/utils/money.dart';
 import 'package:fscm_mobile/shared/theme/app_colors.dart';
 import 'package:fscm_mobile/shared/widgets/dialogs.dart';
+import 'package:fscm_mobile/shared/theme/app_text.dart';
+import 'package:fscm_mobile/shared/theme/app_tokens.dart';
 
 enum PayOsCheckoutState { pending, paid, failed, expired, cancelled }
 
@@ -137,54 +139,76 @@ class _PayOsCheckoutResultPageState extends State<PayOsCheckoutResultPage>
     return Scaffold(
       appBar: AppBar(title: const Text('Kết quả thanh toán')),
       body: Padding(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.all(AppSpacing.xxl),
+        // Content scrolls (large fonts / small phones); actions stay pinned.
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
           children: <Widget>[
-            Icon(
-              paid
-                  ? Icons.check_circle
-                  : failed
-                      ? Icons.error_outline
-                      : Icons.hourglass_top,
-              size: 72,
-              color: paid
-                  ? AppColors.success
-                  : failed
-                      ? AppColors.danger
-                      : AppColors.primary,
+            Expanded(
+              child: Center(
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      Container(
+                        width: 72,
+                        height: 72,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: paid
+                              ? AppColors.successSoft
+                              : failed
+                                  ? AppColors.dangerSoft
+                                  : AppColors.primarySoft,
+                        ),
+                        child: Icon(
+                          paid
+                              ? Icons.check_rounded
+                              : failed
+                                  ? Icons.error_outline
+                                  : Icons.hourglass_top,
+                          size: 40,
+                          color: paid
+                              ? AppColors.success
+                              : failed
+                                  ? AppColors.danger
+                                  : AppColors.primary,
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.lg),
+                      Text(title,
+                          textAlign: TextAlign.center, style: AppText.display),
+                      const SizedBox(height: AppSpacing.sm),
+                      Text(Money.format(_snapshot.amount),
+                          style: AppText.display.copyWith(
+                              fontSize: 24, color: AppColors.primary)),
+                      Text(_snapshot.summary,
+                          textAlign: TextAlign.center, style: AppText.muted),
+                      if (widget.details != null) ...<Widget>[
+                        const SizedBox(height: AppSpacing.lg),
+                        widget.details!,
+                      ],
+                      if (!paid && !failed) ...<Widget>[
+                        const SizedBox(height: AppSpacing.xl),
+                        const CircularProgressIndicator(),
+                        TextButton(
+                            onPressed: _openPayOs,
+                            child: const Text('Mở lại PayOS')),
+                        TextButton(
+                            onPressed: _refresh,
+                            child: const Text('Kiểm tra trạng thái ngay')),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
             ),
-            const SizedBox(height: 16),
-            Text(title,
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.headlineSmall),
-            const SizedBox(height: 8),
-            Text(Money.format(_snapshot.amount),
-                style:
-                    const TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
-            Text(_snapshot.summary,
-                style: const TextStyle(color: AppColors.textMuted)),
-            if (widget.details != null) ...<Widget>[
-              const SizedBox(height: 16),
-              widget.details!,
-            ],
-            if (!paid && !failed) ...<Widget>[
-              const SizedBox(height: 20),
-              const CircularProgressIndicator(),
-              TextButton(
-                  onPressed: _openPayOs, child: const Text('Mở lại PayOS')),
-              TextButton(
-                  onPressed: _refresh,
-                  child: const Text('Kiểm tra trạng thái ngay')),
-            ],
-            const Spacer(),
             SizedBox(
               width: double.infinity,
               child: FilledButton(
                   onPressed: () => context.go(widget.homeRoute),
                   child: const Text('Về trang chủ')),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: AppSpacing.s10),
             SizedBox(
               width: double.infinity,
               child: OutlinedButton(

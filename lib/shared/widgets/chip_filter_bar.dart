@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import 'package:fscm_mobile/shared/theme/app_colors.dart';
+import 'package:fscm_mobile/shared/theme/app_text.dart';
+import 'package:fscm_mobile/shared/theme/app_tokens.dart';
 
 class ChipOption<T> {
   const ChipOption(this.value, this.label);
@@ -83,8 +85,8 @@ class _ChipFilterBarState<T> extends State<ChipFilterBar<T>> {
       return Padding(
         padding: widget.padding,
         child: Wrap(
-          spacing: 8,
-          runSpacing: 8,
+          spacing: AppSpacing.sm,
+          runSpacing: AppSpacing.sm,
           children: _chips(),
         ),
       );
@@ -107,7 +109,7 @@ class _ChipFilterBarState<T> extends State<ChipFilterBar<T>> {
           child: Row(
             children: <Widget>[
               for (var i = 0; i < chips.length; i++) ...<Widget>[
-                if (i > 0) const SizedBox(width: 8),
+                if (i > 0) const SizedBox(width: AppSpacing.sm),
                 chips[i],
               ],
             ],
@@ -136,10 +138,8 @@ class _FilterChip<T> extends StatelessWidget {
         showCheckmark: false,
         selectedColor: AppColors.primary,
         backgroundColor: AppColors.surface,
-        labelStyle: TextStyle(
-          color: selected ? Colors.white : AppColors.text,
-          fontWeight: FontWeight.w600,
-          fontSize: 13,
+        labelStyle: AppText.label.copyWith(
+          color: selected ? AppColors.onPrimary : AppColors.text,
         ),
         side:
             BorderSide(color: selected ? AppColors.primary : AppColors.border),

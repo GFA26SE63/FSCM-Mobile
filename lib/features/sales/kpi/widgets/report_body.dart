@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fscm_mobile/core/utils/dates.dart';
 import 'package:fscm_mobile/data/models/performance.dart';
+import 'package:fscm_mobile/shared/theme/app_text.dart';
+import 'package:fscm_mobile/shared/theme/app_tokens.dart';
 import 'package:fscm_mobile/shared/widgets/async_body.dart';
 
 class ReportBody<T> extends StatelessWidget {
@@ -34,7 +36,7 @@ class ReportBody<T> extends StatelessWidget {
             onRefresh: _reload,
             child: ListView(
               physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(AppSpacing.lg),
               children: [
                 Align(
                     alignment: Alignment.centerRight,
@@ -53,10 +55,12 @@ class ReportHeader<T> extends StatelessWidget {
   final PerformanceReport<T> report;
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.only(bottom: 12),
-        child: Text('Kỳ: ${report.fromDate} → ${report.toDate}\n'
+        padding: const EdgeInsets.only(bottom: AppSpacing.md),
+        child: Text(
+            'Kỳ: ${report.fromDate} → ${report.toDate}\n'
             'Phạm vi: ${report.scope == 'OwnGroup' || report.scope == 'Group' ? 'Nhóm được cấp quyền' : report.scope}\n'
-            'Tải dữ liệu lúc ${AppDates.timeDay(report.loadedAt)} (giờ Việt Nam)'),
+            'Tải dữ liệu lúc ${AppDates.timeDay(report.loadedAt)} (giờ Việt Nam)',
+            style: AppText.mutedSmall),
       );
 }
 

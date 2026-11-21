@@ -10,6 +10,8 @@ import 'package:fscm_mobile/features/common/notifications/notification_bell_butt
 import 'package:fscm_mobile/shared/routes.dart';
 import 'package:fscm_mobile/shared/widgets/info_banner.dart';
 import 'package:fscm_mobile/shared/widgets/qr_scan_view.dart';
+import 'package:fscm_mobile/shared/theme/app_tokens.dart';
+import 'package:fscm_mobile/shared/widgets/section_title.dart';
 
 /// Central "Quét QR" of the Warehouse Keeper: classifies the code and opens
 /// the label or picking list. With [labelsOnly] it is the
@@ -88,7 +90,7 @@ class _WkScanScreenState extends ConsumerState<WkScanScreen> {
         actions: const [NotificationBellButton()],
       ),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(AppSpacing.lg),
         children: [
           InfoBanner(
             icon: Icons.qr_code_scanner,
@@ -96,13 +98,13 @@ class _WkScanScreenState extends ConsumerState<WkScanScreen> {
                 ? 'Quét tem để xem lô hàng, số lượng, vị trí, tem gốc/con và lịch sử.'
                 : 'Quét tem để tra cứu hoặc phiếu soạn hàng để lấy hàng.',
           ),
-          const SizedBox(height: 12),
+          const SectionTitle('Quét tem'),
           if (_opening)
             const Center(child: CircularProgressIndicator())
           else
             QrScanView(onCode: _onCode),
           if (_error.isNotEmpty) ...[
-            const SizedBox(height: 12),
+            const SizedBox(height: AppSpacing.md),
             InfoBanner(
               tone: StatusTone.danger,
               icon: Icons.error_outline,
