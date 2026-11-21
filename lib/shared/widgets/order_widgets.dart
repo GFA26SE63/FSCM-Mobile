@@ -101,15 +101,45 @@ class OrderLinesCard extends StatelessWidget {
               ),
             ],
           ),
-          if (line.promoName.isNotEmpty)
+          if (line.discount > 0 || line.promoName.isNotEmpty)
             Padding(
               padding: const EdgeInsets.only(top: 4),
-              child: Text(
-                line.promoName,
-                style: const TextStyle(
-                  color: AppColors.textMuted,
-                  fontSize: 12.5,
-                ),
+              child: Row(
+                children: [
+                  if (line.discountPct > 0) ...[
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: AppColors.success.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(4),
+                        border: Border.all(
+                            color: AppColors.success.withValues(alpha: 0.3)),
+                      ),
+                      child: Text(
+                        'KM: −${_pct(line.discountPct)}%',
+                        style: const TextStyle(
+                          color: AppColors.success,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 11,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                  ],
+                  Expanded(
+                    child: Text(
+                      line.promoName.isNotEmpty
+                          ? line.promoName
+                          : 'Giảm ${Money.format(line.discount)}',
+                      style: const TextStyle(
+                        color: AppColors.textMuted,
+                        fontSize: 12,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
               ),
             ),
         ],

@@ -16,6 +16,7 @@ class QuantityStepper extends StatefulWidget {
     this.editable = false,
     this.enabled = true,
     this.onValidationChanged,
+    this.unit = 'thùng',
   });
 
   final int value;
@@ -26,6 +27,7 @@ class QuantityStepper extends StatefulWidget {
   final bool editable;
   final bool enabled;
   final ValueChanged<bool>? onValidationChanged;
+  final String unit;
 
   @override
   State<QuantityStepper> createState() => _QuantityStepperState();
@@ -73,9 +75,9 @@ class _QuantityStepperState extends State<QuantityStepper> {
     final error = value == null
         ? 'Nhập số nguyên'
         : value < widget.min || value > widget.max
-            ? '${widget.min}–${widget.max} thùng'
+            ? '${widget.min}–${widget.max} ${widget.unit}'
             : value % widget.step != 0
-                ? 'Bội ${widget.step} thùng'
+                ? 'Bội ${widget.step} ${widget.unit}'
                 : null;
     setState(() => _error = error);
     widget.onValidationChanged?.call(error == null);

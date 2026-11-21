@@ -41,7 +41,6 @@ class AppRoutes {
   // They are not registered in the router or exposed in the current scope.
   static const String wkTransfers = '/wk/transfers';
   static const String wkAccount = '/wk/account';
-  static const String wkScan = '/wk/scan';
   static const String wkShipped = '/wk/shipped';
   static const String wkLabelLookup = '/wk/label-lookup';
   static const String wkPickingDetailPattern = '/wk/picking/:code';

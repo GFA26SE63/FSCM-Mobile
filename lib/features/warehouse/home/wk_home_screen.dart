@@ -88,10 +88,16 @@ class WkHomeScreen extends ConsumerWidget {
                             child: ListTile(
                                 title: Text(asStr(w.document['code'])),
                                 subtitle: Text(w.document['kind'] == 'Request'
-                                    ? 'Chờ tạo phiếu xuất kho, sau đó quét QR'
+                                    ? (w.document['reason'] == 'Transfer'
+                                        ? 'Lệnh điều chuyển · Bấm để bắt đầu xuất'
+                                        : 'Lệnh xuất đơn · Bấm để bắt đầu xuất')
                                     : w.document['kind'] == 'Receipt'
-                                        ? 'Phiếu nhập đang xử lý'
-                                        : 'Phiếu xuất đang xử lý'),
+                                        ? (w.document['reason'] == 'Transfer'
+                                            ? 'Phiếu nhập luân chuyển đang xử lý'
+                                            : 'Phiếu nhập từ nhà máy đang xử lý')
+                                        : (w.document['reason'] == 'Transfer'
+                                            ? 'Phiếu xuất luân chuyển đang xử lý'
+                                            : 'Phiếu xuất bán hàng đang xử lý')),
                                 trailing: const Icon(Icons.chevron_right),
                                 onTap: () =>
                                     context.push('/wk/document/${w.id}'))),
@@ -102,7 +108,7 @@ class WkHomeScreen extends ConsumerWidget {
                           icon: const Icon(Icons.search),
                           label: const Text('Tra cứu QR')),
                       const Text(
-                          'Đơn bán hàng và kế hoạch luân chuyển phải có yêu cầu xuất trước. Mở yêu cầu để tạo PXK; chỉ xác nhận xuất sau khi quét đủ hàng.'),
+                          'Đơn bán hàng và điều chuyển kho do Admin phát hành lệnh trước. Mở lệnh để bắt đầu xuất; chỉ ghi sổ sau khi quét đủ hàng.'),
                     ]);
               })),
     );

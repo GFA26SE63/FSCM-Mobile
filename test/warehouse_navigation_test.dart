@@ -32,13 +32,6 @@ void main() {
                 ]),
             ],
           ),
-          GoRoute(
-            path: AppRoutes.wkScan,
-            builder: (_, __) => Scaffold(
-              appBar: AppBar(title: const Text('Scanner')),
-              body: const Text('Scan page'),
-            ),
-          ),
         ],
       );
       addTearDown(router.dispose);
@@ -46,7 +39,8 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byType(NavigationBar), findsOneWidget);
-      expect(find.byType(NavigationDestination), findsNWidgets(4));
+      expect(find.byType(NavigationDestination), findsNWidgets(3));
+      expect(find.text('Quét theo phiếu'), findsNothing);
       expect(find.byType(FloatingActionButton), findsNothing);
       for (final entry in <String, String>{
         'Nhập/Xuất': AppRoutes.wkPicking,
@@ -63,15 +57,9 @@ void main() {
             entry.key == 'Nhập/Xuất'
                 ? 1
                 : entry.key == 'Tài khoản'
-                    ? 3
+                    ? 2
                     : 0);
       }
-      await tester.tap(find.text('Quét theo phiếu'));
-      await tester.pumpAndSettle();
-      expect(find.text('Scan page'), findsOneWidget);
-      await tester.pageBack();
-      await tester.pumpAndSettle();
-      expect(find.text('Page ${AppRoutes.wkHome}'), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
   }
