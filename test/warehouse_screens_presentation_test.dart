@@ -79,12 +79,16 @@ Widget _host(Widget home, List<Override> overrides, double scale) =>
 
 Future<void> _see(WidgetTester tester, Finder target) async {
   if (target.evaluate().isEmpty) {
-    await tester.scrollUntilVisible(target, 200,
-        scrollable: find
-            .descendant(
-                of: find.byType(ListView).first,
-                matching: find.byType(Scrollable))
-            .first);
+    final scrollable = find
+        .descendant(
+            of: find.byType(ListView).first, matching: find.byType(Scrollable))
+        .first;
+    try {
+      await tester.scrollUntilVisible(target, 200, scrollable: scrollable);
+    } on StateError {
+      // The row may sit above the current offset in the lazy list.
+      await tester.scrollUntilVisible(target, -200, scrollable: scrollable);
+    }
   }
   expect(target, findsOneWidget);
 }
