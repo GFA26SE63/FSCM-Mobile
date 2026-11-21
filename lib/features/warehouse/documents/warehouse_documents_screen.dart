@@ -398,6 +398,20 @@ class _WarehouseDocumentScreenState
                       style: TextStyle(color: Colors.deepOrange),
                     ),
                   ),
+                if (request && d['reason'] == 'Order')
+                  Container(
+                    margin: const EdgeInsets.symmetric(vertical: 8),
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.orange.shade200),
+                    ),
+                    child: const Text(
+                      'Đây là Lệnh xuất bán hàng do Admin phát hành từ đơn hàng của Đại lý. Nhấn "Bắt đầu xuất kho & quét QR" để mở phiếu xuất và quét từng carton.',
+                      style: TextStyle(color: Colors.deepOrange),
+                    ),
+                  ),
                 if (d['status'] == 'Posted')
                   const Padding(
                     padding: EdgeInsets.symmetric(vertical: 4),
@@ -478,8 +492,74 @@ class _WarehouseDocumentScreenState
                             }
                           })),
                 if (scan != null) ...[
-                  Text(
-                      'Pallet: ${scan!['palletCode']} · Đã quét lúc ${scan!['scannedAt']}'),
+                  Card(
+                    color: Colors.blue.shade50,
+                    margin: const EdgeInsets.symmetric(vertical: 8),
+                    child: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Row(
+                            children: [
+                              const Icon(Icons.inventory_2, color: Colors.blue),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  'Pallet: ${scan!['palletCode']}',
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.blue),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                              'Đã quét lúc: ${scan!['scannedAt']} · Tổng ${inspection.length} thùng'),
+                          const SizedBox(height: 8),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: [
+                              FilledButton.tonalIcon(
+                                icon: const Icon(Icons.done_all, size: 18),
+                                label: const Text('Đánh dấu tất cả Đạt'),
+                                onPressed: busy
+                                    ? null
+                                    : () => setState(() {
+                                          for (final c in inspection) {
+                                            if (c['disposition'] == '') {
+                                              c['disposition'] = 'Accepted';
+                                            }
+                                          }
+                                        }),
+                              ),
+                              OutlinedButton.icon(
+                                icon: const Icon(Icons.restart_alt, size: 18),
+                                label: const Text('Đặt lại chưa kiểm'),
+                                onPressed: busy
+                                    ? null
+                                    : () => setState(() {
+                                          for (final c in inspection) {
+                                            c['disposition'] = '';
+                                            c['reason'] = '';
+                                            c['quarantineLocation'] = '';
+                                          }
+                                        }),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            'Tiến độ kiểm: Đạt: ${inspection.where((c) => c['disposition'] == 'Accepted').length} · Hỏng/Cách ly: ${inspection.where((c) => c['disposition'] == 'Damaged').length} · Thiếu: ${inspection.where((c) => c['disposition'] == 'Missing').length} / ${inspection.length} thùng',
+                            style: const TextStyle(
+                                fontWeight: FontWeight.w600, fontSize: 13),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                   for (final c in inspection)
                     Card(
                         child: Padding(
@@ -562,6 +642,19 @@ class _WarehouseDocumentScreenState
                       subtitle: Text(c['scannedAt'] == null
                           ? 'Chưa quét'
                           : 'Đã quét: ${c['scannedAt']}')),
+                if (own && w.pending && !canPost && scan == null)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    child: Text(
+                      w.factory
+                          ? '⚠️ Cần quét pallet và xác nhận kiểm đếm trước khi ghi sổ phiếu.'
+                          : '⚠️ Cần quét đủ $requiredQuantity thùng (đã quét $scanned/$requiredQuantity) để ghi sổ.',
+                      style: TextStyle(
+                          color: Colors.orange.shade800,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500),
+                    ),
+                  ),
                 if (own &&
                     w.pending &&
                     (d['kind'] == 'Receipt' ||
