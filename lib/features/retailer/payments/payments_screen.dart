@@ -11,6 +11,7 @@ import 'package:fscm_mobile/data/models/receivable.dart';
 import 'package:fscm_mobile/data/repositories/finance_repository.dart';
 import 'package:fscm_mobile/shared/routes.dart';
 import 'package:fscm_mobile/shared/theme/app_colors.dart';
+import 'package:fscm_mobile/shared/theme/app_tokens.dart';
 import 'package:fscm_mobile/shared/widgets/app_card.dart';
 import 'package:fscm_mobile/shared/widgets/async_body.dart';
 import 'package:fscm_mobile/shared/widgets/chip_filter_bar.dart';
@@ -20,6 +21,7 @@ import 'package:fscm_mobile/shared/widgets/dialogs.dart';
 import 'package:fscm_mobile/shared/widgets/payos_checkout_result_page.dart';
 import 'package:fscm_mobile/shared/widgets/section_title.dart';
 import 'package:fscm_mobile/shared/widgets/status_chip.dart';
+import 'package:fscm_mobile/shared/theme/app_text.dart';
 
 enum _PaymentFilter { all, payable, overdue, paid, prepaid }
 
@@ -139,7 +141,8 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
           return RefreshIndicator(
             onRefresh: () async => ref.refresh(receivablesProvider.future),
             child: ListView(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 120),
+              padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.lg, AppSpacing.lg, AppSpacing.lg, 120),
               children: <Widget>[
                 Row(children: <Widget>[
                   Expanded(
@@ -149,7 +152,7 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
                           color: overdue.isEmpty
                               ? AppColors.text
                               : AppColors.danger)),
-                  const SizedBox(width: 10),
+                  const SizedBox(width: AppSpacing.s10),
                   Expanded(
                       child: _Summary(
                           label: 'Đã chọn',
@@ -164,69 +167,81 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
                     text:
                         'Vui lòng thanh toán để tiếp tục đặt hàng công nợ và nhận điểm tích lũy.',
                   ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(0, 12, 0, 8),
-                  child: TextField(
-                    controller: _searchController,
-                    decoration: InputDecoration(
-                      hintText: 'Tìm mã đơn công nợ',
-                      prefixIcon: const Icon(Icons.search),
-                      suffixIcon: _query.isEmpty
-                          ? null
-                          : IconButton(
-                              tooltip: 'Xóa tìm kiếm',
-                              icon: const Icon(Icons.clear),
-                              onPressed: () => setState(() {
-                                _searchController.clear();
-                                _query = '';
-                              }),
+                // Search, filters and sort grouped in one card (prototype toolbar).
+                AppCard(
+                  margin: const EdgeInsets.only(
+                      top: AppSpacing.sm, bottom: AppSpacing.xs),
+                  padding: const EdgeInsets.all(AppSpacing.sm),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: <Widget>[
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(
+                            0, AppSpacing.md, 0, AppSpacing.sm),
+                        child: TextField(
+                          controller: _searchController,
+                          decoration: InputDecoration(
+                            hintText: 'Tìm mã đơn công nợ',
+                            prefixIcon: const Icon(Icons.search),
+                            suffixIcon: _query.isEmpty
+                                ? null
+                                : IconButton(
+                                    tooltip: 'Xóa tìm kiếm',
+                                    icon: const Icon(Icons.clear),
+                                    onPressed: () => setState(() {
+                                      _searchController.clear();
+                                      _query = '';
+                                    }),
+                                  ),
+                          ),
+                          onChanged: (value) => setState(() => _query = value),
+                        ),
+                      ),
+                      ChipFilterBar<_PaymentFilter>(
+                        padding: EdgeInsets.zero,
+                        selected: _filter,
+                        onSelected: (value) => setState(() => _filter = value),
+                        options: const <ChipOption<_PaymentFilter>>[
+                          ChipOption(_PaymentFilter.all, 'Tất cả'),
+                          ChipOption(_PaymentFilter.payable, 'Cần trả'),
+                          ChipOption(_PaymentFilter.overdue, 'Quá hạn'),
+                          ChipOption(_PaymentFilter.paid, 'Đã trả'),
+                          ChipOption(_PaymentFilter.prepaid, 'Trả trước'),
+                        ],
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.only(top: AppSpacing.sm),
+                        child: DropdownButtonFormField<_PaymentSort>(
+                          value: _sort,
+                          isExpanded: true,
+                          decoration: const InputDecoration(
+                            labelText: 'Sắp xếp',
+                            prefixIcon: Icon(Icons.sort),
+                          ),
+                          items: const <DropdownMenuItem<_PaymentSort>>[
+                            DropdownMenuItem(
+                              value: _PaymentSort.dueSoonest,
+                              child: Text('Hạn thanh toán gần nhất'),
                             ),
-                    ),
-                    onChanged: (value) => setState(() => _query = value),
-                  ),
-                ),
-                ChipFilterBar<_PaymentFilter>(
-                  padding: EdgeInsets.zero,
-                  selected: _filter,
-                  onSelected: (value) => setState(() => _filter = value),
-                  options: const <ChipOption<_PaymentFilter>>[
-                    ChipOption(_PaymentFilter.all, 'Tất cả'),
-                    ChipOption(_PaymentFilter.payable, 'Cần trả'),
-                    ChipOption(_PaymentFilter.overdue, 'Quá hạn'),
-                    ChipOption(_PaymentFilter.paid, 'Đã trả'),
-                    ChipOption(_PaymentFilter.prepaid, 'Trả trước'),
-                  ],
-                ),
-                Padding(
-                  padding: const EdgeInsets.only(top: 8),
-                  child: DropdownButtonFormField<_PaymentSort>(
-                    value: _sort,
-                    isExpanded: true,
-                    decoration: const InputDecoration(
-                      labelText: 'Sắp xếp',
-                      prefixIcon: Icon(Icons.sort),
-                    ),
-                    items: const <DropdownMenuItem<_PaymentSort>>[
-                      DropdownMenuItem(
-                        value: _PaymentSort.dueSoonest,
-                        child: Text('Hạn thanh toán gần nhất'),
-                      ),
-                      DropdownMenuItem(
-                        value: _PaymentSort.dueLatest,
-                        child: Text('Hạn thanh toán xa nhất'),
-                      ),
-                      DropdownMenuItem(
-                        value: _PaymentSort.amountHighToLow,
-                        child: Text('Số tiền cao đến thấp'),
-                      ),
-                      DropdownMenuItem(
-                        value: _PaymentSort.amountLowToHigh,
-                        child: Text('Số tiền thấp đến cao'),
+                            DropdownMenuItem(
+                              value: _PaymentSort.dueLatest,
+                              child: Text('Hạn thanh toán xa nhất'),
+                            ),
+                            DropdownMenuItem(
+                              value: _PaymentSort.amountHighToLow,
+                              child: Text('Số tiền cao đến thấp'),
+                            ),
+                            DropdownMenuItem(
+                              value: _PaymentSort.amountLowToHigh,
+                              child: Text('Số tiền thấp đến cao'),
+                            ),
+                          ],
+                          onChanged: (value) {
+                            if (value != null) setState(() => _sort = value);
+                          },
+                        ),
                       ),
                     ],
-                    onChanged: (value) {
-                      if (value != null) setState(() => _sort = value);
-                    },
                   ),
                 ),
                 if (open.isNotEmpty || visible.isEmpty)
@@ -265,29 +280,34 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
       ),
       bottomNavigationBar: receivables.valueOrNull == null
           ? null
-          : SafeArea(
-              minimum: const EdgeInsets.all(12),
-              child: Row(children: <Widget>[
-                Expanded(
-                    child: OutlinedButton(
-                  onPressed: _busy || _selected.isEmpty
-                      ? null
-                      : () => _confirmAndPay(payAll: false),
-                  child: const Text('Thanh toán một phần'),
-                )),
-                const SizedBox(width: 10),
-                Expanded(
-                    child: FilledButton(
-                  onPressed: _busy ||
-                          !(receivables.valueOrNull?.any((r) =>
-                                  !r.isPaid && r.collectibleAmount > 0) ??
-                              false)
-                      ? null
-                      : () => _confirmAndPay(payAll: true),
-                  child: const Text('Thanh toán hết'),
-                )),
-              ]),
-            ),
+          : DecoratedBox(
+              decoration: const BoxDecoration(
+                color: AppColors.surface,
+                border: Border(top: BorderSide(color: AppColors.divider)),
+              ),
+              child: SafeArea(
+                minimum: const EdgeInsets.all(AppSpacing.md),
+                child: Row(children: <Widget>[
+                  Expanded(
+                      child: OutlinedButton(
+                    onPressed: _busy || _selected.isEmpty
+                        ? null
+                        : () => _confirmAndPay(payAll: false),
+                    child: const Text('Thanh toán một phần'),
+                  )),
+                  const SizedBox(width: AppSpacing.s10),
+                  Expanded(
+                      child: FilledButton(
+                    onPressed: _busy ||
+                            !(receivables.valueOrNull?.any((r) =>
+                                    !r.isPaid && r.collectibleAmount > 0) ??
+                                false)
+                        ? null
+                        : () => _confirmAndPay(payAll: true),
+                    child: const Text('Thanh toán hết'),
+                  )),
+                ]),
+              )),
     );
   }
 
@@ -315,9 +335,10 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
               children: <Widget>[
                 const Text(
                     'Máy chủ sẽ dữ liệu đồng bộ số tiền có thể thu của từng đơn. Khoản đang tranh chấp không được tính.'),
-                const SizedBox(height: 12),
+                const SizedBox(height: AppSpacing.md),
                 ...rows.map((r) => Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      padding:
+                          const EdgeInsets.symmetric(vertical: AppSpacing.xs),
                       child: Row(children: <Widget>[
                         Expanded(child: Text(r.orderCode)),
                         Text(Money.format(r.collectibleAmount))
@@ -326,14 +347,14 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
                 const Divider(),
                 Row(children: <Widget>[
                   const Expanded(
-                      child: Text('Tổng thanh toán',
-                          style: TextStyle(fontWeight: FontWeight.w700))),
+                      child: Text('Tổng thanh toán', style: AppText.cardTitle)),
                   Text(Money.format(total),
-                      style: const TextStyle(fontWeight: FontWeight.w800))
+                      style: AppText.strong.copyWith(color: AppColors.primary))
                 ]),
               ],
             )),
-        actionsPadding: const EdgeInsets.fromLTRB(24, 0, 24, 20),
+        actionsPadding: const EdgeInsets.fromLTRB(
+            AppSpacing.xxl, 0, AppSpacing.xxl, AppSpacing.xl),
         actions: <Widget>[
           SizedBox(
             width: double.infinity,
@@ -344,7 +365,7 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
                   onPressed: () => Navigator.pop(dialogContext, true),
                   child: const Text('Thanh toán với PayOS'),
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: AppSpacing.s10),
                 OutlinedButton(
                   onPressed: () => Navigator.pop(dialogContext, false),
                   child: const Text('Quay lại'),
@@ -407,15 +428,14 @@ class DebtCheckoutResultScreen extends ConsumerWidget {
         details: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: <Widget>[
-            const Text('Đơn hàng thanh toán',
-                style: TextStyle(fontWeight: FontWeight.w700)),
-            const SizedBox(height: 6),
+            const Text('Đơn hàng thanh toán', style: AppText.cardTitle),
+            const SizedBox(height: AppSpacing.s6),
             ...initial.allocations.map((allocation) => Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 2),
+                  padding: const EdgeInsets.symmetric(vertical: AppSpacing.xxs),
                   child: Row(children: <Widget>[
                     Expanded(child: Text(allocation.orderCode)),
                     Text(Money.format(allocation.amount),
-                        style: const TextStyle(fontWeight: FontWeight.w600)),
+                        style: AppText.cardTitle.copyWith(fontSize: 14)),
                   ]),
                 )),
           ],
@@ -448,13 +468,10 @@ class _Summary extends StatelessWidget {
         child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
-              Text(label,
-                  style: const TextStyle(
-                      color: AppColors.textMuted, fontSize: 13)),
-              const SizedBox(height: 4),
+              Text(label, style: AppText.mutedSmall),
+              const SizedBox(height: AppSpacing.xs),
               Text(value,
-                  style: TextStyle(
-                      fontSize: 18, fontWeight: FontWeight.w800, color: color)),
+                  style: AppText.display.copyWith(fontSize: 18, color: color)),
             ]),
       );
 }
@@ -474,7 +491,8 @@ class _ReceivableTile extends StatelessWidget {
       onTap: onSelected == null
           ? () => context.push(AppRoutes.rtOrderDetail(r.orderCode))
           : () => onSelected!(!selected),
-      child: Row(children: <Widget>[
+      child:
+          Row(crossAxisAlignment: CrossAxisAlignment.start, children: <Widget>[
         if (onSelected != null)
           Checkbox(
               value: selected,
@@ -483,36 +501,40 @@ class _ReceivableTile extends StatelessWidget {
             child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
-              Text(r.orderCode,
-                  style: const TextStyle(fontWeight: FontWeight.w800)),
+              // Header: order code + status chip (prototype payment row).
+              Wrap(
+                alignment: WrapAlignment.spaceBetween,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: AppSpacing.sm,
+                runSpacing: AppSpacing.xs,
+                children: <Widget>[
+                  Text(r.orderCode, style: AppText.strong),
+                  StatusChip(label: r.status.label, tone: r.status.tone),
+                ],
+              ),
               Text(due,
-                  style: TextStyle(
-                      color:
-                          r.isOverdue ? AppColors.danger : AppColors.textMuted,
-                      fontSize: 13)),
+                  style: AppText.bodySmall.copyWith(
+                      color: r.isOverdue
+                          ? AppColors.danger
+                          : AppColors.textMuted)),
               Text(
                   r.method == 'Prepaid'
                       ? 'Trả trước'
                       : 'Công nợ ${r.term} ngày',
-                  style: const TextStyle(
-                      color: AppColors.textMuted, fontSize: 12)),
+                  style: AppText.mutedSmall),
               if (r.collectibleAmount != r.outstandingAmount)
                 Text(
                     'Đang tranh chấp: ${Money.format(r.outstandingAmount - r.collectibleAmount)}',
-                    style: const TextStyle(
-                        color: AppColors.textMuted, fontSize: 12)),
+                    style: AppText.mutedSmall),
+              const SizedBox(height: AppSpacing.xs),
+              Text(
+                  Money.format(r.isPaid
+                      ? r.confirmedAmount
+                      : r.method == 'Prepaid'
+                          ? r.outstandingAmount
+                          : r.collectibleAmount),
+                  style: AppText.strong.copyWith(fontSize: 16)),
             ])),
-        Column(crossAxisAlignment: CrossAxisAlignment.end, children: <Widget>[
-          Text(
-              Money.format(r.isPaid
-                  ? r.confirmedAmount
-                  : r.method == 'Prepaid'
-                      ? r.outstandingAmount
-                      : r.collectibleAmount),
-              style: const TextStyle(fontWeight: FontWeight.w800)),
-          const SizedBox(height: 4),
-          StatusChip(label: r.status.label, tone: r.status.tone),
-        ]),
       ]),
     );
   }

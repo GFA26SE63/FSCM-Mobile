@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fscm_mobile/app/router.dart';
 import 'package:fscm_mobile/app/theme.dart';
 import 'package:fscm_mobile/data/repositories/auth_repository.dart';
+import 'package:fscm_mobile/shared/theme/app_colors.dart';
 
 /// Shared presentation-level feedback channel.
 ///
@@ -127,8 +128,7 @@ class RootFeedbackController {
     final controller = messenger.showSnackBar(
       SnackBar(
         content: Text(feedback.message),
-        backgroundColor:
-            feedback.error ? const Color(0xFFB42318) : const Color(0xFF1B1F1D),
+        backgroundColor: feedback.error ? AppColors.danger : AppColors.text,
         behavior: SnackBarBehavior.floating,
         duration: _duration,
       ),

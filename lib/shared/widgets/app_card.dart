@@ -1,15 +1,16 @@
 import 'package:flutter/material.dart';
 
 import 'package:fscm_mobile/shared/theme/app_colors.dart';
+import 'package:fscm_mobile/shared/theme/app_tokens.dart';
 
-/// White bordered card used for list rows and sections.
+/// White card with a 1px hairline border (prototype `.card`), no elevation.
 class AppCard extends StatelessWidget {
   const AppCard({
     super.key,
     required this.child,
     this.onTap,
-    this.padding = const EdgeInsets.all(14),
-    this.margin = const EdgeInsets.only(bottom: 10),
+    this.padding = const EdgeInsets.all(AppSpacing.card),
+    this.margin = const EdgeInsets.only(bottom: AppSpacing.s10),
     this.color,
   });
 
@@ -21,19 +22,18 @@ class AppCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final radius = BorderRadius.circular(14);
     return Padding(
       padding: margin,
       child: Material(
         color: color ?? AppColors.surface,
-        borderRadius: radius,
+        borderRadius: AppRadius.cardAll,
         child: InkWell(
-          borderRadius: radius,
+          borderRadius: AppRadius.cardAll,
           onTap: onTap,
           child: Container(
             padding: padding,
             decoration: BoxDecoration(
-              borderRadius: radius,
+              borderRadius: AppRadius.cardAll,
               border: Border.all(color: AppColors.divider),
             ),
             child: child,

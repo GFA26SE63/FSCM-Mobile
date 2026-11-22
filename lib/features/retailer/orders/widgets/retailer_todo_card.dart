@@ -6,6 +6,9 @@ import 'package:fscm_mobile/core/utils/money.dart';
 import 'package:fscm_mobile/data/repositories/home_summary_repository.dart';
 import 'package:fscm_mobile/shared/routes.dart';
 import 'package:fscm_mobile/shared/theme/app_colors.dart';
+import 'package:fscm_mobile/shared/widgets/app_card.dart';
+import 'package:fscm_mobile/shared/theme/app_tokens.dart';
+import 'package:fscm_mobile/shared/theme/app_text.dart';
 
 /// Retailer overview at the top of "Đơn hàng": what needs the store's action
 /// (quotes, payments, deliveries to scan, debt) plus the loyalty balance.
@@ -47,50 +50,73 @@ class RetailerTodoCard extends ConsumerWidget {
             route: AppRoutes.rtPayments),
     ];
 
-    return Container(
+    return AppCard(
       key: const Key('retailer_todo'),
-      margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-      padding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.divider),
-      ),
+      margin: const EdgeInsets.fromLTRB(
+          AppSpacing.lg, AppSpacing.md, AppSpacing.lg, 0),
+      padding: const EdgeInsets.fromLTRB(
+          AppSpacing.card, AppSpacing.card, AppSpacing.card, AppSpacing.sm),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-          Row(
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: AppSpacing.sm,
+            runSpacing: AppSpacing.xs,
             children: <Widget>[
-              Expanded(
-                child: Text(
-                  todo.hasAction ? 'Việc cần làm' : 'Không có việc cần xử lý',
-                  style: const TextStyle(fontWeight: FontWeight.w700),
-                ),
+              Text(
+                todo.hasAction ? 'Việc cần làm' : 'Không có việc cần xử lý',
+                style: AppText.sectionTitle,
               ),
               if (todo.loyaltyPoints != null)
+                // Loyalty balance as a gold pill (prototype loyalty card).
                 InkWell(
+                  borderRadius: AppRadius.pillAll,
                   onTap: () => context.push(AppRoutes.rtLoyalty),
-                  child: Text('${todo.loyaltyPoints} điểm',
-                      style: const TextStyle(
-                          color: AppColors.primary,
-                          fontWeight: FontWeight.w700)),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.s10, vertical: AppSpacing.xs),
+                    decoration: const BoxDecoration(
+                      color: AppColors.warningSoft,
+                      borderRadius: AppRadius.pillAll,
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: <Widget>[
+                        const Icon(Icons.stars_outlined,
+                            size: 16, color: AppColors.warning),
+                        const SizedBox(width: AppSpacing.xs),
+                        Text('${todo.loyaltyPoints} điểm',
+                            style: AppText.caption
+                                .copyWith(color: AppColors.warning)),
+                      ],
+                    ),
+                  ),
                 ),
             ],
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: AppSpacing.xs),
           for (final item in items)
             InkWell(
+              borderRadius: AppRadius.controlAll,
               onTap:
                   item.route == null ? null : () => context.push(item.route!),
               child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 4),
+                padding: const EdgeInsets.symmetric(vertical: AppSpacing.s6),
                 child: Row(
                   children: <Widget>[
-                    Icon(item.icon, size: 18, color: item.color),
-                    const SizedBox(width: 8),
-                    Expanded(
-                        child: Text(item.text,
-                            style: const TextStyle(fontSize: 13.5))),
+                    Container(
+                      width: 32,
+                      height: 32,
+                      decoration: BoxDecoration(
+                        color: item.color.withValues(alpha: 0.1),
+                        borderRadius: AppRadius.smallAll,
+                      ),
+                      child: Icon(item.icon, size: 18, color: item.color),
+                    ),
+                    const SizedBox(width: AppSpacing.s10),
+                    Expanded(child: Text(item.text, style: AppText.bodyMedium)),
                     if (item.route != null)
                       const Icon(Icons.chevron_right,
                           size: 18, color: AppColors.textMuted),

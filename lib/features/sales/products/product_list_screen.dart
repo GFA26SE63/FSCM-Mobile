@@ -7,11 +7,14 @@ import 'package:fscm_mobile/core/utils/money.dart';
 import 'package:fscm_mobile/data/models/product.dart';
 import 'package:fscm_mobile/data/repositories/catalog_repository.dart';
 import 'package:fscm_mobile/shared/theme/app_colors.dart';
+import 'package:fscm_mobile/shared/theme/app_text.dart';
+import 'package:fscm_mobile/shared/theme/app_tokens.dart';
 import 'package:fscm_mobile/shared/widgets/app_card.dart';
 import 'package:fscm_mobile/shared/widgets/async_body.dart';
 import 'package:fscm_mobile/shared/widgets/chip_filter_bar.dart';
 import 'package:fscm_mobile/shared/widgets/empty_state.dart';
 import 'package:fscm_mobile/shared/widgets/info_banner.dart';
+import 'package:fscm_mobile/shared/widgets/kv_row.dart';
 
 import 'catalog_sync_button.dart';
 
@@ -69,32 +72,44 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
 
           return Column(
             children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-                child: TextField(
-                  decoration: const InputDecoration(
-                    hintText: 'Tìm sản phẩm hoặc SKU',
-                    prefixIcon: Icon(Icons.search),
-                  ),
-                  onChanged: (value) => setState(
-                    () => _query = value.trim().toLowerCase(),
-                  ),
+              Container(
+                decoration: const BoxDecoration(
+                  color: AppColors.surface,
+                  border: Border(bottom: BorderSide(color: AppColors.divider)),
                 ),
-              ),
-              ChipFilterBar<String>(
-                options: [
-                  const ChipOption<String>('', 'Tất cả'),
-                  for (final category in categories)
-                    ChipOption<String>(category, category),
-                ],
-                selected: selectedCategory,
-                onSelected: (value) => setState(
-                  () => _category = value,
+                padding: const EdgeInsets.only(bottom: AppSpacing.s10),
+                child: Column(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(AppSpacing.lg,
+                          AppSpacing.md, AppSpacing.lg, AppSpacing.s10),
+                      child: TextField(
+                        decoration: const InputDecoration(
+                          hintText: 'Tìm sản phẩm hoặc SKU',
+                          prefixIcon: Icon(Icons.search),
+                        ),
+                        onChanged: (value) => setState(
+                          () => _query = value.trim().toLowerCase(),
+                        ),
+                      ),
+                    ),
+                    ChipFilterBar<String>(
+                      options: [
+                        const ChipOption<String>('', 'Tất cả'),
+                        for (final category in categories)
+                          ChipOption<String>(category, category),
+                      ],
+                      selected: selectedCategory,
+                      onSelected: (value) => setState(
+                        () => _category = value,
+                      ),
+                    ),
+                  ],
                 ),
               ),
               Expanded(
                 child: ListView(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(AppSpacing.lg),
                   children: [
                     InfoBanner(
                       text:
@@ -139,52 +154,96 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            '${product.sku} · ${product.name}',
-            style: const TextStyle(
-              fontWeight: FontWeight.w700,
-              fontSize: 15,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            '${product.pack} · ${product.category}',
-            style: const TextStyle(color: AppColors.textMuted),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            price == null
-                ? 'Chưa có giá hiện hành trong dữ liệu đã lưu'
-                : '${Money.format(price)} / ${product.pack}',
-            style: const TextStyle(
-              fontWeight: FontWeight.w700,
-              color: AppColors.primary,
-            ),
-          ),
-          Text(
-            stock == null
-                ? 'Chưa có số liệu tồn tham khảo'
-                : 'Tồn tham khảo: ${_quantity(stock)} thùng',
-            style: const TextStyle(color: AppColors.textMuted),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Category tile (prototype: 56px rounded tile with category).
+              Container(
+                width: 56,
+                height: 56,
+                padding: const EdgeInsets.all(AppSpacing.xs),
+                alignment: Alignment.center,
+                decoration: const BoxDecoration(
+                  color: AppColors.background,
+                  borderRadius: AppRadius.controlAll,
+                ),
+                child: Text(
+                  product.category,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: AppText.caption
+                      .copyWith(fontSize: 11, color: AppColors.textMuted),
+                ),
+              ),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(product.name, style: AppText.cardTitle),
+                    Text('${product.sku} · ${product.pack}',
+                        style: AppText.mutedSmall),
+                    const SizedBox(height: AppSpacing.xs),
+                    if (price == null)
+                      const Text('Chưa có giá hiện hành trong dữ liệu đã lưu',
+                          style: AppText.muted)
+                    else
+                      Text.rich(
+                        TextSpan(
+                          text: Money.format(price),
+                          children: [
+                            TextSpan(
+                              text: ' / ${product.pack}',
+                              style: AppText.mutedSmall,
+                            ),
+                          ],
+                        ),
+                        style:
+                            AppText.strong.copyWith(color: AppColors.primary),
+                      ),
+                    Text(
+                      stock == null
+                          ? 'Chưa có số liệu tồn tham khảo'
+                          : 'Tồn tham khảo: ${_quantity(stock)} thùng',
+                      style: AppText.mutedSmall,
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
           if (promotions.isNotEmpty) ...[
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 6,
-              runSpacing: 4,
-              children: [
-                for (final promotion in promotions)
-                  Chip(
-                    label: Text(promotion.name),
-                  ),
-              ],
-            ),
+            const SizedBox(height: AppSpacing.s10),
+            for (final promotion in promotions)
+              Container(
+                width: double.infinity,
+                margin: const EdgeInsets.only(bottom: AppSpacing.s6),
+                padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.s10, vertical: AppSpacing.sm),
+                decoration: const BoxDecoration(
+                  color: AppColors.warningSoft,
+                  borderRadius: AppRadius.smallAll,
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Icon(Icons.local_offer_outlined,
+                        size: 16, color: AppColors.warning),
+                    const SizedBox(width: AppSpacing.sm),
+                    Expanded(
+                      child: Text(
+                        promotion.name,
+                        style: AppText.bodySmall
+                            .copyWith(color: AppColors.warning),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             const Text(
               'Khuyến mãi có thể áp dụng tùy điểm bán và số lượng.',
-              style: TextStyle(
-                fontSize: 12,
-                color: AppColors.textMuted,
-              ),
+              style: AppText.mutedSmall,
             ),
           ],
         ],
@@ -205,33 +264,30 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
       isScrollControlled: true,
       builder: (context) => SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.all(AppSpacing.xxl),
           child: Column(
             mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Text(
-                product.name,
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
-              const SizedBox(height: 12),
-              Text('SKU: ${product.sku}'),
-              Text('Danh mục: ${product.category}'),
-              Text('Đơn vị: ${product.pack}'),
-              Text(
+              Text(product.name, style: AppText.pageTitle),
+              const SizedBox(height: AppSpacing.md),
+              KvRow('SKU', product.sku),
+              KvRow('Danh mục', product.category),
+              KvRow('Đơn vị', product.pack),
+              KvRow(
+                'Giá cơ sở dự kiến',
                 price == null
-                    ? 'Giá: chưa có giá hiện hành trong dữ liệu đã lưu'
-                    : 'Giá cơ sở dự kiến: ${Money.format(price)}',
+                    ? 'Chưa có giá hiện hành trong dữ liệu đã lưu'
+                    : Money.format(price),
               ),
-              Text(
-                stock == null
-                    ? 'Tồn: chưa có số liệu'
-                    : 'Tồn tham khảo: ${_quantity(stock)} thùng',
+              KvRow(
+                'Tồn tham khảo',
+                stock == null ? 'Chưa có số liệu' : '${_quantity(stock)} thùng',
               ),
-              const SizedBox(height: 12),
-              Text(data.stockDisclaimer),
-              const SizedBox(height: 8),
-              Text(data.priceDisclaimer),
+              const SizedBox(height: AppSpacing.md),
+              InfoBanner(
+                text: '${data.stockDisclaimer}\n${data.priceDisclaimer}',
+              ),
             ],
           ),
         ),

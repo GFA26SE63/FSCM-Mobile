@@ -17,6 +17,8 @@ import 'package:fscm_mobile/shared/widgets/async_body.dart';
 import 'package:fscm_mobile/shared/widgets/info_banner.dart';
 import 'package:fscm_mobile/shared/widgets/qr_scan_view.dart';
 import 'package:fscm_mobile/shared/widgets/section_title.dart';
+import 'package:fscm_mobile/shared/theme/app_text.dart';
+import 'package:fscm_mobile/shared/theme/app_tokens.dart';
 
 /// A multi-warehouse order is received one shipment at a time. The retailer
 /// explicitly chooses the warehouse part before scanning labels, preventing
@@ -116,7 +118,7 @@ class _RtReceiveScreenState extends ConsumerState<RtReceiveScreen> {
   }
 
   Widget _notReady(Order order) => ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(AppSpacing.lg),
         children: <Widget>[
           InfoBanner(
             icon: Icons.info_outline,
@@ -132,7 +134,7 @@ class _RtReceiveScreenState extends ConsumerState<RtReceiveScreen> {
     final shipments = allShipments.where((item) => item.canReceive).toList();
     if (shipments.isEmpty) {
       return ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(AppSpacing.lg),
         children: const <Widget>[
           InfoBanner(
             icon: Icons.info_outline,
@@ -149,7 +151,7 @@ class _RtReceiveScreenState extends ConsumerState<RtReceiveScreen> {
     final ready = _scanned.isNotEmpty;
 
     return ListView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(AppSpacing.lg),
       children: <Widget>[
         InfoBanner(
           icon: Icons.local_shipping_outlined,
@@ -159,18 +161,33 @@ class _RtReceiveScreenState extends ConsumerState<RtReceiveScreen> {
         ),
         const SectionTitle('1. Chọn phần giao'),
         for (final shipment in shipments)
-          Card(
-            margin: const EdgeInsets.only(bottom: 8),
-            child: RadioListTile<String>(
-              value: shipment.id,
-              groupValue: selected.id,
-              onChanged: (value) {
-                if (value != null) _selectShipment(value);
-              },
-              title: Text('${shipment.warehouseName} · ${shipment.code}'),
-              subtitle: Text(
-                '${shipment.warehouseCode} · ${_quantity(shipment.totalQuantity)} sản phẩm · '
-                '${shipment.lines.map((line) => line.sku).toSet().join(', ')}',
+          // Option card (prototype shipment parts): selected = primary border.
+          Padding(
+            padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+            child: Material(
+              color: shipment.id == selected.id
+                  ? AppColors.primarySoft
+                  : AppColors.surface,
+              shape: RoundedRectangleBorder(
+                borderRadius: AppRadius.controlAll,
+                side: BorderSide(
+                    color: shipment.id == selected.id
+                        ? AppColors.primary
+                        : AppColors.border,
+                    width: shipment.id == selected.id ? 1.5 : 1),
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: RadioListTile<String>(
+                value: shipment.id,
+                groupValue: selected.id,
+                onChanged: (value) {
+                  if (value != null) _selectShipment(value);
+                },
+                title: Text('${shipment.warehouseName} · ${shipment.code}'),
+                subtitle: Text(
+                  '${shipment.warehouseCode} · ${_quantity(shipment.totalQuantity)} sản phẩm · '
+                  '${shipment.lines.map((line) => line.sku).toSet().join(', ')}',
+                ),
               ),
             ),
           ),
@@ -185,7 +202,7 @@ class _RtReceiveScreenState extends ConsumerState<RtReceiveScreen> {
           onCode: _onScan,
         ),
         if (_error.isNotEmpty) ...<Widget>[
-          const SizedBox(height: 12),
+          const SizedBox(height: AppSpacing.md),
           InfoBanner(
             tone: StatusTone.danger,
             icon: Icons.error_outline,
@@ -195,16 +212,18 @@ class _RtReceiveScreenState extends ConsumerState<RtReceiveScreen> {
         SectionTitle('Tem đã quét (${_scanned.length})'),
         for (final code in _scanned)
           AppCard(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            margin: const EdgeInsets.only(bottom: AppSpacing.s6),
+            padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.card, vertical: AppSpacing.s10),
             child: Row(
               children: <Widget>[
-                const Icon(Icons.check_circle, color: AppColors.primary),
-                const SizedBox(width: 10),
-                Text(code, style: const TextStyle(fontWeight: FontWeight.w700)),
+                const Icon(Icons.check_circle, color: AppColors.success),
+                const SizedBox(width: AppSpacing.s10),
+                Expanded(child: Text(code, style: AppText.strong)),
               ],
             ),
           ),
-        const SizedBox(height: 4),
+        const SizedBox(height: AppSpacing.sm),
         FilledButton(
           onPressed: ready && !_busy ? () => _confirm(order, selected) : null,
           child: Text(_busy
@@ -219,28 +238,46 @@ class _RtReceiveScreenState extends ConsumerState<RtReceiveScreen> {
     final complete = order.status == OrderStatus.delivered ||
         order.status == OrderStatus.completed;
     return ListView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(AppSpacing.lg),
       children: <Widget>[
-        InfoBanner(
-          tone: StatusTone.success,
-          icon: Icons.check_circle_outline,
-          title: 'Đã xác nhận một phần giao của ${order.code}',
-          text: complete
+        // Success hero (prototype RECEIVED): icon disc + title + message.
+        const SizedBox(height: AppSpacing.xl),
+        Center(
+          child: Container(
+            width: 72,
+            height: 72,
+            decoration: const BoxDecoration(
+              shape: BoxShape.circle,
+              color: AppColors.successSoft,
+            ),
+            child: const Icon(Icons.check_rounded,
+                size: 40, color: AppColors.success),
+          ),
+        ),
+        const SizedBox(height: AppSpacing.lg),
+        Text('Đã xác nhận một phần giao của ${order.code}',
+            textAlign: TextAlign.center, style: AppText.display),
+        const SizedBox(height: AppSpacing.sm),
+        Text(
+          complete
               ? 'Đã nhận đủ mọi phần giao. Công nợ bắt đầu tính hạn từ ngày nhận đủ hàng.'
               : 'Đơn vẫn chờ phần giao từ kho còn lại. Hãy xác nhận từng phần khi hàng tới.',
+          textAlign: TextAlign.center,
+          style: AppText.muted.copyWith(height: 1.5),
         ),
+        const SizedBox(height: AppSpacing.xl),
         if (!complete)
           FilledButton(
             onPressed: () => setState(() => _result = null),
             child: const Text('Xác nhận phần giao tiếp theo'),
           ),
-        if (!complete) const SizedBox(height: 8),
+        if (!complete) const SizedBox(height: AppSpacing.sm),
         OutlinedButton(
           onPressed: () =>
               context.pushReplacement(AppRoutes.rtOrderDetail(order.id)),
           child: const Text('Xem đơn hàng'),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: AppSpacing.sm),
         OutlinedButton.icon(
           onPressed: () => context.push(AppRoutes.rtComplaintFor(order.code)),
           icon: const Icon(Icons.report_gmailerrorred_outlined),

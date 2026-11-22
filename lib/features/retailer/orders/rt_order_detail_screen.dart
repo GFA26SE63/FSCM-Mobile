@@ -15,6 +15,8 @@ import 'package:fscm_mobile/features/retailer/orders/widgets/retailer_prepaid_pa
 import 'package:fscm_mobile/features/retailer/orders/widgets/retailer_quote_panel.dart';
 import 'package:fscm_mobile/shared/routes.dart';
 import 'package:fscm_mobile/shared/theme/app_colors.dart';
+import 'package:fscm_mobile/shared/theme/app_text.dart';
+import 'package:fscm_mobile/shared/theme/app_tokens.dart';
 import 'package:fscm_mobile/shared/widgets/app_card.dart';
 import 'package:fscm_mobile/shared/widgets/async_body.dart';
 import 'package:fscm_mobile/shared/widgets/allocation_retry_button.dart';
@@ -71,21 +73,35 @@ class RtOrderDetailScreen extends ConsumerWidget {
           },
           child: ListView(
             physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(AppSpacing.lg),
             children: [
-              Row(children: [
-                Expanded(
-                    child: Text(order.code,
-                        style: const TextStyle(
-                            fontSize: 20, fontWeight: FontWeight.w800))),
-                OrderStatusChip(order),
-              ]),
-              const SizedBox(height: 4),
-              Text('${order.retailerName} · ${order.retailerCode}',
-                  style: const TextStyle(color: AppColors.textMuted)),
-              Text('Đặt lúc ${AppDates.timeDay(order.createdAt.toLocal())}',
-                  style: const TextStyle(color: AppColors.textMuted)),
-              const SizedBox(height: 10),
+              // Header card (prototype: code + status chip, store, order time).
+              AppCard(
+                margin: const EdgeInsets.only(bottom: AppSpacing.s10),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Wrap(
+                      alignment: WrapAlignment.spaceBetween,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      spacing: AppSpacing.sm,
+                      runSpacing: AppSpacing.xs,
+                      children: [
+                        Text(order.code,
+                            style: AppText.display
+                                .copyWith(color: AppColors.text)),
+                        OrderStatusChip(order),
+                      ],
+                    ),
+                    const SizedBox(height: AppSpacing.xs),
+                    Text('${order.retailerName} · ${order.retailerCode}',
+                        style: AppText.muted),
+                    Text(
+                        'Đặt lúc ${AppDates.timeDay(order.createdAt.toLocal())}',
+                        style: AppText.mutedSmall),
+                  ],
+                ),
+              ),
               if (order.status.isRejectedOrCancelled)
                 InfoBanner(
                     tone: StatusTone.danger,
@@ -117,7 +133,7 @@ class RtOrderDetailScreen extends ConsumerWidget {
               const SectionTitle('Khuyến mãi áp dụng'),
               AppliedPromoCard(order.appliedPromos,
                   emptyText: 'Không có khuyến mãi.'),
-              const SizedBox(height: 10),
+              const SizedBox(height: AppSpacing.s10),
               if (order.finalPricePendingAllocation)
                 const InfoBanner(
                     text:

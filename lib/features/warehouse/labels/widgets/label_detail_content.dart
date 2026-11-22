@@ -10,6 +10,11 @@ import 'package:fscm_mobile/shared/widgets/app_card.dart';
 import 'package:fscm_mobile/shared/widgets/kv_row.dart';
 import 'package:fscm_mobile/shared/widgets/section_title.dart';
 import 'package:fscm_mobile/shared/widgets/status_chip.dart';
+import 'package:fscm_mobile/shared/theme/app_colors.dart';
+import 'package:fscm_mobile/shared/theme/app_text.dart';
+import 'package:fscm_mobile/shared/theme/app_tokens.dart';
+import 'package:fscm_mobile/core/utils/status_tone.dart';
+import 'package:fscm_mobile/shared/widgets/info_banner.dart';
 
 class LabelDetailContent extends StatelessWidget {
   const LabelDetailContent({
@@ -24,22 +29,27 @@ class LabelDetailContent extends StatelessWidget {
     final label = detail.label;
 
     return ListView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(AppSpacing.lg),
       children: [
         AppCard(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                label.code,
-                style: Theme.of(context).textTheme.titleLarge,
+              Wrap(
+                alignment: WrapAlignment.spaceBetween,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: AppSpacing.sm,
+                runSpacing: AppSpacing.xs,
+                children: [
+                  Text(label.code,
+                      style: AppText.display.copyWith(color: AppColors.text)),
+                  StatusChip(
+                    label: label.status.label,
+                    tone: label.status.tone,
+                  ),
+                ],
               ),
-              const SizedBox(height: 8),
-              StatusChip(
-                label: label.status.label,
-                tone: label.status.tone,
-              ),
-              const SizedBox(height: 12),
+              const SizedBox(height: AppSpacing.md),
               KvRow('Sản phẩm', '${label.sku} · ${label.name}'),
               KvRow('Lô hàng', label.batchCode),
               KvRow('Kho', label.warehouseName),
@@ -47,9 +57,12 @@ class LabelDetailContent extends StatelessWidget {
               KvRow('Hạn sử dụng', AppDates.date(label.expiry)),
               if (label.status == LabelStatus.invalidated)
                 const Padding(
-                  padding: EdgeInsets.only(top: 12),
-                  child: Text(
-                    'Tem đã bị vô hiệu hóa. Không sử dụng tem này để lấy hàng.',
+                  padding: EdgeInsets.only(top: AppSpacing.md),
+                  child: InfoBanner(
+                    tone: StatusTone.danger,
+                    icon: Icons.block,
+                    text:
+                        'Tem đã bị vô hiệu hóa. Không sử dụng tem này để lấy hàng.',
                   ),
                 ),
             ],
@@ -73,9 +86,10 @@ class LabelDetailContent extends StatelessWidget {
           for (final child in detail.children) _labelLink(context, child),
         const SectionTitle('Lịch sử chuỗi tem'),
         const Padding(
-          padding: EdgeInsets.only(bottom: 8),
+          padding: EdgeInsets.only(bottom: AppSpacing.sm),
           child: Text(
             'Lịch sử do máy chủ trả về cho chuỗi tem gốc và các tem con.',
+            style: AppText.mutedSmall,
           ),
         ),
         if (detail.events.isEmpty)
@@ -89,11 +103,10 @@ class LabelDetailContent extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    event.title,
-                    style: const TextStyle(fontWeight: FontWeight.w700),
-                  ),
-                  Text(AppDates.timeDay(event.occurredAt?.toLocal())),
+                  Text(event.title, style: AppText.strong),
+                  Text(AppDates.timeDay(event.occurredAt?.toLocal()),
+                      style: AppText.mutedSmall),
+                  const SizedBox(height: AppSpacing.xs),
                   if (event.warehouseCode.isNotEmpty)
                     KvRow('Kho', event.warehouseCode),
                   KvRow(
@@ -119,8 +132,8 @@ class LabelDetailContent extends StatelessWidget {
       onTap: () => context.push(AppRoutes.wkLabel(code)),
       child: Row(
         children: [
-          Expanded(child: Text(code)),
-          const Icon(Icons.chevron_right),
+          Expanded(child: Text(code, style: AppText.strong)),
+          const Icon(Icons.chevron_right, color: AppColors.textMuted),
         ],
       ),
     );
@@ -135,12 +148,13 @@ class LabelDetailContent extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(label.code),
-                Text('${label.qty} thùng · ${label.status.label}'),
+                Text(label.code, style: AppText.strong),
+                Text('${label.qty} thùng · ${label.status.label}',
+                    style: AppText.mutedSmall),
               ],
             ),
           ),
-          const Icon(Icons.chevron_right),
+          const Icon(Icons.chevron_right, color: AppColors.textMuted),
         ],
       ),
     );

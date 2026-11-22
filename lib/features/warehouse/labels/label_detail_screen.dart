@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:fscm_mobile/core/network/api_exception.dart';
 import 'package:fscm_mobile/data/repositories/warehouse_repository.dart';
 import 'package:fscm_mobile/shared/routes.dart';
+import 'package:fscm_mobile/shared/widgets/empty_state.dart';
 
 import 'widgets/label_detail_content.dart';
 
@@ -44,35 +45,23 @@ class LabelDetailScreen extends ConsumerWidget {
         loading: () => const Center(
           child: CircularProgressIndicator(),
         ),
-        error: (error, stackTrace) => Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.error_outline, size: 40),
-                const SizedBox(height: 12),
-                Text(
-                  _errorTitle(error),
-                  style: Theme.of(context).textTheme.titleMedium,
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  ApiException.describe(error),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 16),
-                FilledButton(
-                  onPressed: () => ref.invalidate(provider),
-                  child: const Text('Thử lại'),
-                ),
-                TextButton(
-                  onPressed: () => context.go(AppRoutes.wkLabelLookup),
-                  child: const Text('Quét hoặc nhập mã khác'),
-                ),
-              ],
-            ),
+        error: (error, stackTrace) => EmptyState(
+          icon: Icons.error_outline,
+          title: _errorTitle(error),
+          message: ApiException.describe(error),
+          action: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              FilledButton(
+                onPressed: () => ref.invalidate(provider),
+                child: const Text('Thử lại'),
+              ),
+              TextButton(
+                onPressed: () => context.go(AppRoutes.wkLabelLookup),
+                child: const Text('Quét hoặc nhập mã khác'),
+              ),
+            ],
           ),
         ),
       ),
