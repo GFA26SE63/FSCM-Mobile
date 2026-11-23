@@ -43,6 +43,21 @@ void main() {
   });
 
   group('IdFormat validators', () {
+    test('receipt carton codes use the factory CID identity', () {
+      expect(IdFormat.isCarton('CID-F01-20261123-A-0001-0001'), isTrue);
+      expect(IdFormat.isCarton('CID-F01-20261123-D-9999-10000'), isTrue);
+      for (final code in <String>[
+        'TEM-000187',
+        'PID-F01-20261123-A-0001-0001',
+        'UID-F01-20261123-A-0001-000001',
+        'CID-',
+        'CID-F01-20261123-A-0001',
+        'CID-F01-20261123-A-0001-0001-extra',
+      ]) {
+        expect(IdFormat.isCarton(code), isFalse, reason: code);
+      }
+    });
+
     test('accepts well-formed codes', () {
       expect(IdFormat.isLabel('TEM-000187'), isTrue);
       expect(IdFormat.isOrder('DH-001030'), isTrue);

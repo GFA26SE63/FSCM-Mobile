@@ -120,6 +120,9 @@ class IdFormat {
   static final RegExp batchPattern =
       RegExp(r'^(WH-[A-Z]{2,4})-(SKU\d{3})-(\d{2})(\d{2})(\d{4})$');
   static final RegExp labelPattern = RegExp(r'^TEM-\d{6}$');
+  /// Factory carton identity, preserved through warehouse issue and receipt.
+  static final RegExp cartonPattern =
+      RegExp(r'^CID-[A-Z0-9]{1,12}-\d{8}-[A-D]-\d{4}-\d{4,}$');
   static final RegExp orderPattern = RegExp(r'^DH-\d{6}$');
   static final RegExp offlineOrderPattern =
       RegExp(r'^OFF-[A-Z0-9]{2,8}-\d{4}$');
@@ -139,6 +142,7 @@ class IdFormat {
   static bool isWarehouse(String v) => warehousePattern.hasMatch(v);
   static bool isBatch(String v) => batchPattern.hasMatch(v);
   static bool isLabel(String v) => labelPattern.hasMatch(v);
+  static bool isCarton(String v) => cartonPattern.hasMatch(v);
   static bool isOrder(String v) => orderPattern.hasMatch(v);
   static bool isOfflineOrder(String v) => offlineOrderPattern.hasMatch(v);
   static bool isPickingList(String v) => pickingListPattern.hasMatch(v);
