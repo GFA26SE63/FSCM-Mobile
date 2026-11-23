@@ -86,8 +86,14 @@ class OrdersApi {
       Order.fromJson(asMap(await _client.post('/orders/$id/allocation/retry',
           body: {'expectedVersion': version})));
 
+  /// Default page size of every order list (Sales and Retailer).
+  static const int defaultPageSize = 10;
+
   Future<OrderPage> listPage(
-          {int page = 1, int pageSize = 20, String? search, String? status}) =>
+          {int page = 1,
+          int pageSize = defaultPageSize,
+          String? search,
+          String? status}) =>
       _readPage(
         status: status,
         page: page,

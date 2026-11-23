@@ -3,6 +3,7 @@ import 'package:fscm_mobile/features/warehouse/documents/warehouse_documents_scr
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:fscm_mobile/core/utils/focus.dart';
 
 import 'package:fscm_mobile/app/shell/retailer_shell.dart';
 import 'package:fscm_mobile/app/shell/sales_shell.dart';
@@ -144,7 +145,13 @@ final routerProvider = Provider<GoRouter>((ref) {
       ..._retailerRoutes(),
     ],
   );
-  ref.onDispose(router.dispose);
+  // A search field that still has focus keeps its cursor and keyboard after a
+  // push, pop or tab switch; every location change releases it.
+  router.routerDelegate.addListener(releaseFocus);
+  ref.onDispose(() {
+    router.routerDelegate.removeListener(releaseFocus);
+    router.dispose();
+  });
   return router;
 });
 

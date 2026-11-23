@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:fscm_mobile/core/utils/focus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:fscm_mobile/core/network/network_monitor.dart';
@@ -84,6 +85,7 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                       padding: const EdgeInsets.fromLTRB(AppSpacing.lg,
                           AppSpacing.md, AppSpacing.lg, AppSpacing.s10),
                       child: TextField(
+                        onTapOutside: releaseFocus,
                         decoration: const InputDecoration(
                           hintText: 'Tìm sản phẩm hoặc SKU',
                           prefixIcon: Icon(Icons.search),

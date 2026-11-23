@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:fscm_mobile/core/utils/focus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:uuid/uuid.dart';
@@ -79,6 +80,13 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
   String _query = '';
   bool _busy = false;
   int get _step => ref.read(orderStepProvider).requireValue;
+
+  @override
+  void dispose() {
+    // "Hoàn tác" restores a cart line of this screen; do not leave it behind.
+    hideAppUndoSnack();
+    super.dispose();
+  }
 
   @override
   void initState() {
@@ -306,6 +314,7 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
                       'Hãy cập nhật dữ liệu đồng bộ hoặc kiểm tra giá trực tuyến.',
                 ),
               TextField(
+                onTapOutside: releaseFocus,
                 enabled: !_busy,
                 decoration: const InputDecoration(
                   hintText: 'Tìm sản phẩm hoặc SKU',
@@ -508,6 +517,8 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
     );
   }
 
+  final GlobalKey _checkoutBarKey = GlobalKey();
+
   void _removeProduct(Product product) {
     if (_busy) {
       return;
@@ -521,7 +532,11 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
       _cart.remove(product.sku);
       _invalidQuantities.remove(product.sku);
     });
-    showAppUndoSnack('Đã bỏ ${product.name} khỏi giỏ.', onUndo: () {
+    // Lift the message above the checkout bar so it never covers its CTA.
+    final barHeight =
+        (_checkoutBarKey.currentContext?.size?.height ?? 0).toDouble();
+    showAppUndoSnack('Đã bỏ ${product.name} khỏi giỏ.',
+        bottomClearance: barHeight, onUndo: () {
       if (!_isCurrentUser(ownerId) || _busy || (_cart[product.sku] ?? 0) > 0) {
         return;
       }
@@ -541,6 +556,7 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
     final count = _lines.length;
 
     return SafeArea(
+      key: _checkoutBarKey,
       top: false,
       child: Container(
         padding: const EdgeInsets.fromLTRB(

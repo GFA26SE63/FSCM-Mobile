@@ -19,7 +19,7 @@ class NotificationsApi {
   final GraphQlClient _graphQl;
 
   /// Backend accepts 1..100 per page; this is the UI page, not a data cap.
-  static const int pageSize = 20;
+  static const int pageSize = 10;
 
   // Scalar variables: no dependency on the generated input type name.
   static const String _listQuery = r'''

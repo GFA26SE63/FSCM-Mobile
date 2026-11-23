@@ -208,8 +208,8 @@ void main() {
             ],
             scale));
         await tester.pumpAndSettle();
-        expect(find.text('Còn có thể trả'), findsOneWidget);
-        expect(find.text('Thanh toán hết'), findsOneWidget);
+        expect(find.text('Công nợ có thể trả'), findsOneWidget);
+        expect(find.text('Trả toàn bộ công nợ'), findsOneWidget);
         await _see(tester, find.text('DH-001001'));
         expect(tester.takeException(), isNull);
       });

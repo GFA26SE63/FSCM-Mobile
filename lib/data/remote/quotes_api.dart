@@ -1,3 +1,6 @@
+import 'dart:convert';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:fscm_mobile/core/network/api_client.dart';
@@ -40,14 +43,39 @@ class QuotesApi {
           kind: ApiErrorKind.validation,
           message: 'Chỉ hỗ trợ trả trước hoặc công nợ. Không áp dụng COD.');
     }
-    final data = await _client.post(
-      Endpoints.quoteAccept(quote.id),
-      body: <String, dynamic>{
-        'expectedVersion': quote.version,
-        'paymentMethod': paymentMethod.code,
-      },
-    );
-    return SalesOrderQuote.fromJson(asMap(data));
+    try {
+      final data = await _client.post(
+        Endpoints.quoteAccept(quote.id),
+        body: <String, dynamic>{
+          'expectedVersion': quote.version,
+          'paymentMethod': paymentMethod.code,
+        },
+      );
+      return SalesOrderQuote.fromJson(asMap(data));
+    } on ApiException catch (error) {
+      _debugLogAcceptFailure(quote, paymentMethod, error);
+      rethrow; // unchanged behaviour: no retry, same error to the caller
+    }
+  }
+
+  /// TEMPORARY, debug builds only (M-23.1): shows the server's real answer to a
+  /// rejected acceptance. Logs ids, status codes, the ProblemDetails body and
+  /// quote state only; never headers, tokens, user data or card details.
+  void _debugLogAcceptFailure(
+      SalesOrderQuote quote, PaymentMethod method, ApiException error) {
+    if (!kDebugMode) return;
+    final body = error.problemDetails;
+    debugPrint('[QUOTE-ACCEPT-DIAG] POST ${Endpoints.quoteAccept(quote.id)} '
+        '-> HTTP ${error.statusCode} kind=${error.kind.name}');
+    debugPrint('[QUOTE-ACCEPT-DIAG] code=${error.code} title=${error.title} '
+        'detail=${body?['detail'] ?? error.details ?? error.message}');
+    debugPrint('[QUOTE-ACCEPT-DIAG] errors=${error.errors} '
+        'problemDetails=${body == null ? 'null' : jsonEncode(body)}');
+    debugPrint('[QUOTE-ACCEPT-DIAG] quote status=${quote.status} '
+        'expectedVersion=${quote.version} revision=${quote.revisionNumber} '
+        'expiresAt=${quote.expiresAt.toUtc().toIso8601String()} '
+        'now=${DateTime.now().toUtc().toIso8601String()} '
+        'paymentMethod=${method.code}');
   }
 
   Future<SalesOrderQuote> reject(SalesOrderQuote quote, String reason) async {

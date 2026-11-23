@@ -223,7 +223,10 @@ void main() {
       await expectLater(
           _api(t).kpi(_period),
           throwsA(isA<ApiException>()
-              .having((e) => e.message, 'message', contains('cannot start'))));
+              // The REST answer (not the GraphQL error) is what surfaces; its
+              // English text is shown in Vietnamese and kept in `details`.
+              .having((e) => e.details, 'original', contains('cannot start'))
+              .having((e) => e.message, 'message', contains('tương lai'))));
     });
 
     test('authorization and network failures do not fall back', () async {

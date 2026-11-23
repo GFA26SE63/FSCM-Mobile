@@ -86,4 +86,27 @@ void main() {
       expect(IdFormat.classify('hello'), ScannedCodeKind.unknown);
     });
   });
+
+  group('factory carton CID (docs/FactoryTraceability.md)', () {
+    test('documented CID is a label code; look-alikes are not', () {
+      const cid = 'CID-F01-20260827-A-0001-0001';
+      expect(IdFormat.isCarton(cid), isTrue);
+      expect(IdFormat.isLabelCode(cid), isTrue);
+      expect(IdFormat.isLabelCode('TEM-000187'), isTrue);
+      expect(IdFormat.isLabel(cid), isFalse); // TEM validation is unchanged
+      expect(IdFormat.classify(' cid-f01-20260827-a-0001-0001 '),
+          ScannedCodeKind.label);
+      for (final bad in [
+        'CID-F01-20260827-A-0001', // missing carton sequence
+        'CID-F01-2026082-A-0001-0001', // short date
+        'PID-F01-20260827-A-0001-0001', // pallet, not a carton
+        'UID-F01-20260827-A-0001-000001', // product unit
+        'CID-F01-20260827-A-0001-0001 extra',
+        'CID-',
+      ]) {
+        expect(IdFormat.isLabelCode(bad), isFalse, reason: bad);
+        expect(IdFormat.classify(bad), ScannedCodeKind.unknown, reason: bad);
+      }
+    });
+  });
 }

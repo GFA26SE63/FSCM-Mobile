@@ -9,6 +9,7 @@ import 'package:fscm_mobile/app/router.dart';
 import 'package:fscm_mobile/app/theme.dart';
 import 'package:fscm_mobile/data/repositories/auth_repository.dart';
 import 'package:fscm_mobile/shared/theme/app_colors.dart';
+import 'package:fscm_mobile/shared/theme/app_tokens.dart';
 
 /// Shared presentation-level feedback channel.
 ///
@@ -21,19 +22,31 @@ final RootFeedbackController rootFeedback = RootFeedbackController(
   messengerKey: rootScaffoldMessengerKey,
 );
 
-void showRootStatus(String message, {bool error = false}) {
-  rootFeedback.show(message, error: error);
+void showRootStatus(String message,
+    {bool error = false, double bottomClearance = 0}) {
+  rootFeedback.show(message, error: error, bottomClearance: bottomClearance);
 }
 
-void showRootUndoStatus(String message, {required VoidCallback onUndo}) {
-  rootFeedback.showUndo(message, onUndo: onUndo);
+void showRootUndoStatus(String message,
+    {required VoidCallback onUndo, double bottomClearance = 0}) {
+  rootFeedback.showUndo(message,
+      onUndo: onUndo, bottomClearance: bottomClearance);
 }
+
+void hideRootUndoStatus() => rootFeedback.hideUndo();
+
+/// Margin of a floating SnackBar. [bottomClearance] lifts it above a bar that
+/// lives inside the page body (e.g. the order checkout bar), which the
+/// Scaffold cannot see, so feedback never covers that bar's action.
+EdgeInsets _snackMargin(double bottomClearance) => EdgeInsets.fromLTRB(
+    AppSpacing.lg, 0, AppSpacing.lg, AppSpacing.lg + bottomClearance);
 
 class _QueuedFeedback {
-  const _QueuedFeedback(this.message, this.error);
+  const _QueuedFeedback(this.message, this.error, [this.bottomClearance = 0]);
 
   final String message;
   final bool error;
+  final double bottomClearance;
 }
 
 class RootFeedbackController {
@@ -54,6 +67,7 @@ class RootFeedbackController {
   int _activeId = 0;
   String? _activeFingerprint;
   bool _activeIsError = false;
+  bool _activeIsUndo = false;
 
   /// Shows only one feedback channel at a time.
   ///
@@ -61,7 +75,7 @@ class RootFeedbackController {
   /// already the acknowledgement, and a stale success must not cover the next
   /// CTA. Errors preempt a success and are queued in arrival order so an
   /// important failure is never silently discarded.
-  void show(String message, {bool error = false}) {
+  void show(String message, {bool error = false, double bottomClearance = 0}) {
     final normalized = message.trim();
     if (normalized.isEmpty) return;
 
@@ -78,7 +92,7 @@ class RootFeedbackController {
     _recent[fingerprint] = now;
 
     if (error && _activeFingerprint != null && _activeIsError) {
-      _pendingErrors.add(_QueuedFeedback(normalized, true));
+      _pendingErrors.add(_QueuedFeedback(normalized, true, bottomClearance));
       return;
     }
 
@@ -91,30 +105,46 @@ class RootFeedbackController {
         reason: SnackBarClosedReason.hide,
       );
     }
-    _present(_QueuedFeedback(normalized, error));
+    _present(_QueuedFeedback(normalized, error, bottomClearance));
   }
 
-  void showUndo(String message, {required VoidCallback onUndo}) {
+  void showUndo(String message,
+      {required VoidCallback onUndo, double bottomClearance = 0}) {
     final normalized = message.trim();
     if (normalized.isEmpty) return;
     final messenger = _messengerKey.currentState;
     if (messenger == null) return;
-    _activeId++;
+    final id = ++_activeId;
     _activeFingerprint = 'info:$normalized';
     _activeIsError = false;
+    _activeIsUndo = true;
     messenger.clearSnackBars();
     final controller = messenger.showSnackBar(
       SnackBar(
         content: Text(normalized),
         action: SnackBarAction(label: 'Hoàn tác', onPressed: onUndo),
         behavior: SnackBarBehavior.floating,
+        margin: _snackMargin(bottomClearance),
         duration: _duration,
+        // Flutter keeps a SnackBar that has an action on screen until it is
+        // dismissed (and ignores `duration`) unless persist is false.
+        persist: false,
       ),
     );
     unawaited(controller.closed.then((_) {
+      // A newer message may already be active: only the latest one resets.
+      if (id != _activeId) return;
       _activeFingerprint = null;
       _activeIsError = false;
+      _activeIsUndo = false;
     }));
+  }
+
+  /// Hides a pending undo message (e.g. when its screen is left, where "Hoàn
+  /// tác" would no longer make sense). Errors and other messages are untouched.
+  void hideUndo() {
+    if (!_activeIsUndo) return;
+    _messengerKey.currentState?.hideCurrentSnackBar();
   }
 
   void _present(_QueuedFeedback feedback) {
@@ -125,11 +155,13 @@ class RootFeedbackController {
     _activeFingerprint =
         '${feedback.error ? 'error' : 'info'}:${feedback.message}';
     _activeIsError = feedback.error;
+    _activeIsUndo = false;
     final controller = messenger.showSnackBar(
       SnackBar(
         content: Text(feedback.message),
         backgroundColor: feedback.error ? AppColors.danger : AppColors.text,
         behavior: SnackBarBehavior.floating,
+        margin: _snackMargin(feedback.bottomClearance),
         duration: _duration,
       ),
     );

@@ -1,3 +1,4 @@
+import 'package:fscm_mobile/core/utils/status_labels.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:fscm_mobile/core/utils/dates.dart';
@@ -108,6 +109,6 @@ class LoyaltyLedgerTile extends StatelessWidget {
         'Completed' => 'Hoàn tất',
         'Rejected' => 'Từ chối',
         'Cancelled' => 'Đã hủy',
-        _ => value,
+        _ => unknownStatusLabel,
       };
 }

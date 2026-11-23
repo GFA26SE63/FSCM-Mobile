@@ -46,6 +46,9 @@ class SyncQueueScreen extends ConsumerWidget {
           ],
           bottom: TabBar(
             isScrollable: true,
+            // Material 3 indents a scrollable bar by 52 dp (under the title);
+            // start aligns the tabs with the page content.
+            tabAlignment: TabAlignment.start,
             tabs: [
               Tab(text: 'Cần xử lý (${counts['todo']})'),
               Tab(text: 'Đang gửi (${counts['doing']})'),

@@ -7,9 +7,12 @@ void showAppSnack(BuildContext context, String message, {bool error = false}) {
   showRootStatus(message, error: error);
 }
 
-void showAppUndoSnack(String message, {required VoidCallback onUndo}) {
-  showRootUndoStatus(message, onUndo: onUndo);
+void showAppUndoSnack(String message,
+    {required VoidCallback onUndo, double bottomClearance = 0}) {
+  showRootUndoStatus(message, onUndo: onUndo, bottomClearance: bottomClearance);
 }
+
+void hideAppUndoSnack() => hideRootUndoStatus();
 
 /// Yes/no confirmation; returns false when dismissed.
 Future<bool> confirmDialog(

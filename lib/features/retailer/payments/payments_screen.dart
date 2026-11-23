@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:fscm_mobile/core/network/api_exception.dart';
+import 'package:fscm_mobile/core/utils/focus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:uuid/uuid.dart';
@@ -147,7 +149,7 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
                 Row(children: <Widget>[
                   Expanded(
                       child: _Summary(
-                          label: 'Còn có thể trả',
+                          label: 'Công nợ có thể trả',
                           value: Money.format(openTotal),
                           color: overdue.isEmpty
                               ? AppColors.text
@@ -155,7 +157,7 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
                   const SizedBox(width: AppSpacing.s10),
                   Expanded(
                       child: _Summary(
-                          label: 'Đã chọn',
+                          label: 'Các khoản đã chọn',
                           value: Money.format(selectedTotal),
                           color: AppColors.primary)),
                 ]),
@@ -179,6 +181,7 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
                         padding: const EdgeInsets.fromLTRB(
                             0, AppSpacing.md, 0, AppSpacing.sm),
                         child: TextField(
+                          onTapOutside: releaseFocus,
                           controller: _searchController,
                           decoration: InputDecoration(
                             hintText: 'Tìm mã đơn công nợ',
@@ -293,7 +296,8 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
                     onPressed: _busy || _selected.isEmpty
                         ? null
                         : () => _confirmAndPay(payAll: false),
-                    child: const Text('Thanh toán một phần'),
+                    child: const Text('Trả các khoản đã chọn',
+                        textAlign: TextAlign.center),
                   )),
                   const SizedBox(width: AppSpacing.s10),
                   Expanded(
@@ -304,7 +308,8 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
                                 false)
                         ? null
                         : () => _confirmAndPay(payAll: true),
-                    child: const Text('Thanh toán hết'),
+                    child: const Text('Trả toàn bộ công nợ',
+                        textAlign: TextAlign.center),
                   )),
                 ]),
               )),
@@ -325,34 +330,45 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: Text(
-            payAll ? 'Xác nhận thanh toán hết' : 'Xác nhận thanh toán đã chọn'),
+        title: Text(payAll
+            ? 'Xác nhận trả toàn bộ công nợ'
+            : 'Xác nhận trả các khoản đã chọn'),
         content: SizedBox(
             width: 420,
-            child: Column(
+            child: SingleChildScrollView(
+                child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
                 const Text(
-                    'Máy chủ sẽ dữ liệu đồng bộ số tiền có thể thu của từng đơn. Khoản đang tranh chấp không được tính.'),
+                    'Máy chủ sẽ kiểm tra lại số tiền có thể thu của từng đơn. Khoản đang tranh chấp không được tính. Bạn sẽ được chuyển sang PayOS để hoàn tất thanh toán.'),
                 const SizedBox(height: AppSpacing.md),
                 ...rows.map((r) => Padding(
                       padding:
                           const EdgeInsets.symmetric(vertical: AppSpacing.xs),
                       child: Row(children: <Widget>[
                         Expanded(child: Text(r.orderCode)),
-                        Text(Money.format(r.collectibleAmount))
+                        const SizedBox(width: AppSpacing.sm),
+                        Flexible(
+                            child: FittedBox(
+                                fit: BoxFit.scaleDown,
+                                child: Text(Money.format(r.collectibleAmount))))
                       ]),
                     )),
                 const Divider(),
                 Row(children: <Widget>[
                   const Expanded(
                       child: Text('Tổng thanh toán', style: AppText.cardTitle)),
-                  Text(Money.format(total),
-                      style: AppText.strong.copyWith(color: AppColors.primary))
+                  const SizedBox(width: AppSpacing.sm),
+                  Flexible(
+                      child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(Money.format(total),
+                              style: AppText.strong
+                                  .copyWith(color: AppColors.primary))))
                 ]),
               ],
-            )),
+            ))),
         actionsPadding: const EdgeInsets.fromLTRB(
             AppSpacing.xxl, 0, AppSpacing.xxl, AppSpacing.xl),
         actions: <Widget>[
@@ -394,7 +410,9 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
       ref.invalidate(receivablesProvider);
     } catch (error) {
       if (mounted) {
-        showAppSnack(context, 'Không thể tạo thanh toán: $error', error: true);
+        showAppSnack(context,
+            'Không thể tạo thanh toán: ${ApiException.describe(error)}',
+            error: true);
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -470,8 +488,12 @@ class _Summary extends StatelessWidget {
             children: <Widget>[
               Text(label, style: AppText.mutedSmall),
               const SizedBox(height: AppSpacing.xs),
-              Text(value,
-                  style: AppText.display.copyWith(fontSize: 18, color: color)),
+              FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(value,
+                      style: AppText.display
+                          .copyWith(fontSize: 18, color: color))),
             ]),
       );
 }
