@@ -44,14 +44,22 @@ void main() {
       for (final v in ['Allocating', 'Allocated', 'Failed', 'NotApplicable']) {
         expect(allocationStateLabel(v), matches(_vietnamese), reason: v);
       }
-      for (final v in ['Pending', 'Fulfilled', 'Short', 'Allocated']) {
+      // The result field carries the allocation RUN status (M-27).
+      for (final v in [
+        'Processing',
+        'Succeeded',
+        'OutOfStock',
+        'Conflict',
+        'TechnicalFailed'
+      ]) {
         expect(allocationResultLabel(v), matches(_vietnamese), reason: v);
+        expect(allocationResultLabel(v), isNot(unknownStatusLabel), reason: v);
       }
       expect(allocationStateLabel('Allocating'), 'Đang phân bổ hàng');
-      expect(allocationResultLabel('Short'), 'Thiếu hàng');
+      expect(allocationResultLabel('Succeeded'), 'Phân bổ thành công');
       // Unknown values never leak raw English.
       expect(allocationStateLabel('Whatever'), unknownStatusLabel);
-      expect(allocationResultLabel(null), unknownStatusLabel);
+      expect(allocationResultLabel('Whatever'), unknownStatusLabel);
     });
 
     test('shipment and warehouse document fallbacks are not raw codes', () {

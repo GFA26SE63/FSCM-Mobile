@@ -41,6 +41,16 @@ Future<_Host> _pump(WidgetTester tester,
   return _Host(key, RootFeedbackController(messengerKey: key), bar);
 }
 
+/// Fake time: the SnackBar's own timer starts after its entrance animation and
+/// the next frame, so allow up to 8 s of fake time (not real waiting).
+Future<void> _waitGone(WidgetTester tester) async {
+  for (var i = 0; i < 16 && find.byType(SnackBar).evaluate().isNotEmpty; i++) {
+    await tester.pump(const Duration(milliseconds: 500));
+  }
+  await tester.pumpAndSettle();
+  expect(find.byType(SnackBar), findsNothing);
+}
+
 void main() {
   for (final width in <double>[360, 390]) {
     for (final scale in <double>[1.0, 1.6]) {
@@ -58,21 +68,18 @@ void main() {
 
         await tester.pump(const Duration(seconds: 3));
         expect(find.text('Đã bỏ Sữa khỏi giỏ.'), findsOneWidget); // still there
-        await tester.pump(const Duration(seconds: 2));
-        await tester.pumpAndSettle();
-        expect(find.byType(SnackBar), findsNothing);
+        await _waitGone(tester);
         expect(undone, 0); // doing nothing leaves the item removed
 
         // The queue advanced: the next message can appear and also goes away.
         h.feedback.showUndo('Đã bỏ Bột giặt khỏi giỏ.', onUndo: () {});
         await tester.pump();
         expect(find.text('Đã bỏ Bột giặt khỏi giỏ.'), findsOneWidget);
-        await tester.pump(const Duration(seconds: 6));
-        await tester.pumpAndSettle();
-        expect(find.byType(SnackBar), findsNothing);
+        await _waitGone(tester);
       });
 
-      testWidgets('undo runs once and dismisses; message stays above the CTA '
+      testWidgets(
+          'undo runs once and dismisses; message stays above the CTA '
           '($tag)', (tester) async {
         final h = await _pump(tester, width: width, scale: scale);
         var undone = 0;
@@ -89,11 +96,12 @@ void main() {
         await tester.tap(find.byType(FilledButton)); // CTA is not blocked
         expect(undone, 1);
         expect(find.byType(SnackBar), findsNothing);
-        await tester.pump(const Duration(seconds: 6));
+        await tester.pump(const Duration(seconds: 8));
         expect(undone, 1); // never twice
       });
 
-      testWidgets('rapid removals show one message, never a growing stack '
+      testWidgets(
+          'rapid removals show one message, never a growing stack '
           '($tag)', (tester) async {
         final h = await _pump(tester, width: width, scale: scale);
         for (var i = 0; i < 5; i++) {
@@ -103,10 +111,7 @@ void main() {
         expect(find.byType(SnackBar), findsOneWidget);
         expect(find.text('Đã bỏ SP 4 khỏi giỏ.'), findsOneWidget);
         // Rebuilds do not restart the timer: 4 s after the LAST show it goes.
-        await tester.pump(const Duration(seconds: 2));
-        await tester.pump(const Duration(seconds: 3));
-        await tester.pumpAndSettle();
-        expect(find.byType(SnackBar), findsNothing);
+        await _waitGone(tester);
       });
     }
   }

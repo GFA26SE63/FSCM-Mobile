@@ -157,16 +157,13 @@ class RtOrderDetailScreen extends ConsumerWidget {
                             : 'Chưa thanh toán'),
               ])),
               const SectionTitle('Tiến độ phân bổ / giao hàng'),
-              if (order.allocationState.isNotEmpty ||
-                  order.allocationResult != null)
+              if (order.allocationState.isNotEmpty)
                 AppCard(
                     child: Column(children: [
-                  if (order.allocationState.isNotEmpty)
-                    KvRow(
-                        'Phân bổ', allocationStateLabel(order.allocationState)),
-                  if (order.allocationResult != null)
-                    KvRow('Kết quả',
-                        allocationResultLabel(order.allocationResult)),
+                  KvRow('Phân bổ', allocationStateLabel(order.allocationState)),
+                  // The run result is null until an allocation run exists.
+                  KvRow(
+                      'Kết quả', allocationResultLabel(order.allocationResult)),
                 ])),
               RetailerDeliveryProgress(order: order),
               const SectionTitle('Tiến trình'),
