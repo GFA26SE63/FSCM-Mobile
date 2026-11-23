@@ -243,7 +243,7 @@ void main() {
         // One header only: search text, range and loaded data are kept.
         expect(find.byType(TextField), findsOneWidget);
         expect(tester.widget<TextField>(find.byType(TextField)).controller,
-            isNull);
+            isNotNull);
         expect(find.text('Việc cần làm'), findsOneWidget);
         // The selected history tab keeps reading pages, each exactly once.
         expect(server.pages.length, greaterThan(searchPages));

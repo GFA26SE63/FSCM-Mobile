@@ -28,6 +28,8 @@ import 'package:fscm_mobile/shared/widgets/info_banner.dart';
 
 enum _Span { all, week, month }
 
+enum _OrderSort { newest, oldest, amountHighToLow, amountLowToHigh }
+
 /// Retailer "Đơn hàng": tabs "Đang xử lý" / "Lịch sử", search and time chips.
 class RtOrdersScreen extends ConsumerStatefulWidget {
   const RtOrdersScreen({super.key});
@@ -40,7 +42,9 @@ class _RtOrdersScreenState extends ConsumerState<RtOrdersScreen>
     with SingleTickerProviderStateMixin {
   String _query = '';
   _Span _span = _Span.all;
+  _OrderSort _sort = _OrderSort.newest;
   Timer? _searchDebounce;
+  final TextEditingController _searchController = TextEditingController();
   late final TabController _tabs;
   final ScrollController _outer = ScrollController();
   int _tabIndex = 0;
@@ -62,6 +66,7 @@ class _RtOrdersScreenState extends ConsumerState<RtOrdersScreen>
   @override
   void dispose() {
     _searchDebounce?.cancel();
+    _searchController.dispose();
     _tabs
       ..removeListener(_onTab)
       ..dispose();
@@ -77,6 +82,19 @@ class _RtOrdersScreenState extends ConsumerState<RtOrdersScreen>
         return AppDates.vietnamDaysBetween(o.createdAt, AppClock.now()) <= 7;
       case _Span.month:
         return AppDates.vietnamDaysBetween(o.createdAt, AppClock.now()) <= 30;
+    }
+  }
+
+  int _compareOrders(Order a, Order b) {
+    switch (_sort) {
+      case _OrderSort.newest:
+        return b.createdAt.compareTo(a.createdAt);
+      case _OrderSort.oldest:
+        return a.createdAt.compareTo(b.createdAt);
+      case _OrderSort.amountHighToLow:
+        return b.finalAmount.compareTo(a.finalAmount);
+      case _OrderSort.amountLowToHigh:
+        return a.finalAmount.compareTo(b.finalAmount);
     }
   }
 
@@ -189,28 +207,39 @@ class _RtOrdersScreenState extends ConsumerState<RtOrdersScreen>
         children: <Widget>[Center(child: child)],
       );
 
-  /// Overview card, loyalty shortcut, search and time chips.
+  /// Overview card and the scrollable order-search toolbar.
   Widget _header() => Column(
         children: <Widget>[
           const RetailerTodoCard(),
-          Container(
-            margin: const EdgeInsets.only(top: AppSpacing.md),
-            decoration: const BoxDecoration(
-              color: AppColors.surface,
-              border: Border.symmetric(
-                  horizontal: BorderSide(color: AppColors.divider)),
-            ),
-            padding: const EdgeInsets.only(bottom: AppSpacing.s10),
+          AppCard(
+            margin: const EdgeInsets.fromLTRB(
+                AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.xs),
+            padding: const EdgeInsets.all(AppSpacing.sm),
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: <Widget>[
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(AppSpacing.lg,
-                      AppSpacing.md, AppSpacing.lg, AppSpacing.s10),
+                  padding: const EdgeInsets.fromLTRB(
+                      0, AppSpacing.md, 0, AppSpacing.sm),
                   child: TextField(
                     onTapOutside: releaseFocus,
-                    decoration: const InputDecoration(
+                    controller: _searchController,
+                    decoration: InputDecoration(
                       hintText: 'Tìm mã đơn',
-                      prefixIcon: Icon(Icons.search),
+                      prefixIcon: const Icon(Icons.search),
+                      suffixIcon: _query.isEmpty
+                          ? null
+                          : IconButton(
+                              tooltip: 'Xóa tìm kiếm',
+                              icon: const Icon(Icons.clear),
+                              onPressed: () {
+                                _searchDebounce?.cancel();
+                                setState(() {
+                                  _searchController.clear();
+                                  _query = '';
+                                });
+                              },
+                            ),
                     ),
                     onChanged: (v) {
                       _searchDebounce?.cancel();
@@ -224,6 +253,7 @@ class _RtOrdersScreenState extends ConsumerState<RtOrdersScreen>
                   ),
                 ),
                 ChipFilterBar<_Span>(
+                  padding: EdgeInsets.zero,
                   selected: _span,
                   onSelected: (v) => setState(() => _span = v),
                   options: const <ChipOption<_Span>>[
@@ -231,6 +261,38 @@ class _RtOrdersScreenState extends ConsumerState<RtOrdersScreen>
                     ChipOption(_Span.week, '7 ngày'),
                     ChipOption(_Span.month, '30 ngày'),
                   ],
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(top: AppSpacing.sm),
+                  child: DropdownButtonFormField<_OrderSort>(
+                    value: _sort,
+                    isExpanded: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Sắp xếp',
+                      prefixIcon: Icon(Icons.sort),
+                    ),
+                    items: const <DropdownMenuItem<_OrderSort>>[
+                      DropdownMenuItem(
+                        value: _OrderSort.newest,
+                        child: Text('Đơn mới nhất'),
+                      ),
+                      DropdownMenuItem(
+                        value: _OrderSort.oldest,
+                        child: Text('Đơn cũ nhất'),
+                      ),
+                      DropdownMenuItem(
+                        value: _OrderSort.amountHighToLow,
+                        child: Text('Giá trị cao đến thấp'),
+                      ),
+                      DropdownMenuItem(
+                        value: _OrderSort.amountLowToHigh,
+                        child: Text('Giá trị thấp đến cao'),
+                      ),
+                    ],
+                    onChanged: (value) {
+                      if (value != null) setState(() => _sort = value);
+                    },
+                  ),
                 ),
               ],
             ),
@@ -242,9 +304,10 @@ class _RtOrdersScreenState extends ConsumerState<RtOrdersScreen>
     // Search is performed by the server. Only the time range and status tabs
     // filter the pages currently loaded on the device.
     final all = state.orders.where(_inSpan).toList();
-    final orders = activeTab
+    final orders = (activeTab
         ? all.where((o) => o.status.isActive).toList()
-        : all.where((o) => !o.status.isActive).toList();
+        : all.where((o) => !o.status.isActive).toList())
+      ..sort(_compareOrders);
     final empty = activeTab
         ? (state.hasMore
             ? 'Chưa thấy đơn đang xử lý trong dữ liệu đã tải.'

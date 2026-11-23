@@ -31,6 +31,9 @@ typedef PayOsCheckoutRefresher = Future<PayOsCheckoutSnapshot> Function();
 typedef PayOsUrlOpener = Future<bool> Function(Uri uri);
 
 /// Shared PayOS handoff page for prepaid orders and debt settlement.
+///
+/// The checkout opens in an in-app browser so the payment result remains in
+/// the mobile task instead of leaving the user in an external web browser.
 /// The webhook is authoritative; polling recovers delayed callback delivery.
 class PayOsCheckoutResultPage extends StatefulWidget {
   const PayOsCheckoutResultPage({
@@ -88,7 +91,7 @@ class _PayOsCheckoutResultPageState extends State<PayOsCheckoutResultPage>
   Future<void> _openPayOs() async {
     final uri = Uri.tryParse(widget.checkoutUrl);
     final opener = widget.openUrl ??
-        (value) => launchUrl(value, mode: LaunchMode.externalApplication);
+        (value) => launchUrl(value, mode: LaunchMode.inAppBrowserView);
     if (uri == null || !await opener(uri)) {
       if (mounted) {
         showAppSnack(context, 'Không thể mở PayOS. Hãy thử lại.', error: true);
