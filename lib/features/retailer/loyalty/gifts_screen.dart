@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fscm_mobile/core/network/api_exception.dart';
 import 'package:fscm_mobile/core/utils/status_tone.dart';
+import 'package:fscm_mobile/data/models/enums.dart';
 import 'package:fscm_mobile/data/models/loyalty.dart';
+import 'package:fscm_mobile/shared/widgets/chip_filter_bar.dart';
 import 'package:fscm_mobile/data/models/redemption_attempt.dart';
 import 'package:fscm_mobile/data/repositories/auth_repository.dart';
 import 'package:fscm_mobile/data/repositories/data_version.dart';
@@ -31,6 +33,7 @@ class GiftsScreen extends ConsumerStatefulWidget {
 
 class _GiftsScreenState extends ConsumerState<GiftsScreen> {
   bool _busy = false;
+  GiftRequestStatus? _requestFilter; // null = all (list arrives whole)
   bool _refreshing = false;
   String? _error;
 
@@ -316,7 +319,35 @@ class _GiftsScreenState extends ConsumerState<GiftsScreen> {
                                   const AppCard(
                                       child: Text('Chưa có yêu cầu đổi quà.',
                                           style: AppText.muted)),
-                                for (final request in list)
+                                if (list.isNotEmpty)
+                                  ChipFilterBar<GiftRequestStatus?>(
+                                    padding: EdgeInsets.zero,
+                                    selected: _requestFilter,
+                                    onSelected: (v) =>
+                                        setState(() => _requestFilter = v),
+                                    options: <ChipOption<GiftRequestStatus?>>[
+                                      const ChipOption(null, 'Tất cả'),
+                                      for (final status in const [
+                                        GiftRequestStatus.requested,
+                                        GiftRequestStatus.approved,
+                                        GiftRequestStatus.delivered,
+                                        GiftRequestStatus.done,
+                                        GiftRequestStatus.rejected,
+                                      ])
+                                        ChipOption(status, status.label),
+                                    ],
+                                  ),
+                                if (list.isNotEmpty &&
+                                    _requestFilter != null &&
+                                    !list
+                                        .any((r) => r.status == _requestFilter))
+                                  const AppCard(
+                                      child: Text(
+                                          'Không có yêu cầu phù hợp bộ lọc.',
+                                          style: AppText.muted)),
+                                for (final request in list.where((r) =>
+                                    _requestFilter == null ||
+                                    r.status == _requestFilter))
                                   GiftRedemptionTile(
                                       request: request,
                                       highlight:

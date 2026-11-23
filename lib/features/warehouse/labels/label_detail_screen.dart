@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -17,6 +19,12 @@ class LabelDetailScreen extends ConsumerWidget {
 
   final String code;
 
+  /// Back to the lookup that opened this label; when opened from a link there
+  /// is no previous route, so the lookup is pushed (and keeps a Back button).
+  static void _scanAnother(BuildContext context) => context.canPop()
+      ? context.pop()
+      : unawaited(context.push(AppRoutes.wkLabelLookup));
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final normalizedCode = code.trim().toUpperCase();
@@ -34,7 +42,7 @@ class LabelDetailScreen extends ConsumerWidget {
           ),
           IconButton(
             tooltip: 'Quét mã khác',
-            onPressed: () => context.go(AppRoutes.wkLabelLookup),
+            onPressed: () => _scanAnother(context),
             icon: const Icon(Icons.qr_code_scanner),
           ),
         ],
@@ -58,7 +66,7 @@ class LabelDetailScreen extends ConsumerWidget {
                 child: const Text('Thử lại'),
               ),
               TextButton(
-                onPressed: () => context.go(AppRoutes.wkLabelLookup),
+                onPressed: () => _scanAnother(context),
                 child: const Text('Quét hoặc nhập mã khác'),
               ),
             ],

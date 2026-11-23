@@ -1,3 +1,4 @@
+import 'package:fscm_mobile/core/utils/dates.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -94,9 +95,6 @@ class RetailerDetailScreen extends ConsumerWidget {
   }
 
   String _stamp(DateTime value) {
-    String pad(int number) => number.toString().padLeft(2, '0');
-
-    return '${pad(value.hour)}:${pad(value.minute)} '
-        '${pad(value.day)}/${pad(value.month)}/${value.year}';
+    return AppDates.timeDay(value);
   }
 }

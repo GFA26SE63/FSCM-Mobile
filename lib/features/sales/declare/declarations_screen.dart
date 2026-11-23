@@ -113,15 +113,22 @@ class _TileState extends ConsumerState<_Tile> {
         child: ExpansionTile(
           tilePadding: EdgeInsets.zero,
           childrenPadding: EdgeInsets.zero,
-          title: Wrap(
-            alignment: WrapAlignment.spaceBetween,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            spacing: AppSpacing.sm,
-            runSpacing: AppSpacing.xs,
-            children: <Widget>[
-              Text('${d.code} · ${d.name}', style: AppText.strong),
-              StatusChip(label: d.status.label, tone: d.status.tone),
-            ],
+          // Name on the left, status chip always on the right of the first line.
+          title: LayoutBuilder(
+            builder: (context, box) => Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Expanded(
+                    child:
+                        Text('${d.code} · ${d.name}', style: AppText.strong)),
+                const SizedBox(width: AppSpacing.sm),
+                // A long label wraps inside the chip instead of overflowing.
+                ConstrainedBox(
+                  constraints: BoxConstraints(maxWidth: box.maxWidth * 0.5),
+                  child: StatusChip(label: d.status.label, tone: d.status.tone),
+                ),
+              ],
+            ),
           ),
           subtitle: Text(
               '${d.address.isEmpty ? '—' : d.address}\nNhóm ${d.salesGroupCode}',

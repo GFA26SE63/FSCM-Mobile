@@ -12,9 +12,11 @@ class TimelineList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Newest step first (presentation only; `entries` stays chronological).
+    final shown = entries.reversed.toList(growable: false);
     return Column(
       children: <Widget>[
-        for (var i = 0; i < entries.length; i++)
+        for (var i = 0; i < shown.length; i++)
           IntrinsicHeight(
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -28,13 +30,11 @@ class TimelineList extends StatelessWidget {
                         width: 10,
                         height: 10,
                         decoration: BoxDecoration(
-                          color: i == entries.length - 1
-                              ? AppColors.primary
-                              : AppColors.border,
+                          color: i == 0 ? AppColors.primary : AppColors.border,
                           shape: BoxShape.circle,
                         ),
                       ),
-                      if (i != entries.length - 1)
+                      if (i != shown.length - 1)
                         Expanded(
                             child:
                                 Container(width: 2, color: AppColors.divider)),
@@ -48,14 +48,14 @@ class TimelineList extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: <Widget>[
                         Text(
-                          AppDates.timeDay(entries[i].time),
+                          AppDates.timeDay(shown[i].time),
                           style: const TextStyle(
                               fontSize: 12, color: AppColors.textMuted),
                         ),
                         Text(
-                          entries[i].delta.isEmpty
-                              ? entries[i].label
-                              : '${entries[i].label}  (${entries[i].delta})',
+                          shown[i].delta.isEmpty
+                              ? shown[i].label
+                              : '${shown[i].label}  (${shown[i].delta})',
                           style: const TextStyle(height: 1.3),
                         ),
                       ],

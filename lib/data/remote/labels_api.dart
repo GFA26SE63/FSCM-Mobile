@@ -49,10 +49,11 @@ class LabelsApi {
 
     final code = rawCode.trim().toUpperCase();
 
-    if (!IdFormat.isLabel(code)) {
+    if (!IdFormat.isLabelCode(code)) {
       throw const ApiException(
         kind: ApiErrorKind.validation,
-        message: 'Mã tem không hợp lệ. Ví dụ: TEM-001010.',
+        message:
+            'Mã tem không hợp lệ. Ví dụ: TEM-001010 hoặc mã thùng CID-F01-20260827-A-0001-0001.',
       );
     }
 

@@ -1,10 +1,14 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:fscm_mobile/core/utils/focus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import 'package:fscm_mobile/core/network/api_exception.dart';
+
 import 'package:fscm_mobile/core/utils/clock.dart';
+import 'package:fscm_mobile/data/remote/orders_api.dart';
 import 'package:fscm_mobile/core/utils/dates.dart';
 import 'package:fscm_mobile/core/utils/money.dart';
 import 'package:fscm_mobile/data/models/order.dart';
@@ -17,7 +21,6 @@ import 'package:fscm_mobile/shared/theme/app_colors.dart';
 import 'package:fscm_mobile/shared/theme/app_text.dart';
 import 'package:fscm_mobile/shared/theme/app_tokens.dart';
 import 'package:fscm_mobile/shared/widgets/app_card.dart';
-import 'package:fscm_mobile/shared/widgets/async_body.dart';
 import 'package:fscm_mobile/shared/widgets/chip_filter_bar.dart';
 import 'package:fscm_mobile/shared/widgets/empty_state.dart';
 import 'package:fscm_mobile/shared/widgets/order_widgets.dart';
@@ -33,14 +36,36 @@ class RtOrdersScreen extends ConsumerStatefulWidget {
   ConsumerState<RtOrdersScreen> createState() => _RtOrdersScreenState();
 }
 
-class _RtOrdersScreenState extends ConsumerState<RtOrdersScreen> {
+class _RtOrdersScreenState extends ConsumerState<RtOrdersScreen>
+    with SingleTickerProviderStateMixin {
   String _query = '';
   _Span _span = _Span.all;
   Timer? _searchDebounce;
+  late final TabController _tabs;
+  final ScrollController _outer = ScrollController();
+  int _tabIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _tabs = TabController(length: 2, vsync: this)..addListener(_onTab);
+  }
+
+  // Rebuild only when a tab change has settled (tap or swipe), not on every
+  // frame of the swipe animation.
+  void _onTab() {
+    if (!_tabs.indexIsChanging && _tabs.index != _tabIndex) {
+      setState(() => _tabIndex = _tabs.index);
+    }
+  }
 
   @override
   void dispose() {
     _searchDebounce?.cancel();
+    _tabs
+      ..removeListener(_onTab)
+      ..dispose();
+    _outer.dispose();
     super.dispose();
   }
 
@@ -65,204 +90,228 @@ class _RtOrdersScreenState extends ConsumerState<RtOrdersScreen> {
       if (storeName.isNotEmpty) storeName,
       if (storeCode.isNotEmpty) 'Mã $storeCode',
     ].join(' · ');
-    return DefaultTabController(
-      length: 2,
-      child: Scaffold(
-        appBar: AppBar(
-          titleSpacing: AppSpacing.lg,
-          title: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              Text('Đơn hàng',
-                  style: AppText.pageTitle.copyWith(color: AppColors.text)),
-              if (storeLine.isNotEmpty)
-                Text(storeLine,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: AppText.mutedSmall),
-            ],
-          ),
-          actions: <Widget>[
-            // Prototype header action "+ Đặt hàng" (same route as the old FAB).
-            Padding(
-              padding: const EdgeInsets.only(right: AppSpacing.xs),
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 124),
-                child: FittedBox(
-                  fit: BoxFit.scaleDown,
-                  child: FilledButton.icon(
-                    style: FilledButton.styleFrom(
-                        minimumSize: const Size(0, 36),
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: AppSpacing.md)),
-                    onPressed: () => context.push('/retailer/order/new'),
-                    icon: const Icon(Icons.add, size: 18),
-                    label: const Text('Đặt hàng'),
-                  ),
-                ),
-              ),
-            ),
-            const NotificationBellButton(),
-            const SizedBox(width: AppSpacing.xs),
-          ],
-          bottom: const TabBar(
-            tabs: <Widget>[Tab(text: 'Đang xử lý'), Tab(text: 'Lịch sử')],
-          ),
-        ),
-        body: Column(
+    return Scaffold(
+      appBar: AppBar(
+        titleSpacing: AppSpacing.lg,
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
           children: <Widget>[
-            // Overview + toolbar scroll inside a bounded area so large fonts
-            // never push the order list off screen.
-            ConstrainedBox(
-              constraints: BoxConstraints(
-                  maxHeight: MediaQuery.sizeOf(context).height * 0.5),
-              child: SingleChildScrollView(
-                child: Column(
-                  children: <Widget>[
-                    const RetailerTodoCard(),
-                    Container(
-                      margin: const EdgeInsets.only(top: AppSpacing.md),
-                      decoration: const BoxDecoration(
-                        color: AppColors.surface,
-                        border: Border.symmetric(
-                            horizontal: BorderSide(color: AppColors.divider)),
-                      ),
-                      padding: const EdgeInsets.only(bottom: AppSpacing.s10),
-                      child: Column(
-                        children: <Widget>[
-                          Padding(
-                            padding: const EdgeInsets.fromLTRB(AppSpacing.lg,
-                                AppSpacing.md, AppSpacing.lg, AppSpacing.s10),
-                            child: TextField(
-                              decoration: const InputDecoration(
-                                hintText: 'Tìm mã đơn',
-                                prefixIcon: Icon(Icons.search),
-                              ),
-                              onChanged: (v) {
-                                _searchDebounce?.cancel();
-                                _searchDebounce = Timer(
-                                    const Duration(milliseconds: 350), () {
-                                  if (mounted) {
-                                    setState(
-                                        () => _query = v.trim().toLowerCase());
-                                  }
-                                });
-                              },
-                            ),
-                          ),
-                          ChipFilterBar<_Span>(
-                            selected: _span,
-                            onSelected: (v) => setState(() => _span = v),
-                            options: const <ChipOption<_Span>>[
-                              ChipOption(_Span.all, 'Tất cả'),
-                              ChipOption(_Span.week, '7 ngày'),
-                              ChipOption(_Span.month, '30 ngày'),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
+            Text('Đơn hàng',
+                style: AppText.pageTitle.copyWith(color: AppColors.text)),
+            if (storeLine.isNotEmpty)
+              Text(storeLine,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppText.mutedSmall),
+          ],
+        ),
+        actions: <Widget>[
+          // Prototype header action "+ Đặt hàng" (same route as the old FAB).
+          Padding(
+            padding: const EdgeInsets.only(right: AppSpacing.xs),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 124),
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: FilledButton.icon(
+                  style: FilledButton.styleFrom(
+                      minimumSize: const Size(0, 36),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: AppSpacing.md)),
+                  onPressed: () => context.push('/retailer/order/new'),
+                  icon: const Icon(Icons.add, size: 18),
+                  label: const Text('Đặt hàng'),
                 ),
               ),
             ),
-            Expanded(
-              child: AsyncBody<RetailerOrdersState>(
-                value: value,
-                onRetry: () =>
-                    ref.read(retailerOrdersProvider(_query).notifier).refresh(),
-                builder: (result) {
-                  // Search is performed by the server. Only the time range and
-                  // status tabs filter the pages currently loaded on the device.
-                  final all = result.orders.where(_inSpan).toList();
-                  final active = all.where((o) => o.status.isActive).toList();
-                  final history = all.where((o) => !o.status.isActive).toList();
-                  return TabBarView(
-                    children: <Widget>[
-                      _OrderList(
-                          orders: active,
-                          empty:
-                              'Không có đơn đang xử lý trong dữ liệu đã tải.',
-                          search: _query,
-                          state: result),
-                      _OrderList(
-                          orders: history,
-                          empty: 'Chưa có đơn lịch sử trong dữ liệu đã tải.',
-                          search: _query,
-                          state: result),
-                    ],
-                  );
-                },
-              ),
+          ),
+          const NotificationBellButton(),
+          const SizedBox(width: AppSpacing.xs),
+        ],
+        bottom: TabBar(
+          controller: _tabs,
+          tabs: const <Widget>[Tab(text: 'Đang xử lý'), Tab(text: 'Lịch sử')],
+        ),
+      ),
+      // NestedScrollView = one vertical scroll: the header (overview card,
+      // loyalty shortcut, search, time chips) scrolls away first, then the
+      // order list of the selected tab; the TabBarView adds horizontal
+      // swipe between "Đang xử lý" and "Lịch sử". Only the AppBar (with
+      // the tabs) and the bottom bar stay fixed.
+      body: RefreshIndicator(
+        // The pull comes from the order list (it is the one that overscrolls),
+        // so accept vertical notifications of any depth, but only while the
+        // header is fully shown; horizontal tab swipes are ignored.
+        notificationPredicate: (n) =>
+            n.metrics.axis == Axis.vertical &&
+            (!_outer.hasClients || _outer.offset <= 0),
+        onRefresh: () =>
+            ref.read(retailerOrdersProvider(_query).notifier).refresh(),
+        child: NestedScrollView(
+          controller: _outer,
+          headerSliverBuilder: (context, innerBoxIsScrolled) =>
+              <Widget>[SliverToBoxAdapter(child: _header())],
+          body: value.when(
+            skipLoadingOnRefresh: true,
+            data: (result) => TabBarView(
+              controller: _tabs,
+              children: <Widget>[
+                _orderPage(result, activeTab: true),
+                _orderPage(result, activeTab: false),
+              ],
             ),
-          ],
+            loading: () => _stateList(const CircularProgressIndicator(
+              strokeWidth: 3,
+              semanticsLabel: 'Đang tải',
+            )),
+            error: (error, _) => _stateList(EmptyState(
+              icon: Icons.cloud_off_outlined,
+              title: 'Không tải được dữ liệu',
+              message: ApiException.describe(error),
+              action: OutlinedButton.icon(
+                onPressed: () =>
+                    ref.read(retailerOrdersProvider(_query).notifier).refresh(),
+                icon: const Icon(Icons.refresh),
+                label: const Text('Thử lại'),
+              ),
+            )),
+          ),
         ),
       ),
     );
   }
-}
 
-class _OrderList extends ConsumerWidget {
-  const _OrderList(
-      {required this.orders,
-      required this.empty,
-      required this.search,
-      required this.state});
+  /// Loading / error content under the header, still part of the scroll.
+  Widget _stateList(Widget child) => ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        children: <Widget>[Center(child: child)],
+      );
 
-  final List<Order> orders;
-  final String empty;
-  final String search;
-  final RetailerOrdersState state;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return RefreshIndicator(
-      onRefresh: () =>
-          ref.read(retailerOrdersProvider(search).notifier).refresh(),
-      child: NotificationListener<ScrollNotification>(
-        onNotification: (n) {
-          // Near the end: next page. The controller ignores the call while a
-          // load runs; after a failure the "Tải thêm đơn" button retries.
-          final now = ref.read(retailerOrdersProvider(search)).valueOrNull;
-          if (n.metrics.extentAfter < 300 &&
-              now != null &&
-              now.hasMore &&
-              now.moreError == null) {
-            ref.read(retailerOrdersProvider(search).notifier).loadMore();
-          }
-          return false;
-        },
-        child: ListView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.all(AppSpacing.lg),
-          children: [
-            Padding(
-              padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-              child: Text(
-                  'Đã tải ${state.orders.length}/${state.totalCount} đơn'
-                  '${search.isEmpty ? '' : ' khớp mã tìm kiếm'}. '
-                  'Tab trạng thái và bộ lọc thời gian chỉ áp dụng trên các đơn đã tải.',
-                  style: AppText.mutedSmall),
+  /// Overview card, loyalty shortcut, search and time chips.
+  Widget _header() => Column(
+        children: <Widget>[
+          const RetailerTodoCard(),
+          Container(
+            margin: const EdgeInsets.only(top: AppSpacing.md),
+            decoration: const BoxDecoration(
+              color: AppColors.surface,
+              border: Border.symmetric(
+                  horizontal: BorderSide(color: AppColors.divider)),
             ),
-            if (state.hasMore && orders.isEmpty)
-              const InfoBanner(
-                  text: 'Vẫn còn đơn chưa tải. Chọn "Tải thêm đơn" để tiếp tục '
-                      'kiểm tra kết quả trong tab và khoảng thời gian này.'),
-            if (orders.isEmpty) EmptyState(title: empty),
-            for (final order in orders) RtOrderTile(order: order),
-            if (state.moreError != null) InfoBanner(text: state.moreError!),
-            if (state.hasMore)
-              OutlinedButton(
-                onPressed: state.loadingMore
-                    ? null
-                    : () => ref
-                        .read(retailerOrdersProvider(search).notifier)
-                        .loadMore(),
-                child: Text(state.loadingMore ? 'Đang tải...' : 'Tải thêm đơn'),
-              ),
-          ],
-        ),
+            padding: const EdgeInsets.only(bottom: AppSpacing.s10),
+            child: Column(
+              children: <Widget>[
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(AppSpacing.lg,
+                      AppSpacing.md, AppSpacing.lg, AppSpacing.s10),
+                  child: TextField(
+                    onTapOutside: releaseFocus,
+                    decoration: const InputDecoration(
+                      hintText: 'Tìm mã đơn',
+                      prefixIcon: Icon(Icons.search),
+                    ),
+                    onChanged: (v) {
+                      _searchDebounce?.cancel();
+                      _searchDebounce =
+                          Timer(const Duration(milliseconds: 350), () {
+                        if (mounted) {
+                          setState(() => _query = v.trim().toLowerCase());
+                        }
+                      });
+                    },
+                  ),
+                ),
+                ChipFilterBar<_Span>(
+                  selected: _span,
+                  onSelected: (v) => setState(() => _span = v),
+                  options: const <ChipOption<_Span>>[
+                    ChipOption(_Span.all, 'Tất cả'),
+                    ChipOption(_Span.week, '7 ngày'),
+                    ChipOption(_Span.month, '30 ngày'),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      );
+
+  Widget _orderPage(RetailerOrdersState state, {required bool activeTab}) {
+    // Search is performed by the server. Only the time range and status tabs
+    // filter the pages currently loaded on the device.
+    final all = state.orders.where(_inSpan).toList();
+    final orders = activeTab
+        ? all.where((o) => o.status.isActive).toList()
+        : all.where((o) => !o.status.isActive).toList();
+    final empty = activeTab
+        ? (state.hasMore
+            ? 'Chưa thấy đơn đang xử lý trong dữ liệu đã tải.'
+            : 'Không có đơn đang xử lý.')
+        : (state.hasMore
+            ? 'Chưa thấy đơn lịch sử trong dữ liệu đã tải.'
+            : 'Chưa có đơn lịch sử.');
+    // The Backend cannot filter by these tabs/time ranges, so while the
+    // SELECTED tab shows less than one page, keep reading the next server
+    // page (the controller ignores overlapping calls and stops after an error).
+    if (activeTab == (_tabIndex == 0) &&
+        state.hasMore &&
+        !state.loadingMore &&
+        state.moreError == null &&
+        orders.length < OrdersApi.defaultPageSize) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        ref.read(retailerOrdersProvider(_query).notifier).loadMore();
+      });
+    }
+    return NotificationListener<ScrollNotification>(
+      onNotification: (n) {
+        // Near the end of this list: next server page. The controller ignores
+        // the call while a load runs; after a failure the "Tải thêm đơn"
+        // button retries. Only this list's vertical scrolling counts (not the
+        // header's, not the filter chips').
+        final now = ref.read(retailerOrdersProvider(_query)).valueOrNull;
+        if (n.metrics.axis == Axis.vertical &&
+            n.metrics.extentAfter < 300 &&
+            now != null &&
+            now.hasMore &&
+            now.moreError == null) {
+          ref.read(retailerOrdersProvider(_query).notifier).loadMore();
+        }
+        return false;
+      },
+      child: ListView(
+        key: PageStorageKey<String>(
+            'rt-orders-${activeTab ? 'active' : 'history'}'),
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        children: <Widget>[
+          Padding(
+            padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+            child: Text(
+                'Đã tải ${state.orders.length}/${state.totalCount} đơn'
+                '${_query.isEmpty ? '' : ' khớp mã tìm kiếm'}. '
+                'Tab trạng thái và bộ lọc thời gian chỉ áp dụng trên các đơn đã tải.',
+                style: AppText.mutedSmall),
+          ),
+          if (state.hasMore && orders.isEmpty)
+            const InfoBanner(
+                text: 'Vẫn còn đơn chưa tải. Chọn "Tải thêm đơn" để tiếp tục '
+                    'kiểm tra kết quả trong tab và khoảng thời gian này.'),
+          if (orders.isEmpty) EmptyState(title: empty),
+          for (final order in orders) RtOrderTile(order: order),
+          if (state.moreError != null) InfoBanner(text: state.moreError!),
+          if (state.hasMore)
+            OutlinedButton(
+              onPressed: state.loadingMore
+                  ? null
+                  : () => ref
+                      .read(retailerOrdersProvider(_query).notifier)
+                      .loadMore(),
+              child: Text(state.loadingMore ? 'Đang tải...' : 'Tải thêm đơn'),
+            ),
+        ],
       ),
     );
   }

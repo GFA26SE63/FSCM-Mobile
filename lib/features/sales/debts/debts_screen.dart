@@ -135,7 +135,7 @@ class _DebtsScreenState extends ConsumerState<DebtsScreen> {
             ],
           ),
           Text(
-              '${r.orderCode} · giao ${AppDates.dayMonth(r.deliveredAt)} · hạn ${AppDates.date(r.dueDate)}',
+              '${r.orderCode} · giao ${AppDates.date(r.deliveredAt)} · hạn ${AppDates.date(r.dueDate)}',
               style: AppText.mutedSmall),
           const SizedBox(height: AppSpacing.s10),
           Row(

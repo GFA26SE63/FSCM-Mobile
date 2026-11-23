@@ -36,7 +36,7 @@ class _RtScanScreenState extends ConsumerState<RtScanScreen> {
 
   Future<void> _onScan(String raw) async {
     final code = raw.trim().toUpperCase();
-    if (!IdFormat.isLabel(code)) {
+    if (!IdFormat.isLabelCode(code)) {
       setState(() {
         _label = null;
         _error = 'Mã "$code" không phải tem hàng (TEM-000000).';

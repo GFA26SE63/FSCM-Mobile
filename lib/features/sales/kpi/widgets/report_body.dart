@@ -1,3 +1,4 @@
+import 'package:fscm_mobile/core/utils/numbers.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -57,13 +58,13 @@ class ReportHeader<T> extends StatelessWidget {
   Widget build(BuildContext context) => Padding(
         padding: const EdgeInsets.only(bottom: AppSpacing.md),
         child: Text(
-            'Kỳ: ${report.fromDate} → ${report.toDate}\n'
+            'Kỳ: ${AppDates.dateText(report.fromDate)} → ${AppDates.dateText(report.toDate)}\n'
             'Phạm vi: ${report.scope == 'OwnGroup' || report.scope == 'Group' ? 'Nhóm được cấp quyền' : report.scope}\n'
             'Tải dữ liệu lúc ${AppDates.timeDay(report.loadedAt)} (giờ Việt Nam)',
             style: AppText.mutedSmall),
       );
 }
 
-String reportValue(num value) => value.toString().replaceAll('.', ',');
+String reportValue(num value) => formatQuantity(value);
 String reportPercent(num ratio) =>
     '${(ratio * 100).toStringAsFixed(1).replaceAll('.', ',')}%';

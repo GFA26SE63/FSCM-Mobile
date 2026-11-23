@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:fscm_mobile/core/utils/status_labels.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -161,9 +162,11 @@ class RtOrderDetailScreen extends ConsumerWidget {
                 AppCard(
                     child: Column(children: [
                   if (order.allocationState.isNotEmpty)
-                    KvRow('Phân bổ', order.allocationState),
+                    KvRow(
+                        'Phân bổ', allocationStateLabel(order.allocationState)),
                   if (order.allocationResult != null)
-                    KvRow('Kết quả', order.allocationResult!),
+                    KvRow('Kết quả',
+                        allocationResultLabel(order.allocationResult)),
                 ])),
               RetailerDeliveryProgress(order: order),
               const SectionTitle('Tiến trình'),

@@ -99,12 +99,12 @@ void main() {
     ));
     await tester.pumpAndSettle();
 
-    expect(find.text('Thanh toán một phần'), findsOneWidget);
-    expect(find.text('Thanh toán hết'), findsOneWidget);
+    expect(find.text('Trả các khoản đã chọn'), findsOneWidget);
+    expect(find.text('Trả toàn bộ công nợ'), findsOneWidget);
     await tester.tap(find.byType(Checkbox));
     await tester.pump();
     final partial = tester.widget<OutlinedButton>(
-        find.widgetWithText(OutlinedButton, 'Thanh toán một phần'));
+        find.widgetWithText(OutlinedButton, 'Trả các khoản đã chọn'));
     expect(partial.onPressed, isNotNull);
   });
 
@@ -273,7 +273,7 @@ void main() {
     ));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Thanh toán hết'));
+    await tester.tap(find.text('Trả toàn bộ công nợ'));
     await tester.pumpAndSettle();
 
     final pay = find.widgetWithText(FilledButton, 'Thanh toán với PayOS');

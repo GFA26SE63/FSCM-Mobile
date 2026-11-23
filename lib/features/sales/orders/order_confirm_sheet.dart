@@ -1,3 +1,4 @@
+import 'package:fscm_mobile/core/utils/dates.dart';
 import 'package:flutter/material.dart';
 
 import 'package:fscm_mobile/core/utils/money.dart';
@@ -182,10 +183,6 @@ class OrderConfirmSheet extends StatelessWidget {
   }
 
   String _stamp(DateTime value) {
-    final local = value.toLocal();
-    String pad(int number) => number.toString().padLeft(2, '0');
-
-    return '${pad(local.hour)}:${pad(local.minute)} '
-        '${pad(local.day)}/${pad(local.month)}/${local.year}';
+    return AppDates.timeDay(value);
   }
 }
