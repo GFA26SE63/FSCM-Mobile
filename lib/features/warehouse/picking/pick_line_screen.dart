@@ -75,7 +75,7 @@ class _PickLineScreenState extends ConsumerState<PickLineScreen> {
 
   Future<void> _onScan(PickingLine line, String raw) async {
     final code = raw.trim().toUpperCase();
-    if (!IdFormat.isLabel(code)) {
+    if (!IdFormat.isLabelCode(code)) {
       setState(() => _error = 'Mã "$code" không phải tem (TEM-000000).');
       return;
     }

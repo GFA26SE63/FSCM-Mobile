@@ -236,6 +236,8 @@ void main() {
         await _see(tester, find.text('Chờ thực hiện'));
         await _see(tester, find.text('Quét carton thực tế'));
         await _see(tester, find.text('Đã quét 1 / 3 thùng'));
+        // M-20: API timestamp shows as dd/MM/yyyy HH:mm (Vietnam time).
+        await _see(tester, find.text('20/11/2026 15:00'));
         final post = find.widgetWithText(
             FilledButton, 'Xác nhận xuất luân chuyển & ghi sổ PXK');
         await _see(tester, post);

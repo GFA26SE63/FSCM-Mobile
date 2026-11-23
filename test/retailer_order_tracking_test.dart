@@ -19,8 +19,8 @@ void main() {
       () async {
     final transport = _OrdersTransport((request) {
       final page = _vars(request)['page'] as int;
-      return _ordersPage(page: page, totalCount: 21, items: [
-        for (var i = page == 1 ? 1 : 21; i <= (page == 1 ? 20 : 21); i++)
+      return _ordersPage(page: page, totalCount: 11, items: [
+        for (var i = page == 1 ? 1 : 11; i <= (page == 1 ? 10 : 11); i++)
           {
             'id': 'order-$i',
             'orderCode': 'DH-$i',
@@ -37,16 +37,16 @@ void main() {
     addTearDown(controller.dispose);
     addTearDown(client.dispose);
     await Future<void>.delayed(Duration.zero);
-    expect(controller.state.requireValue.orders.length, 20);
+    expect(controller.state.requireValue.orders.length, 10);
     expect(transport.requests.length, 1);
     expect(controller.state.requireValue.hasMore, isTrue);
     await controller.loadMore();
-    expect(controller.state.requireValue.orders.length, 21);
+    expect(controller.state.requireValue.orders.length, 11);
     expect(controller.state.requireValue.hasMore, isFalse);
     expect(transport.requests.map((request) => _vars(request)['page']), [1, 2]);
     expect(
         transport.requests.every((request) =>
-            _vars(request)['pageSize'] == 20 &&
+            _vars(request)['pageSize'] == 10 &&
             _vars(request)['search'] == 'DH'),
         isTrue);
     expect(controller.state.requireValue.orders.first.itemsSummary,
@@ -165,7 +165,7 @@ ApiResponse _ordersPage({
           'orderReads': {
             'items': items,
             'page': page,
-            'pageSize': 20,
+            'pageSize': 10,
             'totalCount': totalCount,
           },
         },

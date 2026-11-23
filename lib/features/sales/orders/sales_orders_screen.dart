@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:fscm_mobile/core/utils/focus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -135,6 +136,7 @@ class _SalesOrdersScreenState extends ConsumerState<SalesOrdersScreen> {
                   padding: const EdgeInsets.fromLTRB(AppSpacing.lg,
                       AppSpacing.md, AppSpacing.lg, AppSpacing.s10),
                   child: TextField(
+                    onTapOutside: releaseFocus,
                     decoration: const InputDecoration(
                       hintText: 'Tìm mã đơn hoặc tên cửa hàng',
                       prefixIcon: Icon(Icons.search),

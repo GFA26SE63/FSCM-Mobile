@@ -143,6 +143,9 @@ class IdFormat {
   static bool isBatch(String v) => batchPattern.hasMatch(v);
   static bool isLabel(String v) => labelPattern.hasMatch(v);
   static bool isCarton(String v) => cartonPattern.hasMatch(v);
+
+  /// A code the label endpoints know: a `TEM-` label or a factory `CID-` carton.
+  static bool isLabelCode(String v) => isLabel(v) || isCarton(v);
   static bool isOrder(String v) => orderPattern.hasMatch(v);
   static bool isOfflineOrder(String v) => offlineOrderPattern.hasMatch(v);
   static bool isPickingList(String v) => pickingListPattern.hasMatch(v);
@@ -179,7 +182,7 @@ class IdFormat {
   /// Classifies a raw QR payload (labels carry only their code).
   static ScannedCodeKind classify(String raw) {
     final v = raw.trim().toUpperCase();
-    if (isLabel(v)) return ScannedCodeKind.label;
+    if (isLabelCode(v)) return ScannedCodeKind.label;
     if (isRetailer(v)) return ScannedCodeKind.retailer;
     if (isOrder(v)) return ScannedCodeKind.order;
     if (isPickingList(v)) return ScannedCodeKind.pickingList;

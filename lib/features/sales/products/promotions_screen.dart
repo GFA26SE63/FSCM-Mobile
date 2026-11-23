@@ -68,16 +68,27 @@ class _PromotionsScreenState extends ConsumerState<PromotionsScreen> {
                 decoration: const InputDecoration(
                   labelText: 'Điểm bán áp dụng',
                 ),
+                // The closed field shows one ellipsised line; the open menu wraps
+                // so the full option text stays readable.
+                selectedItemBuilder: (context) => [
+                  const Text('Tất cả chương trình trong dữ liệu đồng bộ',
+                      maxLines: 1, overflow: TextOverflow.ellipsis),
+                  for (final retailer in data.retailers)
+                    Text('${retailer.code} · ${retailer.name}',
+                        maxLines: 1, overflow: TextOverflow.ellipsis),
+                ],
                 items: [
                   const DropdownMenuItem(
                     value: '',
-                    child: Text('Tất cả chương trình trong dữ liệu đồng bộ'),
+                    child: Text('Tất cả chương trình trong dữ liệu đồng bộ',
+                        maxLines: 2, overflow: TextOverflow.ellipsis),
                   ),
                   for (final retailer in data.retailers)
                     DropdownMenuItem(
                       value: retailer.code,
                       child: Text(
                         '${retailer.code} · ${retailer.name}',
+                        maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),

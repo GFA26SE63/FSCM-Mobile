@@ -87,9 +87,13 @@ class RetailerTodoCard extends ConsumerWidget {
                         const Icon(Icons.stars_outlined,
                             size: 16, color: AppColors.warning),
                         const SizedBox(width: AppSpacing.xs),
-                        Text('${todo.loyaltyPoints} điểm',
-                            style: AppText.caption
-                                .copyWith(color: AppColors.warning)),
+                        Flexible(
+                          child: Text('Tích điểm · ${todo.loyaltyPoints} điểm',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: AppText.caption
+                                  .copyWith(color: AppColors.warning)),
+                        ),
                       ],
                     ),
                   ),

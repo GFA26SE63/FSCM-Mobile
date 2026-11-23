@@ -1,3 +1,4 @@
+import 'package:fscm_mobile/core/utils/numbers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -291,7 +292,5 @@ class _RtReceiveScreenState extends ConsumerState<RtReceiveScreen> {
     );
   }
 
-  String _quantity(double value) => value == value.roundToDouble()
-      ? value.toInt().toString()
-      : value.toString();
+  String _quantity(double value) => formatQuantity(value);
 }

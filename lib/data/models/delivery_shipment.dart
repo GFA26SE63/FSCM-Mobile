@@ -1,3 +1,4 @@
+import 'package:fscm_mobile/core/utils/status_labels.dart';
 import 'package:fscm_mobile/data/models/json_utils.dart';
 
 class DeliveryShipmentLine {
@@ -84,7 +85,7 @@ class DeliveryShipment {
         'Delivering' => 'Đang giao',
         'Received' => 'Đã nhận hàng',
         'Exception' => 'Có sự cố giao hàng',
-        _ => status,
+        _ => unknownStatusLabel,
       };
   final double totalQuantity;
   final double receivedQuantity;

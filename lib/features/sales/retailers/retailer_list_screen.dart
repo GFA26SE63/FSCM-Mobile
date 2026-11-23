@@ -1,4 +1,6 @@
+import 'package:fscm_mobile/core/utils/dates.dart';
 import 'package:flutter/material.dart';
+import 'package:fscm_mobile/core/utils/focus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -44,6 +46,7 @@ class _RetailerListScreenState extends ConsumerState<RetailerListScreen> {
             padding: const EdgeInsets.fromLTRB(
                 AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.md),
             child: TextField(
+              onTapOutside: releaseFocus,
               decoration: const InputDecoration(
                 hintText: 'Tìm mã, tên hoặc địa chỉ',
                 prefixIcon: Icon(Icons.search),
@@ -130,11 +133,6 @@ class _RetailerListScreenState extends ConsumerState<RetailerListScreen> {
 
   String _stamp(DateTime? value) {
     if (value == null) return 'chưa xác định';
-
-    final local = value.toLocal();
-    String pad(int number) => number.toString().padLeft(2, '0');
-
-    return '${pad(local.hour)}:${pad(local.minute)} '
-        '${pad(local.day)}/${pad(local.month)}/${local.year}';
+    return AppDates.timeDay(value);
   }
 }

@@ -150,8 +150,9 @@ void main() {
         await tester.pumpAndSettle();
         expect(find.text('điểm khả dụng'), findsOneWidget);
         await _see(tester, find.text('Đổi quà'));
-        await _see(tester, find.text('Lịch sử điểm'));
+        // The program card now sits right under the balance, above the history.
         await _see(tester, find.text('Chương trình tích điểm'));
+        await _see(tester, find.text('Lịch sử điểm'));
         expect(tester.takeException(), isNull);
       });
 

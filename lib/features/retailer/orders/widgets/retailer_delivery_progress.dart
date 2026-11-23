@@ -1,3 +1,4 @@
+import 'package:fscm_mobile/core/utils/numbers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -86,7 +87,7 @@ class RetailerDeliveryProgress extends ConsumerWidget {
                             ? shipment.warehouseCode
                             : shipment.warehouseName),
                     KvRow('Đã nhận / tổng',
-                        '${shipment.receivedQuantity} / ${shipment.totalQuantity} thùng'),
+                        '${formatQuantity(shipment.receivedQuantity)} / ${formatQuantity(shipment.totalQuantity)} thùng'),
                     if (shipment.plateNumber.isNotEmpty)
                       KvRow('Biển số xe', shipment.plateNumber),
                     if (shipment.driverName.isNotEmpty)

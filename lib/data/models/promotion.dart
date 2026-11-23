@@ -73,7 +73,7 @@ class Promotion {
 
   String get validText {
     if (validFrom == null && validTo == null) return 'Không giới hạn';
-    return '${AppDates.dayMonth(validFrom)} – ${AppDates.date(validTo)}';
+    return '${AppDates.date(validFrom)} – ${AppDates.date(validTo)}';
   }
 
   bool isRunning(DateTime now) {

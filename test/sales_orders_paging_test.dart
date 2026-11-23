@@ -150,17 +150,18 @@ void main() {
   }
 
   group('paging', () {
-    test('first request is 20 orders, not the whole dataset', () async {
+    test('first request is one page of orders, not the whole dataset',
+        () async {
       await setUpRepository(250);
       final c = controller();
       final state = await settle(c);
 
-      expect(state.server, hasLength(20));
+      expect(state.server, hasLength(salesOrdersPageSize));
       expect(state.totalCount, 250);
       expect(state.hasMore, isTrue);
       expect(server.requests, hasLength(1));
       expect(server.requests.single['page'], 1);
-      expect(server.requests.single['pageSize'], 20);
+      expect(server.requests.single['pageSize'], salesOrdersPageSize);
     });
 
     test('loads page by page past 100 and 250 records, then stops', () async {
@@ -175,11 +176,12 @@ void main() {
       expect(state.server, hasLength(260));
       expect(state.server.map((o) => o.id).toSet(), hasLength(260));
       expect(server.requests.map((r) => r['page']),
-          [for (var i = 1; i <= 13; i++) i]);
-      expect(server.requests.every((r) => r['pageSize'] == 20), isTrue);
+          [for (var i = 1; i <= 260 ~/ salesOrdersPageSize; i++) i]);
+      expect(server.requests.every((r) => r['pageSize'] == salesOrdersPageSize),
+          isTrue);
 
       await c.loadMore(); // after the last page: nothing is requested
-      expect(server.requests, hasLength(13));
+      expect(server.requests, hasLength(260 ~/ salesOrdersPageSize));
       expect(state.hasMore, isFalse);
     });
 
@@ -191,11 +193,11 @@ void main() {
     });
 
     test('last partial page', () async {
-      await setUpRepository(25);
+      await setUpRepository(salesOrdersPageSize + 5);
       final c = controller();
       await settle(c);
       await c.loadMore();
-      expect(c.state.value!.server, hasLength(25));
+      expect(c.state.value!.server, hasLength(salesOrdersPageSize + 5));
       expect(c.state.value!.hasMore, isFalse);
     });
 
@@ -207,13 +209,13 @@ void main() {
       await c.loadMore();
 
       var state = c.state.value!;
-      expect(state.server, hasLength(20));
+      expect(state.server, hasLength(salesOrdersPageSize));
       expect(state.moreError, isNotNull);
       expect(state.hasMore, isTrue);
 
       await c.loadMore(); // retry
       state = c.state.value!;
-      expect(state.server, hasLength(40));
+      expect(state.server, hasLength(2 * salesOrdersPageSize));
       expect(state.moreError, isNull);
     });
 
@@ -232,13 +234,13 @@ void main() {
       await Future.wait([a, b, d]);
 
       expect(server.requests.length - before, 1);
-      expect(c.state.value!.server, hasLength(40));
+      expect(c.state.value!.server, hasLength(2 * salesOrdersPageSize));
     });
 
     test('overlapping pages are de-duplicated', () async {
       await setUpRepository(40);
       server.idsOverride = (page, size) => page == 1
-          ? [for (var i = 0; i < 20; i++) i]
+          ? [for (var i = 0; i < salesOrdersPageSize; i++) i]
           : [for (var i = 10; i < 30; i++) i];
       final c = controller();
       await settle(c);
@@ -249,7 +251,8 @@ void main() {
     test('a page that adds nothing new ends paging (bad total cannot loop)',
         () async {
       await setUpRepository(1000);
-      server.idsOverride = (page, size) => [for (var i = 0; i < 20; i++) i];
+      server.idsOverride =
+          (page, size) => [for (var i = 0; i < salesOrdersPageSize; i++) i];
       final c = controller();
       await settle(c);
       await c.loadMore();
@@ -300,12 +303,12 @@ void main() {
       final c = controller();
       await settle(c);
       await c.loadMore();
-      expect(c.state.value!.server, hasLength(40));
+      expect(c.state.value!.server, hasLength(2 * salesOrdersPageSize));
 
       await c.refresh();
       final state = await settle(c);
 
-      expect(state.server, hasLength(20));
+      expect(state.server, hasLength(salesOrdersPageSize));
       expect(state.page, 1);
       expect(state.orders.where((o) => o.offlineCode == pending.localCode),
           hasLength(1));
@@ -328,7 +331,7 @@ void main() {
       expect(local.single.offlineCode, pending.localCode);
       expect(local.single.syncStatus, SyncStatus.pending);
       expect(local.single.id, isEmpty);
-      expect(orders, hasLength(41));
+      expect(orders, hasLength(2 * salesOrdersPageSize + 1));
       expect(c.state.value!.totalCount, 60);
       // Newest first: the pending order (Nov 2) precedes every server row.
       expect(orders.first.isOffline, isTrue);
@@ -367,14 +370,14 @@ void main() {
         () async {
       await setUpRepository(60);
       final draft = await pendingOrder();
-      // Synchronised as DH-30: it sits on the server's second page.
+      // Synchronised as DH-15: it sits on the server's second page.
       final sending = await queue.claimForSend(draft.clientRequestId,
           ownerId: 'sales', now: DateTime.utc(2026, 11, 2));
       final synced = sending.copyWith(
         status: SyncStatus.synced,
         syncedAt: DateTime.utc(2026, 11, 2),
-        serverOrderCode: 'DH-30',
-        serverOrder: Order.fromJson(_summary(30)),
+        serverOrderCode: 'DH-15',
+        serverOrder: Order.fromJson(_summary(15)),
       );
       expect(
           await queue.finishAttempt(synced,
@@ -383,15 +386,15 @@ void main() {
 
       final c = controller();
       var state = await settle(c);
-      // Page 1 does not hold DH-30: the local copy is the only DH-30 row.
-      expect(state.orders.where((o) => o.displayCode == 'DH-30'), hasLength(1));
+      // Page 1 does not hold DH-15: the local copy is the only DH-15 row.
+      expect(state.orders.where((o) => o.displayCode == 'DH-15'), hasLength(1));
       expect(state.orders.where((o) => o.isOffline), hasLength(1));
 
-      await c.loadMore(); // page 2 now brings the server's DH-30
+      await c.loadMore(); // page 2 now brings the server's DH-15
       state = c.state.value!;
-      final dh30 = state.orders.where((o) => o.displayCode == 'DH-30').toList();
-      expect(dh30, hasLength(1));
-      expect(dh30.single.isOffline, isFalse); // the server row replaced it
+      final dh15 = state.orders.where((o) => o.displayCode == 'DH-15').toList();
+      expect(dh15, hasLength(1));
+      expect(dh15.single.isOffline, isFalse); // the server row replaced it
     });
 
     test('queue rows are searched locally when the server cannot', () async {

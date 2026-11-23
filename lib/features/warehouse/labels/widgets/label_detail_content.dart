@@ -1,3 +1,4 @@
+import 'package:fscm_mobile/core/utils/numbers.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -166,8 +167,6 @@ class LabelDetailContent extends StatelessWidget {
   }
 
   String _quantity(double value) {
-    return value == value.roundToDouble()
-        ? value.toInt().toString()
-        : value.toString();
+    return formatQuantity(value);
   }
 }

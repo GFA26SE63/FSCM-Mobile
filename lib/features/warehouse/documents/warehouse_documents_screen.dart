@@ -1,4 +1,7 @@
+import 'package:fscm_mobile/core/utils/dates.dart';
+import 'package:fscm_mobile/core/utils/status_labels.dart';
 import 'dart:async';
+import 'package:fscm_mobile/core/utils/numbers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -202,7 +205,7 @@ class WarehouseDocumentsScreen extends ConsumerWidget {
                             color: AppColors.infoSoft,
                             code: 'Hàng đang đến: ${issue.document['code']}',
                             subtitle:
-                                'Từ ${warehouseName(issue.document['warehouseId'])} · Đã xuất ${issue.lines.fold<num>(0, (n, l) => n + (l['quantity'] as num? ?? 0))} carton\nBấm để mở phiếu nhập & bắt đầu quét carton',
+                                'Từ ${warehouseName(issue.document['warehouseId'])} · Đã xuất ${formatQuantity(issue.lines.fold<num>(0, (n, l) => n + (l['quantity'] as num? ?? 0)))} carton\nBấm để mở phiếu nhập & bắt đầu quét carton',
                             onTap: () => context.push(
                                 '/wk/document/${issue.id}?mode=transferReceipt')),
                       const SectionTitle('Chứng từ kho'),
@@ -219,7 +222,7 @@ class WarehouseDocumentsScreen extends ConsumerWidget {
                             subtitle:
                                 '${documentTypeTitle(w.document)} · ${warehouseName(w.document['warehouseId'])}${w.document['destinationWarehouseId'] != null && w.document['destinationWarehouseId'] != w.document['warehouseId'] ? ' → ${warehouseName(w.document['destinationWarehouseId'])}' : ''}',
                             trailingNote:
-                                '${w.lines.fold<num>(0, (n, l) => n + (l['quantity'] as num? ?? 0))} carton',
+                                '${formatQuantity(w.lines.fold<num>(0, (n, l) => n + (l['quantity'] as num? ?? 0)))} carton',
                             onTap: () => context.push(
                                 '/wk/document/${w.id}?mode=${operation.name}')),
                     ]);
@@ -253,7 +256,7 @@ String warehouseStatus(Object? value) => switch (value) {
       'Executed' => 'Đã thực hiện',
       'Fulfilled' => 'Đã thực hiện',
       'Cancelled' => 'Đã hủy',
-      _ => asStr(value),
+      _ => unknownStatusLabel,
     };
 
 String receiptDispositionLabel(Object? value) => switch (value) {
@@ -409,9 +412,11 @@ class _WarehouseDocumentScreenState
                                 d['destinationWarehouseId'] != d['warehouseId'])
                               KvRow('Kho đích',
                                   '${user?.warehouseLabels.where((s) => s.id == d['destinationWarehouseId']).map((s) => s.name).firstOrNull ?? d['destinationWarehouseId']}'),
-                            KvRow('Ngày lập', '${d['createdAt']}'),
+                            KvRow('Ngày lập',
+                                AppDates.dateTimeText(d['createdAt'])),
                             if (d['postedAt'] != null)
-                              KvRow('Ghi sổ', '${d['postedAt']}'),
+                              KvRow('Ghi sổ',
+                                  AppDates.dateTimeText(d['postedAt'])),
                             if (d['note'] != null &&
                                 asStr(d['note']).isNotEmpty)
                               KvRow('Ghi chú', asStr(d['note'])),
@@ -455,7 +460,7 @@ class _WarehouseDocumentScreenState
                             Text('${l['sku']} · ${l['productName']}',
                                 style: AppText.strong),
                             Text(
-                                '${l['batchCode'] ?? l['sourceLotCode'] ?? ''}\nHSD: ${l['expirationDate']} · ${l['quantity']} thùng',
+                                '${l['batchCode'] ?? l['sourceLotCode'] ?? ''}\nHSD: ${AppDates.dateText(l['expirationDate'])} · ${formatQuantity(l['quantity'])} thùng',
                                 style: AppText.bodySmall),
                           ])),
                     if (request || incoming)
@@ -551,7 +556,7 @@ class _WarehouseDocumentScreenState
                               ),
                               const SizedBox(height: AppSpacing.xs),
                               Text(
-                                  'Đã quét lúc: ${scan!['scannedAt']} · Tổng ${inspection.length} thùng',
+                                  'Đã quét lúc: ${AppDates.dateTimeText(scan!['scannedAt'])} · Tổng ${inspection.length} thùng',
                                   style: AppText.bodySmall),
                               const SizedBox(height: AppSpacing.sm),
                               Wrap(
@@ -675,7 +680,8 @@ class _WarehouseDocumentScreenState
                               children: [
                             const Text('Tiến độ quét', style: AppText.strong),
                             const SizedBox(height: AppSpacing.xs),
-                            Text('Đã quét $scanned / $requiredQuantity thùng',
+                            Text(
+                                'Đã quét $scanned / ${formatQuantity(requiredQuantity)} thùng',
                                 style: AppText.bodySmall),
                             const SizedBox(height: AppSpacing.xs),
                             LinearProgressIndicator(
@@ -702,7 +708,7 @@ class _WarehouseDocumentScreenState
                               Text(
                                   c['scannedAt'] == null
                                       ? 'Chưa quét'
-                                      : 'Đã quét: ${c['scannedAt']}',
+                                      : 'Đã quét: ${AppDates.dateTimeText(c['scannedAt'])}',
                                   style: AppText.mutedSmall),
                             ])),
                       ])),
@@ -712,7 +718,7 @@ class _WarehouseDocumentScreenState
                           icon: Icons.warning_amber_rounded,
                           text: w.factory
                               ? 'Cần quét pallet và xác nhận kiểm đếm trước khi ghi sổ phiếu.'
-                              : 'Cần quét đủ $requiredQuantity thùng (đã quét $scanned/$requiredQuantity) để ghi sổ.'),
+                              : 'Cần quét đủ ${formatQuantity(requiredQuantity)} thùng (đã quét $scanned/${formatQuantity(requiredQuantity)}) để ghi sổ.'),
                     if (own &&
                         w.pending &&
                         (d['kind'] == 'Receipt' ||
@@ -747,7 +753,8 @@ class _WarehouseDocumentScreenState
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                             Text(asStr(s['palletCode']), style: AppText.strong),
-                            Text('${s['scannedByName']} · ${s['scannedAt']}',
+                            Text(
+                                '${s['scannedByName']} · ${AppDates.dateTimeText(s['scannedAt'])}',
                                 style: AppText.mutedSmall),
                           ])),
                     for (final p in reports) ...[
