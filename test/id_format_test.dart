@@ -9,7 +9,8 @@ void main() {
       expect(IdFormat.retailer(42), '00000042');
       expect(IdFormat.sku(2), 'SKU002');
       expect(IdFormat.label(187), 'TEM-000187');
-      expect(IdFormat.order(1030), 'DH-001030');
+      expect(IdFormat.order(1030), 'DH-0000001030');
+      expect(IdFormat.order(1030, 6), 'DH-001030');
       expect(IdFormat.promotion(3), 'KM-003');
       expect(IdFormat.gift(5), 'QUA-005');
       expect(IdFormat.registration(9), 'KB-0009');
@@ -61,6 +62,7 @@ void main() {
     test('accepts well-formed codes', () {
       expect(IdFormat.isLabel('TEM-000187'), isTrue);
       expect(IdFormat.isOrder('DH-001030'), isTrue);
+      expect(IdFormat.isOrder('DH-0000001030'), isTrue);
       expect(IdFormat.isPickingList('DH-001021A'), isTrue);
       expect(IdFormat.isDocument('DC-260926-01'), isTrue);
       expect(IdFormat.isOfflineOrder('OFF-M3F7-0001'), isTrue);
