@@ -193,12 +193,26 @@ class _PayOsCheckoutResultPageState extends State<PayOsCheckoutResultPage>
                       if (!paid && !failed) ...<Widget>[
                         const SizedBox(height: AppSpacing.xl),
                         const CircularProgressIndicator(),
-                        TextButton(
-                            onPressed: _openPayOs,
-                            child: const Text('Mở lại PayOS')),
-                        TextButton(
-                            onPressed: _refresh,
-                            child: const Text('Kiểm tra trạng thái ngay')),
+                        const SizedBox(height: AppSpacing.lg),
+                        Row(
+                          children: <Widget>[
+                            Expanded(
+                              child: OutlinedButton.icon(
+                                onPressed: _openPayOs,
+                                icon: const Icon(Icons.open_in_new, size: 18),
+                                label: const Text('Mở lại PayOS'),
+                              ),
+                            ),
+                            const SizedBox(width: AppSpacing.sm),
+                            Expanded(
+                              child: FilledButton.icon(
+                                onPressed: _refreshing ? null : _refresh,
+                                icon: const Icon(Icons.refresh, size: 18),
+                                label: Text(_refreshing ? 'Đang kiểm tra' : 'Kiểm tra'),
+                              ),
+                            ),
+                          ],
+                        ),
                       ],
                     ],
                   ),

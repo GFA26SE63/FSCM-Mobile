@@ -195,7 +195,9 @@ void main() {
         expect(find.textContaining('DH-100000'), findsNothing);
         await tester.tap(find.text('Đang xử lý'));
         await tester.pumpAndSettle();
-        expect(find.textContaining('DH-100000'), findsOneWidget);
+        // The default order is newest-first, so the most recently loaded
+        // active page is displayed first after returning to this tab.
+        expect(find.textContaining('DH-100020'), findsOneWidget);
 
         // Pull to refresh re-reads page 1.
         final before = server.requests.length;

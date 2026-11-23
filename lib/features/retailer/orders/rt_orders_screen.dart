@@ -8,7 +8,6 @@ import 'package:go_router/go_router.dart';
 import 'package:fscm_mobile/core/network/api_exception.dart';
 
 import 'package:fscm_mobile/core/utils/clock.dart';
-import 'package:fscm_mobile/data/remote/orders_api.dart';
 import 'package:fscm_mobile/core/utils/dates.dart';
 import 'package:fscm_mobile/core/utils/money.dart';
 import 'package:fscm_mobile/data/models/order.dart';
@@ -86,16 +85,15 @@ class _RtOrdersScreenState extends ConsumerState<RtOrdersScreen>
   }
 
   int _compareOrders(Order a, Order b) {
-    switch (_sort) {
-      case _OrderSort.newest:
-        return b.createdAt.compareTo(a.createdAt);
-      case _OrderSort.oldest:
-        return a.createdAt.compareTo(b.createdAt);
-      case _OrderSort.amountHighToLow:
-        return b.finalAmount.compareTo(a.finalAmount);
-      case _OrderSort.amountLowToHigh:
-        return a.finalAmount.compareTo(b.finalAmount);
-    }
+    final comparison = switch (_sort) {
+      _OrderSort.newest => b.createdAt.compareTo(a.createdAt),
+      _OrderSort.oldest => a.createdAt.compareTo(b.createdAt),
+      _OrderSort.amountHighToLow => b.finalAmount.compareTo(a.finalAmount),
+      _OrderSort.amountLowToHigh => a.finalAmount.compareTo(b.finalAmount),
+    };
+    // Keep equal values deterministic so changing the toolbar never makes
+    // otherwise identical rows jump around between tab switches.
+    return comparison != 0 ? comparison : a.code.compareTo(b.code);
   }
 
   @override
@@ -315,19 +313,10 @@ class _RtOrdersScreenState extends ConsumerState<RtOrdersScreen>
         : (state.hasMore
             ? 'Chưa thấy đơn lịch sử trong dữ liệu đã tải.'
             : 'Chưa có đơn lịch sử.');
-    // The Backend cannot filter by these tabs/time ranges, so while the
-    // SELECTED tab shows less than one page, keep reading the next server
-    // page (the controller ignores overlapping calls and stops after an error).
-    if (activeTab == (_tabIndex == 0) &&
-        state.hasMore &&
-        !state.loadingMore &&
-        state.moreError == null &&
-        orders.length < OrdersApi.defaultPageSize) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-        ref.read(retailerOrdersProvider(_query).notifier).loadMore();
-      });
-    }
+    // The tabs and date range currently refine the loaded GraphQL page. Do
+    // not auto-drain subsequent pages when this tab happens to have few rows:
+    // that created a serial request waterfall on screen open. Pagination is
+    // explicit (button) or user-driven (scroll near the end) below.
     return NotificationListener<ScrollNotification>(
       onNotification: (n) {
         // Near the end of this list: next server page. The controller ignores
@@ -353,15 +342,13 @@ class _RtOrdersScreenState extends ConsumerState<RtOrdersScreen>
           Padding(
             padding: const EdgeInsets.only(bottom: AppSpacing.sm),
             child: Text(
-                'Đã tải ${state.orders.length}/${state.totalCount} đơn'
-                '${_query.isEmpty ? '' : ' khớp mã tìm kiếm'}. '
-                'Tab trạng thái và bộ lọc thời gian chỉ áp dụng trên các đơn đã tải.',
-                style: AppText.mutedSmall),
+              '${state.orders.length}/${state.totalCount} đơn đã tải'
+              '${_query.isEmpty ? '' : ' · kết quả tìm kiếm'}',
+              style: AppText.mutedSmall,
+            ),
           ),
           if (state.hasMore && orders.isEmpty)
-            const InfoBanner(
-                text: 'Vẫn còn đơn chưa tải. Chọn "Tải thêm đơn" để tiếp tục '
-                    'kiểm tra kết quả trong tab và khoảng thời gian này.'),
+            const InfoBanner(text: 'Còn đơn chưa tải. Cuộn xuống hoặc chọn “Tải thêm”.'),
           if (orders.isEmpty) EmptyState(title: empty),
           for (final order in orders) RtOrderTile(order: order),
           if (state.moreError != null) InfoBanner(text: state.moreError!),
@@ -394,18 +381,23 @@ class RtOrderTile extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          // Header: code + status chip (prototype order card).
-          Wrap(
-            alignment: WrapAlignment.spaceBetween,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            spacing: AppSpacing.sm,
-            runSpacing: AppSpacing.xs,
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
-              Text(o.code, style: AppText.strong),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(o.code, style: AppText.strong),
+                    const SizedBox(height: AppSpacing.xxs),
+                    Text(AppDates.timeDay(o.createdAt),
+                        style: AppText.mutedSmall),
+                  ],
+                ),
+              ),
               OrderStatusChip(o),
             ],
           ),
-          Text(AppDates.timeDay(o.createdAt), style: AppText.mutedSmall),
           if (o.itemsSummary.isNotEmpty) ...<Widget>[
             const SizedBox(height: AppSpacing.sm),
             Text(o.itemsSummary,
@@ -415,20 +407,28 @@ class RtOrderTile extends StatelessWidget {
           ],
           const SizedBox(height: AppSpacing.sm),
           Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: <Widget>[
               Expanded(
-                child: Text(o.payment.labelWithTerm(o.creditTerm),
-                    style: AppText.mutedSmall),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text('Thanh toán', style: AppText.mutedSmall),
+                    const SizedBox(height: AppSpacing.xxs),
+                    Text(o.payment.labelWithTerm(o.creditTerm),
+                        style: AppText.bodySmall),
+                  ],
+                ),
               ),
               const SizedBox(width: AppSpacing.sm),
-              Flexible(
-                child: FittedBox(
-                  fit: BoxFit.scaleDown,
-                  alignment: Alignment.centerRight,
-                  child:
-                      Text(Money.format(o.finalAmount), style: AppText.strong),
-                ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: <Widget>[
+                  Text('Tổng tiền', style: AppText.mutedSmall),
+                  const SizedBox(height: AppSpacing.xxs),
+                  Text(Money.format(o.finalAmount),
+                      style: AppText.strong.copyWith(color: AppColors.primary)),
+                ],
               ),
             ],
           ),
