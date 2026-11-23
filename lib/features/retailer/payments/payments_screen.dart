@@ -523,39 +523,26 @@ class _ReceivableTile extends StatelessWidget {
             child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
-              // Header: order code + status chip (prototype payment row).
-              Wrap(
-                alignment: WrapAlignment.spaceBetween,
-                crossAxisAlignment: WrapCrossAlignment.center,
-                spacing: AppSpacing.sm,
-                runSpacing: AppSpacing.xs,
-                children: <Widget>[
-                  Text(r.orderCode, style: AppText.strong),
-                  StatusChip(label: r.status.label, tone: r.status.tone),
-                ],
-              ),
-              Text(due,
-                  style: AppText.bodySmall.copyWith(
-                      color: r.isOverdue
-                          ? AppColors.danger
-                          : AppColors.textMuted)),
-              Text(
-                  r.method == 'Prepaid'
-                      ? 'Trả trước'
-                      : 'Công nợ ${r.term} ngày',
-                  style: AppText.mutedSmall),
+              Row(children: <Widget>[
+                Expanded(child: Text(r.orderCode, style: AppText.strong)),
+                StatusChip(label: r.status.label, tone: r.status.tone),
+              ]),
+              const SizedBox(height: AppSpacing.xxs),
+              Text(due, style: AppText.mutedSmall.copyWith(color: r.isOverdue ? AppColors.danger : AppColors.textMuted)),
+              Text(r.method == 'Prepaid' ? 'Trả trước' : 'Công nợ ${r.term} ngày', style: AppText.mutedSmall),
               if (r.collectibleAmount != r.outstandingAmount)
                 Text(
                     'Đang tranh chấp: ${Money.format(r.outstandingAmount - r.collectibleAmount)}',
                     style: AppText.mutedSmall),
-              const SizedBox(height: AppSpacing.xs),
-              Text(
-                  Money.format(r.isPaid
-                      ? r.confirmedAmount
-                      : r.method == 'Prepaid'
-                          ? r.outstandingAmount
-                          : r.collectibleAmount),
-                  style: AppText.strong.copyWith(fontSize: 16)),
+              const SizedBox(height: AppSpacing.sm),
+              Align(
+                alignment: Alignment.centerRight,
+                child: Column(crossAxisAlignment: CrossAxisAlignment.end, children: <Widget>[
+                  Text('Tổng cần thanh toán', style: AppText.mutedSmall),
+                  Text(Money.format(r.isPaid ? r.confirmedAmount : r.method == 'Prepaid' ? r.outstandingAmount : r.collectibleAmount),
+                      style: AppText.strong.copyWith(fontSize: 16, color: AppColors.primary)),
+                ]),
+              ),
             ])),
       ]),
     );
