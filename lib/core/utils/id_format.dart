@@ -120,12 +120,9 @@ class IdFormat {
   static final RegExp batchPattern =
       RegExp(r'^(WH-[A-Z]{2,4})-(SKU\d{3})-(\d{2})(\d{2})(\d{4})$');
   static final RegExp labelPattern = RegExp(r'^TEM-\d{6}$');
-
-  /// Factory carton `CID-F01-20260827-A-0001-0001` (docs/FactoryTraceability.md).
-  /// Its QR holds only this code, and it is also the QR label code of the
-  /// carton once received, so label lookups accept it next to `TEM-000000`.
+  /// Factory carton identity, preserved through warehouse issue and receipt.
   static final RegExp cartonPattern =
-      RegExp(r'^CID-[A-Z0-9]{2,8}-\d{8}-[A-Z]-\d{4}-\d{4}$');
+      RegExp(r'^CID-[A-Z0-9]{1,12}-\d{8}-[A-D]-\d{4}-\d{4,}$');
   static final RegExp orderPattern = RegExp(r'^DH-\d{6}$');
   static final RegExp offlineOrderPattern =
       RegExp(r'^OFF-[A-Z0-9]{2,8}-\d{4}$');
