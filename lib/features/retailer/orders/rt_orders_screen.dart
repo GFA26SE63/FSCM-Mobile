@@ -410,27 +410,16 @@ class RtOrderTile extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Row(
+          Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    Text(o.code, style: AppText.strong),
-                    const SizedBox(height: AppSpacing.xxs),
-                    Text(AppDates.timeDay(o.createdAt),
-                        style: AppText.mutedSmall),
-                  ],
-                ),
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              Flexible(
-                child: FittedBox(
-                  fit: BoxFit.scaleDown,
-                  alignment: Alignment.topRight,
-                  child: OrderStatusChip(o),
-                ),
+              Text(o.code, style: AppText.strong),
+              const SizedBox(height: AppSpacing.xxs),
+              Text(AppDates.timeDay(o.createdAt), style: AppText.mutedSmall),
+              const SizedBox(height: AppSpacing.s6),
+              Align(
+                alignment: Alignment.centerRight,
+                child: OrderStatusChip(o),
               ),
             ],
           ),
