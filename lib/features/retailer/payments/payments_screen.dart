@@ -535,7 +535,7 @@ class _ReceivableTile extends StatelessWidget {
           ? () => context.push(AppRoutes.rtOrderDetail(r.orderCode))
           : () => onSelected!(!selected),
       child:
-          Row(crossAxisAlignment: CrossAxisAlignment.start, children: <Widget>[
+          Row(crossAxisAlignment: CrossAxisAlignment.center, children: <Widget>[
         if (onSelected != null)
           Padding(
             padding: const EdgeInsets.only(right: AppSpacing.xs),
