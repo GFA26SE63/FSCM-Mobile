@@ -147,31 +147,21 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
               padding: const EdgeInsets.fromLTRB(
                   AppSpacing.lg, AppSpacing.lg, AppSpacing.lg, 120),
               children: <Widget>[
-                LayoutBuilder(builder: (context, constraints) {
-                  final stack = constraints.maxWidth < 420 ||
-                      MediaQuery.textScalerOf(context).scale(1) > 1.2;
-                  final payableSummary = _Summary(
-                      label: 'Công nợ có thể trả',
-                      value: Money.format(openTotal),
-                      color: overdue.isEmpty
-                          ? AppColors.text
-                          : AppColors.danger);
-                  final selectedSummary = _Summary(
-                      label: 'Các khoản đã chọn',
-                      value: Money.format(selectedTotal),
-                      color: AppColors.primary);
-                  return stack
-                      ? Column(children: <Widget>[
-                          payableSummary,
-                          const SizedBox(height: AppSpacing.s10),
-                          selectedSummary,
-                        ])
-                      : Row(children: <Widget>[
-                          Expanded(child: payableSummary),
-                          const SizedBox(width: AppSpacing.s10),
-                          Expanded(child: selectedSummary),
-                        ]);
-                }),
+                Row(children: <Widget>[
+                  Expanded(
+                      child: _Summary(
+                          label: 'Công nợ có thể trả',
+                          value: Money.format(openTotal),
+                          color: overdue.isEmpty
+                              ? AppColors.text
+                              : AppColors.danger)),
+                  const SizedBox(width: AppSpacing.s10),
+                  Expanded(
+                      child: _Summary(
+                          label: 'Các khoản đã chọn',
+                          value: Money.format(selectedTotal),
+                          color: AppColors.primary)),
+                ]),
                 if (overdue.isNotEmpty)
                   InfoBanner(
                     tone: StatusTone.danger,
@@ -322,11 +312,16 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
                         textAlign: TextAlign.center),
                   );
                   return stack
-                      ? Column(mainAxisSize: MainAxisSize.min, children: <Widget>[
-                          SizedBox(width: double.infinity, child: selectedAction),
-                          const SizedBox(height: AppSpacing.s10),
-                          SizedBox(width: double.infinity, child: allAction),
-                        ])
+                      ? Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: <Widget>[
+                              SizedBox(
+                                  width: double.infinity,
+                                  child: selectedAction),
+                              const SizedBox(height: AppSpacing.s10),
+                              SizedBox(
+                                  width: double.infinity, child: allAction),
+                            ])
                       : Row(children: <Widget>[
                           Expanded(child: selectedAction),
                           const SizedBox(width: AppSpacing.s10),
@@ -532,6 +527,7 @@ class _ReceivableTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final r = receivable;
+    const summaryValueWidth = 132.0;
     final due =
         r.dueDate == null ? 'Chưa có hạn' : 'Hạn ${AppDates.date(r.dueDate)}';
     return AppCard(
@@ -553,34 +549,81 @@ class _ReceivableTile extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
-              Row(children: <Widget>[
-                Expanded(
-                  child: Text(r.orderCode,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: AppText.strong),
-                ),
-                const SizedBox(width: AppSpacing.sm),
-                Flexible(
-                  child: FittedBox(
-                    fit: BoxFit.scaleDown,
-                    alignment: Alignment.topRight,
-                    child:
-                        StatusChip(label: r.status.label, tone: r.status.tone),
+              Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          Text(r.orderCode,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: AppText.strong),
+                          const SizedBox(height: AppSpacing.xxs),
+                          Text(due,
+                              style: AppText.mutedSmall.copyWith(
+                                  color: r.isOverdue
+                                      ? AppColors.danger
+                                      : AppColors.textMuted)),
+                        ],
+                      ),
+                    ),
+                    SizedBox(
+                      width: summaryValueWidth,
+                      child: Align(
+                        alignment: Alignment.topRight,
+                        child: StatusChip(
+                            label: r.status.label, tone: r.status.tone),
+                      ),
+                    ),
+                  ]),
+              const SizedBox(height: AppSpacing.md),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        const Text('Phương thức thanh toán',
+                            style: AppText.mutedSmall),
+                        const SizedBox(height: AppSpacing.xxs),
+                        Text(
+                            r.method == 'Prepaid'
+                                ? 'Trả trước'
+                                : 'Công nợ ${r.term} ngày',
+                            style: AppText.bodySmall),
+                      ],
+                    ),
                   ),
-                ),
-              ]),
-              const SizedBox(height: AppSpacing.s6),
-              Text(due,
-                  style: AppText.mutedSmall.copyWith(
-                      color: r.isOverdue
-                          ? AppColors.danger
-                          : AppColors.textMuted)),
-              Text(
-                  r.method == 'Prepaid'
-                      ? 'Trả trước'
-                      : 'Công nợ ${r.term} ngày',
-                  style: AppText.mutedSmall),
+                  const SizedBox(width: AppSpacing.md),
+                  SizedBox(
+                    width: summaryValueWidth,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: <Widget>[
+                        const Text('Tổng cần thanh toán',
+                            style: AppText.mutedSmall),
+                        const SizedBox(height: AppSpacing.xxs),
+                        FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerRight,
+                          child: Text(
+                            Money.format(r.isPaid
+                                ? r.confirmedAmount
+                                : r.method == 'Prepaid'
+                                    ? r.outstandingAmount
+                                    : r.collectibleAmount),
+                            style: AppText.strong.copyWith(
+                                fontSize: 16, color: AppColors.primary),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
               if (r.collectibleAmount != r.outstandingAmount)
                 Padding(
                   padding: const EdgeInsets.only(top: AppSpacing.xxs),
@@ -590,62 +633,6 @@ class _ReceivableTile extends StatelessWidget {
                         AppText.mutedSmall.copyWith(color: AppColors.warning),
                   ),
                 ),
-              const SizedBox(height: AppSpacing.md),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.s10, vertical: AppSpacing.sm),
-                decoration: const BoxDecoration(
-                  color: AppColors.primarySoft,
-                  borderRadius: AppRadius.smallAll,
-                ),
-                child: LayoutBuilder(builder: (context, constraints) {
-                  final stack = constraints.maxWidth < 300 ||
-                      MediaQuery.textScalerOf(context).scale(1) > 1.2;
-                  final stateLabel = Text(
-                    r.isPaid ? 'Đã thanh toán' : 'Cần thanh toán',
-                    style: AppText.label.copyWith(color: AppColors.primaryDark),
-                  );
-                  final amount = Column(
-                    crossAxisAlignment: stack
-                        ? CrossAxisAlignment.start
-                        : CrossAxisAlignment.end,
-                    children: <Widget>[
-                      const Text('Tổng cần thanh toán',
-                          style: AppText.mutedSmall),
-                      const SizedBox(height: AppSpacing.xxs),
-                      FittedBox(
-                        fit: BoxFit.scaleDown,
-                        alignment: stack
-                            ? Alignment.centerLeft
-                            : Alignment.centerRight,
-                        child: Text(
-                          Money.format(r.isPaid
-                              ? r.confirmedAmount
-                              : r.method == 'Prepaid'
-                                  ? r.outstandingAmount
-                                  : r.collectibleAmount),
-                          style: AppText.strong
-                              .copyWith(fontSize: 16, color: AppColors.primary),
-                        ),
-                      ),
-                    ],
-                  );
-                  return stack
-                      ? Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: <Widget>[
-                            stateLabel,
-                            const SizedBox(height: AppSpacing.sm),
-                            amount,
-                          ],
-                        )
-                      : Row(children: <Widget>[
-                          Expanded(child: stateLabel),
-                          amount,
-                        ]);
-                }),
-              ),
             ],
           ),
         ),
