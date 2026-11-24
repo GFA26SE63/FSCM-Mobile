@@ -291,34 +291,43 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
               ),
               child: SafeArea(
                 minimum: const EdgeInsets.all(AppSpacing.md),
-                child: Row(children: <Widget>[
-                  Expanded(
-                      child: OutlinedButton(
+                child: LayoutBuilder(builder: (context, constraints) {
+                  final stack = constraints.maxWidth < 420 ||
+                      MediaQuery.textScalerOf(context).scale(1) > 1.2;
+                  final selectedAction = OutlinedButton(
                     onPressed: _busy || _selected.isEmpty
                         ? null
                         : () => _confirmAndPay(payAll: false),
-                    child: const FittedBox(
-                      fit: BoxFit.scaleDown,
-                      child: Text('Trả các khoản đã chọn',
-                          textAlign: TextAlign.center),
-                    ),
-                  )),
-                  const SizedBox(width: AppSpacing.s10),
-                  Expanded(
-                      child: FilledButton(
+                    child: const Text('Trả các khoản đã chọn',
+                        textAlign: TextAlign.center),
+                  );
+                  final allAction = FilledButton(
                     onPressed: _busy ||
                             !(receivables.valueOrNull?.any((r) =>
                                     !r.isPaid && r.collectibleAmount > 0) ??
                                 false)
                         ? null
                         : () => _confirmAndPay(payAll: true),
-                    child: const FittedBox(
-                      fit: BoxFit.scaleDown,
-                      child: Text('Trả toàn bộ công nợ',
-                          textAlign: TextAlign.center),
-                    ),
-                  )),
-                ]),
+                    child: const Text('Trả toàn bộ công nợ',
+                        textAlign: TextAlign.center),
+                  );
+                  return stack
+                      ? Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: <Widget>[
+                              SizedBox(
+                                  width: double.infinity,
+                                  child: selectedAction),
+                              const SizedBox(height: AppSpacing.s10),
+                              SizedBox(
+                                  width: double.infinity, child: allAction),
+                            ])
+                      : Row(children: <Widget>[
+                          Expanded(child: selectedAction),
+                          const SizedBox(width: AppSpacing.s10),
+                          Expanded(child: allAction),
+                        ]);
+                }),
               )),
     );
   }
@@ -518,6 +527,7 @@ class _ReceivableTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final r = receivable;
+    const summaryValueWidth = 132.0;
     final due =
         r.dueDate == null ? 'Chưa có hạn' : 'Hạn ${AppDates.date(r.dueDate)}';
     return AppCard(
@@ -525,7 +535,7 @@ class _ReceivableTile extends StatelessWidget {
           ? () => context.push(AppRoutes.rtOrderDetail(r.orderCode))
           : () => onSelected!(!selected),
       child:
-          Row(crossAxisAlignment: CrossAxisAlignment.start, children: <Widget>[
+          Row(crossAxisAlignment: CrossAxisAlignment.center, children: <Widget>[
         if (onSelected != null)
           Padding(
             padding: const EdgeInsets.only(right: AppSpacing.xs),
@@ -539,34 +549,81 @@ class _ReceivableTile extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
-              Row(children: <Widget>[
-                Expanded(
-                  child: Text(r.orderCode,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: AppText.strong),
-                ),
-                const SizedBox(width: AppSpacing.sm),
-                Flexible(
-                  child: FittedBox(
-                    fit: BoxFit.scaleDown,
-                    alignment: Alignment.topRight,
-                    child:
-                        StatusChip(label: r.status.label, tone: r.status.tone),
+              Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          Text(r.orderCode,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: AppText.strong),
+                          const SizedBox(height: AppSpacing.xxs),
+                          Text(due,
+                              style: AppText.mutedSmall.copyWith(
+                                  color: r.isOverdue
+                                      ? AppColors.danger
+                                      : AppColors.textMuted)),
+                        ],
+                      ),
+                    ),
+                    SizedBox(
+                      width: summaryValueWidth,
+                      child: Align(
+                        alignment: Alignment.topRight,
+                        child: StatusChip(
+                            label: r.status.label, tone: r.status.tone),
+                      ),
+                    ),
+                  ]),
+              const SizedBox(height: AppSpacing.md),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        const Text('Phương thức thanh toán',
+                            style: AppText.mutedSmall),
+                        const SizedBox(height: AppSpacing.xxs),
+                        Text(
+                            r.method == 'Prepaid'
+                                ? 'Trả trước'
+                                : 'Công nợ ${r.term} ngày',
+                            style: AppText.bodySmall),
+                      ],
+                    ),
                   ),
-                ),
-              ]),
-              const SizedBox(height: AppSpacing.s6),
-              Text(due,
-                  style: AppText.mutedSmall.copyWith(
-                      color: r.isOverdue
-                          ? AppColors.danger
-                          : AppColors.textMuted)),
-              Text(
-                  r.method == 'Prepaid'
-                      ? 'Trả trước'
-                      : 'Công nợ ${r.term} ngày',
-                  style: AppText.mutedSmall),
+                  const SizedBox(width: AppSpacing.md),
+                  SizedBox(
+                    width: summaryValueWidth,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: <Widget>[
+                        const Text('Tổng cần thanh toán',
+                            style: AppText.mutedSmall),
+                        const SizedBox(height: AppSpacing.xxs),
+                        FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerRight,
+                          child: Text(
+                            Money.format(r.isPaid
+                                ? r.confirmedAmount
+                                : r.method == 'Prepaid'
+                                    ? r.outstandingAmount
+                                    : r.collectibleAmount),
+                            style: AppText.strong.copyWith(
+                                fontSize: 16, color: AppColors.primary),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
               if (r.collectibleAmount != r.outstandingAmount)
                 Padding(
                   padding: const EdgeInsets.only(top: AppSpacing.xxs),
@@ -576,44 +633,6 @@ class _ReceivableTile extends StatelessWidget {
                         AppText.mutedSmall.copyWith(color: AppColors.warning),
                   ),
                 ),
-              const SizedBox(height: AppSpacing.md),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.s10, vertical: AppSpacing.sm),
-                decoration: const BoxDecoration(
-                  color: AppColors.primarySoft,
-                  borderRadius: AppRadius.smallAll,
-                ),
-                child: Row(children: <Widget>[
-                  Expanded(
-                    child: Text(r.isPaid ? 'Đã thanh toán' : 'Cần thanh toán',
-                        style: AppText.label
-                            .copyWith(color: AppColors.primaryDark)),
-                  ),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: <Widget>[
-                      const Text('Tổng cần thanh toán',
-                          style: AppText.mutedSmall),
-                      const SizedBox(height: AppSpacing.xxs),
-                      FittedBox(
-                        fit: BoxFit.scaleDown,
-                        alignment: Alignment.centerRight,
-                        child: Text(
-                          Money.format(r.isPaid
-                              ? r.confirmedAmount
-                              : r.method == 'Prepaid'
-                                  ? r.outstandingAmount
-                                  : r.collectibleAmount),
-                          style: AppText.strong
-                              .copyWith(fontSize: 16, color: AppColors.primary),
-                        ),
-                      ),
-                    ],
-                  ),
-                ]),
-              ),
             ],
           ),
         ),
