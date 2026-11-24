@@ -43,14 +43,13 @@ jobs:
 
       - name: Test
         run: |
-          mkdir --parents "$RUNNER_TEMP/test-results"
-          flutter test --machine > "$RUNNER_TEMP/test-results/flutter-test.json"
+          flutter test --machine > "flutter-test-${GITHUB_RUN_ID}.json"
 
       - name: Upload CI artifacts
         if: ${{ always() }}
         uses: actions/upload-artifact@v4
         with:
           name: mobile-ci-${{ github.run_id }}
-          path: ${{ runner.temp }}/test-results
+          path: flutter-test-${{ github.run_id }}.json
           if-no-files-found: warn
           retention-days: 14
