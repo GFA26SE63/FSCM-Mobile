@@ -208,7 +208,8 @@ class _PayOsCheckoutResultPageState extends State<PayOsCheckoutResultPage>
                               child: FilledButton.icon(
                                 onPressed: _refreshing ? null : _refresh,
                                 icon: const Icon(Icons.refresh, size: 18),
-                                label: Text(_refreshing ? 'Đang kiểm tra' : 'Kiểm tra'),
+                                label: Text(
+                                    _refreshing ? 'Đang kiểm tra' : 'Kiểm tra'),
                               ),
                             ),
                           ],

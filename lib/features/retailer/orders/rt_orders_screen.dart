@@ -348,7 +348,8 @@ class _RtOrdersScreenState extends ConsumerState<RtOrdersScreen>
             ),
           ),
           if (state.hasMore && orders.isEmpty)
-            const InfoBanner(text: 'Còn đơn chưa tải. Cuộn xuống hoặc chọn “Tải thêm”.'),
+            const InfoBanner(
+                text: 'Còn đơn chưa tải. Cuộn xuống hoặc chọn “Tải thêm”.'),
           if (orders.isEmpty) EmptyState(title: empty),
           for (final order in orders) RtOrderTile(order: order),
           if (state.moreError != null) InfoBanner(text: state.moreError!),
@@ -413,7 +414,7 @@ class RtOrderTile extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
-                    Text('Thanh toán', style: AppText.mutedSmall),
+                    const Text('Thanh toán', style: AppText.mutedSmall),
                     const SizedBox(height: AppSpacing.xxs),
                     Text(o.payment.labelWithTerm(o.creditTerm),
                         style: AppText.bodySmall),
@@ -424,7 +425,7 @@ class RtOrderTile extends StatelessWidget {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: <Widget>[
-                  Text('Tổng tiền', style: AppText.mutedSmall),
+                  const Text('Tổng tiền', style: AppText.mutedSmall),
                   const SizedBox(height: AppSpacing.xxs),
                   Text(Money.format(o.finalAmount),
                       style: AppText.strong.copyWith(color: AppColors.primary)),
