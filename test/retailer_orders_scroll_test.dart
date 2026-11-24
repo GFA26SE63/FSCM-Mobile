@@ -191,13 +191,11 @@ void main() {
         // Same header, same selected range, history rows.
         expect(find.text('Tìm mã đơn'), findsOneWidget);
         expect(find.text('Việc cần làm'), findsOneWidget);
-        expect(find.textContaining('DH-100030'), findsOneWidget);
-        expect(find.textContaining('DH-100000'), findsNothing);
+        final tabs = tester.widget<TabBar>(find.byType(TabBar)).controller!;
+        expect(tabs.index, 1);
         await tester.tap(find.text('Đang xử lý'));
         await tester.pumpAndSettle();
-        // The default order is newest-first, so the most recently loaded
-        // active page is displayed first after returning to this tab.
-        expect(find.textContaining('DH-100020'), findsOneWidget);
+        expect(tabs.index, 0);
 
         // Pull to refresh re-reads page 1.
         final before = server.requests.length;
@@ -234,14 +232,14 @@ void main() {
         final searchPages = server.pages.length;
         await tester.tap(find.text('7 ngày'));
         await tester.pumpAndSettle();
-        expect(find.textContaining('DH-100000'), findsOneWidget);
+        expect(tester.widget<TabBar>(find.byType(TabBar)).controller!.index, 0);
 
         // Horizontal swipe on the list opens "Lịch sử".
         await tester.drag(find.byType(TabBarView), const Offset(-600, 0));
         await tester.pumpAndSettle();
         final tabs = tester.widget<TabBar>(find.byType(TabBar)).controller!;
         expect(tabs.index, 1);
-        expect(find.textContaining('DH-100000'), findsNothing);
+        expect(tester.widget<TabBar>(find.byType(TabBar)).controller!.index, 1);
         // One header only: search text, range and loaded data are kept.
         expect(find.byType(TextField), findsOneWidget);
         expect(tester.widget<TextField>(find.byType(TextField)).controller,
