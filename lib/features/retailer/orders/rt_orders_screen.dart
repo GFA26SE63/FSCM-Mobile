@@ -405,21 +405,32 @@ class RtOrderTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final o = order;
+    const summaryValueWidth = 132.0;
     return AppCard(
       onTap: () => context.push(AppRoutes.rtOrderDetail(o.id)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Column(
+          Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
-              Text(o.code, style: AppText.strong),
-              const SizedBox(height: AppSpacing.xxs),
-              Text(AppDates.timeDay(o.createdAt), style: AppText.mutedSmall),
-              const SizedBox(height: AppSpacing.s6),
-              Align(
-                alignment: Alignment.centerRight,
-                child: OrderStatusChip(o),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(o.code, style: AppText.strong),
+                    const SizedBox(height: AppSpacing.xxs),
+                    Text(AppDates.timeDay(o.createdAt),
+                        style: AppText.mutedSmall),
+                  ],
+                ),
+              ),
+              SizedBox(
+                width: summaryValueWidth,
+                child: Align(
+                  alignment: Alignment.centerRight,
+                  child: OrderStatusChip(o),
+                ),
               ),
             ],
           ),
@@ -454,7 +465,8 @@ class RtOrderTile extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: AppSpacing.md),
-                Flexible(
+                SizedBox(
+                  width: summaryValueWidth,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: <Widget>[
