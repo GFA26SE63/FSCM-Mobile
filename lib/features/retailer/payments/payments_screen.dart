@@ -143,6 +143,7 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
           return RefreshIndicator(
             onRefresh: () async => ref.refresh(receivablesProvider.future),
             child: ListView(
+              cacheExtent: 10000,
               padding: const EdgeInsets.fromLTRB(
                   AppSpacing.lg, AppSpacing.lg, AppSpacing.lg, 120),
               children: <Widget>[
@@ -296,8 +297,11 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
                     onPressed: _busy || _selected.isEmpty
                         ? null
                         : () => _confirmAndPay(payAll: false),
-                    child: const Text('Trả các khoản đã chọn',
-                        textAlign: TextAlign.center),
+                    child: const FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text('Trả các khoản đã chọn',
+                          textAlign: TextAlign.center),
+                    ),
                   )),
                   const SizedBox(width: AppSpacing.s10),
                   Expanded(
@@ -308,8 +312,11 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
                                 false)
                         ? null
                         : () => _confirmAndPay(payAll: true),
-                    child: const Text('Trả toàn bộ công nợ',
-                        textAlign: TextAlign.center),
+                    child: const FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text('Trả toàn bộ công nợ',
+                          textAlign: TextAlign.center),
+                    ),
                   )),
                 ]),
               )),
@@ -486,7 +493,11 @@ class _Summary extends StatelessWidget {
         child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
-              Text(label, style: AppText.mutedSmall),
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Text(label, style: AppText.mutedSmall),
+              ),
               const SizedBox(height: AppSpacing.xs),
               FittedBox(
                   fit: BoxFit.scaleDown,
@@ -525,7 +536,14 @@ class _ReceivableTile extends StatelessWidget {
                 children: <Widget>[
               Row(children: <Widget>[
                 Expanded(child: Text(r.orderCode, style: AppText.strong)),
-                StatusChip(label: r.status.label, tone: r.status.tone),
+                Flexible(
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.topRight,
+                    child:
+                        StatusChip(label: r.status.label, tone: r.status.tone),
+                  ),
+                ),
               ]),
               const SizedBox(height: AppSpacing.xxs),
               Text(due,
@@ -548,7 +566,8 @@ class _ReceivableTile extends StatelessWidget {
                 child: Column(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: <Widget>[
-                      const Text('Tổng cần thanh toán', style: AppText.mutedSmall),
+                      const Text('Tổng cần thanh toán',
+                          style: AppText.mutedSmall),
                       Text(
                           Money.format(r.isPaid
                               ? r.confirmedAmount

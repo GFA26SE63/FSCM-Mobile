@@ -313,6 +313,11 @@ class _RtOrdersScreenState extends ConsumerState<RtOrdersScreen>
         : (state.hasMore
             ? 'Chưa thấy đơn lịch sử trong dữ liệu đã tải.'
             : 'Chưa có đơn lịch sử.');
+    _fillVisiblePage(
+      state,
+      activeTab: activeTab,
+      visibleOrderCount: orders.length,
+    );
     // The tabs and date range currently refine the loaded GraphQL page. Do
     // not auto-drain subsequent pages when this tab happens to have few rows:
     // that created a serial request waterfall on screen open. Pagination is
@@ -336,13 +341,14 @@ class _RtOrdersScreenState extends ConsumerState<RtOrdersScreen>
       child: ListView(
         key: PageStorageKey<String>(
             'rt-orders-${activeTab ? 'active' : 'history'}'),
+        cacheExtent: 2000,
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.all(AppSpacing.lg),
         children: <Widget>[
           Padding(
             padding: const EdgeInsets.only(bottom: AppSpacing.sm),
             child: Text(
-              '${state.orders.length}/${state.totalCount} đơn đã tải'
+              'Đã tải ${state.orders.length}/${state.totalCount} đơn'
               '${_query.isEmpty ? '' : ' · kết quả tìm kiếm'}',
               style: AppText.mutedSmall,
             ),
@@ -365,6 +371,28 @@ class _RtOrdersScreenState extends ConsumerState<RtOrdersScreen>
         ],
       ),
     );
+  }
+
+  void _fillVisiblePage(
+    RetailerOrdersState state, {
+    required bool activeTab,
+    required int visibleOrderCount,
+  }) {
+    // A server page can contain no rows for the active tab or date range.
+    // Continue only until the visible tab has a complete page, never from the
+    // offstage tab, and let the controller serialize every request.
+    if (activeTab != (_tabIndex == 0) ||
+        visibleOrderCount >= 10 ||
+        !state.hasMore ||
+        state.loadingMore ||
+        state.moreError != null) {
+      return;
+    }
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      ref.read(retailerOrdersProvider(_query).notifier).loadMore();
+    });
   }
 }
 
@@ -396,7 +424,13 @@ class RtOrderTile extends StatelessWidget {
                   ],
                 ),
               ),
-              OrderStatusChip(o),
+              Flexible(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.topRight,
+                  child: OrderStatusChip(o),
+                ),
+              ),
             ],
           ),
           if (o.itemsSummary.isNotEmpty) ...<Widget>[
@@ -422,14 +456,21 @@ class RtOrderTile extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: AppSpacing.sm),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: <Widget>[
-                  const Text('Tổng tiền', style: AppText.mutedSmall),
-                  const SizedBox(height: AppSpacing.xxs),
-                  Text(Money.format(o.finalAmount),
-                      style: AppText.strong.copyWith(color: AppColors.primary)),
-                ],
+              Flexible(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: <Widget>[
+                    const Text('Tổng tiền', style: AppText.mutedSmall),
+                    const SizedBox(height: AppSpacing.xxs),
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerRight,
+                      child: Text(Money.format(o.finalAmount),
+                          style: AppText.strong
+                              .copyWith(color: AppColors.primary)),
+                    ),
+                  ],
+                ),
               ),
             ],
           ),
