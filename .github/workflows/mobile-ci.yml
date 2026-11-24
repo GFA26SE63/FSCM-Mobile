@@ -43,7 +43,8 @@ jobs:
 
       - name: Test
         run: |
-          flutter test --machine > "flutter-test-${GITHUB_RUN_ID}.json"
+          set -o pipefail
+          flutter test --machine | tee "flutter-test-${GITHUB_RUN_ID}.json"
 
       - name: Upload CI artifacts
         if: ${{ always() }}
