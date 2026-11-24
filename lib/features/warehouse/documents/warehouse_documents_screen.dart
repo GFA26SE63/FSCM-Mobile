@@ -1,6 +1,7 @@
 import 'package:fscm_mobile/core/utils/dates.dart';
 import 'package:fscm_mobile/core/utils/status_labels.dart';
 import 'dart:async';
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:fscm_mobile/core/utils/numbers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -99,6 +100,29 @@ class WarehouseDocumentsScreen extends ConsumerWidget {
               value: value,
               onRetry: () => ref.invalidate(warehouseDocumentsProvider),
               builder: (all) {
+                if (kDebugMode) {
+                  // TEMPORARY (debug only): why each document is shown or hidden.
+                  debugPrint('[WK-DOCS] ${operation.name} history=$history '
+                      'total=${all.length} scope=$scope');
+                  for (final w
+                      in all.where((w) => operation.includes(w.document))) {
+                    final d = w.document;
+                    final hasChild =
+                        all.any((c) => c.document['sourceDocumentId'] == w.id);
+                    final reason = !scope.contains(d['warehouseId'])
+                        ? 'HIDDEN: warehouse not in login scope'
+                        : (d['kind'] == 'Request' && hasChild)
+                            ? 'HIDDEN: request replaced by its child document'
+                            : (history ? !w.historic : !w.pending)
+                                ? 'HIDDEN: status/kind belongs to the other tab'
+                                : 'shown';
+                    debugPrint('[WK-DOCS]  ${d['code']} kind=${d['kind']} '
+                        'reason=${d['reason']} status=${d['status']} '
+                        'warehouse=${d['warehouseId']} '
+                        'orders=${w.lines.map((l) => l['orderCode']).toSet()} '
+                        'pickingLists=${w.lines.map((l) => l['pickingListId']).toSet()} -> $reason');
+                  }
+                }
                 final works = all
                     .where((w) =>
                         operation.includes(w.document) &&
