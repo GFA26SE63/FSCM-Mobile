@@ -56,10 +56,11 @@ final giftsProvider = FutureProvider.autoDispose<List<Gift>>((ref) async {
   return repository.gifts(programId: account.programId!);
 });
 
-final redemptionAttemptStoreProvider = Provider<RedemptionAttemptStore>((ref) =>
-    RedemptionAttemptStore(server: Env.effectiveApiBaseUrl));
+final redemptionAttemptStoreProvider = Provider<RedemptionAttemptStore>(
+    (ref) => RedemptionAttemptStore(server: Env.effectiveApiBaseUrl));
 
-final pendingRedemptionProvider = FutureProvider.autoDispose<RedemptionAttempt?>((ref) {
+final pendingRedemptionProvider =
+    FutureProvider.autoDispose<RedemptionAttempt?>((ref) {
   final user = ref.watch(currentUserProvider);
   if (user == null) {
     return null;
@@ -118,13 +119,16 @@ class LoyaltyRepository {
 
   Future<LoyaltyAccount> account() => _loyalty.account();
 
-  Future<List<Gift>> gifts({required String programId}) => _loyalty.gifts(programId: programId);
+  Future<List<Gift>> gifts({required String programId}) =>
+      _loyalty.gifts(programId: programId);
 
   Future<List<GiftRedemption>> redemptions() => _loyalty.redemptions();
 
   /// Points are held right away; refunded if the request is rejected.
   Future<GiftRedemption> redeem(RedemptionAttempt attempt) => _loyalty.redeem(
-      rewardId: attempt.rewardId, quantity: attempt.quantity, operationKey: attempt.operationKey);
+      rewardId: attempt.rewardId,
+      quantity: attempt.quantity,
+      operationKey: attempt.operationKey);
 
   Future<List<Complaint>> complaints() => _complaints.list();
 

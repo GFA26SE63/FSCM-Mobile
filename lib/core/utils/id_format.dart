@@ -120,6 +120,7 @@ class IdFormat {
   static final RegExp batchPattern =
       RegExp(r'^(WH-[A-Z]{2,4})-(SKU\d{3})-(\d{2})(\d{2})(\d{4})$');
   static final RegExp labelPattern = RegExp(r'^TEM-\d{6}$');
+
   /// Factory carton identity, preserved through warehouse issue and receipt.
   static final RegExp cartonPattern =
       RegExp(r'^CID-[A-Z0-9]{1,12}-\d{8}-[A-D]-\d{4}-\d{4,}$');

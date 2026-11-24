@@ -528,8 +528,16 @@ class _ReceivableTile extends StatelessWidget {
                 StatusChip(label: r.status.label, tone: r.status.tone),
               ]),
               const SizedBox(height: AppSpacing.xxs),
-              Text(due, style: AppText.mutedSmall.copyWith(color: r.isOverdue ? AppColors.danger : AppColors.textMuted)),
-              Text(r.method == 'Prepaid' ? 'Trả trước' : 'Công nợ ${r.term} ngày', style: AppText.mutedSmall),
+              Text(due,
+                  style: AppText.mutedSmall.copyWith(
+                      color: r.isOverdue
+                          ? AppColors.danger
+                          : AppColors.textMuted)),
+              Text(
+                  r.method == 'Prepaid'
+                      ? 'Trả trước'
+                      : 'Công nợ ${r.term} ngày',
+                  style: AppText.mutedSmall),
               if (r.collectibleAmount != r.outstandingAmount)
                 Text(
                     'Đang tranh chấp: ${Money.format(r.outstandingAmount - r.collectibleAmount)}',
@@ -537,11 +545,19 @@ class _ReceivableTile extends StatelessWidget {
               const SizedBox(height: AppSpacing.sm),
               Align(
                 alignment: Alignment.centerRight,
-                child: Column(crossAxisAlignment: CrossAxisAlignment.end, children: <Widget>[
-                  Text('Tổng cần thanh toán', style: AppText.mutedSmall),
-                  Text(Money.format(r.isPaid ? r.confirmedAmount : r.method == 'Prepaid' ? r.outstandingAmount : r.collectibleAmount),
-                      style: AppText.strong.copyWith(fontSize: 16, color: AppColors.primary)),
-                ]),
+                child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: <Widget>[
+                      const Text('Tổng cần thanh toán', style: AppText.mutedSmall),
+                      Text(
+                          Money.format(r.isPaid
+                              ? r.confirmedAmount
+                              : r.method == 'Prepaid'
+                                  ? r.outstandingAmount
+                                  : r.collectibleAmount),
+                          style: AppText.strong.copyWith(
+                              fontSize: 16, color: AppColors.primary)),
+                    ]),
               ),
             ])),
       ]),
