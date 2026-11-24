@@ -442,14 +442,8 @@ class RtOrderTile extends StatelessWidget {
                 style: AppText.bodySmall.copyWith(color: AppColors.textLabel)),
           ],
           const SizedBox(height: AppSpacing.md),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.s10, vertical: AppSpacing.sm),
-            decoration: const BoxDecoration(
-              color: AppColors.primarySoft,
-              borderRadius: AppRadius.smallAll,
-            ),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
