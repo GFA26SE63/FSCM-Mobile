@@ -147,21 +147,31 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
               padding: const EdgeInsets.fromLTRB(
                   AppSpacing.lg, AppSpacing.lg, AppSpacing.lg, 120),
               children: <Widget>[
-                Row(children: <Widget>[
-                  Expanded(
-                      child: _Summary(
-                          label: 'Công nợ có thể trả',
-                          value: Money.format(openTotal),
-                          color: overdue.isEmpty
-                              ? AppColors.text
-                              : AppColors.danger)),
-                  const SizedBox(width: AppSpacing.s10),
-                  Expanded(
-                      child: _Summary(
-                          label: 'Các khoản đã chọn',
-                          value: Money.format(selectedTotal),
-                          color: AppColors.primary)),
-                ]),
+                LayoutBuilder(builder: (context, constraints) {
+                  final stack = constraints.maxWidth < 420 ||
+                      MediaQuery.textScalerOf(context).scale(1) > 1.2;
+                  final payableSummary = _Summary(
+                      label: 'Công nợ có thể trả',
+                      value: Money.format(openTotal),
+                      color: overdue.isEmpty
+                          ? AppColors.text
+                          : AppColors.danger);
+                  final selectedSummary = _Summary(
+                      label: 'Các khoản đã chọn',
+                      value: Money.format(selectedTotal),
+                      color: AppColors.primary);
+                  return stack
+                      ? Column(children: <Widget>[
+                          payableSummary,
+                          const SizedBox(height: AppSpacing.s10),
+                          selectedSummary,
+                        ])
+                      : Row(children: <Widget>[
+                          Expanded(child: payableSummary),
+                          const SizedBox(width: AppSpacing.s10),
+                          Expanded(child: selectedSummary),
+                        ]);
+                }),
                 if (overdue.isNotEmpty)
                   InfoBanner(
                     tone: StatusTone.danger,
@@ -291,34 +301,38 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
               ),
               child: SafeArea(
                 minimum: const EdgeInsets.all(AppSpacing.md),
-                child: Row(children: <Widget>[
-                  Expanded(
-                      child: OutlinedButton(
+                child: LayoutBuilder(builder: (context, constraints) {
+                  final stack = constraints.maxWidth < 420 ||
+                      MediaQuery.textScalerOf(context).scale(1) > 1.2;
+                  final selectedAction = OutlinedButton(
                     onPressed: _busy || _selected.isEmpty
                         ? null
                         : () => _confirmAndPay(payAll: false),
-                    child: const FittedBox(
-                      fit: BoxFit.scaleDown,
-                      child: Text('Trả các khoản đã chọn',
-                          textAlign: TextAlign.center),
-                    ),
-                  )),
-                  const SizedBox(width: AppSpacing.s10),
-                  Expanded(
-                      child: FilledButton(
+                    child: const Text('Trả các khoản đã chọn',
+                        textAlign: TextAlign.center),
+                  );
+                  final allAction = FilledButton(
                     onPressed: _busy ||
                             !(receivables.valueOrNull?.any((r) =>
                                     !r.isPaid && r.collectibleAmount > 0) ??
                                 false)
                         ? null
                         : () => _confirmAndPay(payAll: true),
-                    child: const FittedBox(
-                      fit: BoxFit.scaleDown,
-                      child: Text('Trả toàn bộ công nợ',
-                          textAlign: TextAlign.center),
-                    ),
-                  )),
-                ]),
+                    child: const Text('Trả toàn bộ công nợ',
+                        textAlign: TextAlign.center),
+                  );
+                  return stack
+                      ? Column(mainAxisSize: MainAxisSize.min, children: <Widget>[
+                          SizedBox(width: double.infinity, child: selectedAction),
+                          const SizedBox(height: AppSpacing.s10),
+                          SizedBox(width: double.infinity, child: allAction),
+                        ])
+                      : Row(children: <Widget>[
+                          Expanded(child: selectedAction),
+                          const SizedBox(width: AppSpacing.s10),
+                          Expanded(child: allAction),
+                        ]);
+                }),
               )),
     );
   }
@@ -585,21 +599,26 @@ class _ReceivableTile extends StatelessWidget {
                   color: AppColors.primarySoft,
                   borderRadius: AppRadius.smallAll,
                 ),
-                child: Row(children: <Widget>[
-                  Expanded(
-                    child: Text(r.isPaid ? 'Đã thanh toán' : 'Cần thanh toán',
-                        style: AppText.label
-                            .copyWith(color: AppColors.primaryDark)),
-                  ),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
+                child: LayoutBuilder(builder: (context, constraints) {
+                  final stack = constraints.maxWidth < 300 ||
+                      MediaQuery.textScalerOf(context).scale(1) > 1.2;
+                  final stateLabel = Text(
+                    r.isPaid ? 'Đã thanh toán' : 'Cần thanh toán',
+                    style: AppText.label.copyWith(color: AppColors.primaryDark),
+                  );
+                  final amount = Column(
+                    crossAxisAlignment: stack
+                        ? CrossAxisAlignment.start
+                        : CrossAxisAlignment.end,
                     children: <Widget>[
                       const Text('Tổng cần thanh toán',
                           style: AppText.mutedSmall),
                       const SizedBox(height: AppSpacing.xxs),
                       FittedBox(
                         fit: BoxFit.scaleDown,
-                        alignment: Alignment.centerRight,
+                        alignment: stack
+                            ? Alignment.centerLeft
+                            : Alignment.centerRight,
                         child: Text(
                           Money.format(r.isPaid
                               ? r.confirmedAmount
@@ -611,8 +630,21 @@ class _ReceivableTile extends StatelessWidget {
                         ),
                       ),
                     ],
-                  ),
-                ]),
+                  );
+                  return stack
+                      ? Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: <Widget>[
+                            stateLabel,
+                            const SizedBox(height: AppSpacing.sm),
+                            amount,
+                          ],
+                        )
+                      : Row(children: <Widget>[
+                          Expanded(child: stateLabel),
+                          amount,
+                        ]);
+                }),
               ),
             ],
           ),
