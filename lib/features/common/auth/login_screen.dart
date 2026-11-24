@@ -7,6 +7,8 @@ import 'package:fscm_mobile/core/utils/status_tone.dart';
 import 'package:fscm_mobile/data/repositories/auth_repository.dart';
 import 'package:fscm_mobile/shared/routes.dart';
 import 'package:fscm_mobile/shared/theme/app_colors.dart';
+import 'package:fscm_mobile/shared/theme/app_text.dart';
+import 'package:fscm_mobile/shared/theme/app_tokens.dart';
 import 'package:fscm_mobile/shared/widgets/fscm_logo.dart';
 import 'package:fscm_mobile/shared/widgets/info_banner.dart';
 
@@ -94,10 +96,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Widget build(BuildContext context) {
     final authError = _error ?? ref.watch(authControllerProvider).error;
     return Scaffold(
+      backgroundColor: AppColors.surface,
       body: SafeArea(
         child: Center(
+          // Scrolls above the keyboard and with large system font scales.
           child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+            padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.xxl + AppSpacing.xs,
+                vertical: AppSpacing.xxl),
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 420),
               child: Form(
@@ -109,25 +116,24 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       alignment: Alignment.centerLeft,
                       child: FscmLogo(
                         size: 56,
-                        borderRadius: 16,
+                        borderRadius: AppRadius.sheet,
                       ),
                     ),
-                    const SizedBox(height: 16),
-                    const Text(
+                    const SizedBox(height: AppSpacing.xl),
+                    Text(
                       'FSCM',
-                      style: TextStyle(
-                        fontSize: 30,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.primary,
-                        letterSpacing: 2,
+                      style: AppText.display.copyWith(
+                        fontSize: 28,
+                        color: AppColors.text,
                       ),
                     ),
-                    const SizedBox(height: 4),
-                    const Text(
+                    const SizedBox(height: AppSpacing.s6),
+                    Text(
                       'Đặt hàng, giao nhận và theo dõi hàng tươi ngắn hạn - kể cả khi mất mạng.',
-                      style: TextStyle(color: AppColors.textMuted, height: 1.4),
+                      style: AppText.bodyLarge
+                          .copyWith(color: AppColors.textMuted, height: 1.5),
                     ),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: AppSpacing.xxl),
                     TextFormField(
                       controller: _identifier,
                       keyboardType: TextInputType.emailAddress,
@@ -145,7 +151,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       },
                     ),
                     if (_passwordStep) ...[
-                      const SizedBox(height: 12),
+                      const SizedBox(height: AppSpacing.md),
                       TextFormField(
                         controller: _password,
                         obscureText: _obscure,
@@ -162,7 +168,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         onFieldSubmitted: (_) => _submit(),
                       ),
                     ],
-                    const SizedBox(height: 12),
+                    const SizedBox(height: AppSpacing.md),
                     if (authError != null)
                       InfoBanner(
                           text: authError,
@@ -174,18 +180,23 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           ? 'Đang xử lý...'
                           : (_passwordStep ? 'Đăng nhập' : 'Tiếp tục')),
                     ),
-                    const SizedBox(height: 14),
-                    const Row(
+                    const SizedBox(height: AppSpacing.card),
+                    Row(
                       children: <Widget>[
-                        Expanded(child: Divider()),
+                        const Expanded(child: Divider()),
                         Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 12),
-                          child: Text('hoặc'),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: AppSpacing.s10),
+                          child: Text(
+                            'hoặc',
+                            style: AppText.bodySmall
+                                .copyWith(color: AppColors.textMuted),
+                          ),
                         ),
-                        Expanded(child: Divider()),
+                        const Expanded(child: Divider()),
                       ],
                     ),
-                    const SizedBox(height: 14),
+                    const SizedBox(height: AppSpacing.card),
                     OutlinedButton.icon(
                       onPressed: _busy ? null : _submitGoogle,
                       icon: Image.asset(

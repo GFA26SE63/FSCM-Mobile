@@ -9,6 +9,8 @@ import 'package:fscm_mobile/core/auth/user_role.dart';
 import 'package:fscm_mobile/core/utils/money.dart';
 import 'package:fscm_mobile/shared/routes.dart';
 import 'package:fscm_mobile/shared/theme/app_colors.dart';
+import 'package:fscm_mobile/shared/theme/app_tokens.dart';
+import 'package:fscm_mobile/shared/theme/app_text.dart';
 import 'package:fscm_mobile/shared/widgets/app_card.dart';
 import 'package:fscm_mobile/shared/widgets/dialogs.dart';
 import 'widgets/profile_identity_card.dart';
@@ -36,7 +38,7 @@ class ProfileScreen extends ConsumerWidget {
       body: user == null
           ? const SizedBox.shrink()
           : ListView(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(AppSpacing.lg),
               children: <Widget>[
                 ProfileIdentityCard(user: user),
                 if (user.role == UserRole.retailer) _CreditProfileCard(),
@@ -46,11 +48,12 @@ class ProfileScreen extends ConsumerWidget {
                     child: Row(
                       children: <Widget>[
                         Icon(a.icon, color: AppColors.primary),
-                        const SizedBox(width: 12),
+                        const SizedBox(width: AppSpacing.md),
                         Expanded(
                           child: Text(
                             a.label,
-                            style: const TextStyle(fontWeight: FontWeight.w600),
+                            style: AppText.cardTitle
+                                .copyWith(color: AppColors.text),
                           ),
                         ),
                         const Icon(Icons.chevron_right,
@@ -58,18 +61,25 @@ class ProfileScreen extends ConsumerWidget {
                       ],
                     ),
                   ),
-                const SizedBox(height: 12),
+                const SizedBox(height: AppSpacing.md),
                 OutlinedButton.icon(
                   key: const Key('btn_logout'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.danger,
+                    side: const BorderSide(
+                        color: AppColors.dangerBorder, width: 1.5),
+                  ),
                   onPressed: () => _logout(context, ref),
                   icon: const Icon(Icons.logout),
                   label: const Text('Đăng xuất'),
                 ),
-                const SizedBox(height: 16),
-                const Center(
+                const SizedBox(height: AppSpacing.lg),
+                Center(
                   child: Text(
                     'FSCM Mobile 0.1.0 · FA26SE083',
-                    style: TextStyle(color: AppColors.textMuted, fontSize: 12),
+                    style: AppText.caption.copyWith(
+                        color: AppColors.textMuted,
+                        fontWeight: FontWeight.w400),
                   ),
                 ),
               ],

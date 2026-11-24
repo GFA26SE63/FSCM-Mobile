@@ -11,6 +11,8 @@ import 'package:fscm_mobile/data/repositories/auth_repository.dart';
 import 'package:fscm_mobile/data/repositories/notification_repository.dart';
 import 'package:fscm_mobile/shared/routes.dart';
 import 'package:fscm_mobile/shared/theme/app_colors.dart';
+import 'package:fscm_mobile/shared/theme/app_tokens.dart';
+import 'package:fscm_mobile/shared/theme/app_text.dart';
 import 'package:fscm_mobile/shared/widgets/app_card.dart';
 import 'package:fscm_mobile/shared/widgets/async_body.dart';
 import 'package:fscm_mobile/shared/widgets/empty_state.dart';
@@ -46,7 +48,7 @@ class NotificationsScreen extends ConsumerWidget {
           return RefreshIndicator(
             onRefresh: () => _refresh(ref),
             child: ListView.builder(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(AppSpacing.lg),
               itemCount: list.length + (state.hasMore ? 1 : 0),
               itemBuilder: (context, i) => i < list.length
                   ? _tile(context, ref, list[i])
@@ -71,10 +73,11 @@ class NotificationsScreen extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
           Padding(
-            padding: const EdgeInsets.only(top: 5, right: 10),
+            padding: const EdgeInsets.only(
+                top: AppSpacing.s6, right: AppSpacing.s10),
             child: Icon(
               Icons.circle,
-              size: 9,
+              size: 8,
               color: n.unread ? AppColors.primary : Colors.transparent,
             ),
           ),
@@ -84,15 +87,20 @@ class NotificationsScreen extends ConsumerWidget {
               children: <Widget>[
                 if (n.title.isNotEmpty) ...<Widget>[
                   Text(n.title,
-                      style: const TextStyle(fontWeight: FontWeight.w700)),
-                  const SizedBox(height: 2),
+                      style: AppText.cardTitle.copyWith(
+                          fontWeight:
+                              n.unread ? FontWeight.w700 : FontWeight.w600,
+                          color: AppColors.text)),
+                  const SizedBox(height: AppSpacing.xxs),
                 ],
-                Text(n.text, style: const TextStyle(height: 1.35)),
-                const SizedBox(height: 4),
+                Text(n.text,
+                    style: AppText.bodyMedium
+                        .copyWith(height: 1.35, color: AppColors.text)),
+                const SizedBox(height: AppSpacing.xs),
                 Text(
                   AppDates.timeDay(n.createdAt),
-                  style:
-                      const TextStyle(fontSize: 12, color: AppColors.textMuted),
+                  style: AppText.caption.copyWith(
+                      fontWeight: FontWeight.w400, color: AppColors.textMuted),
                 ),
               ],
             ),
@@ -113,15 +121,15 @@ class NotificationsScreen extends ConsumerWidget {
   Widget _loadMore(WidgetRef ref, NotificationsState state) {
     if (state.loadingMore) {
       return const Padding(
-        padding: EdgeInsets.all(12),
-        child: Center(child: CircularProgressIndicator()),
+        padding: EdgeInsets.all(AppSpacing.md),
+        child: Center(child: CircularProgressIndicator(strokeWidth: 3)),
       );
     }
     return Column(
       children: <Widget>[
         if (state.moreError != null)
           Text(state.moreError!,
-              style: const TextStyle(color: AppColors.textMuted)),
+              style: AppText.bodyMedium.copyWith(color: AppColors.textMuted)),
         TextButton(
           onPressed: () => ref.read(notificationsProvider.notifier).loadMore(),
           child: const Text('Tải thêm'),

@@ -12,6 +12,9 @@ import 'package:fscm_mobile/shared/routes.dart';
 import 'package:fscm_mobile/shared/widgets/app_card.dart';
 import 'package:fscm_mobile/shared/widgets/info_banner.dart';
 import 'package:fscm_mobile/shared/widgets/payos_checkout_result_page.dart';
+import 'package:fscm_mobile/shared/theme/app_colors.dart';
+import 'package:fscm_mobile/shared/theme/app_text.dart';
+import 'package:fscm_mobile/shared/theme/app_tokens.dart';
 
 class RetailerPrepaidPayment extends ConsumerStatefulWidget {
   const RetailerPrepaidPayment({super.key, required this.order});
@@ -96,15 +99,20 @@ class _RetailerPrepaidPaymentState
           child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Text('Thanh toán trả trước',
-              style: TextStyle(fontWeight: FontWeight.w800)),
+          const Text('Thanh toán trả trước', style: AppText.strong),
           Text(
-              'Số tiền cần thanh toán: ${Money.format(widget.order.finalAmount)}'),
-          const Text(
-              'đơn thực hiện và phiếu soạn được tạo sau khi hệ thống xác nhận đã thu đủ.'),
+              'Số tiền cần thanh toán: ${Money.format(widget.order.finalAmount)}',
+              style: AppText.display
+                  .copyWith(fontSize: 18, color: AppColors.primary)),
+          const SizedBox(height: AppSpacing.sm),
+          const InfoBanner(
+            icon: Icons.info_outline,
+            text:
+                'đơn thực hiện và phiếu soạn được tạo sau khi hệ thống xác nhận đã thu đủ.',
+          ),
           if (_error != null)
             InfoBanner(tone: StatusTone.danger, text: _error!),
-          const SizedBox(height: 8),
+          const SizedBox(height: AppSpacing.sm),
           FilledButton.icon(
             onPressed: _busy ? null : _pay,
             icon: const Icon(Icons.payments_outlined),

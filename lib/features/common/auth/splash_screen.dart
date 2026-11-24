@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:fscm_mobile/data/repositories/auth_repository.dart';
 import 'package:fscm_mobile/shared/theme/app_colors.dart';
+import 'package:fscm_mobile/shared/theme/app_text.dart';
+import 'package:fscm_mobile/shared/theme/app_tokens.dart';
 import 'package:fscm_mobile/shared/widgets/fscm_logo.dart';
 
 /// Restores the stored session; the router redirects away afterwards.
@@ -24,54 +26,59 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
+    const onBrand = AppColors.onPrimary;
+    return Scaffold(
       backgroundColor: AppColors.primary,
-      body: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            FscmLogo(
-              size: 84,
-              borderRadius: 24,
-              backgroundColor: Colors.white,
+      body: SafeArea(
+        // Scrolls (never clips) when the system font scale is large.
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(AppSpacing.xxl),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                const FscmLogo(
+                  size: 84,
+                  borderRadius: 24,
+                  backgroundColor: AppColors.surface,
+                ),
+                const SizedBox(height: AppSpacing.xl),
+                Text(
+                  'FSCM',
+                  style: AppText.display.copyWith(
+                    color: onBrand,
+                    fontSize: 32,
+                    letterSpacing: 2.5,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.s6),
+                Text(
+                  'Hệ thống quản lý chuỗi cung ứng',
+                  textAlign: TextAlign.center,
+                  style: AppText.bodyMedium.copyWith(
+                    color: onBrand.withValues(alpha: 0.8),
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 40),
+                SizedBox(
+                  width: 26,
+                  height: 26,
+                  child: CircularProgressIndicator(
+                    color: onBrand,
+                    backgroundColor: onBrand.withValues(alpha: 0.2),
+                    strokeWidth: 2.5,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.card),
+                Text(
+                  'Đang tải...',
+                  style: AppText.bodySmall
+                      .copyWith(color: onBrand.withValues(alpha: 0.7)),
+                ),
+              ],
             ),
-            SizedBox(height: 20),
-            Text(
-              'FSCM',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 32,
-                fontWeight: FontWeight.w800,
-                letterSpacing: 2.5,
-              ),
-            ),
-            SizedBox(height: 6),
-            Text(
-              'Hệ thống quản lý chuỗi cung ứng',
-              style: TextStyle(
-                color: Color(0xCCFFFFFF),
-                fontSize: 13.5,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-            SizedBox(height: 40),
-            SizedBox(
-              width: 26,
-              height: 26,
-              child: CircularProgressIndicator(
-                color: Colors.white,
-                strokeWidth: 2.5,
-              ),
-            ),
-            SizedBox(height: 14),
-            Text(
-              'Đang tải...',
-              style: TextStyle(
-                color: Color(0xB3FFFFFF),
-                fontSize: 12.5,
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );

@@ -9,6 +9,8 @@ import 'package:fscm_mobile/data/models/offline_order.dart';
 import 'package:fscm_mobile/data/repositories/order_repository.dart';
 import 'package:fscm_mobile/features/sales/orders/widgets/offline_draft_actions.dart';
 import 'package:fscm_mobile/features/sales/orders/widgets/price_difference_card.dart';
+import 'package:fscm_mobile/shared/theme/app_text.dart';
+import 'package:fscm_mobile/shared/theme/app_tokens.dart';
 import 'package:fscm_mobile/shared/widgets/status_chip.dart';
 import 'package:fscm_mobile/shared/routes.dart';
 import 'package:fscm_mobile/shared/widgets/app_card.dart';
@@ -17,6 +19,8 @@ import 'package:fscm_mobile/shared/widgets/empty_state.dart';
 import 'package:fscm_mobile/shared/widgets/info_banner.dart';
 import 'package:fscm_mobile/sync/sync_queue_logic.dart';
 import 'package:fscm_mobile/sync/sync_service.dart';
+import 'package:fscm_mobile/core/utils/status_tone.dart';
+import 'package:fscm_mobile/shared/widgets/kv_row.dart';
 
 class SyncQueueScreen extends ConsumerWidget {
   const SyncQueueScreen({super.key});
@@ -42,6 +46,9 @@ class SyncQueueScreen extends ConsumerWidget {
           ],
           bottom: TabBar(
             isScrollable: true,
+            // Material 3 indents a scrollable bar by 52 dp (under the title);
+            // start aligns the tabs with the page content.
+            tabAlignment: TabAlignment.start,
             tabs: [
               Tab(text: 'Cần xử lý (${counts['todo']})'),
               Tab(text: 'Đang gửi (${counts['doing']})'),
@@ -51,38 +58,66 @@ class SyncQueueScreen extends ConsumerWidget {
         ),
         body: Column(
           children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  const InfoBanner(
-                    text: 'Bản nháp chỉ được gửi khi bạn bấm Gửi. '
-                        'Đăng nhập, có mạng trở lại và cập nhật '
-                        'dữ liệu đồng bộ không tự gửi đơn.',
-                  ),
-                  OutlinedButton.icon(
-                    onPressed: sync.busy
-                        ? null
-                        : () => ref
-                            .read(syncServiceProvider.notifier)
-                            .refreshSnapshot(),
-                    icon: const Icon(Icons.download_outlined),
-                    label: Text(
-                      sync.phase == SyncPhase.pulling
-                          ? 'Đang cập nhật dữ liệu...'
-                          : 'Cập nhật dữ liệu đồng bộ',
-                    ),
-                  ),
-                  if (sync.lastError != null)
-                    Text(
-                      sync.lastError!,
-                      style: TextStyle(
-                        color: Theme.of(context).colorScheme.error,
+            // The status header may never push the list off screen: it takes
+            // at most 45% of the height and scrolls inside that area.
+            ConstrainedBox(
+              constraints: BoxConstraints(
+                  maxHeight: MediaQuery.sizeOf(context).height * 0.45),
+              child: SingleChildScrollView(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                      AppSpacing.lg, AppSpacing.md, AppSpacing.lg, 0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const InfoBanner(
+                        text: 'Bản nháp chỉ được gửi khi bạn bấm Gửi. '
+                            'Đăng nhập, có mạng trở lại và cập nhật '
+                            'dữ liệu đồng bộ không tự gửi đơn.',
                       ),
-                    ),
-                  if (sync.lastSummary != null) Text(sync.lastSummary!),
-                ],
+                      AppCard(
+                        margin: const EdgeInsets.only(bottom: AppSpacing.s10),
+                        child: Column(
+                          children: [
+                            KvRow('Dữ liệu trên máy lúc',
+                                AppDates.timeDay(sync.lastSyncAt)),
+                            KvRow('Bản nháp cần xử lý', '${counts['todo']}'),
+                          ],
+                        ),
+                      ),
+                      FilledButton.icon(
+                        onPressed: sync.busy
+                            ? null
+                            : () => ref
+                                .read(syncServiceProvider.notifier)
+                                .refreshSnapshot(),
+                        icon: const Icon(Icons.download_outlined),
+                        label: Text(
+                          sync.phase == SyncPhase.pulling
+                              ? 'Đang cập nhật dữ liệu...'
+                              : 'Cập nhật dữ liệu đồng bộ',
+                        ),
+                      ),
+                      if (sync.lastError != null) ...[
+                        const SizedBox(height: AppSpacing.sm),
+                        InfoBanner(
+                          tone: StatusTone.danger,
+                          icon: Icons.error_outline,
+                          text: sync.lastError!,
+                        ),
+                      ],
+                      if (sync.lastSummary != null) ...[
+                        const SizedBox(height: AppSpacing.sm),
+                        InfoBanner(
+                          tone: StatusTone.success,
+                          icon: Icons.check_circle_outline,
+                          text: sync.lastSummary!,
+                        ),
+                      ],
+                      const SizedBox(height: AppSpacing.xs),
+                    ],
+                  ),
+                ),
               ),
             ),
             Expanded(
@@ -143,9 +178,9 @@ class _DraftList extends StatelessWidget {
     }
 
     return ListView.separated(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(AppSpacing.lg),
       itemCount: entries.length,
-      separatorBuilder: (_, index) => const SizedBox(height: 8),
+      separatorBuilder: (_, index) => const SizedBox(height: AppSpacing.sm),
       itemBuilder: (_, index) => _DraftCard(
         entry: entries[index],
       ),
@@ -166,26 +201,35 @@ class _DraftCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text(
-            entry.localCode,
-            style: const TextStyle(fontWeight: FontWeight.w800),
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: AppSpacing.sm,
+            runSpacing: AppSpacing.xs,
+            children: [
+              Text(entry.localCode, style: AppText.strong),
+              StatusChip(label: entry.status.label, tone: entry.status.tone),
+            ],
           ),
-          Align(
-            alignment: Alignment.centerLeft,
-            child:
-                StatusChip(label: entry.status.label, tone: entry.status.tone),
-          ),
-          const SizedBox(height: 6),
-          Text('${payload.retailerName} · ${payload.retailerCode}'),
-          Text(
-            AppDates.timeDay(entry.createdAt.toLocal()),
-          ),
-          Text(
-            '${payload.lines.length} sản phẩm · '
-            'Tạm tính ${Money.format(payload.localFinal)}',
+          const SizedBox(height: AppSpacing.s6),
+          Text('${payload.retailerName} · ${payload.retailerCode}',
+              style: AppText.bodyMedium),
+          Text(AppDates.timeDay(entry.createdAt.toLocal()),
+              style: AppText.mutedSmall),
+          const SizedBox(height: AppSpacing.sm),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Expanded(
+                child: Text('${payload.lines.length} sản phẩm · Tạm tính',
+                    style: AppText.muted),
+              ),
+              Text(Money.format(payload.localFinal), style: AppText.strong),
+            ],
           ),
           if (entry.serverOrderCode.isNotEmpty)
-            Text('Mã máy chủ: ${entry.serverOrderCode}'),
+            Text('Mã máy chủ: ${entry.serverOrderCode}',
+                style: AppText.mutedSmall),
           if (entry.status == SyncStatus.synced && entry.finalAmount != null)
             PriceDifferenceCard(
               localAmount: payload.localFinal,

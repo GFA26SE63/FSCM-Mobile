@@ -5,6 +5,8 @@ import 'package:fscm_mobile/core/utils/dates.dart';
 import 'package:fscm_mobile/data/models/json_utils.dart';
 import 'package:fscm_mobile/data/repositories/catalog_repository.dart';
 import 'package:fscm_mobile/shared/theme/app_colors.dart';
+import 'package:fscm_mobile/shared/theme/app_text.dart';
+import 'package:fscm_mobile/shared/theme/app_tokens.dart';
 import 'package:fscm_mobile/shared/widgets/app_card.dart';
 import 'package:fscm_mobile/shared/widgets/async_body.dart';
 import 'package:fscm_mobile/shared/widgets/empty_state.dart';
@@ -51,7 +53,7 @@ class _PromotionsScreenState extends ConsumerState<PromotionsScreen> {
           );
 
           return ListView(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(AppSpacing.lg),
             children: [
               InfoBanner(
                 text:
@@ -59,23 +61,34 @@ class _PromotionsScreenState extends ConsumerState<PromotionsScreen> {
                     'Mỗi dòng nhận tối đa một khuyến mãi đủ điều kiện. '
                     'Giá được máy chủ kiểm tra lại khi gửi đơn.',
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: AppSpacing.md),
               DropdownButtonFormField<String>(
                 key: ValueKey(selectedCode ?? 'all'),
                 initialValue: selectedCode ?? '',
                 decoration: const InputDecoration(
                   labelText: 'Điểm bán áp dụng',
                 ),
+                // The closed field shows one ellipsised line; the open menu wraps
+                // so the full option text stays readable.
+                selectedItemBuilder: (context) => [
+                  const Text('Tất cả chương trình trong dữ liệu đồng bộ',
+                      maxLines: 1, overflow: TextOverflow.ellipsis),
+                  for (final retailer in data.retailers)
+                    Text('${retailer.code} · ${retailer.name}',
+                        maxLines: 1, overflow: TextOverflow.ellipsis),
+                ],
                 items: [
                   const DropdownMenuItem(
                     value: '',
-                    child: Text('Tất cả chương trình trong dữ liệu đồng bộ'),
+                    child: Text('Tất cả chương trình trong dữ liệu đồng bộ',
+                        maxLines: 2, overflow: TextOverflow.ellipsis),
                   ),
                   for (final retailer in data.retailers)
                     DropdownMenuItem(
                       value: retailer.code,
                       child: Text(
                         '${retailer.code} · ${retailer.name}',
+                        maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
@@ -86,7 +99,10 @@ class _PromotionsScreenState extends ConsumerState<PromotionsScreen> {
                 ),
                 isExpanded: true,
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: AppSpacing.md),
+              Text('${promotions.length} chương trình đang chạy',
+                  style: AppText.cardTitle),
+              const SizedBox(height: AppSpacing.sm),
               if (promotions.isEmpty)
                 const EmptyState(
                   title: 'Không có khuyến mãi phù hợp đang chạy.',
@@ -107,50 +123,61 @@ class _PromotionsScreenState extends ConsumerState<PromotionsScreen> {
                         children: [
                           Text(
                             promotion.name,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w700,
-                              fontSize: 15,
+                            style: AppText.strong,
+                          ),
+                          const SizedBox(height: AppSpacing.xs),
+                          Text(
+                            'Hiệu lực: '
+                            '${AppDates.timeDay(promotion.validFrom)}'
+                            ' → ${AppDates.timeDay(promotion.validTo)}',
+                            style: AppText.mutedSmall,
+                          ),
+                          const SizedBox(height: AppSpacing.s10),
+                          // Conditions block (prototype `.promo` panel).
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: AppSpacing.s10,
+                                vertical: AppSpacing.sm),
+                            decoration: const BoxDecoration(
+                              color: AppColors.warningSoft,
+                              borderRadius: AppRadius.smallAll,
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                for (final condition
+                                    in promotion.conditionLines)
+                                  Text(
+                                    condition,
+                                    style: AppText.bodyMedium
+                                        .copyWith(color: AppColors.warning),
+                                  ),
+                              ],
                             ),
                           ),
-                          const SizedBox(height: 8),
-                          for (final condition in promotion.conditionLines)
-                            Text(condition),
-                          const SizedBox(height: 6),
+                          const Divider(height: AppSpacing.xl),
                           const Text(
                             'Sản phẩm trong phạm vi:',
-                            style: TextStyle(
-                              fontWeight: FontWeight.w600,
-                            ),
+                            style: AppText.cardTitle,
                           ),
                           if (productNames.isEmpty)
                             const Text(
                               'Không có SKU phù hợp trong danh mục sản phẩm hiện tại.',
                             ),
                           for (final name in productNames) Text('• $name'),
-                          const SizedBox(height: 8),
-                          Text(
-                            'Hiệu lực: '
-                            '${AppDates.timeDay(promotion.validFrom)}'
-                            ' → ${AppDates.timeDay(promotion.validTo)}',
-                          ),
-                          const SizedBox(height: 4),
+                          const SizedBox(height: AppSpacing.sm),
                           Text(
                             promotion.retailerCodes == null
                                 ? 'Áp dụng cho tất cả điểm bán.'
                                 : 'Điểm bán được áp dụng trong scope: '
                                     '${promotion.retailerCodes!.join(', ')}',
-                            style: const TextStyle(
-                              color: AppColors.textMuted,
-                              fontSize: 12.5,
-                            ),
+                            style: AppText.mutedSmall,
                           ),
                           if (asStrList(record['categoryIds']).isNotEmpty)
                             const Text(
                               'Phạm vi gồm danh mục sản phẩm.',
-                              style: TextStyle(
-                                color: AppColors.textMuted,
-                                fontSize: 12.5,
-                              ),
+                              style: AppText.mutedSmall,
                             ),
                         ],
                       );

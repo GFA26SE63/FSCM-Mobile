@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -5,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import 'package:fscm_mobile/core/network/api_exception.dart';
 import 'package:fscm_mobile/data/repositories/warehouse_repository.dart';
 import 'package:fscm_mobile/shared/routes.dart';
+import 'package:fscm_mobile/shared/widgets/empty_state.dart';
 
 import 'widgets/label_detail_content.dart';
 
@@ -15,6 +18,12 @@ class LabelDetailScreen extends ConsumerWidget {
   });
 
   final String code;
+
+  /// Back to the lookup that opened this label; when opened from a link there
+  /// is no previous route, so the lookup is pushed (and keeps a Back button).
+  static void _scanAnother(BuildContext context) => context.canPop()
+      ? context.pop()
+      : unawaited(context.push(AppRoutes.wkLabelLookup));
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -33,7 +42,7 @@ class LabelDetailScreen extends ConsumerWidget {
           ),
           IconButton(
             tooltip: 'Quét mã khác',
-            onPressed: () => context.go(AppRoutes.wkLabelLookup),
+            onPressed: () => _scanAnother(context),
             icon: const Icon(Icons.qr_code_scanner),
           ),
         ],
@@ -44,35 +53,23 @@ class LabelDetailScreen extends ConsumerWidget {
         loading: () => const Center(
           child: CircularProgressIndicator(),
         ),
-        error: (error, stackTrace) => Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.error_outline, size: 40),
-                const SizedBox(height: 12),
-                Text(
-                  _errorTitle(error),
-                  style: Theme.of(context).textTheme.titleMedium,
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  ApiException.describe(error),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 16),
-                FilledButton(
-                  onPressed: () => ref.invalidate(provider),
-                  child: const Text('Thử lại'),
-                ),
-                TextButton(
-                  onPressed: () => context.go(AppRoutes.wkLabelLookup),
-                  child: const Text('Quét hoặc nhập mã khác'),
-                ),
-              ],
-            ),
+        error: (error, stackTrace) => EmptyState(
+          icon: Icons.error_outline,
+          title: _errorTitle(error),
+          message: ApiException.describe(error),
+          action: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              FilledButton(
+                onPressed: () => ref.invalidate(provider),
+                child: const Text('Thử lại'),
+              ),
+              TextButton(
+                onPressed: () => _scanAnother(context),
+                child: const Text('Quét hoặc nhập mã khác'),
+              ),
+            ],
           ),
         ),
       ),

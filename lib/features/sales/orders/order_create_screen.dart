@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:fscm_mobile/core/utils/focus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:uuid/uuid.dart';
@@ -15,8 +16,8 @@ import 'package:fscm_mobile/core/utils/dates.dart';
 import 'package:fscm_mobile/core/utils/status_tone.dart';
 import 'package:fscm_mobile/data/models/json_utils.dart';
 import 'package:fscm_mobile/data/models/order.dart';
-import 'package:fscm_mobile/data/models/order_availability.dart';
-import 'package:fscm_mobile/shared/widgets/order_stock_summary.dart';
+import 'package:fscm_mobile/shared/theme/app_text.dart';
+import 'package:fscm_mobile/shared/theme/app_tokens.dart';
 import 'package:fscm_mobile/data/models/price_quote.dart';
 import 'package:fscm_mobile/data/models/product.dart';
 import 'package:fscm_mobile/data/models/retailer.dart';
@@ -34,27 +35,17 @@ import 'package:fscm_mobile/shared/routes.dart';
 import 'package:fscm_mobile/shared/theme/app_colors.dart';
 import 'package:fscm_mobile/shared/widgets/app_card.dart';
 import 'package:fscm_mobile/shared/widgets/async_body.dart';
+import 'package:fscm_mobile/shared/widgets/chip_filter_bar.dart';
 import 'package:fscm_mobile/shared/widgets/dialogs.dart';
 import 'package:fscm_mobile/shared/widgets/empty_state.dart';
 import 'package:fscm_mobile/shared/widgets/info_banner.dart';
 import 'package:fscm_mobile/shared/widgets/online_chip.dart';
 import 'package:fscm_mobile/shared/widgets/quantity_stepper.dart';
 import 'package:fscm_mobile/shared/widgets/order_quantity_field.dart';
+import 'package:fscm_mobile/shared/widgets/status_chip.dart';
 import 'package:fscm_mobile/sync/sync_service.dart';
 
-final _orderAvailabilityProvider = FutureProvider.autoDispose
-    .family<Map<String, ProductAvailability>, String>((ref, retailerId) async {
-  ref.watch(dataVersionProvider);
-  ref.watch(currentUserProvider);
-
-  final api = ref.watch(ordersApiProvider);
-  final catalog = await ref.watch(catalogProvider.future);
-
-  return api.availabilityByWarehouse(
-    retailerId,
-    catalog.products.map((product) => product.id).toList(),
-  );
-});
+enum _ProductSort { sku, name, priceLowToHigh, priceHighToLow }
 
 class OrderCreateScreen extends ConsumerStatefulWidget {
   const OrderCreateScreen({
@@ -74,8 +65,17 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
   final String _clientOrderKey = const Uuid().v4();
 
   String _query = '';
+  String _category = '';
+  _ProductSort _sort = _ProductSort.sku;
   bool _busy = false;
   int get _step => ref.read(orderStepProvider).requireValue;
+
+  @override
+  void dispose() {
+    // "Hoàn tác" restores a cart line of this screen; do not leave it behind.
+    hideAppUndoSnack();
+    super.dispose();
+  }
 
   @override
   void initState() {
@@ -130,7 +130,7 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
         title: const Text('Tạo đơn hàng'),
         actions: const [
           Padding(
-            padding: EdgeInsets.only(right: 12),
+            padding: EdgeInsets.only(right: AppSpacing.md),
             child: OnlineChip(),
           ),
         ],
@@ -166,26 +166,7 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
             value: ref.watch(orderStepProvider),
             onRetry: () => ref.invalidate(orderStepProvider),
             builder: (_) {
-              if (!online) {
-                return _body(context, data, retailer, online);
-              }
-              final availability = ref.watch(
-                _orderAvailabilityProvider(retailer.id),
-              );
-              final error = availability.error;
-              final serverUnavailable =
-                  error is ApiException && error.isNetwork;
-              // Connectivity can stay online while the backend is unreachable.
-              // Sales can still prepare a draft; Retailer submission stays online-only.
-              return _body(
-                  context, data, retailer, online && !serverUnavailable,
-                  availability: availability.hasError || availability.isLoading
-                      ? null
-                      : availability.valueOrNull,
-                  availabilityLoading: availability.isLoading,
-                  availabilityError: availability.hasError
-                      ? ApiException.describe(availability.error!)
-                      : null);
+              return _body(context, data, retailer, online);
             },
           );
         },
@@ -197,19 +178,33 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
     BuildContext context,
     CatalogData data,
     Retailer retailer,
-    bool online, {
-    Map<String, ProductAvailability>? availability,
-    bool availabilityLoading = false,
-    String? availabilityError,
-  }) {
+    bool online,
+  ) {
     final isRetailer =
         ref.watch(currentUserProvider)?.role == UserRole.retailer;
 
+    final categories = data.products
+        .map((product) => product.category)
+        .toSet()
+        .toList()
+      ..sort();
+    final selectedCategory = categories.contains(_category) ? _category : '';
     final products = data.products.where((product) {
-      return _query.isEmpty ||
-          product.name.toLowerCase().contains(_query) ||
-          product.sku.toLowerCase().contains(_query);
-    }).toList();
+      return (selectedCategory.isEmpty ||
+              product.category == selectedCategory) &&
+          (_query.isEmpty ||
+              product.name.toLowerCase().contains(_query) ||
+              product.sku.toLowerCase().contains(_query));
+    }).toList()
+      ..sort((a, b) => switch (_sort) {
+            _ProductSort.sku => a.sku.compareTo(b.sku),
+            _ProductSort.name => a.name.compareTo(b.name),
+            _ProductSort.priceLowToHigh =>
+              (data.displayPrice(a) ?? double.infinity)
+                  .compareTo(data.displayPrice(b) ?? double.infinity),
+            _ProductSort.priceHighToLow => (data.displayPrice(b) ?? -1)
+                .compareTo(data.displayPrice(a) ?? -1),
+          });
 
     final lines = _lines;
     final quote =
@@ -219,33 +214,46 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
       children: [
         Expanded(
           child: ListView(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(AppSpacing.lg),
             children: [
               AppCard(
-                child: Column(
+                child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      retailer.name,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w800,
-                        fontSize: 16,
+                    Container(
+                      width: 44,
+                      height: 44,
+                      decoration: const BoxDecoration(
+                        color: AppColors.primarySoft,
+                        borderRadius: AppRadius.controlAll,
                       ),
+                      child: const Icon(Icons.storefront_outlined,
+                          color: AppColors.primary),
                     ),
-                    Text(
-                      'Mã ${retailer.code} · ${retailer.address}',
-                      style: const TextStyle(
-                        color: AppColors.textMuted,
-                      ),
-                    ),
-                    Text(
-                      retailer.creditAllowed
-                          ? 'Kỳ hạn công nợ theo dữ liệu đồng bộ: '
-                              '${retailer.creditTerm} ngày'
-                          : 'Không mua công nợ theo dữ liệu đồng bộ',
-                      style: const TextStyle(
-                        color: AppColors.primary,
-                        fontWeight: FontWeight.w600,
+                    const SizedBox(width: AppSpacing.md),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            retailer.name,
+                            style: AppText.strong.copyWith(fontSize: 16),
+                          ),
+                          Text(
+                            'Mã ${retailer.code} · ${retailer.address}',
+                            style: AppText.mutedSmall,
+                          ),
+                          const SizedBox(height: AppSpacing.xs),
+                          Text(
+                            retailer.creditAllowed
+                                ? 'Kỳ hạn công nợ theo dữ liệu đồng bộ: '
+                                    '${retailer.creditTerm} ngày'
+                                : 'Không mua công nợ theo dữ liệu đồng bộ',
+                            style: AppText.bodySmall.copyWith(
+                                color: AppColors.primary,
+                                fontWeight: FontWeight.w600),
+                          ),
+                        ],
                       ),
                     ),
                   ],
@@ -267,18 +275,10 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
                     'Giá và khuyến mãi trên giỏ được tính từ dữ liệu '
                     'đã lưu; chưa phải báo giá cuối sau phân bổ.',
               ),
-              if (availabilityLoading) const LinearProgressIndicator(),
-              if (availabilityError != null) ...[
-                InfoBanner(tone: StatusTone.warning, text: availabilityError),
-                TextButton(
-                    onPressed: () =>
-                        ref.invalidate(_orderAvailabilityProvider(retailer.id)),
-                    child: const Text('Kiểm tra lại tồn đủ điều kiện')),
-              ],
               InfoBanner(
                 text: online
-                    ? 'Đang dùng kết quả kiểm tra availability '
-                        'cho giới hạn chọn hiện tại.'
+                    ? 'Chọn sản phẩm trước; hệ thống chỉ kiểm tra tồn đủ điều kiện '
+                        'cho các dòng trong giỏ khi đặt hàng.'
                     : 'Tồn dữ liệu đồng bộ chỉ là tham khảo, '
                         'không phải hàng đã giữ cho điểm bán.',
               ),
@@ -289,17 +289,62 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
                       '${quote.missingPriceSkus.join(', ')}. '
                       'Hãy cập nhật dữ liệu đồng bộ hoặc kiểm tra giá trực tuyến.',
                 ),
-              TextField(
-                enabled: !_busy,
-                decoration: const InputDecoration(
-                  hintText: 'Tìm sản phẩm hoặc SKU',
-                  prefixIcon: Icon(Icons.search),
+              AppCard(
+                margin: const EdgeInsets.only(top: AppSpacing.s10),
+                padding: const EdgeInsets.all(AppSpacing.sm),
+                child: Column(
+                  children: [
+                    TextField(
+                      onTapOutside: releaseFocus,
+                      enabled: !_busy,
+                      decoration: const InputDecoration(
+                        hintText: 'Tìm sản phẩm hoặc SKU',
+                        prefixIcon: Icon(Icons.search),
+                      ),
+                      onChanged: (value) =>
+                          setState(() => _query = value.trim().toLowerCase()),
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    ChipFilterBar<String>(
+                      padding: EdgeInsets.zero,
+                      selected: selectedCategory,
+                      onSelected: (value) => setState(() => _category = value),
+                      options: [
+                        const ChipOption<String>('', 'Tất cả'),
+                        for (final category in categories)
+                          ChipOption<String>(category, category),
+                      ],
+                    ),
+                    DropdownButtonFormField<_ProductSort>(
+                      value: _sort,
+                      isExpanded: true,
+                      decoration: const InputDecoration(
+                        labelText: 'Sắp xếp',
+                        prefixIcon: Icon(Icons.sort),
+                      ),
+                      items: const [
+                        DropdownMenuItem(
+                            value: _ProductSort.sku, child: Text('Mã SKU')),
+                        DropdownMenuItem(
+                            value: _ProductSort.name,
+                            child: Text('Tên sản phẩm A–Z')),
+                        DropdownMenuItem(
+                            value: _ProductSort.priceLowToHigh,
+                            child: Text('Giá thấp đến cao')),
+                        DropdownMenuItem(
+                            value: _ProductSort.priceHighToLow,
+                            child: Text('Giá cao đến thấp')),
+                      ],
+                      onChanged: _busy
+                          ? null
+                          : (value) {
+                              if (value != null) setState(() => _sort = value);
+                            },
+                    ),
+                  ],
                 ),
-                onChanged: (value) {
-                  setState(() => _query = value.trim().toLowerCase());
-                },
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: AppSpacing.s10),
               if (products.isEmpty)
                 const EmptyState(
                   title: 'Không có sản phẩm phù hợp',
@@ -313,7 +358,6 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
                     data,
                     retailer,
                     quote,
-                    availability?[product.sku],
                     online: online,
                   ),
             ],
@@ -345,15 +389,13 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
     }
   }
 
-  Widget _productRow(Product product, CatalogData data, Retailer retailer,
-      PriceQuote quote, ProductAvailability? availability,
+  Widget _productRow(
+      Product product, CatalogData data, Retailer retailer, PriceQuote quote,
       {required bool online}) {
     final viewerRole = ref.watch(currentUserProvider)?.role;
-    // Snapshot stock must not limit a Sales draft. Unknown online availability
-    // is not zero; allow browsing, but wait for a verified result to add stock.
-    final maximum = online
-        ? OrderLimits.maxQty(availability?.quantity ?? 0, step: _step)
-        : 2147483647;
+    // Availability is authoritative but expensive: it is checked for the
+    // actual cart at checkout, not for every catalog item while this screen opens.
+    const maximum = 2147483647;
     final quantity = _cart[product.sku] ?? 0;
     final price = data.displayPrice(product);
     final pricedLines =
@@ -376,7 +418,7 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
           builder: (_) => ProductDetailScreen(
             product: product,
             unitPrice: price,
-            availability: availability,
+            availability: null,
             viewerRole: viewerRole,
             promotions: promotions,
           ),
@@ -386,7 +428,7 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
 
     return Padding(
       key: ValueKey(product.sku),
-      padding: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.only(bottom: AppSpacing.s10),
       child: AppCard(
         margin: EdgeInsets.zero,
         onTap: _busy ? null : openDetail,
@@ -398,7 +440,7 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
                 Expanded(
                   child: Text(
                     '${product.sku} · ${product.name}',
-                    style: const TextStyle(fontWeight: FontWeight.w700),
+                    style: AppText.strong,
                   ),
                 ),
                 IconButton(
@@ -413,87 +455,62 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
                   ? '${product.pack} · Chưa có giá hiệu lực trong dữ liệu đồng bộ'
                   : '${product.pack} · '
                       '${Money.format(price)}/thùng · dự kiến',
-              style: TextStyle(
-                color: price == null ? AppColors.warning : AppColors.textMuted,
-              ),
+              style: price == null
+                  ? AppText.bodySmall.copyWith(color: AppColors.warning)
+                  : AppText.bodySmall.copyWith(
+                      color: AppColors.primary, fontWeight: FontWeight.w600),
             ),
-            const SizedBox(height: 6),
-            if (availability != null)
-              OrderStockSummary(
-                availability: availability,
-                viewerRole: viewerRole,
-                onViewAll: _busy ? null : openDetail,
-              ),
+            const SizedBox(height: AppSpacing.s6),
             OrderQuantityField(
-              label: maximum == 0
-                  ? (availability == null
-                      ? 'Chưa kiểm tra được tồn đủ điều kiện'
-                      : availability.quantity <= 0
-                          ? 'Không có hàng đủ điều kiện để giao'
-                          : 'Chưa đủ hàng theo bước $_step thùng')
+              label: online
+                  ? (_step == 1
+                      ? 'Số lượng (thùng) · kiểm tra tồn trước khi đặt'
+                      : 'Số lượng · bội $_step thùng · kiểm tra trước khi đặt')
                   : _step == 1
                       ? 'Số lượng (thùng)'
                       : 'Số lượng · bội $_step thùng',
-              labelColor:
-                  maximum == 0 ? AppColors.warning : AppColors.textMuted,
+              labelColor: AppColors.textMuted,
               showRemove: quantity > 0,
               onRemove: _busy ? null : () => _removeProduct(product),
-              control: maximum > 0 || quantity > 0
-                  ? QuantityStepper(
-                      editable: true,
-                      enabled: !_busy,
-                      value: quantity,
-                      step: _step,
-                      max: quantity > maximum ? quantity : maximum,
-                      onValidationChanged: (valid) => setState(() {
-                        if (valid) {
-                          _invalidQuantities.remove(product.sku);
-                        } else {
-                          _invalidQuantities.add(product.sku);
-                        }
-                      }),
-                      onChanged: (value) {
-                        if (_busy) {
-                          return;
-                        }
-                        setState(() => _cart[product.sku] = value);
-                      },
-                    )
-                  : null,
+              control: QuantityStepper(
+                editable: true,
+                enabled: !_busy,
+                value: quantity,
+                step: _step,
+                max: quantity > maximum ? quantity : maximum,
+                onValidationChanged: (valid) => setState(() {
+                  if (valid) {
+                    _invalidQuantities.remove(product.sku);
+                  } else {
+                    _invalidQuantities.add(product.sku);
+                  }
+                }),
+                onChanged: (value) {
+                  if (_busy) {
+                    return;
+                  }
+                  setState(() => _cart[product.sku] = value);
+                },
+              ),
             ),
             if (pricedLines.isNotEmpty && pricedLines.first.hasDiscount)
               Padding(
-                padding: const EdgeInsets.only(top: 4),
+                padding: const EdgeInsets.only(top: AppSpacing.xs),
                 child: Row(
                   children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: AppColors.success.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(4),
-                        border: Border.all(
-                            color: AppColors.success.withValues(alpha: 0.3)),
-                      ),
-                      child: Text(
-                        'KM Tối ưu: −${_pct(pricedLines.first.pct)}%',
-                        style: const TextStyle(
-                          color: AppColors.success,
-                          fontWeight: FontWeight.w700,
-                          fontSize: 11,
-                        ),
-                      ),
+                    StatusChip(
+                      label: 'KM Tối ưu: −${_pct(pricedLines.first.pct)}%',
+                      tone: StatusTone.success,
                     ),
-                    const SizedBox(width: 6),
+                    const SizedBox(width: AppSpacing.s6),
                     Expanded(
                       child: Text(
                         '${pricedLines.first.promoName.isEmpty ? 'Khuyến mãi' : pricedLines.first.promoName} · '
                         'giảm ${Money.format(pricedLines.first.discount)}',
-                        style: const TextStyle(
-                          color: AppColors.success,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 12,
-                        ),
+                        style: AppText.bodySmall.copyWith(
+                            color: AppColors.success,
+                            fontWeight: FontWeight.w600),
+                        maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
@@ -505,6 +522,8 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
       ),
     );
   }
+
+  final GlobalKey _checkoutBarKey = GlobalKey();
 
   void _removeProduct(Product product) {
     if (_busy) {
@@ -519,7 +538,11 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
       _cart.remove(product.sku);
       _invalidQuantities.remove(product.sku);
     });
-    showAppUndoSnack('Đã bỏ ${product.name} khỏi giỏ.', onUndo: () {
+    // Lift the message above the checkout bar so it never covers its CTA.
+    final barHeight =
+        (_checkoutBarKey.currentContext?.size?.height ?? 0).toDouble();
+    showAppUndoSnack('Đã bỏ ${product.name} khỏi giỏ.',
+        bottomClearance: barHeight, onUndo: () {
       if (!_isCurrentUser(ownerId) || _busy || (_cart[product.sku] ?? 0) > 0) {
         return;
       }
@@ -539,9 +562,11 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
     final count = _lines.length;
 
     return SafeArea(
+      key: _checkoutBarKey,
       top: false,
       child: Container(
-        padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
+        padding: const EdgeInsets.fromLTRB(
+            AppSpacing.lg, AppSpacing.s10, AppSpacing.lg, AppSpacing.s10),
         decoration: const BoxDecoration(
           color: AppColors.surface,
           border: Border(
@@ -561,39 +586,32 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
                         : count == 0
                             ? 'Giỏ hàng trống'
                             : '$count sản phẩm',
-                    style: const TextStyle(
-                      color: AppColors.textMuted,
-                    ),
+                    style: AppText.muted,
                   ),
                   Text(
                     quote.isComplete
                         ? Money.format(quote.finalAmount)
                         : 'Chưa đủ dữ liệu giá',
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w800,
-                    ),
+                    style: AppText.pageTitle.copyWith(
+                        color: quote.isComplete
+                            ? AppColors.primary
+                            : AppColors.text),
                   ),
                   if (count > 0 && quote.isComplete)
                     const Text(
                       'Tạm tính trên máy',
-                      style: TextStyle(
-                        color: AppColors.textMuted,
-                        fontSize: 12,
-                      ),
+                      style: AppText.mutedSmall,
                     ),
                   if (quote.isComplete && quote.discount > 0)
                     Text(
                       'Giảm dự kiến ${Money.format(quote.discount)}',
-                      style: const TextStyle(
-                        color: AppColors.success,
-                        fontSize: 12.5,
-                      ),
+                      style:
+                          AppText.bodySmall.copyWith(color: AppColors.success),
                     ),
                 ],
               ),
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: AppSpacing.sm),
             SizedBox(
               width: 160,
               child: FilledButton(
@@ -737,12 +755,6 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
       }
       _validateQuantities(step);
       if (online) {
-        await _ensureSalesOrderEligibility(retailer);
-
-        if (!mounted || !_isCurrentUser(user.id)) {
-          return;
-        }
-
         try {
           quote = await ref.read(productsApiProvider).quote(
                 retailerId: retailer.id,
@@ -938,10 +950,6 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
                   OrderLimits.maxQty(quantities[line.sku] ?? 0, step: step))
               .toList();
           if (shortages.isNotEmpty) {
-            ref.invalidate(
-              _orderAvailabilityProvider(retailer.id),
-            );
-
             showAppSnack(
               context,
               'Tồn đủ điều kiện thay đổi: '

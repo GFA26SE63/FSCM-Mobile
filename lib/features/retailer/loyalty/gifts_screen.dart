@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fscm_mobile/core/network/api_exception.dart';
 import 'package:fscm_mobile/core/utils/status_tone.dart';
+import 'package:fscm_mobile/data/models/enums.dart';
 import 'package:fscm_mobile/data/models/loyalty.dart';
+import 'package:fscm_mobile/shared/widgets/chip_filter_bar.dart';
 import 'package:fscm_mobile/data/models/redemption_attempt.dart';
 import 'package:fscm_mobile/data/repositories/auth_repository.dart';
 import 'package:fscm_mobile/data/repositories/data_version.dart';
@@ -12,6 +14,8 @@ import 'package:fscm_mobile/features/retailer/loyalty/widgets/gift_catalog_tile.
 import 'package:fscm_mobile/features/retailer/loyalty/widgets/gift_redemption_tile.dart';
 import 'package:fscm_mobile/features/retailer/loyalty/widgets/gift_redeem_sheet.dart';
 import 'package:fscm_mobile/features/retailer/loyalty/widgets/gift_points_summary.dart';
+import 'package:fscm_mobile/shared/theme/app_text.dart';
+import 'package:fscm_mobile/shared/theme/app_tokens.dart';
 import 'package:fscm_mobile/shared/widgets/app_card.dart';
 import 'package:fscm_mobile/shared/theme/app_colors.dart';
 import 'package:fscm_mobile/shared/widgets/async_body.dart';
@@ -29,6 +33,7 @@ class GiftsScreen extends ConsumerStatefulWidget {
 
 class _GiftsScreenState extends ConsumerState<GiftsScreen> {
   bool _busy = false;
+  GiftRequestStatus? _requestFilter; // null = all (list arrives whole)
   bool _refreshing = false;
   String? _error;
 
@@ -203,7 +208,7 @@ class _GiftsScreenState extends ConsumerState<GiftsScreen> {
           onRefresh: _reload,
           child: ListView(
               physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(AppSpacing.lg),
               children: [
                 if (account != null) GiftPointsSummary(account: account),
                 if (_error != null)
@@ -244,7 +249,7 @@ class _GiftsScreenState extends ConsumerState<GiftsScreen> {
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
                             const Text('Yêu cầu chưa xác nhận kết quả',
-                                style: TextStyle(fontWeight: FontWeight.w700)),
+                                style: AppText.strong),
                             Text(
                                 '${attempt.giftName} · ${attempt.quantity} quà · ${attempt.totalPoints} điểm khi gửi'),
                             const Text(
@@ -275,9 +280,12 @@ class _GiftsScreenState extends ConsumerState<GiftsScreen> {
                               crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
                                 if (list.isEmpty)
-                                  Text(account?.programId == null
-                                      ? 'Chưa có chương trình áp dụng để đổi quà.'
-                                      : 'Chưa có quà đang hoạt động trong chương trình này.'),
+                                  AppCard(
+                                      child: Text(
+                                          account?.programId == null
+                                              ? 'Chưa có chương trình áp dụng để đổi quà.'
+                                              : 'Chưa có quà đang hoạt động trong chương trình này.',
+                                          style: AppText.muted)),
                                 for (final gift in list)
                                   GiftCatalogTile(
                                       gift: gift,
@@ -308,8 +316,38 @@ class _GiftsScreenState extends ConsumerState<GiftsScreen> {
                                       text:
                                           'Không tìm thấy yêu cầu đổi quà nguồn trong tài khoản hiện tại.'),
                                 if (list.isEmpty)
-                                  const Text('Chưa có yêu cầu đổi quà.'),
-                                for (final request in list)
+                                  const AppCard(
+                                      child: Text('Chưa có yêu cầu đổi quà.',
+                                          style: AppText.muted)),
+                                if (list.isNotEmpty)
+                                  ChipFilterBar<GiftRequestStatus?>(
+                                    padding: EdgeInsets.zero,
+                                    selected: _requestFilter,
+                                    onSelected: (v) =>
+                                        setState(() => _requestFilter = v),
+                                    options: <ChipOption<GiftRequestStatus?>>[
+                                      const ChipOption(null, 'Tất cả'),
+                                      for (final status in const [
+                                        GiftRequestStatus.requested,
+                                        GiftRequestStatus.approved,
+                                        GiftRequestStatus.delivered,
+                                        GiftRequestStatus.done,
+                                        GiftRequestStatus.rejected,
+                                      ])
+                                        ChipOption(status, status.label),
+                                    ],
+                                  ),
+                                if (list.isNotEmpty &&
+                                    _requestFilter != null &&
+                                    !list
+                                        .any((r) => r.status == _requestFilter))
+                                  const AppCard(
+                                      child: Text(
+                                          'Không có yêu cầu phù hợp bộ lọc.',
+                                          style: AppText.muted)),
+                                for (final request in list.where((r) =>
+                                    _requestFilter == null ||
+                                    r.status == _requestFilter))
                                   GiftRedemptionTile(
                                       request: request,
                                       highlight:

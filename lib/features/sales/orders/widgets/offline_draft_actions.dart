@@ -10,6 +10,7 @@ import 'package:fscm_mobile/data/repositories/data_version.dart';
 import 'package:fscm_mobile/data/repositories/order_repository.dart';
 import 'package:fscm_mobile/features/sales/orders/draft_edit_screen.dart';
 import 'package:fscm_mobile/features/sales/orders/widgets/offline_condition_review.dart';
+import 'package:fscm_mobile/shared/theme/app_tokens.dart';
 import 'package:fscm_mobile/shared/widgets/dialogs.dart';
 import 'package:fscm_mobile/sync/sync_queue_logic.dart';
 import 'package:fscm_mobile/sync/sync_service.dart';
@@ -54,7 +55,7 @@ class OfflineDraftActions extends ConsumerWidget {
       children: [
         if (entry.error.isNotEmpty)
           Padding(
-            padding: const EdgeInsets.only(bottom: 8),
+            padding: const EdgeInsets.only(bottom: AppSpacing.sm),
             child: Text(
               entry.error,
               style: TextStyle(
@@ -81,14 +82,14 @@ class OfflineDraftActions extends ConsumerWidget {
         ),
         if (!online)
           const Padding(
-            padding: EdgeInsets.only(top: 6),
+            padding: EdgeInsets.only(top: AppSpacing.s6),
             child: Text(
               'Đang ngoại tuyến. Có mạng trở lại vẫn cần bấm Gửi.',
             ),
           ),
         if (entry.status == SyncStatus.syncing && !sendable)
           const Padding(
-            padding: EdgeInsets.only(top: 6),
+            padding: EdgeInsets.only(top: AppSpacing.s6),
             child: Text(
               'Lần gửi trước chưa có kết quả. Nếu ứng dụng bị ngắt, '
               'chờ 2 phút rồi tải lại để thử gửi cùng yêu cầu.',
@@ -122,7 +123,7 @@ class OfflineDraftActions extends ConsumerWidget {
           )
         else
           const Padding(
-            padding: EdgeInsets.only(top: 6),
+            padding: EdgeInsets.only(top: AppSpacing.s6),
             child: Text(
               'Bản nháp đã bắt đầu gửi. Nội dung được giữ nguyên '
               'để gửi lại bằng cùng key.',

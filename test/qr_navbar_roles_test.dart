@@ -81,7 +81,8 @@ void main() {
     expect(find.byType(NavigationDestination), findsNWidgets(3));
     expect(find.text('Quét theo phiếu'), findsNothing);
     expect(find.byIcon(Icons.qr_code_scanner), findsNothing);
-    await _tapThroughAll(tester, ['Trang chủ', 'Nhập/Xuất', 'Tài khoản'], paths);
+    await _tapThroughAll(
+        tester, ['Trang chủ', 'Nhập/Xuất', 'Tài khoản'], paths);
   });
 
   testWidgets('Retailer navbar keeps the QR tab', (tester) async {
@@ -108,7 +109,9 @@ void main() {
     for (final shell in routes.whereType<StatefulShellRoute>()) {
       for (final b in shell.branches) {
         expect(
-          b.routes.whereType<GoRoute>().any((r) => r.path == AppRoutes.salesScan),
+          b.routes
+              .whereType<GoRoute>()
+              .any((r) => r.path == AppRoutes.salesScan),
           isFalse,
         );
       }

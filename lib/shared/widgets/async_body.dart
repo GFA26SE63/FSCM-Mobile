@@ -23,7 +23,12 @@ class AsyncBody<T> extends StatelessWidget {
     return value.when(
       skipLoadingOnRefresh: true,
       data: builder,
-      loading: () => const Center(child: CircularProgressIndicator()),
+      loading: () => const Center(
+        child: CircularProgressIndicator(
+          strokeWidth: 3,
+          semanticsLabel: 'Đang tải',
+        ),
+      ),
       error: (error, _) => EmptyState(
         icon: Icons.cloud_off_outlined,
         title: 'Không tải được dữ liệu',

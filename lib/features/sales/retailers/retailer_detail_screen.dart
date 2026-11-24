@@ -1,3 +1,4 @@
+import 'package:fscm_mobile/core/utils/dates.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -5,9 +6,13 @@ import 'package:fscm_mobile/data/repositories/catalog_repository.dart';
 import 'package:fscm_mobile/features/sales/products/catalog_sync_button.dart';
 import 'package:fscm_mobile/features/sales/retailers/widgets/retailer_order_action.dart';
 import 'package:fscm_mobile/features/sales/retailers/widgets/retailer_summary_card.dart';
+import 'package:fscm_mobile/shared/theme/app_tokens.dart';
 import 'package:fscm_mobile/shared/widgets/async_body.dart';
 import 'package:fscm_mobile/shared/widgets/empty_state.dart';
 import 'package:fscm_mobile/shared/widgets/info_banner.dart';
+import 'package:fscm_mobile/shared/widgets/section_title.dart';
+import 'package:fscm_mobile/shared/widgets/kv_row.dart';
+import 'package:fscm_mobile/shared/widgets/app_card.dart';
 
 class RetailerDetailScreen extends ConsumerWidget {
   const RetailerDetailScreen({
@@ -45,9 +50,30 @@ class RetailerDetailScreen extends ConsumerWidget {
           final timestamp = data.lastSyncAt?.toLocal();
 
           return ListView(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(AppSpacing.lg),
             children: [
               RetailerSummaryCard(retailer: retailer),
+              const SectionTitle('Thông tin điểm bán'),
+              AppCard(
+                child: Column(
+                  children: [
+                    KvRow('Mã điểm bán', retailer.code),
+                    KvRow(
+                      'Địa chỉ',
+                      retailer.address.isEmpty
+                          ? 'Chưa có địa chỉ'
+                          : retailer.address,
+                    ),
+                    KvRow('Trạng thái', retailer.statusLabel),
+                    KvRow(
+                      'Công nợ',
+                      retailer.creditAllowed
+                          ? 'Kỳ hạn ${retailer.creditTerm} ngày'
+                          : 'Không mua công nợ',
+                    ),
+                  ],
+                ),
+              ),
               InfoBanner(
                 text: timestamp == null
                     ? 'Thông tin lấy từ dữ liệu đã lưu trên máy.'
@@ -56,12 +82,7 @@ class RetailerDetailScreen extends ConsumerWidget {
                         'Trạng thái và công nợ có thể đã thay đổi; '
                         'xem kết quả kiểm tra bên dưới trước khi đặt hàng.',
               ),
-              const SizedBox(height: 8),
-              Text(
-                'Đặt hàng',
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
-              const SizedBox(height: 12),
+              const SectionTitle('Đặt hàng'),
               RetailerOrderAction(
                 key: ValueKey(retailer.id),
                 retailer: retailer,
@@ -74,9 +95,6 @@ class RetailerDetailScreen extends ConsumerWidget {
   }
 
   String _stamp(DateTime value) {
-    String pad(int number) => number.toString().padLeft(2, '0');
-
-    return '${pad(value.hour)}:${pad(value.minute)} '
-        '${pad(value.day)}/${pad(value.month)}/${value.year}';
+    return AppDates.timeDay(value);
   }
 }

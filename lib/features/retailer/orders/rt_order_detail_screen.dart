@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:fscm_mobile/core/utils/status_labels.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -15,6 +16,8 @@ import 'package:fscm_mobile/features/retailer/orders/widgets/retailer_prepaid_pa
 import 'package:fscm_mobile/features/retailer/orders/widgets/retailer_quote_panel.dart';
 import 'package:fscm_mobile/shared/routes.dart';
 import 'package:fscm_mobile/shared/theme/app_colors.dart';
+import 'package:fscm_mobile/shared/theme/app_text.dart';
+import 'package:fscm_mobile/shared/theme/app_tokens.dart';
 import 'package:fscm_mobile/shared/widgets/app_card.dart';
 import 'package:fscm_mobile/shared/widgets/async_body.dart';
 import 'package:fscm_mobile/shared/widgets/allocation_retry_button.dart';
@@ -71,21 +74,35 @@ class RtOrderDetailScreen extends ConsumerWidget {
           },
           child: ListView(
             physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(AppSpacing.lg),
             children: [
-              Row(children: [
-                Expanded(
-                    child: Text(order.code,
-                        style: const TextStyle(
-                            fontSize: 20, fontWeight: FontWeight.w800))),
-                OrderStatusChip(order),
-              ]),
-              const SizedBox(height: 4),
-              Text('${order.retailerName} · ${order.retailerCode}',
-                  style: const TextStyle(color: AppColors.textMuted)),
-              Text('Đặt lúc ${AppDates.timeDay(order.createdAt.toLocal())}',
-                  style: const TextStyle(color: AppColors.textMuted)),
-              const SizedBox(height: 10),
+              // Header card (prototype: code + status chip, store, order time).
+              AppCard(
+                margin: const EdgeInsets.only(bottom: AppSpacing.s10),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Wrap(
+                      alignment: WrapAlignment.spaceBetween,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      spacing: AppSpacing.sm,
+                      runSpacing: AppSpacing.xs,
+                      children: [
+                        Text(order.code,
+                            style: AppText.display
+                                .copyWith(color: AppColors.text)),
+                        OrderStatusChip(order),
+                      ],
+                    ),
+                    const SizedBox(height: AppSpacing.xs),
+                    Text('${order.retailerName} · ${order.retailerCode}',
+                        style: AppText.muted),
+                    Text(
+                        'Đặt lúc ${AppDates.timeDay(order.createdAt.toLocal())}',
+                        style: AppText.mutedSmall),
+                  ],
+                ),
+              ),
               if (order.status.isRejectedOrCancelled)
                 InfoBanner(
                     tone: StatusTone.danger,
@@ -117,7 +134,7 @@ class RtOrderDetailScreen extends ConsumerWidget {
               const SectionTitle('Khuyến mãi áp dụng'),
               AppliedPromoCard(order.appliedPromos,
                   emptyText: 'Không có khuyến mãi.'),
-              const SizedBox(height: 10),
+              const SizedBox(height: AppSpacing.s10),
               if (order.finalPricePendingAllocation)
                 const InfoBanner(
                     text:
@@ -140,14 +157,13 @@ class RtOrderDetailScreen extends ConsumerWidget {
                             : 'Chưa thanh toán'),
               ])),
               const SectionTitle('Tiến độ phân bổ / giao hàng'),
-              if (order.allocationState.isNotEmpty ||
-                  order.allocationResult != null)
+              if (order.allocationState.isNotEmpty)
                 AppCard(
                     child: Column(children: [
-                  if (order.allocationState.isNotEmpty)
-                    KvRow('Phân bổ', order.allocationState),
-                  if (order.allocationResult != null)
-                    KvRow('Kết quả', order.allocationResult!),
+                  KvRow('Phân bổ', allocationStateLabel(order.allocationState)),
+                  // The run result is null until an allocation run exists.
+                  KvRow(
+                      'Kết quả', allocationResultLabel(order.allocationResult)),
                 ])),
               RetailerDeliveryProgress(order: order),
               const SectionTitle('Tiến trình'),

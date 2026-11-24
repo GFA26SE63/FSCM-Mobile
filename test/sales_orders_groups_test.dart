@@ -214,8 +214,7 @@ void main() {
       ][i % 5];
 
   group('pending chip: exact server filter over three statuses', () {
-    test('first batch is the 20 newest of all three statuses, in order',
-        () async {
+    test('first batch is the newest of all three statuses, in order', () async {
       final server = _Server(100, statusOfFive);
       await setUpRepository(server);
       final state = await settle(controller(SalesOrderGroup.pending));
@@ -223,15 +222,18 @@ void main() {
       final expected = <int>[
         for (var i = 0; i < 100; i++)
           if (i % 5 < 3) i
-      ].take(20).map((i) => 'DH-$i').toList();
+      ].take(salesOrdersPageSize).map((i) => 'DH-$i').toList();
       expect(state.server.map((o) => o.code), expected);
       expect(state.totalCount, 60); // 20 + 20 + 20
       expect(state.hasMore, isTrue);
-      // Only statuses the Backend accepts, page size 20, never an unfiltered
+      // Only statuses the Backend accepts, the page size, never an unfiltered
       // or "Delivering" request.
       final statuses = server.orderRequests.map((v) => v['status']).toSet();
       expect(statuses, {'Allocating', 'Quoted', 'PaymentPending'});
-      expect(server.orderRequests.every((v) => v['pageSize'] == 20), isTrue);
+      expect(
+          server.orderRequests
+              .every((v) => v['pageSize'] == salesOrdersPageSize),
+          isTrue);
     });
 
     test('pages across statuses until exhausted: all 60, once, newest first',
@@ -293,7 +295,7 @@ void main() {
           [
             for (var i = 0; i < 100; i++)
               if (i % 5 < 3 && 'dh-$i'.contains('dh-1')) 'DH-$i'
-          ].take(20).toList());
+          ].take(salesOrdersPageSize).toList());
     });
 
     test('rejected chip merges its statuses and keeps the queue rows apart',
@@ -334,10 +336,10 @@ void main() {
       final c = controller(SalesOrderGroup.pending);
       await settle(c);
       await c.loadMore();
-      expect(c.state.value!.server, hasLength(40));
+      expect(c.state.value!.server, hasLength(2 * salesOrdersPageSize));
       await c.refresh();
       final state = await settle(c);
-      expect(state.server, hasLength(20));
+      expect(state.server, hasLength(salesOrdersPageSize));
       expect(state.server.first.code, 'DH-0');
     });
   });

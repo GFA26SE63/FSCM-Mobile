@@ -14,7 +14,7 @@ import 'package:fscm_mobile/data/repositories/data_version.dart';
 import 'package:fscm_mobile/data/repositories/order_repository.dart';
 
 /// Orders per request, first page and every "load more".
-const int salesOrdersPageSize = 20;
+const int salesOrdersPageSize = 10;
 
 /// Page size while a status group is assembled by scanning (Backend max 100).
 const int _scanPageSize = 100;

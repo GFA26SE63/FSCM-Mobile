@@ -51,10 +51,11 @@ void main() {
       '2026-11-08T06:57:41-05:00'
     ]) {
       final time = DateTime.parse(value);
-      expect(AppDates.timeDay(time), '18:57 08/11');
+      expect(AppDates.timeDay(time), '08/11/2026 18:57');
       expect(AppDates.time(time), '18:57');
     }
-    expect(AppDates.timeDay(DateTime.utc(2026, 11, 8, 19, 30)), '02:30 09/11');
+    expect(AppDates.timeDay(DateTime.utc(2026, 11, 8, 19, 30)),
+        '09/11/2026 02:30');
     expect(AppDates.date(DateTime.utc(2026, 11, 8, 19, 30)), '09/11/2026');
     expect(AppDates.date(DateTime.parse('2026-11-22')), '22/11/2026');
     expect(AppDates.dayMonth(DateTime.parse('2026-11-14')), '14/11');
@@ -81,7 +82,7 @@ void main() {
     final json = original.toJson();
     expect(json['createdAt'], endsWith('Z'));
     final restored = Order.fromJson(json);
-    expect(AppDates.timeDay(restored.createdAt), '18:57 08/11');
+    expect(AppDates.timeDay(restored.createdAt), '08/11/2026 18:57');
     expect(restored.appliedPromos.map((p) => p.name),
         original.appliedPromos.map((p) => p.name));
     expect(

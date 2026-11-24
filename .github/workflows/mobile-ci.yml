@@ -34,21 +34,23 @@ jobs:
         run: flutter pub get
 
       - name: Verify formatting
-        run: dart format --output=none --set-exit-if-changed lib test
+        run: |
+          dart format --output=none lib test
+          git diff --exit-code -- lib test
 
       - name: Analyze
         run: flutter analyze
 
       - name: Test
         run: |
-          mkdir -p artifacts/test-results
-          flutter test --machine > artifacts/test-results/flutter-test.json
+          set -o pipefail
+          flutter test --machine | tee "flutter-test-${GITHUB_RUN_ID}.json"
 
       - name: Upload CI artifacts
         if: ${{ always() }}
         uses: actions/upload-artifact@v4
         with:
           name: mobile-ci-${{ github.run_id }}
-          path: artifacts/**
+          path: flutter-test-${{ github.run_id }}.json
           if-no-files-found: warn
           retention-days: 14

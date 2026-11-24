@@ -33,13 +33,15 @@ class _Server implements ApiTransport {
       failNext = false;
       throw const ApiException(kind: ApiErrorKind.server, message: 'boom');
     }
-    const total = 45;
+    const total = 2 * salesOrdersPageSize + 5;
     return ApiResponse(statusCode: 200, data: {
       'data': {
         'entities': {
           'orderReads': {
             'items': [
-              for (var i = (page - 1) * 20; i < page * 20 && i < total; i++)
+              for (var i = (page - 1) * salesOrdersPageSize;
+                  i < page * salesOrdersPageSize && i < total;
+                  i++)
                 {
                   'id': 'id-$i',
                   'orderCode': 'DH-$i',
@@ -52,7 +54,7 @@ class _Server implements ApiTransport {
                 }
             ],
             'page': page,
-            'pageSize': 20,
+            'pageSize': salesOrdersPageSize,
             'totalCount': total,
           },
         },
@@ -125,7 +127,7 @@ void main() {
     await tester.pump();
   }
 
-  testWidgets('scrolling near the end loads the next 20, then shows the end',
+  testWidgets('scrolling near the end loads the next page, then shows the end',
       (tester) async {
     final (server, app) = await build(tester);
     await tester.pumpWidget(app);
