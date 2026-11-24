@@ -244,14 +244,22 @@ class Gift {
       invalidLoyaltyResponse();
     }
     final points = _requiredInt(j, 'requiredPoints');
-    final stock = j['availableQuantity'] == null ? null : _requiredInt(j, 'availableQuantity');
+    final stock = j['availableQuantity'] == null
+        ? null
+        : _requiredInt(j, 'availableQuantity');
     if (points <= 0 || (stock != null && stock < 0)) {
       invalidLoyaltyResponse();
     }
-    return Gift(id: _requiredText(j, 'id'), code: _requiredText(j, 'code'),
-      name: _requiredText(j, 'name'), programId: _requiredText(j, 'loyaltyProgramId'),
-      points: points, stock: stock, description: asStrOrNull(j['description']),
-      imageUrl: asStrOrNull(j['imageUrl']), isActive: j['isActive'] as bool);
+    return Gift(
+        id: _requiredText(j, 'id'),
+        code: _requiredText(j, 'code'),
+        name: _requiredText(j, 'name'),
+        programId: _requiredText(j, 'loyaltyProgramId'),
+        points: points,
+        stock: stock,
+        description: asStrOrNull(j['description']),
+        imageUrl: asStrOrNull(j['imageUrl']),
+        isActive: j['isActive'] as bool);
   }
 
   final String id;
@@ -290,21 +298,22 @@ class GiftRedemption {
   });
 
   factory GiftRedemption.fromJson(Map<String, dynamic> j) {
-    if (j['quantityIsEstimated'] is! bool || _requiredInt(j, 'quantity') <= 0 ||
+    if (j['quantityIsEstimated'] is! bool ||
+        _requiredInt(j, 'quantity') <= 0 ||
         _requiredInt(j, 'redeemedPoints') < 0) {
       invalidLoyaltyResponse();
     }
     return GiftRedemption(
-        code: _requiredText(j, 'id'),
-        giftCode: _requiredText(j, 'rewardCode'),
-        giftName: _requiredText(j, 'rewardName'),
-        points: _requiredInt(j, 'redeemedPoints'),
-        status: GiftRequestStatus.fromCode(_requiredText(j, 'status')),
-        requestedAt: _requiredDate(j, 'createdAt'),
-        quantity: _requiredInt(j, 'quantity'),
-        quantityIsEstimated: j['quantityIsEstimated'] as bool,
-        clientRequestId: _requiredText(j, 'clientRequestId'),
-      );
+      code: _requiredText(j, 'id'),
+      giftCode: _requiredText(j, 'rewardCode'),
+      giftName: _requiredText(j, 'rewardName'),
+      points: _requiredInt(j, 'redeemedPoints'),
+      status: GiftRequestStatus.fromCode(_requiredText(j, 'status')),
+      requestedAt: _requiredDate(j, 'createdAt'),
+      quantity: _requiredInt(j, 'quantity'),
+      quantityIsEstimated: j['quantityIsEstimated'] as bool,
+      clientRequestId: _requiredText(j, 'clientRequestId'),
+    );
   }
 
   final String code;

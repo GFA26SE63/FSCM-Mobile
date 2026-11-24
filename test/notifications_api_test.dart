@@ -64,7 +64,6 @@ void main() {
       );
     }
 
-
     Future<NotificationsState> settled() async {
       for (var i = 0; i < 50 && controller.state.isLoading; i++) {
         await Future<void>.delayed(Duration.zero);

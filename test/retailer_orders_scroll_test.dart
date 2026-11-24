@@ -195,7 +195,9 @@ void main() {
         expect(find.textContaining('DH-100000'), findsNothing);
         await tester.tap(find.text('Đang xử lý'));
         await tester.pumpAndSettle();
-        expect(find.textContaining('DH-100000'), findsOneWidget);
+        // The default order is newest-first, so the most recently loaded
+        // active page is displayed first after returning to this tab.
+        expect(find.textContaining('DH-100020'), findsOneWidget);
 
         // Pull to refresh re-reads page 1.
         final before = server.requests.length;
@@ -243,7 +245,7 @@ void main() {
         // One header only: search text, range and loaded data are kept.
         expect(find.byType(TextField), findsOneWidget);
         expect(tester.widget<TextField>(find.byType(TextField)).controller,
-            isNull);
+            isNotNull);
         expect(find.text('Việc cần làm'), findsOneWidget);
         // The selected history tab keeps reading pages, each exactly once.
         expect(server.pages.length, greaterThan(searchPages));
