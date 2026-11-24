@@ -424,6 +424,7 @@ class RtOrderTile extends StatelessWidget {
                   ],
                 ),
               ),
+              const SizedBox(width: AppSpacing.sm),
               Flexible(
                 child: FittedBox(
                   fit: BoxFit.scaleDown,
@@ -440,39 +441,48 @@ class RtOrderTile extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
                 style: AppText.bodySmall.copyWith(color: AppColors.textLabel)),
           ],
-          const SizedBox(height: AppSpacing.sm),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: <Widget>[
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    const Text('Thanh toán', style: AppText.mutedSmall),
-                    const SizedBox(height: AppSpacing.xxs),
-                    Text(o.payment.labelWithTerm(o.creditTerm),
-                        style: AppText.bodySmall),
-                  ],
+          const SizedBox(height: AppSpacing.md),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.s10, vertical: AppSpacing.sm),
+            decoration: const BoxDecoration(
+              color: AppColors.primarySoft,
+              borderRadius: AppRadius.smallAll,
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      const Text('Thanh toán', style: AppText.mutedSmall),
+                      const SizedBox(height: AppSpacing.xxs),
+                      Text(o.payment.labelWithTerm(o.creditTerm),
+                          style: AppText.bodySmall),
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              Flexible(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: <Widget>[
-                    const Text('Tổng tiền', style: AppText.mutedSmall),
-                    const SizedBox(height: AppSpacing.xxs),
-                    FittedBox(
-                      fit: BoxFit.scaleDown,
-                      alignment: Alignment.centerRight,
-                      child: Text(Money.format(o.finalAmount),
-                          style: AppText.strong
-                              .copyWith(color: AppColors.primary)),
-                    ),
-                  ],
+                const SizedBox(width: AppSpacing.md),
+                Flexible(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: <Widget>[
+                      const Text('Tổng tiền', style: AppText.mutedSmall),
+                      const SizedBox(height: AppSpacing.xxs),
+                      FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerRight,
+                        child: Text(Money.format(o.finalAmount),
+                            style: AppText.strong
+                                .copyWith(color: AppColors.primary)),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
           if (o.status.canConfirmReceipt) ...<Widget>[
             const SizedBox(height: AppSpacing.s10),

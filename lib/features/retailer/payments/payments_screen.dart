@@ -527,15 +527,26 @@ class _ReceivableTile extends StatelessWidget {
       child:
           Row(crossAxisAlignment: CrossAxisAlignment.start, children: <Widget>[
         if (onSelected != null)
-          Checkbox(
+          Padding(
+            padding: const EdgeInsets.only(right: AppSpacing.xs),
+            child: Checkbox(
               value: selected,
-              onChanged: (value) => onSelected!(value ?? false)),
+              visualDensity: VisualDensity.compact,
+              onChanged: (value) => onSelected!(value ?? false),
+            ),
+          ),
         Expanded(
-            child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
               Row(children: <Widget>[
-                Expanded(child: Text(r.orderCode, style: AppText.strong)),
+                Expanded(
+                  child: Text(r.orderCode,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppText.strong),
+                ),
+                const SizedBox(width: AppSpacing.sm),
                 Flexible(
                   child: FittedBox(
                     fit: BoxFit.scaleDown,
@@ -545,7 +556,7 @@ class _ReceivableTile extends StatelessWidget {
                   ),
                 ),
               ]),
-              const SizedBox(height: AppSpacing.xxs),
+              const SizedBox(height: AppSpacing.s6),
               Text(due,
                   style: AppText.mutedSmall.copyWith(
                       color: r.isOverdue
@@ -557,28 +568,55 @@ class _ReceivableTile extends StatelessWidget {
                       : 'Công nợ ${r.term} ngày',
                   style: AppText.mutedSmall),
               if (r.collectibleAmount != r.outstandingAmount)
-                Text(
+                Padding(
+                  padding: const EdgeInsets.only(top: AppSpacing.xxs),
+                  child: Text(
                     'Đang tranh chấp: ${Money.format(r.outstandingAmount - r.collectibleAmount)}',
-                    style: AppText.mutedSmall),
-              const SizedBox(height: AppSpacing.sm),
-              Align(
-                alignment: Alignment.centerRight,
-                child: Column(
+                    style:
+                        AppText.mutedSmall.copyWith(color: AppColors.warning),
+                  ),
+                ),
+              const SizedBox(height: AppSpacing.md),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.s10, vertical: AppSpacing.sm),
+                decoration: const BoxDecoration(
+                  color: AppColors.primarySoft,
+                  borderRadius: AppRadius.smallAll,
+                ),
+                child: Row(children: <Widget>[
+                  Expanded(
+                    child: Text(r.isPaid ? 'Đã thanh toán' : 'Cần thanh toán',
+                        style: AppText.label
+                            .copyWith(color: AppColors.primaryDark)),
+                  ),
+                  Column(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: <Widget>[
                       const Text('Tổng cần thanh toán',
                           style: AppText.mutedSmall),
-                      Text(
+                      const SizedBox(height: AppSpacing.xxs),
+                      FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerRight,
+                        child: Text(
                           Money.format(r.isPaid
                               ? r.confirmedAmount
                               : r.method == 'Prepaid'
                                   ? r.outstandingAmount
                                   : r.collectibleAmount),
-                          style: AppText.strong.copyWith(
-                              fontSize: 16, color: AppColors.primary)),
-                    ]),
+                          style: AppText.strong
+                              .copyWith(fontSize: 16, color: AppColors.primary),
+                        ),
+                      ),
+                    ],
+                  ),
+                ]),
               ),
-            ])),
+            ],
+          ),
+        ),
       ]),
     );
   }
