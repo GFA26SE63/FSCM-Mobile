@@ -223,22 +223,24 @@ void main() {
       child: const MaterialApp(home: PaymentsScreen()),
     ));
     await tester.pumpAndSettle();
+    await tester.pump();
 
-    expect(find.text('DH-HIGH'), findsOneWidget);
-    expect(tester.getTopLeft(find.text('DH-LOW')).dy,
-        lessThan(tester.getTopLeft(find.text('DH-HIGH')).dy));
+    final high = find.text('DH-HIGH', skipOffstage: false);
+    final low = find.text('DH-LOW', skipOffstage: false);
+    expect(high, findsOneWidget);
+    expect(tester.getTopLeft(low).dy, lessThan(tester.getTopLeft(high).dy));
 
     await tester.enterText(find.byType(TextField), 'PAID');
     await tester.pump();
     expect(find.text('DH-PAID'), findsOneWidget);
-    expect(find.text('DH-HIGH'), findsNothing);
+    expect(find.text('DH-HIGH', skipOffstage: false), findsNothing);
 
     await tester.tap(find.byTooltip('Xóa tìm kiếm'));
     await tester.pump();
     await tester.tap(find.text('Đã trả'));
     await tester.pumpAndSettle();
     expect(find.text('DH-PAID'), findsOneWidget);
-    expect(find.text('DH-HIGH'), findsNothing);
+    expect(find.text('DH-HIGH', skipOffstage: false), findsNothing);
 
     await tester.tap(find.text('Tất cả'));
     await tester.pumpAndSettle();
@@ -247,8 +249,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Số tiền cao đến thấp').last);
     await tester.pumpAndSettle();
-    expect(tester.getTopLeft(find.text('DH-HIGH')).dy,
-        lessThan(tester.getTopLeft(find.text('DH-LOW')).dy));
+    expect(tester.getTopLeft(high).dy, lessThan(tester.getTopLeft(low).dy));
     expect(tester.takeException(), isNull);
   });
 

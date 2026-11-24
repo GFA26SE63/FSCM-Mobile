@@ -313,6 +313,11 @@ class _RtOrdersScreenState extends ConsumerState<RtOrdersScreen>
         : (state.hasMore
             ? 'Chưa thấy đơn lịch sử trong dữ liệu đã tải.'
             : 'Chưa có đơn lịch sử.');
+    _fillVisiblePage(
+      state,
+      activeTab: activeTab,
+      visibleOrderCount: orders.length,
+    );
     // The tabs and date range currently refine the loaded GraphQL page. Do
     // not auto-drain subsequent pages when this tab happens to have few rows:
     // that created a serial request waterfall on screen open. Pagination is
@@ -336,13 +341,14 @@ class _RtOrdersScreenState extends ConsumerState<RtOrdersScreen>
       child: ListView(
         key: PageStorageKey<String>(
             'rt-orders-${activeTab ? 'active' : 'history'}'),
+        cacheExtent: 2000,
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.all(AppSpacing.lg),
         children: <Widget>[
           Padding(
             padding: const EdgeInsets.only(bottom: AppSpacing.sm),
             child: Text(
-              '${state.orders.length}/${state.totalCount} đơn đã tải'
+              'Đã tải ${state.orders.length}/${state.totalCount} đơn'
               '${_query.isEmpty ? '' : ' · kết quả tìm kiếm'}',
               style: AppText.mutedSmall,
             ),
@@ -366,6 +372,28 @@ class _RtOrdersScreenState extends ConsumerState<RtOrdersScreen>
       ),
     );
   }
+
+  void _fillVisiblePage(
+    RetailerOrdersState state, {
+    required bool activeTab,
+    required int visibleOrderCount,
+  }) {
+    // A server page can contain no rows for the active tab or date range.
+    // Continue only until the visible tab has a complete page, never from the
+    // offstage tab, and let the controller serialize every request.
+    if (activeTab != (_tabIndex == 0) ||
+        visibleOrderCount >= 10 ||
+        !state.hasMore ||
+        state.loadingMore ||
+        state.moreError != null) {
+      return;
+    }
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      ref.read(retailerOrdersProvider(_query).notifier).loadMore();
+    });
+  }
 }
 
 /// Row of the retailer order list (items, amount, payment, status).
@@ -377,6 +405,7 @@ class RtOrderTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final o = order;
+    const summaryValueWidth = 132.0;
     return AppCard(
       onTap: () => context.push(AppRoutes.rtOrderDetail(o.id)),
       child: Column(
@@ -396,7 +425,13 @@ class RtOrderTile extends StatelessWidget {
                   ],
                 ),
               ),
-              OrderStatusChip(o),
+              SizedBox(
+                width: summaryValueWidth,
+                child: Align(
+                  alignment: Alignment.centerRight,
+                  child: OrderStatusChip(o),
+                ),
+              ),
             ],
           ),
           if (o.itemsSummary.isNotEmpty) ...<Widget>[
@@ -406,32 +441,43 @@ class RtOrderTile extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
                 style: AppText.bodySmall.copyWith(color: AppColors.textLabel)),
           ],
-          const SizedBox(height: AppSpacing.sm),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: <Widget>[
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    const Text('Thanh toán', style: AppText.mutedSmall),
-                    const SizedBox(height: AppSpacing.xxs),
-                    Text(o.payment.labelWithTerm(o.creditTerm),
-                        style: AppText.bodySmall),
-                  ],
+          const SizedBox(height: AppSpacing.md),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      const Text('Thanh toán', style: AppText.mutedSmall),
+                      const SizedBox(height: AppSpacing.xxs),
+                      Text(o.payment.labelWithTerm(o.creditTerm),
+                          style: AppText.bodySmall),
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: <Widget>[
-                  const Text('Tổng tiền', style: AppText.mutedSmall),
-                  const SizedBox(height: AppSpacing.xxs),
-                  Text(Money.format(o.finalAmount),
-                      style: AppText.strong.copyWith(color: AppColors.primary)),
-                ],
-              ),
-            ],
+                const SizedBox(width: AppSpacing.md),
+                SizedBox(
+                  width: summaryValueWidth,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: <Widget>[
+                      const Text('Tổng tiền', style: AppText.mutedSmall),
+                      const SizedBox(height: AppSpacing.xxs),
+                      FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerRight,
+                        child: Text(Money.format(o.finalAmount),
+                            style: AppText.strong
+                                .copyWith(color: AppColors.primary)),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
           if (o.status.canConfirmReceipt) ...<Widget>[
             const SizedBox(height: AppSpacing.s10),
