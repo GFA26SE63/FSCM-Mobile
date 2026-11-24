@@ -2,8 +2,11 @@ import 'package:flutter/material.dart';
 
 import 'package:fscm_mobile/core/utils/status_tone.dart';
 import 'package:fscm_mobile/shared/theme/app_colors.dart';
+import 'package:fscm_mobile/shared/theme/app_text.dart';
+import 'package:fscm_mobile/shared/theme/app_tokens.dart';
 
-/// Inline notice (offline mode, promotion changed, rejection reason...).
+/// Tone banner (info / success / warning / danger ...), text and icon use the
+/// foreground of the tone on its soft background.
 class InfoBanner extends StatelessWidget {
   const InfoBanner({
     super.key,
@@ -23,17 +26,17 @@ class InfoBanner extends StatelessWidget {
     final c = AppColors.tone(tone);
     return Container(
       width: double.infinity,
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(12),
+      margin: const EdgeInsets.only(bottom: AppSpacing.s10),
+      padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
         color: c.background,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: AppRadius.controlAll,
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
           Icon(icon, size: 20, color: c.foreground),
-          const SizedBox(width: 10),
+          const SizedBox(width: AppSpacing.s10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -41,10 +44,14 @@ class InfoBanner extends StatelessWidget {
                 if (title != null)
                   Text(
                     title!,
-                    style: TextStyle(
-                        color: c.foreground, fontWeight: FontWeight.w700),
+                    style: AppText.cardTitle
+                        .copyWith(color: c.foreground, fontSize: 14),
                   ),
-                Text(text, style: TextStyle(color: c.foreground, height: 1.35)),
+                Text(
+                  text,
+                  style: AppText.bodyMedium
+                      .copyWith(color: c.foreground, height: 1.35),
+                ),
               ],
             ),
           ),

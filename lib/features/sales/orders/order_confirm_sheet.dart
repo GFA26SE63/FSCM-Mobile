@@ -1,9 +1,14 @@
+import 'package:fscm_mobile/core/utils/dates.dart';
 import 'package:flutter/material.dart';
 
 import 'package:fscm_mobile/core/utils/money.dart';
 import 'package:fscm_mobile/data/models/price_quote.dart';
 import 'package:fscm_mobile/data/models/retailer.dart';
 import 'package:fscm_mobile/features/sales/orders/widgets/price_difference_card.dart';
+import 'package:fscm_mobile/shared/theme/app_colors.dart';
+import 'package:fscm_mobile/shared/theme/app_text.dart';
+import 'package:fscm_mobile/shared/theme/app_tokens.dart';
+import 'package:fscm_mobile/shared/widgets/app_card.dart';
 import 'package:fscm_mobile/shared/widgets/info_banner.dart';
 import 'package:fscm_mobile/shared/widgets/kv_row.dart';
 import 'package:fscm_mobile/shared/widgets/section_title.dart';
@@ -38,17 +43,15 @@ class OrderConfirmSheet extends StatelessWidget {
         maxChildSize: 0.95,
         builder: (context, controller) => ListView(
           controller: controller,
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          padding: const EdgeInsets.fromLTRB(
+              AppSpacing.lg, 0, AppSpacing.lg, AppSpacing.lg),
           children: [
             const Text(
               'Xác nhận đơn hàng',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.w800,
-              ),
+              style: AppText.display,
             ),
             Text('${retailer.name} · ${retailer.code}'),
-            const SizedBox(height: 12),
+            const SizedBox(height: AppSpacing.md),
             InfoBanner(
               text: estimated
                   ? 'Tạm tính trên máy từ dữ liệu đồng bộ đã lưu. '
@@ -60,7 +63,7 @@ class OrderConfirmSheet extends StatelessWidget {
               Text('Dữ liệu đồng bộ lúc: ${_stamp(snapshotAt!)}'),
             if (estimatedAt != null)
               Text('Tính trên máy lúc: ${_stamp(estimatedAt!)}'),
-            const SizedBox(height: 10),
+            const SizedBox(height: AppSpacing.s10),
             if (!estimated && localEstimate?.isComplete == true)
               PriceDifferenceCard(
                 localAmount: localEstimate!.finalAmount,
@@ -72,56 +75,95 @@ class OrderConfirmSheet extends StatelessWidget {
                     'Chưa thể xác nhận bản tạm tính.',
               ),
             const SectionTitle('Sản phẩm'),
-            for (final line in quote.lines)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 6),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: Column(
+            AppCard(
+              child: Column(
+                children: [
+                  for (var i = 0; i < quote.lines.length; i++)
+                    Container(
+                      padding:
+                          const EdgeInsets.symmetric(vertical: AppSpacing.s6),
+                      decoration: BoxDecoration(
+                        border: i == 0
+                            ? null
+                            : const Border(
+                                top: BorderSide(color: AppColors.divider)),
+                      ),
+                      child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('${line.name} × ${line.qty}'),
-                          if (line.hasDiscount)
-                            Text(
-                              '${line.promoName} · −${line.pct}%',
-                              style: const TextStyle(fontSize: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                    '${quote.lines[i].name} × ${quote.lines[i].qty}',
+                                    style: AppText.cardTitle
+                                        .copyWith(fontSize: 14)),
+                                if (quote.lines[i].hasDiscount)
+                                  Text(
+                                    '${quote.lines[i].promoName} · −${quote.lines[i].pct}%',
+                                    style: AppText.bodySmall
+                                        .copyWith(color: AppColors.warning),
+                                  ),
+                              ],
                             ),
+                          ),
+                          const SizedBox(width: AppSpacing.sm),
+                          Text(Money.format(quote.lines[i].net),
+                              style: AppText.cardTitle.copyWith(fontSize: 14)),
                         ],
                       ),
                     ),
-                    Text(Money.format(line.net)),
-                  ],
-                ),
+                ],
               ),
+            ),
             const SectionTitle('Khuyến mãi áp dụng'),
             const InfoBanner(
-              text: 'Hệ thống tự động áp dụng chương trình có mức giảm cao nhất cho từng sản phẩm (không cộng dồn các CTKM thương mại). '
+              text:
+                  'Hệ thống tự động áp dụng chương trình có mức giảm cao nhất cho từng sản phẩm (không cộng dồn các CTKM thương mại). '
                   'Chiết khấu HSD (nếu phân bổ trúng lô cận date) sẽ được tính thêm trên báo giá chính thức.',
             ),
-            const SizedBox(height: 8),
             if (quote.applied.isEmpty)
-              const Text('Chưa có khuyến mãi áp dụng.')
+              const Text('Chưa có khuyến mãi áp dụng.', style: AppText.muted)
             else
               for (final promo in quote.applied)
-                KvRow(promo.name, Money.minus(promo.amount)),
+                Container(
+                  margin: const EdgeInsets.only(bottom: AppSpacing.s6),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.md, vertical: AppSpacing.s10),
+                  decoration: const BoxDecoration(
+                    color: AppColors.warningSoft,
+                    borderRadius: AppRadius.smallAll,
+                  ),
+                  child: DefaultTextStyle.merge(
+                    style: AppText.cardTitle
+                        .copyWith(fontSize: 14, color: AppColors.warning),
+                    child: KvRow(promo.name, Money.minus(promo.amount),
+                        valueColor: AppColors.warning),
+                  ),
+                ),
             const SectionTitle('Thanh toán'),
             const InfoBanner(
               text: 'Điểm bán chọn phương thức thanh toán sau khi '
                   'hệ thống phân bổ và gửi báo giá chính thức.',
             ),
-            if (quote.isComplete) ...[
-              const Divider(height: 24),
-              KvRow('Tiền hàng dự kiến', Money.format(quote.total)),
-              KvRow('Giảm dự kiến', Money.minus(quote.discount)),
-              KvRow(
-                'Thành tiền dự kiến',
-                Money.format(quote.finalAmount),
-                bold: true,
+            if (quote.isComplete)
+              AppCard(
+                child: Column(
+                  children: [
+                    KvRow('Tiền hàng dự kiến', Money.format(quote.total)),
+                    KvRow('Giảm dự kiến', Money.minus(quote.discount)),
+                    const Divider(height: AppSpacing.xl),
+                    KvRow(
+                      'Thành tiền dự kiến',
+                      Money.format(quote.finalAmount),
+                      bold: true,
+                      valueColor: AppColors.primary,
+                    ),
+                  ],
+                ),
               ),
-            ],
-            const SizedBox(height: 16),
+            const SizedBox(height: AppSpacing.lg),
             FilledButton(
               onPressed: quote.isComplete
                   ? () => Navigator.of(context).pop(true)
@@ -141,10 +183,6 @@ class OrderConfirmSheet extends StatelessWidget {
   }
 
   String _stamp(DateTime value) {
-    final local = value.toLocal();
-    String pad(int number) => number.toString().padLeft(2, '0');
-
-    return '${pad(local.hour)}:${pad(local.minute)} '
-        '${pad(local.day)}/${pad(local.month)}/${local.year}';
+    return AppDates.timeDay(value);
   }
 }

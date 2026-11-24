@@ -1,3 +1,4 @@
+import 'package:fscm_mobile/core/utils/numbers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -9,9 +10,13 @@ import 'package:fscm_mobile/data/models/enums.dart';
 import 'package:fscm_mobile/data/models/order.dart';
 import 'package:fscm_mobile/data/repositories/order_repository.dart';
 import 'package:fscm_mobile/shared/routes.dart';
+import 'package:fscm_mobile/shared/theme/app_colors.dart';
+import 'package:fscm_mobile/shared/theme/app_text.dart';
+import 'package:fscm_mobile/shared/theme/app_tokens.dart';
 import 'package:fscm_mobile/shared/widgets/app_card.dart';
 import 'package:fscm_mobile/shared/widgets/info_banner.dart';
 import 'package:fscm_mobile/shared/widgets/kv_row.dart';
+import 'package:fscm_mobile/shared/widgets/status_chip.dart';
 
 class RetailerDeliveryProgress extends ConsumerWidget {
   const RetailerDeliveryProgress({super.key, required this.order});
@@ -45,16 +50,44 @@ class RetailerDeliveryProgress extends ConsumerWidget {
                     child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Text(shipment.code,
-                        style: const TextStyle(fontWeight: FontWeight.w800)),
+                    Wrap(
+                      alignment: WrapAlignment.spaceBetween,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      spacing: AppSpacing.sm,
+                      runSpacing: AppSpacing.xs,
+                      children: [
+                        Text(shipment.code, style: AppText.strong),
+                        StatusChip(
+                            label: shipment.statusLabel,
+                            tone: shipment.exceptionReason.isNotEmpty
+                                ? StatusTone.warning
+                                : shipment.canReceive
+                                    ? StatusTone.purple
+                                    : StatusTone.info),
+                      ],
+                    ),
+                    if (shipment.totalQuantity > 0) ...[
+                      const SizedBox(height: AppSpacing.s10),
+                      ClipRRect(
+                        borderRadius: AppRadius.pillAll,
+                        child: LinearProgressIndicator(
+                          minHeight: 8,
+                          backgroundColor: AppColors.primarySoft,
+                          value: (shipment.receivedQuantity /
+                                  shipment.totalQuantity)
+                              .clamp(0, 1)
+                              .toDouble(),
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.xs),
+                    ],
                     KvRow(
                         'Kho',
                         shipment.warehouseName.isEmpty
                             ? shipment.warehouseCode
                             : shipment.warehouseName),
-                    KvRow('Trạng thái', shipment.statusLabel),
                     KvRow('Đã nhận / tổng',
-                        '${shipment.receivedQuantity} / ${shipment.totalQuantity} thùng'),
+                        '${formatQuantity(shipment.receivedQuantity)} / ${formatQuantity(shipment.totalQuantity)} thùng'),
                     if (shipment.plateNumber.isNotEmpty)
                       KvRow('Biển số xe', shipment.plateNumber),
                     if (shipment.driverName.isNotEmpty)
@@ -82,7 +115,7 @@ class RetailerDeliveryProgress extends ConsumerWidget {
                 )),
             ]),
       loading: () => const Padding(
-          padding: EdgeInsets.all(16),
+          padding: EdgeInsets.all(AppSpacing.lg),
           child: Center(child: CircularProgressIndicator())),
       error: (error, _) =>
           Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [

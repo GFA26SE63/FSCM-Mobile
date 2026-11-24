@@ -1,3 +1,4 @@
+import 'package:fscm_mobile/core/utils/status_labels.dart';
 import 'package:fscm_mobile/data/models/json_utils.dart';
 
 /// Retailer (điểm bán). `code` is the customer code; `id` is the backend ID.
@@ -63,7 +64,7 @@ class Retailer {
         'Rejected' => 'Bị từ chối',
         'Inactive' => 'Ngừng hoạt động',
         '' => 'Chưa có trạng thái',
-        _ => status,
+        _ => unknownStatusLabel,
       };
 
   Map<String, dynamic> toJson() => <String, dynamic>{

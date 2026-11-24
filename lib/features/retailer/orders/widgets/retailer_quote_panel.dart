@@ -18,6 +18,9 @@ import 'package:fscm_mobile/shared/widgets/app_card.dart';
 import 'package:fscm_mobile/shared/widgets/async_body.dart';
 import 'package:fscm_mobile/shared/widgets/dialogs.dart';
 import 'package:fscm_mobile/shared/widgets/info_banner.dart';
+import 'package:fscm_mobile/shared/theme/app_colors.dart';
+import 'package:fscm_mobile/shared/theme/app_text.dart';
+import 'package:fscm_mobile/shared/theme/app_tokens.dart';
 
 class RetailerQuotePanel extends ConsumerStatefulWidget {
   const RetailerQuotePanel({super.key, required this.order});
@@ -76,12 +79,23 @@ class _RetailerQuotePanelState extends ConsumerState<RetailerQuotePanel> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text('Báo giá chính thức #${quote.revisionNumber}',
-                  style: const TextStyle(fontWeight: FontWeight.w800)),
+                  style: AppText.strong),
               Text(Money.format(quote.totalAmount),
-                  style: const TextStyle(
-                      fontSize: 20, fontWeight: FontWeight.w800)),
-              Text(
-                  'Hạn phản hồi ${AppDates.timeDay(quote.expiresAt.toLocal())}'),
+                  style: AppText.display
+                      .copyWith(fontSize: 24, color: AppColors.primary)),
+              const SizedBox(height: AppSpacing.s6),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.md, vertical: AppSpacing.s10),
+                decoration: const BoxDecoration(
+                  color: AppColors.infoSoft,
+                  borderRadius: AppRadius.controlAll,
+                ),
+                child: Text(
+                    'Hạn phản hồi ${AppDates.timeDay(quote.expiresAt.toLocal())}',
+                    style: AppText.bodyMedium.copyWith(color: AppColors.info)),
+              ),
+              const SizedBox(height: AppSpacing.s10),
               if (!canDecide)
                 InfoBanner(
                     tone: StatusTone.warning,
@@ -96,14 +110,36 @@ class _RetailerQuotePanelState extends ConsumerState<RetailerQuotePanel> {
                 Text(quote.rejectionReason!),
               if (_error != null)
                 InfoBanner(tone: StatusTone.danger, text: _error!),
-              FilledButton(
-                onPressed: !canDecide || _busy ? null : () => _accept(quote),
-                child: Text(
-                    _busy ? 'Đang xử lý...' : 'Chấp nhận và chọn thanh toán'),
-              ),
-              TextButton(
-                onPressed: !canDecide || _busy ? null : () => _reject(quote),
-                child: const Text('Từ chối báo giá'),
+              // Prototype: Từ chối (outline) beside Chấp nhận (primary).
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: TextButton(
+                      style: TextButton.styleFrom(
+                        minimumSize: const Size(0, 48),
+                        side: const BorderSide(
+                            color: AppColors.primary, width: 1.5),
+                      ),
+                      onPressed:
+                          !canDecide || _busy ? null : () => _reject(quote),
+                      child: const Text('Từ chối báo giá',
+                          textAlign: TextAlign.center),
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.s10),
+                  Expanded(
+                    child: FilledButton(
+                      onPressed:
+                          !canDecide || _busy ? null : () => _accept(quote),
+                      child: Text(
+                          _busy
+                              ? 'Đang xử lý...'
+                              : 'Chấp nhận và chọn thanh toán',
+                          textAlign: TextAlign.center),
+                    ),
+                  ),
+                ],
               ),
             ],
           ));

@@ -77,8 +77,8 @@ void main() {
           state == 'Open' ? findsOneWidget : findsNothing);
       expect(find.text('Mở phiếu nhập luân chuyển'), findsNothing);
       if (state == 'Open') {
-        final button = tester.widget<FilledButton>(
-            find.widgetWithText(FilledButton, 'Xác nhận xuất luân chuyển & ghi sổ PXK'));
+        final button = tester.widget<FilledButton>(find.widgetWithText(
+            FilledButton, 'Xác nhận xuất luân chuyển & ghi sổ PXK'));
         expect(button.onPressed, isNull);
       }
       expect(t.requests.where((r) => r.method == 'POST'), isEmpty);
@@ -210,7 +210,8 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('Order Request document displays helpful banner for warehouse keeper',
+  testWidgets(
+      'Order Request document displays helpful banner for warehouse keeper',
       (tester) async {
     final t = RecordingTransport();
     final orderRequest = WarehouseWork({
@@ -238,8 +239,8 @@ void main() {
                   ApiClient(transport: t, tokenReader: () => null))),
         ],
         child: const MaterialApp(
-            home: WarehouseDocumentScreen(
-                id: 'yck-order', mode: 'orderIssue'))));
+            home:
+                WarehouseDocumentScreen(id: 'yck-order', mode: 'orderIssue'))));
     await tester.pumpAndSettle();
     expect(
         find.text(

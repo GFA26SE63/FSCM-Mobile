@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:fscm_mobile/core/utils/money.dart';
 import 'package:fscm_mobile/data/models/offline_condition_conflict.dart';
 import 'package:fscm_mobile/features/sales/orders/widgets/price_difference_card.dart';
+import 'package:fscm_mobile/shared/theme/app_text.dart';
+import 'package:fscm_mobile/shared/theme/app_tokens.dart';
 import 'package:fscm_mobile/shared/widgets/app_card.dart';
 import 'package:fscm_mobile/shared/widgets/kv_row.dart';
 
@@ -26,8 +28,7 @@ class OfflineConditionReview extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(line.sku,
-                      style: const TextStyle(fontWeight: FontWeight.w700)),
+                  Text(line.sku, style: AppText.strong),
                   if (line.expectedBaseUnitPrice != line.currentBaseUnitPrice)
                     KvRow(
                         'Đơn giá dự kiến',
@@ -45,7 +46,7 @@ class OfflineConditionReview extends StatelessWidget {
               ),
             ),
           const Padding(
-            padding: EdgeInsets.symmetric(vertical: 8),
+            padding: EdgeInsets.symmetric(vertical: AppSpacing.sm),
             child: Text('Giữ nguyên bản tạm tính gốc để đối chiếu. '
                 'Chỉ tiếp tục gửi nếu bạn đồng ý với điều kiện máy chủ trả về.'),
           ),
@@ -72,11 +73,11 @@ class OfflineConditionReviewSheet extends StatelessWidget {
           maxChildSize: 0.95,
           builder: (context, controller) => ListView(
             controller: controller,
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(AppSpacing.lg),
             children: [
               Text('Đối chiếu $localCode',
                   style: Theme.of(context).textTheme.titleLarge),
-              const SizedBox(height: 12),
+              const SizedBox(height: AppSpacing.md),
               OfflineConditionReview(conflict: conflict),
               FilledButton(
                 onPressed: () => Navigator.of(context).pop(true),

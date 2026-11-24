@@ -1,11 +1,11 @@
 import 'package:intl/intl.dart';
 
-/// Date formatting used across screens (patterns copied from the prototype:
-/// `10:12 27/09`, `27/09/2026`).
+/// Date formatting used across screens. Approved standard: day/month/year,
+/// `27/09/2026`, and with a time `27/09/2026 10:12`.
 class AppDates {
   AppDates._();
 
-  static final DateFormat _timeDay = DateFormat('HH:mm dd/MM');
+  static final DateFormat _timeDay = DateFormat('dd/MM/yyyy HH:mm');
   static final DateFormat _date = DateFormat('dd/MM/yyyy');
   static final DateFormat _dayMonth = DateFormat('dd/MM');
   static final DateFormat _time = DateFormat('HH:mm');
@@ -18,7 +18,7 @@ class AppDates {
   // Calendar-only values (expiry/due dates) have no UTC marker and must not shift.
   static DateTime _calendarDate(DateTime d) => d.isUtc ? vietnamTime(d) : d;
 
-  /// `10:12 27/09`
+  /// `27/09/2026 10:12` (Vietnam time)
   static String timeDay(DateTime? d) =>
       d == null ? '—' : _timeDay.format(vietnamTime(d));
 
@@ -38,6 +38,23 @@ class AppDates {
   static String iso(DateTime d) => d.toIso8601String();
 
   static String isoDate(DateTime d) => _isoDate.format(d);
+
+  /// Display text of a date-only value that arrives as JSON text or a
+  /// [DateTime]; text that cannot be parsed is shown as it came (never guessed).
+  static String dateText(Object? v) {
+    final d = tryParse(v);
+    if (d != null) return date(d);
+    final raw = v?.toString() ?? '';
+    return raw.isEmpty ? '—' : raw;
+  }
+
+  /// Display text of a timestamp (`27/09/2026 10:12`), same fallback as [dateText].
+  static String dateTimeText(Object? v) {
+    final d = tryParse(v);
+    if (d != null) return timeDay(d);
+    final raw = v?.toString() ?? '';
+    return raw.isEmpty ? '—' : raw;
+  }
 
   static DateTime? tryParse(Object? v) {
     if (v == null) return null;
