@@ -8,7 +8,6 @@ import 'package:go_router/go_router.dart';
 import 'package:fscm_mobile/core/network/api_exception.dart';
 
 import 'package:fscm_mobile/core/utils/clock.dart';
-import 'package:fscm_mobile/data/remote/orders_api.dart';
 import 'package:fscm_mobile/core/utils/dates.dart';
 import 'package:fscm_mobile/core/utils/money.dart';
 import 'package:fscm_mobile/data/models/order.dart';
@@ -28,6 +27,8 @@ import 'package:fscm_mobile/shared/widgets/info_banner.dart';
 
 enum _Span { all, week, month }
 
+enum _OrderSort { newest, oldest, amountHighToLow, amountLowToHigh }
+
 /// Retailer "Đơn hàng": tabs "Đang xử lý" / "Lịch sử", search and time chips.
 class RtOrdersScreen extends ConsumerStatefulWidget {
   const RtOrdersScreen({super.key});
@@ -40,7 +41,9 @@ class _RtOrdersScreenState extends ConsumerState<RtOrdersScreen>
     with SingleTickerProviderStateMixin {
   String _query = '';
   _Span _span = _Span.all;
+  _OrderSort _sort = _OrderSort.newest;
   Timer? _searchDebounce;
+  final TextEditingController _searchController = TextEditingController();
   late final TabController _tabs;
   final ScrollController _outer = ScrollController();
   int _tabIndex = 0;
@@ -62,6 +65,7 @@ class _RtOrdersScreenState extends ConsumerState<RtOrdersScreen>
   @override
   void dispose() {
     _searchDebounce?.cancel();
+    _searchController.dispose();
     _tabs
       ..removeListener(_onTab)
       ..dispose();
@@ -78,6 +82,18 @@ class _RtOrdersScreenState extends ConsumerState<RtOrdersScreen>
       case _Span.month:
         return AppDates.vietnamDaysBetween(o.createdAt, AppClock.now()) <= 30;
     }
+  }
+
+  int _compareOrders(Order a, Order b) {
+    final comparison = switch (_sort) {
+      _OrderSort.newest => b.createdAt.compareTo(a.createdAt),
+      _OrderSort.oldest => a.createdAt.compareTo(b.createdAt),
+      _OrderSort.amountHighToLow => b.finalAmount.compareTo(a.finalAmount),
+      _OrderSort.amountLowToHigh => a.finalAmount.compareTo(b.finalAmount),
+    };
+    // Keep equal values deterministic so changing the toolbar never makes
+    // otherwise identical rows jump around between tab switches.
+    return comparison != 0 ? comparison : a.code.compareTo(b.code);
   }
 
   @override
@@ -189,28 +205,39 @@ class _RtOrdersScreenState extends ConsumerState<RtOrdersScreen>
         children: <Widget>[Center(child: child)],
       );
 
-  /// Overview card, loyalty shortcut, search and time chips.
+  /// Overview card and the scrollable order-search toolbar.
   Widget _header() => Column(
         children: <Widget>[
           const RetailerTodoCard(),
-          Container(
-            margin: const EdgeInsets.only(top: AppSpacing.md),
-            decoration: const BoxDecoration(
-              color: AppColors.surface,
-              border: Border.symmetric(
-                  horizontal: BorderSide(color: AppColors.divider)),
-            ),
-            padding: const EdgeInsets.only(bottom: AppSpacing.s10),
+          AppCard(
+            margin: const EdgeInsets.fromLTRB(
+                AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.xs),
+            padding: const EdgeInsets.all(AppSpacing.sm),
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: <Widget>[
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(AppSpacing.lg,
-                      AppSpacing.md, AppSpacing.lg, AppSpacing.s10),
+                  padding: const EdgeInsets.fromLTRB(
+                      0, AppSpacing.md, 0, AppSpacing.sm),
                   child: TextField(
                     onTapOutside: releaseFocus,
-                    decoration: const InputDecoration(
+                    controller: _searchController,
+                    decoration: InputDecoration(
                       hintText: 'Tìm mã đơn',
-                      prefixIcon: Icon(Icons.search),
+                      prefixIcon: const Icon(Icons.search),
+                      suffixIcon: _query.isEmpty
+                          ? null
+                          : IconButton(
+                              tooltip: 'Xóa tìm kiếm',
+                              icon: const Icon(Icons.clear),
+                              onPressed: () {
+                                _searchDebounce?.cancel();
+                                setState(() {
+                                  _searchController.clear();
+                                  _query = '';
+                                });
+                              },
+                            ),
                     ),
                     onChanged: (v) {
                       _searchDebounce?.cancel();
@@ -224,6 +251,7 @@ class _RtOrdersScreenState extends ConsumerState<RtOrdersScreen>
                   ),
                 ),
                 ChipFilterBar<_Span>(
+                  padding: EdgeInsets.zero,
                   selected: _span,
                   onSelected: (v) => setState(() => _span = v),
                   options: const <ChipOption<_Span>>[
@@ -231,6 +259,38 @@ class _RtOrdersScreenState extends ConsumerState<RtOrdersScreen>
                     ChipOption(_Span.week, '7 ngày'),
                     ChipOption(_Span.month, '30 ngày'),
                   ],
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(top: AppSpacing.sm),
+                  child: DropdownButtonFormField<_OrderSort>(
+                    value: _sort,
+                    isExpanded: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Sắp xếp',
+                      prefixIcon: Icon(Icons.sort),
+                    ),
+                    items: const <DropdownMenuItem<_OrderSort>>[
+                      DropdownMenuItem(
+                        value: _OrderSort.newest,
+                        child: Text('Đơn mới nhất'),
+                      ),
+                      DropdownMenuItem(
+                        value: _OrderSort.oldest,
+                        child: Text('Đơn cũ nhất'),
+                      ),
+                      DropdownMenuItem(
+                        value: _OrderSort.amountHighToLow,
+                        child: Text('Giá trị cao đến thấp'),
+                      ),
+                      DropdownMenuItem(
+                        value: _OrderSort.amountLowToHigh,
+                        child: Text('Giá trị thấp đến cao'),
+                      ),
+                    ],
+                    onChanged: (value) {
+                      if (value != null) setState(() => _sort = value);
+                    },
+                  ),
                 ),
               ],
             ),
@@ -242,9 +302,10 @@ class _RtOrdersScreenState extends ConsumerState<RtOrdersScreen>
     // Search is performed by the server. Only the time range and status tabs
     // filter the pages currently loaded on the device.
     final all = state.orders.where(_inSpan).toList();
-    final orders = activeTab
+    final orders = (activeTab
         ? all.where((o) => o.status.isActive).toList()
-        : all.where((o) => !o.status.isActive).toList();
+        : all.where((o) => !o.status.isActive).toList())
+      ..sort(_compareOrders);
     final empty = activeTab
         ? (state.hasMore
             ? 'Chưa thấy đơn đang xử lý trong dữ liệu đã tải.'
@@ -252,19 +313,15 @@ class _RtOrdersScreenState extends ConsumerState<RtOrdersScreen>
         : (state.hasMore
             ? 'Chưa thấy đơn lịch sử trong dữ liệu đã tải.'
             : 'Chưa có đơn lịch sử.');
-    // The Backend cannot filter by these tabs/time ranges, so while the
-    // SELECTED tab shows less than one page, keep reading the next server
-    // page (the controller ignores overlapping calls and stops after an error).
-    if (activeTab == (_tabIndex == 0) &&
-        state.hasMore &&
-        !state.loadingMore &&
-        state.moreError == null &&
-        orders.length < OrdersApi.defaultPageSize) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-        ref.read(retailerOrdersProvider(_query).notifier).loadMore();
-      });
-    }
+    _fillVisiblePage(
+      state,
+      activeTab: activeTab,
+      visibleOrderCount: orders.length,
+    );
+    // The tabs and date range currently refine the loaded GraphQL page. Do
+    // not auto-drain subsequent pages when this tab happens to have few rows:
+    // that created a serial request waterfall on screen open. Pagination is
+    // explicit (button) or user-driven (scroll near the end) below.
     return NotificationListener<ScrollNotification>(
       onNotification: (n) {
         // Near the end of this list: next server page. The controller ignores
@@ -284,21 +341,21 @@ class _RtOrdersScreenState extends ConsumerState<RtOrdersScreen>
       child: ListView(
         key: PageStorageKey<String>(
             'rt-orders-${activeTab ? 'active' : 'history'}'),
+        cacheExtent: 2000,
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.all(AppSpacing.lg),
         children: <Widget>[
           Padding(
             padding: const EdgeInsets.only(bottom: AppSpacing.sm),
             child: Text(
-                'Đã tải ${state.orders.length}/${state.totalCount} đơn'
-                '${_query.isEmpty ? '' : ' khớp mã tìm kiếm'}. '
-                'Tab trạng thái và bộ lọc thời gian chỉ áp dụng trên các đơn đã tải.',
-                style: AppText.mutedSmall),
+              'Đã tải ${state.orders.length}/${state.totalCount} đơn'
+              '${_query.isEmpty ? '' : ' · kết quả tìm kiếm'}',
+              style: AppText.mutedSmall,
+            ),
           ),
           if (state.hasMore && orders.isEmpty)
             const InfoBanner(
-                text: 'Vẫn còn đơn chưa tải. Chọn "Tải thêm đơn" để tiếp tục '
-                    'kiểm tra kết quả trong tab và khoảng thời gian này.'),
+                text: 'Còn đơn chưa tải. Cuộn xuống hoặc chọn “Tải thêm”.'),
           if (orders.isEmpty) EmptyState(title: empty),
           for (final order in orders) RtOrderTile(order: order),
           if (state.moreError != null) InfoBanner(text: state.moreError!),
@@ -315,6 +372,28 @@ class _RtOrdersScreenState extends ConsumerState<RtOrdersScreen>
       ),
     );
   }
+
+  void _fillVisiblePage(
+    RetailerOrdersState state, {
+    required bool activeTab,
+    required int visibleOrderCount,
+  }) {
+    // A server page can contain no rows for the active tab or date range.
+    // Continue only until the visible tab has a complete page, never from the
+    // offstage tab, and let the controller serialize every request.
+    if (activeTab != (_tabIndex == 0) ||
+        visibleOrderCount >= 10 ||
+        !state.hasMore ||
+        state.loadingMore ||
+        state.moreError != null) {
+      return;
+    }
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      ref.read(retailerOrdersProvider(_query).notifier).loadMore();
+    });
+  }
 }
 
 /// Row of the retailer order list (items, amount, payment, status).
@@ -326,23 +405,35 @@ class RtOrderTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final o = order;
+    const summaryValueWidth = 132.0;
     return AppCard(
       onTap: () => context.push(AppRoutes.rtOrderDetail(o.id)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          // Header: code + status chip (prototype order card).
-          Wrap(
-            alignment: WrapAlignment.spaceBetween,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            spacing: AppSpacing.sm,
-            runSpacing: AppSpacing.xs,
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
-              Text(o.code, style: AppText.strong),
-              OrderStatusChip(o),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(o.code, style: AppText.strong),
+                    const SizedBox(height: AppSpacing.xxs),
+                    Text(AppDates.timeDay(o.createdAt),
+                        style: AppText.mutedSmall),
+                  ],
+                ),
+              ),
+              SizedBox(
+                width: summaryValueWidth,
+                child: Align(
+                  alignment: Alignment.centerRight,
+                  child: OrderStatusChip(o),
+                ),
+              ),
             ],
           ),
-          Text(AppDates.timeDay(o.createdAt), style: AppText.mutedSmall),
           if (o.itemsSummary.isNotEmpty) ...<Widget>[
             const SizedBox(height: AppSpacing.sm),
             Text(o.itemsSummary,
@@ -350,24 +441,43 @@ class RtOrderTile extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
                 style: AppText.bodySmall.copyWith(color: AppColors.textLabel)),
           ],
-          const SizedBox(height: AppSpacing.sm),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: <Widget>[
-              Expanded(
-                child: Text(o.payment.labelWithTerm(o.creditTerm),
-                    style: AppText.mutedSmall),
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              Flexible(
-                child: FittedBox(
-                  fit: BoxFit.scaleDown,
-                  alignment: Alignment.centerRight,
-                  child:
-                      Text(Money.format(o.finalAmount), style: AppText.strong),
+          const SizedBox(height: AppSpacing.md),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      const Text('Thanh toán', style: AppText.mutedSmall),
+                      const SizedBox(height: AppSpacing.xxs),
+                      Text(o.payment.labelWithTerm(o.creditTerm),
+                          style: AppText.bodySmall),
+                    ],
+                  ),
                 ),
-              ),
-            ],
+                const SizedBox(width: AppSpacing.md),
+                SizedBox(
+                  width: summaryValueWidth,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: <Widget>[
+                      const Text('Tổng tiền', style: AppText.mutedSmall),
+                      const SizedBox(height: AppSpacing.xxs),
+                      FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerRight,
+                        child: Text(Money.format(o.finalAmount),
+                            style: AppText.strong
+                                .copyWith(color: AppColors.primary)),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
           if (o.status.canConfirmReceipt) ...<Widget>[
             const SizedBox(height: AppSpacing.s10),

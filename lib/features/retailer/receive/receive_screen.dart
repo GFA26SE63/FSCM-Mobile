@@ -81,9 +81,9 @@ class _RtReceiveScreenState extends ConsumerState<RtReceiveScreen> {
 
   void _onScan(String raw) {
     final code = raw.trim().toUpperCase();
-    final problem = IdFormat.cartonScanError(code);
-    if (problem != null) {
-      setState(() => _error = problem);
+    if (!IdFormat.isCarton(code)) {
+      setState(
+          () => _error = 'Mã "$code" không phải mã thùng hàng CID hợp lệ.');
       return;
     }
     if (_scanned.contains(code)) {

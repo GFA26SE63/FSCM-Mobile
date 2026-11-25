@@ -73,8 +73,8 @@ class IdFormat {
   /// Label `TEM-000000`.
   static String label(int seq) => 'TEM-${_pad(seq, 6)}';
 
-  /// Order `DH-000000`.
-  static String order(int seq) => 'DH-${_pad(seq, 6)}';
+  /// Order `DH-0000000000`.
+  static String order(int seq, [int width = 10]) => 'DH-${_pad(seq, width)}';
 
   /// Offline order `OFF-{device}-{0000}`; always paired with a UUID
   /// `clientRequestId` used as idempotency key by `POST /orders/sync`.
@@ -121,16 +121,14 @@ class IdFormat {
       RegExp(r'^(WH-[A-Z]{2,4})-(SKU\d{3})-(\d{2})(\d{2})(\d{4})$');
   static final RegExp labelPattern = RegExp(r'^TEM-\d{6}$');
 
-  /// Factory carton `CID-F01-20260827-A-0001-0001` (docs/FactoryTraceability.md).
-  /// Its QR holds only this code, and it is also the QR label code of the
-  /// carton once received, so label lookups accept it next to `TEM-000000`.
+  /// Factory carton identity, preserved through warehouse issue and receipt.
   static final RegExp cartonPattern =
-      RegExp(r'^CID-[A-Z0-9]{2,8}-\d{8}-[A-Z]-\d{4}-\d{4}$');
-  static final RegExp orderPattern = RegExp(r'^DH-\d{6}$');
+      RegExp(r'^CID-[A-Z0-9]{1,12}-\d{8}-[A-D]-\d{4}-\d{4,}$');
+  static final RegExp orderPattern = RegExp(r'^DH-\d{6,10}$');
   static final RegExp offlineOrderPattern =
       RegExp(r'^OFF-[A-Z0-9]{2,8}-\d{4}$');
   static final RegExp pickingListPattern =
-      RegExp(r'^(?:DH-\d{6}[A-Z]|PK-DH-\d{6}-WH-[A-Z0-9-]+)$');
+      RegExp(r'^(?:DH-\d{6,10}[A-Z]|PK-DH-\d{6,10}-WH-[A-Z0-9-]+)$');
   static final RegExp documentPattern =
       RegExp(r'^(PN|PH|DC|KN|KMB)-\d{6}-\d{2}$');
   static final RegExp promotionPattern = RegExp(r'^KM-\d{3}$');
@@ -171,6 +169,8 @@ class IdFormat {
   static String? orderOfPickingList(String pickingListCode) {
     if (!isPickingList(pickingListCode)) return null;
     if (pickingListCode.startsWith('PK-')) {
+      final match = RegExp(r'^PK-(DH-\d+)-').firstMatch(pickingListCode);
+      if (match != null) return match.group(1);
       return pickingListCode.substring(3, 12);
     }
     return pickingListCode.substring(0, pickingListCode.length - 1);
