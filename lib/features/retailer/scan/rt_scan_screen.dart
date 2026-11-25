@@ -36,10 +36,11 @@ class _RtScanScreenState extends ConsumerState<RtScanScreen> {
 
   Future<void> _onScan(String raw) async {
     final code = raw.trim().toUpperCase();
-    if (!IdFormat.isLabelCode(code)) {
+    final problem = IdFormat.cartonScanError(code);
+    if (problem != null) {
       setState(() {
         _label = null;
-        _error = 'Mã "$code" không phải tem hàng (TEM-000000).';
+        _error = problem;
       });
       return;
     }
@@ -88,7 +89,7 @@ class _RtScanScreenState extends ConsumerState<RtScanScreen> {
           const InfoBanner(
             icon: Icons.qr_code_scanner,
             text:
-                'Quét tem trên kiện hàng để kiểm tra đơn hàng và xác nhận nhận hàng.',
+                'Quét mã QR trên thùng hàng để kiểm tra đơn hàng và xác nhận nhận hàng.',
           ),
           QrScanView(
             onCode: _onScan,

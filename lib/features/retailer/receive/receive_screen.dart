@@ -87,7 +87,7 @@ class _RtReceiveScreenState extends ConsumerState<RtReceiveScreen> {
       return;
     }
     if (_scanned.contains(code)) {
-      setState(() => _error = 'Tem $code đã quét rồi.');
+      setState(() => _error = 'Mã thùng $code đã được quét.');
       return;
     }
     setState(() {
@@ -159,7 +159,7 @@ class _RtReceiveScreenState extends ConsumerState<RtReceiveScreen> {
           icon: Icons.local_shipping_outlined,
           text: shipments.length == 1
               ? 'Xác nhận riêng phần giao từ ${selected.warehouseName}.'
-              : 'Đơn có ${shipments.length} phần giao đang tới. Chọn đúng kho trên phiếu giao trước khi quét tem.',
+              : 'Đơn có ${shipments.length} phần giao đang tới. Chọn đúng kho trên phiếu giao trước khi quét thùng hàng.',
         ),
         const SectionTitle('1. Chọn phần giao'),
         for (final shipment in shipments)
@@ -193,14 +193,14 @@ class _RtReceiveScreenState extends ConsumerState<RtReceiveScreen> {
               ),
             ),
           ),
-        SectionTitle('2. Quét tem của ${selected.warehouseCode}'),
-        const InfoBanner(
+        SectionTitle('2. Quét mã thùng (CID) của ${selected.warehouseCode}'),
+        InfoBanner(
           icon: Icons.qr_code_scanner,
           text:
-              'Chỉ quét tem thuộc phần giao đã chọn. Đổi sang kho khác sẽ xóa danh sách tem đang quét.',
+              'Quét mã QR trên từng thùng hàng, mỗi thùng một lần. Phần giao này có ${_quantity(selected.totalQuantity)} thùng; hệ thống chỉ nhận khi đã quét đủ các thùng thuộc phần giao đã chọn. Đổi sang kho khác sẽ xóa danh sách mã đang quét.',
         ),
         QrScanView(
-          hint: 'Quét tem trên kiện hàng',
+          hint: 'Quét mã QR trên thùng hàng',
           onCode: _onScan,
         ),
         if (_error.isNotEmpty) ...<Widget>[
@@ -211,7 +211,7 @@ class _RtReceiveScreenState extends ConsumerState<RtReceiveScreen> {
             text: _error,
           ),
         ],
-        SectionTitle('Tem đã quét (${_scanned.length})'),
+        SectionTitle('Số thùng đã quét (${_scanned.length})'),
         for (final code in _scanned)
           AppCard(
             margin: const EdgeInsets.only(bottom: AppSpacing.s6),
