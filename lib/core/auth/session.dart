@@ -10,6 +10,10 @@ class AppUser {
     required this.phone,
     required this.role,
     this.email = '',
+    this.permissions,
+    this.roleDefinitionId,
+    this.roleCode,
+    this.roleName,
     this.areaCode,
     this.areaName,
     this.salesGroup,
@@ -51,6 +55,10 @@ class AppUser {
       email: json['email']?.toString() ?? '',
       phone: json['phone']?.toString() ?? '',
       role: role,
+      permissions: _strings(json['permissions']),
+      roleDefinitionId: json['roleDefinitionId'] as String?,
+      roleCode: json['roleCode'] as String?,
+      roleName: json['roleName'] as String?,
       areaCode: json['areaCode'] as String? ??
           (regions.isEmpty ? null : regions.first.code),
       areaName: json['areaName'] as String? ??
@@ -97,6 +105,12 @@ class AppUser {
   final String email;
   final String phone;
   final UserRole role;
+
+  /// Null is reserved for in-process legacy callers. Server/persisted sessions always use a list.
+  final List<String>? permissions;
+  final String? roleDefinitionId;
+  final String? roleCode;
+  final String? roleName;
   final String? areaCode;
   final String? areaName;
   final String? salesGroup;
@@ -149,6 +163,10 @@ class AppUser {
         'email': email,
         'phone': phone,
         'role': role.code,
+        'permissions': permissions ?? const <String>[],
+        'roleDefinitionId': roleDefinitionId,
+        'roleCode': roleCode,
+        'roleName': roleName,
         'areaCode': areaCode,
         'areaName': areaName,
         'salesGroup': salesGroup,

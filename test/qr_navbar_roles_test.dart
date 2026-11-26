@@ -8,6 +8,9 @@ import 'package:fscm_mobile/app/shell/retailer_shell.dart';
 import 'package:fscm_mobile/app/shell/sales_shell.dart';
 import 'package:fscm_mobile/app/shell/warehouse_shell.dart';
 import 'package:fscm_mobile/shared/routes.dart';
+import 'package:fscm_mobile/core/auth/session.dart';
+import 'package:fscm_mobile/core/auth/screen_permissions.dart';
+import 'package:fscm_mobile/data/repositories/auth_repository.dart';
 
 Future<GoRouter> _pump(
   WidgetTester tester,
@@ -33,6 +36,18 @@ Future<GoRouter> _pump(
   );
   addTearDown(router.dispose);
   await tester.pumpWidget(ProviderScope(
+    overrides: [
+      currentUserProvider.overrideWithValue(AppUser.fromJson({
+        'id': 'navigation-user',
+        'role': paths.first.startsWith('/wk')
+            ? 'WarehouseKeeper'
+            : paths.first.startsWith('/retailer')
+                ? 'Retailer'
+                : 'Sales',
+        'permissions':
+            paths.map(screenPermissionFor).whereType<String>().toList(),
+      }))
+    ],
     child: MaterialApp.router(routerConfig: router),
   ));
   await tester.pumpAndSettle();
