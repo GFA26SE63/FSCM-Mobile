@@ -70,6 +70,18 @@ class AppRoutes {
   static String rtReceive(String code) => '/retailer/receive/$code';
 
   /// `/retailer/complaint-new?order=DH-001021`
-  static String rtComplaintFor(String orderCode) =>
-      '$rtComplaintNew?order=$orderCode';
+  static String rtComplaintFor(
+    String orderCode, {
+    String? shipmentId,
+    int? actualQty,
+  }) {
+    final params = <String, String>{'order': orderCode};
+    if (shipmentId != null && shipmentId.isNotEmpty) {
+      params['shipmentId'] = shipmentId;
+    }
+    if (actualQty != null) {
+      params['actualQty'] = '$actualQty';
+    }
+    return Uri(path: rtComplaintNew, queryParameters: params).toString();
+  }
 }

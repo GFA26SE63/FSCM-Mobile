@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:fscm_mobile/core/network/api_exception.dart';
+import 'package:fscm_mobile/core/utils/status_tone.dart';
 import 'package:fscm_mobile/data/models/complaint.dart';
 import 'package:fscm_mobile/data/models/enums.dart';
 import 'package:fscm_mobile/data/models/order.dart';
@@ -19,8 +20,15 @@ import 'package:fscm_mobile/shared/widgets/section_title.dart';
 import 'package:fscm_mobile/shared/widgets/info_banner.dart';
 
 class ComplaintFormScreen extends ConsumerStatefulWidget {
-  const ComplaintFormScreen({super.key, this.orderCode});
+  const ComplaintFormScreen({
+    super.key,
+    this.orderCode,
+    this.initialShipmentId,
+    this.initialActualQty,
+  });
   final String? orderCode;
+  final String? initialShipmentId;
+  final int? initialActualQty;
   @override
   ConsumerState<ComplaintFormScreen> createState() =>
       _ComplaintFormScreenState();
@@ -41,6 +49,9 @@ class _ComplaintFormScreenState extends ConsumerState<ComplaintFormScreen> {
   void initState() {
     super.initState();
     _orderCode = widget.orderCode;
+    if (widget.initialActualQty != null) {
+      _actual.text = '${widget.initialActualQty}';
+    }
   }
 
   @override
@@ -69,7 +80,8 @@ class _ComplaintFormScreenState extends ConsumerState<ComplaintFormScreen> {
     setState(() => _images.addAll(added));
   }
 
-  Future<void> _submit(Order order, ComplaintTarget target) async {
+  Future<void> _submit(
+      Order order, ComplaintTarget target, String settlementMethod) async {
     if (_busy) return;
     final actual = int.tryParse(_actual.text.trim());
     final affected = actual == null
@@ -85,7 +97,7 @@ class _ComplaintFormScreenState extends ConsumerState<ComplaintFormScreen> {
     if (actual == null ||
         actual < 0 ||
         affected <= 0 ||
-        (_settlement != 'None' && affected > claimLimit) ||
+        (settlementMethod != 'None' && affected > claimLimit) ||
         ((_requestType != 'Complaint' || _collect) && affected > returnLimit)) {
       showAppSnack(context,
           'Số thùng không hợp lệ. Còn $claimLimit thùng được yêu cầu bồi hoàn, $returnLimit thùng được trả/thu hồi.',
@@ -108,7 +120,7 @@ class _ComplaintFormScreenState extends ConsumerState<ComplaintFormScreen> {
               issueType: _issueType,
               note: _note.text.trim(),
               requestType: _requestType,
-              settlementMethod: _settlement,
+              settlementMethod: settlementMethod,
               affectedQuantity: _requestType == 'Complaint' ? null : affected,
               requiresCollection:
                   _requestType == 'DamagedCollection' || _collect,
@@ -161,6 +173,17 @@ class _ComplaintFormScreenState extends ConsumerState<ComplaintFormScreen> {
                 .toList();
             final matches = eligible.where((o) => o.code == _orderCode);
             final order = matches.isEmpty ? null : matches.first;
+            final isCreditPaid = order != null &&
+                order.payment == PaymentMethod.credit &&
+                order.paid;
+            final lockedSettlement = order == null || _requestType == 'DamagedCollection'
+                ? null
+                : order.payment == PaymentMethod.prepaid
+                    ? 'CashRefund'
+                    : order.payment == PaymentMethod.credit
+                        ? 'DebtOffset'
+                        : null;
+            final effectiveSettlement = lockedSettlement ?? _settlement;
             return ListView(
                 keyboardDismissBehavior:
                     ScrollViewKeyboardDismissBehavior.onDrag,
@@ -233,8 +256,23 @@ class _ComplaintFormScreenState extends ConsumerState<ComplaintFormScreen> {
                                     child: const Text(
                                         'Không tải được phần hàng. Thử lại')),
                                 data: (targets) {
-                                  final chosen = targets.where(
+                                  if (isCreditPaid) {
+                                    return const InfoBanner(
+                                      tone: StatusTone.warning,
+                                      icon: Icons.lock_outline,
+                                      text:
+                                          'Đơn hàng công nợ đã thanh toán đủ nên đã khóa tạo khiếu nại mới.',
+                                    );
+                                  }
+                                  var chosen = targets.where(
                                       (t) => t.allocationId == _allocationId);
+                                  if (chosen.isEmpty &&
+                                      _allocationId == null &&
+                                      widget.initialShipmentId != null) {
+                                    chosen = targets.where((t) =>
+                                        t.shipmentId ==
+                                        widget.initialShipmentId);
+                                  }
                                   final target =
                                       chosen.isEmpty ? null : chosen.first;
                                   return Column(
@@ -306,8 +344,8 @@ class _ComplaintFormScreenState extends ConsumerState<ComplaintFormScreen> {
                                           DropdownButtonFormField<String>(
                                               isExpanded: true,
                                               key: ValueKey(
-                                                  'settlement:$_requestType'),
-                                              initialValue: _settlement,
+                                                  'settlement:$_requestType:$effectiveSettlement'),
+                                              initialValue: effectiveSettlement,
                                               decoration: const InputDecoration(
                                                   labelText:
                                                       'Phương án mong muốn'),
@@ -326,7 +364,7 @@ class _ComplaintFormScreenState extends ConsumerState<ComplaintFormScreen> {
                                                       child: Text(
                                                           'Chỉ thu hồi, không bồi hoàn'))
                                               ],
-                                              onChanged: _busy
+                                              onChanged: _busy || lockedSettlement != null
                                                   ? null
                                                   : (v) => setState(
                                                       () => _settlement = v!)),
@@ -401,8 +439,8 @@ class _ComplaintFormScreenState extends ConsumerState<ComplaintFormScreen> {
                                           FilledButton(
                                               onPressed: _busy
                                                   ? null
-                                                  : () =>
-                                                      _submit(order, target),
+                                                  : () => _submit(order, target,
+                                                      effectiveSettlement),
                                               child: Text(_busy
                                                   ? 'Đang gửi...'
                                                   : 'Gửi yêu cầu')),

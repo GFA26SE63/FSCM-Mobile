@@ -155,6 +155,7 @@ enum LabelStatus {
   picked('Picked', 'Đã soạn', StatusTone.purple),
   inTransit('InTransit', 'Đang vận chuyển', StatusTone.warning),
   delivered('Delivered', 'Đã giao', StatusTone.success),
+  missing('Missing', 'Thiếu khi giao', StatusTone.danger),
   invalidated('Invalidated', 'Đã vô hiệu hóa', StatusTone.danger),
   split('Split', 'Đã tách · không dùng lại', StatusTone.neutral),
   expired('Expired', 'Hết hạn', StatusTone.danger),
