@@ -149,7 +149,11 @@ class _RtReceiveScreenState extends ConsumerState<RtReceiveScreen> {
   Widget build(BuildContext context) {
     final orderValue = ref.watch(orderDetailProvider(widget.code));
     return Scaffold(
-      appBar: AppBar(title: Text('Nhận hàng · ${widget.code}')),
+      // Route param may be the order GUID; show the order code once loaded.
+      appBar: AppBar(
+          title: Text((orderValue.valueOrNull?.code.isNotEmpty ?? false)
+              ? 'Nhận hàng · ${orderValue.valueOrNull!.code}'
+              : 'Nhận hàng')),
       body: AsyncBody<Order>(
         value: orderValue,
         onRetry: () => ref.invalidate(orderDetailProvider(widget.code)),
