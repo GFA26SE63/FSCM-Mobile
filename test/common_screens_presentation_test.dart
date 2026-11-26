@@ -79,6 +79,7 @@ final _sales = AppUser.fromJson(<String, dynamic>{
   'fullName': 'Nguyễn Văn An',
   'email': 'an@example.com',
   'role': 'Sales',
+  'permissions': ['mobile-sales-retailers', 'mobile-sales-promos'],
   'scope': <String, dynamic>{},
 });
 
@@ -190,11 +191,11 @@ void main() {
           ProfileAction(
               label: 'Cửa hàng phụ trách',
               icon: Icons.storefront_outlined,
-              route: '/a'),
+              route: '/sales/retailers'),
           ProfileAction(
               label: 'Khuyến mãi',
               icon: Icons.local_offer_outlined,
-              route: '/b'),
+              route: '/sales/promotions'),
         ]),
         [
           authControllerProvider.overrideWith((ref) => auth),
