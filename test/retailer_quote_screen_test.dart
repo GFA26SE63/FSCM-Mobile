@@ -29,7 +29,7 @@ void main() {
     expect(
         tester
             .widget<FilledButton>(find.widgetWithText(
-                FilledButton, 'Chấp nhận và chọn thanh toán'))
+                FilledButton, 'Chấp nhận báo giá'))
             .onPressed,
         isNull);
     expect(
