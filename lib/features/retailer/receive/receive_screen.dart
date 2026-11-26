@@ -8,11 +8,9 @@ import 'package:fscm_mobile/core/utils/id_format.dart';
 import 'package:fscm_mobile/core/utils/status_tone.dart';
 import 'package:fscm_mobile/data/models/delivery_shipment.dart';
 import 'package:fscm_mobile/data/models/enums.dart';
-import 'package:fscm_mobile/data/models/label_info.dart';
 import 'package:fscm_mobile/data/models/order.dart';
 import 'package:fscm_mobile/data/repositories/data_version.dart';
 import 'package:fscm_mobile/data/repositories/order_repository.dart';
-import 'package:fscm_mobile/data/repositories/warehouse_repository.dart';
 import 'package:fscm_mobile/shared/routes.dart';
 import 'package:fscm_mobile/shared/theme/app_colors.dart';
 import 'package:fscm_mobile/shared/widgets/app_card.dart';
@@ -36,19 +34,14 @@ class RtReceiveScreen extends ConsumerStatefulWidget {
 }
 
 class _RtReceiveScreenState extends ConsumerState<RtReceiveScreen> {
-  final Map<String, LabelInfo> _scannedLabels = <String, LabelInfo>{};
+  final Set<String> _scanned = <String>{};
   String? _selectedShipmentId;
   String _error = '';
   bool _busy = false;
-  bool _lookingUp = false;
   Order? _result;
 
-  Future<void> _confirm(
-    Order order,
-    DeliveryShipment shipment, {
-    required Map<String, double> receivedQuantities,
-    String? note,
-  }) async {
+  Future<void> _confirm(Order order, DeliveryShipment shipment) async {
+    final receivedQuantities = _receivedQuantitiesFor(shipment);
     setState(() {
       _busy = true;
       _error = '';
@@ -58,9 +51,8 @@ class _RtReceiveScreenState extends ConsumerState<RtReceiveScreen> {
           await ref.read(orderRepositoryProvider).confirmShipmentReceipt(
                 order.id,
                 shipment,
-                labelCodes: _scannedLabels.keys.toList(growable: false),
+                labelCodes: _scanned.toList(growable: false),
                 receivedQuantities: receivedQuantities,
-                note: note,
               );
       ref.invalidate(orderDetailProvider(widget.code));
       ref.invalidate(orderDetailProvider(order.id));
@@ -74,7 +66,7 @@ class _RtReceiveScreenState extends ConsumerState<RtReceiveScreen> {
             .toDouble();
         setState(() {
           _result = result;
-          _scannedLabels.clear();
+          _scanned.clear();
           _selectedShipmentId = null;
         });
         if (missing > 0) {
@@ -119,129 +111,38 @@ class _RtReceiveScreenState extends ConsumerState<RtReceiveScreen> {
     if (_selectedShipmentId == shipmentId) return;
     setState(() {
       _selectedShipmentId = shipmentId;
-      _scannedLabels.clear();
+      _scanned.clear();
       _error = '';
     });
   }
 
-  Future<void> _onScan(String raw, String orderCode) async {
-    if (_busy || _lookingUp) return;
+  void _onScan(String raw) {
     final code = raw.trim().toUpperCase();
-    if (!IdFormat.isCarton(code)) {
-      setState(
-          () => _error = 'Mã "$code" không phải mã thùng hàng CID hợp lệ.');
+    final problem = IdFormat.cartonScanError(code);
+    if (problem != null) {
+      setState(() => _error = problem);
       return;
     }
-    if (_scannedLabels.containsKey(code)) {
+    if (_scanned.contains(code)) {
       setState(() => _error = 'Mã thùng $code đã được quét.');
       return;
     }
     setState(() {
-      _lookingUp = true;
+      _scanned.add(code);
       _error = '';
     });
-    try {
-      final label = await ref.read(warehouseRepositoryProvider).label(code);
-      if (!mounted) return;
-      if (label.orderCode.isNotEmpty && label.orderCode != orderCode) {
-        setState(() => _error =
-            'Tem $code thuộc đơn ${label.orderCode}, không thuộc đơn $orderCode.');
-        return;
-      }
-      setState(() {
-        _scannedLabels[code] = label;
-        _error = '';
-      });
-    } on ApiException catch (e) {
-      if (!mounted) return;
-      setState(() => _error = e.statusCode == 403 || e.statusCode == 404
-          ? 'Tem $code không thuộc đơn hàng của bạn.'
-          : e.message);
-    } finally {
-      if (mounted) setState(() => _lookingUp = false);
-    }
   }
 
   Map<String, double> _receivedQuantitiesFor(DeliveryShipment shipment) {
+    var remaining = _scanned.length.toDouble();
     final result = <String, double>{};
     for (final line in shipment.lines) {
       final key = '${line.orderLineId}:${line.batchId}';
-      var matchedQty = 0.0;
-      for (final label in _scannedLabels.values) {
-        if (label.sku == line.sku && label.batchCode == line.batchCode) {
-          matchedQty += label.qty > 0 ? label.qty : 1;
-        }
-      }
-      result[key] = matchedQty.clamp(0, line.quantity).toDouble();
+      final assigned = remaining.clamp(0, line.quantity).toDouble();
+      result[key] = assigned;
+      remaining -= assigned;
     }
     return result;
-  }
-
-  Future<void> _handleConfirmTap(
-    Order order,
-    DeliveryShipment selected,
-  ) async {
-    final receivedMap = _receivedQuantitiesFor(selected);
-    final totalReceived =
-        receivedMap.values.fold<double>(0, (sum, value) => sum + value);
-    final missing = (selected.totalQuantity - totalReceived)
-        .clamp(0, selected.totalQuantity)
-        .toDouble();
-
-    if (missing <= 0) {
-      await _confirm(order, selected, receivedQuantities: receivedMap);
-      return;
-    }
-
-    final noteController = TextEditingController();
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Xác nhận nhận thiếu hàng'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            Text(
-              'Bạn mới quét ${_quantity(totalReceived)} / ${_quantity(selected.totalQuantity)} thùng '
-              '(thiếu ${_quantity(missing)} thùng).\n\n'
-              'Các tem đã quét sẽ chuyển trạng thái Đã giao; tem chưa quét sẽ được đánh dấu Thiếu khi giao để đối soát.',
-            ),
-            const SizedBox(height: AppSpacing.md),
-            TextField(
-              controller: noteController,
-              maxLength: 500,
-              maxLines: 2,
-              decoration: const InputDecoration(
-                labelText: 'Ghi chú nhận thiếu (không bắt buộc)',
-                hintText: 'VD: Xe giao thiếu 1 thùng',
-                border: OutlineInputBorder(),
-              ),
-            ),
-          ],
-        ),
-        actions: <Widget>[
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text('Quay lại quét tiếp'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text('Xác nhận nhận thiếu'),
-          ),
-        ],
-      ),
-    );
-    final note = noteController.text;
-    noteController.dispose();
-    if (confirmed == true && mounted) {
-      await _confirm(
-        order,
-        selected,
-        receivedQuantities: receivedMap,
-        note: note,
-      );
-    }
   }
 
   @override
@@ -298,10 +199,7 @@ class _RtReceiveScreenState extends ConsumerState<RtReceiveScreen> {
     for (final item in shipments) {
       if (item.id == _selectedShipmentId) selected = item;
     }
-    final ready = _scannedLabels.isNotEmpty;
-    final scannedQty = _receivedQuantitiesFor(selected)
-        .values
-        .fold<double>(0, (sum, value) => sum + value);
+    final ready = _scanned.isNotEmpty;
 
     return ListView(
       padding: const EdgeInsets.all(AppSpacing.lg),
@@ -348,11 +246,11 @@ class _RtReceiveScreenState extends ConsumerState<RtReceiveScreen> {
         InfoBanner(
           icon: Icons.qr_code_scanner,
           text:
-              'Quét mã QR trên từng thùng hàng (phần giao này có ${_quantity(selected.totalQuantity)} thùng). Nếu thiếu thùng, hệ thống sẽ ghi nhận thực nhận và đánh dấu tem chưa quét là Thiếu khi giao. Đổi sang kho khác sẽ xóa danh sách mã đang quét.',
+              'Quét mã QR trên từng thùng hàng. Phần giao này có ${_quantity(selected.totalQuantity)} thùng (nếu thiếu thùng, hệ thống sẽ ghi nhận thực nhận và đánh dấu phần thiếu để đối soát). Đổi sang kho khác sẽ xóa danh sách mã đang quét.',
         ),
         QrScanView(
           hint: 'Quét mã QR trên thùng hàng',
-          onCode: (raw) => _onScan(raw, order.code),
+          onCode: _onScan,
         ),
         if (_error.isNotEmpty) ...<Widget>[
           const SizedBox(height: AppSpacing.md),
@@ -362,9 +260,8 @@ class _RtReceiveScreenState extends ConsumerState<RtReceiveScreen> {
             text: _error,
           ),
         ],
-        SectionTitle(
-            'Tem đã quét (${_quantity(scannedQty)} / ${_quantity(selected.totalQuantity)} thùng)'),
-        for (final entry in _scannedLabels.entries)
+        SectionTitle('Số thùng đã quét (${_scanned.length})'),
+        for (final code in _scanned)
           AppCard(
             margin: const EdgeInsets.only(bottom: AppSpacing.s6),
             padding: const EdgeInsets.symmetric(
@@ -373,24 +270,12 @@ class _RtReceiveScreenState extends ConsumerState<RtReceiveScreen> {
               children: <Widget>[
                 const Icon(Icons.check_circle, color: AppColors.success),
                 const SizedBox(width: AppSpacing.s10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      Text(entry.key, style: AppText.strong),
-                      if (entry.value.sku.isNotEmpty)
-                        Text(
-                          '${entry.value.sku} · ${entry.value.batchCode} · ${entry.value.qty} thùng',
-                          style: AppText.muted,
-                        ),
-                    ],
-                  ),
-                ),
+                Expanded(child: Text(code, style: AppText.strong)),
                 IconButton(
-                  tooltip: 'Xóa tem này',
+                  tooltip: 'Xóa mã này',
                   onPressed: _busy
                       ? null
-                      : () => setState(() => _scannedLabels.remove(entry.key)),
+                      : () => setState(() => _scanned.remove(code)),
                   icon: const Icon(Icons.close, size: 18),
                 ),
               ],
@@ -398,9 +283,7 @@ class _RtReceiveScreenState extends ConsumerState<RtReceiveScreen> {
           ),
         const SizedBox(height: AppSpacing.sm),
         FilledButton(
-          onPressed: ready && !_busy && !_lookingUp
-              ? () => _handleConfirmTap(order, selected)
-              : null,
+          onPressed: ready && !_busy ? () => _confirm(order, selected) : null,
           child: Text(_busy
               ? 'Đang xác nhận...'
               : 'Xác nhận phần giao ${selected.warehouseCode}'),
