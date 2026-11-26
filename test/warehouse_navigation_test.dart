@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:fscm_mobile/core/auth/session.dart';
+import 'package:fscm_mobile/data/repositories/auth_repository.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:fscm_mobile/app/shell/warehouse_shell.dart';
@@ -35,7 +38,13 @@ void main() {
         ],
       );
       addTearDown(router.dispose);
-      await tester.pumpWidget(MaterialApp.router(routerConfig: router));
+      await tester.pumpWidget(ProviderScope(overrides: [
+        currentUserProvider.overrideWithValue(AppUser.fromJson({
+          'id': 'keeper',
+          'role': 'WarehouseKeeper',
+          'permissions': ['mobile-wk-picking', 'mobile-wk-operations'],
+        })),
+      ], child: MaterialApp.router(routerConfig: router)));
       await tester.pumpAndSettle();
 
       expect(find.byType(NavigationBar), findsOneWidget);
