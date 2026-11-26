@@ -27,7 +27,20 @@
 				<string>com.googleusercontent.apps.REPLACE_WITH_REVERSED_IOS_CLIENT_ID</string>
 			</array>
 		</dict>
+		<!-- PayOS uses this scheme only to focus the app. The resumed checkout
+		     page reloads the server-authoritative payment state. -->
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>fscm</string>
+			</array>
+		</dict>
 	</array>
+	<!-- Do not pass the PayOS focus URL to GoRouter as a deep link. -->
+	<key>FlutterDeepLinkingEnabled</key>
+	<false/>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
