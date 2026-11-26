@@ -26,6 +26,8 @@ void main() {
     expect(t.scaffoldBackgroundColor, AppColors.background);
     expect(t.colorScheme.primary, AppColors.primary);
     expect(t.appBarTheme.toolbarHeight, AppSizes.header);
+    // Titles of screens without a back button must not touch the left edge.
+    expect(t.appBarTheme.titleSpacing, AppSpacing.lg);
     expect(t.navigationBarTheme.height, AppSizes.navBar);
     expect(t.cardTheme.shape, isA<RoundedRectangleBorder>());
     final filled = t.filledButtonTheme.style!;

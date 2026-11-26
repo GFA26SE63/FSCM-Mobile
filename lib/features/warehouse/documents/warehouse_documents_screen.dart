@@ -322,6 +322,13 @@ class _WarehouseDocumentScreenState
   Future<void> loadHistory() async {
     try {
       final api = ref.read(warehouseDocumentsApiProvider);
+      // Scan history is scoped to the document's own warehouse; a destination
+      // keeper viewing the source transfer issue would get a 403 here.
+      final work = await ref.read(warehouseDocumentProvider(widget.id).future);
+      if (!ownsDocument(
+          ref.read(currentUserProvider)?.warehouseIds, work.document)) {
+        return;
+      }
       final r = asMapList(await api.client
           .get('${WarehouseDocumentsApi.base}/${widget.id}/receipt-reports'));
       final s = asMapList(await api.client
@@ -371,8 +378,7 @@ class _WarehouseDocumentScreenState
             onRetry: () => ref.invalidate(warehouseDocumentProvider(widget.id)),
             builder: (w) {
               final d = w.document;
-              final own =
-                  user?.warehouseIds.contains(d['warehouseId']) ?? false;
+              final own = ownsDocument(user?.warehouseIds, d);
               final incoming = widget.mode == 'transferReceipt' &&
                   d['kind'] == 'Issue' &&
                   d['reason'] == 'Transfer' &&
@@ -697,7 +703,8 @@ class _WarehouseDocumentScreenState
                                   }),
                           child: const Text('Hủy kiểm đếm chưa xác nhận')),
                     ],
-                    if (!w.factory)
+                    // Source-side issue progress is not this keeper's receipt progress.
+                    if (!w.factory && own)
                       AppCard(
                           child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -713,7 +720,8 @@ class _WarehouseDocumentScreenState
                                     ? (scanned / requiredQuantity).clamp(0, 1)
                                     : 0),
                           ])),
-                    for (final c in w.cartons)
+                    if (own)
+                      for (final c in w.cartons)
                       AppCard(
                           child: Row(children: [
                         Icon(
@@ -799,3 +807,7 @@ class _WarehouseDocumentScreenState
             }));
   }
 }
+
+/// Whether the document's operating warehouse is in the keeper's scope.
+bool ownsDocument(List<String>? warehouseIds, Map<String, dynamic> doc) =>
+    warehouseIds?.contains(doc['warehouseId']) ?? false;

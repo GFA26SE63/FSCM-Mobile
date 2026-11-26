@@ -55,6 +55,12 @@ class _HttpLoggingInterceptor extends Interceptor {
       Response<Object?> response, ResponseInterceptorHandler handler) {
     debugPrint(
         '<-- ${response.statusCode} ${response.requestOptions.method} ${response.requestOptions.uri}');
+    // Debug-only: HTTP errors arrive here (validateStatus accepts all), log body to diagnose.
+    if (kDebugMode &&
+        ((response.statusCode ?? 0) >= 400 ||
+            response.requestOptions.path.endsWith('/orders/availability'))) {
+      debugPrint('    Body: ${response.data}');
+    }
     super.onResponse(response, handler);
   }
 
@@ -62,7 +68,12 @@ class _HttpLoggingInterceptor extends Interceptor {
   void onError(DioException err, ErrorInterceptorHandler handler) {
     final uri = err.requestOptions.uri;
     final detail = '${err.type.name}: ${err.error ?? err.message}';
-    debugPrint('<-- ERROR ${err.requestOptions.method} $uri: $detail');
+    debugPrint(
+        '<-- ERROR ${err.response?.statusCode ?? '-'} ${err.requestOptions.method} $uri: $detail');
+    // Debug-only: server error body (ProblemDetails/traceId) to diagnose 5xx.
+    if (kDebugMode && err.response?.data != null) {
+      debugPrint('    Body: ${err.response!.data}');
+    }
     super.onError(err, handler);
   }
 }
