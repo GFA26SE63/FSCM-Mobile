@@ -161,7 +161,7 @@ void main() {
         await tester.pumpAndSettle();
         expect(find.textContaining('Hạn phản hồi'), findsOneWidget);
         expect(find.text('Từ chối báo giá'), findsOneWidget);
-        expect(find.text('Chấp nhận và chọn thanh toán'), findsOneWidget);
+        expect(find.text('Chấp nhận báo giá'), findsOneWidget);
         expect(tester.takeException(), isNull);
       });
 
