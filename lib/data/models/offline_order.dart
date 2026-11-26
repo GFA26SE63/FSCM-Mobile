@@ -318,6 +318,8 @@ Order orderFromOffline(OfflineOrder entry) {
               discountPct: line.pct,
               promoId: line.promoId,
               promoName: line.promoName,
+              // Local quote has no HSD discount: its pct is the promotion rate.
+              promoPct: line.pct,
             ),
           )
           .toList();

@@ -182,6 +182,27 @@ class IdFormat {
     return int.parse(offlineCode.substring(offlineCode.lastIndexOf('-') + 1));
   }
 
+  /// Retailer / carton workflows: null when [code] (already trimmed and
+  /// upper-cased) is a carton code the label endpoints know (`CID-` or
+  /// `TEM-`); otherwise a Vietnamese explanation of what was scanned. A batch
+  /// code is never accepted as a carton.
+  static String? cartonScanError(String code) {
+    if (isLabelCode(code)) return null;
+    if (isBatch(code)) {
+      return 'Đây là mã lô hàng, không phải mã thùng. Hãy quét mã QR (CID) '
+          'dán trên từng thùng hàng.';
+    }
+    if (code.startsWith('PID-')) {
+      return 'Đây là mã pallet, không phải mã thùng. Hãy quét mã QR (CID) '
+          'dán trên từng thùng hàng.';
+    }
+    if (code.startsWith('UID-')) {
+      return 'Đây là mã sản phẩm lẻ, không phải mã thùng. Hãy quét mã QR (CID) '
+          'dán trên thùng hàng.';
+    }
+    return 'Không nhận diện được mã thùng. Vui lòng quét mã QR trên thùng hàng.';
+  }
+
   /// Classifies a raw QR payload (labels carry only their code).
   static ScannedCodeKind classify(String raw) {
     final v = raw.trim().toUpperCase();

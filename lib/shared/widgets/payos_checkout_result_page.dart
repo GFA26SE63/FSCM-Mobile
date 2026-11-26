@@ -34,7 +34,9 @@ typedef PayOsUrlOpener = Future<bool> Function(Uri uri);
 ///
 /// The checkout opens in an in-app browser so the payment result remains in
 /// the mobile task instead of leaving the user in an external web browser.
-/// The webhook is authoritative; polling recovers delayed callback delivery.
+/// PayOS returns with `fscm://payos` only to focus the app; that URL is not a
+/// navigation route. The webhook is authoritative; polling recovers delayed
+/// callback delivery.
 class PayOsCheckoutResultPage extends StatefulWidget {
   const PayOsCheckoutResultPage({
     super.key,

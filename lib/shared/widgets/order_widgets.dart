@@ -83,55 +83,20 @@ class OrderLinesCard extends StatelessWidget {
         ),
         if (line.discount > 0) ...[
           const SizedBox(height: 6),
-          Wrap(
-            spacing: 8,
-            runSpacing: 6,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
-              StatusChip(
-                label: 'Giảm ${_pct(line.discountPct)}%',
-                tone: StatusTone.warning,
-              ),
-              Text(
-                Money.minus(line.discount),
-                style: const TextStyle(
-                  color: AppColors.success,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ],
+          // Total savings = persisted line discount (promotion + HSD), shown
+          // as money so it is not mistaken for the promotion's own rate.
+          StatusChip(
+            label: 'Tiết kiệm ${Money.format(line.discount)}',
+            tone: StatusTone.success,
           ),
-          if (line.discount > 0 || line.promoName.isNotEmpty)
+          if (line.promoName.isNotEmpty)
             Padding(
               padding: const EdgeInsets.only(top: 4),
               child: Row(
                 children: [
-                  if (line.discountPct > 0) ...[
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: AppColors.success.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(4),
-                        border: Border.all(
-                            color: AppColors.success.withValues(alpha: 0.3)),
-                      ),
-                      child: Text(
-                        'KM: −${_pct(line.discountPct)}%',
-                        style: const TextStyle(
-                          color: AppColors.success,
-                          fontWeight: FontWeight.w700,
-                          fontSize: 11,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                  ],
-                  Expanded(
+                  Flexible(
                     child: Text(
-                      line.promoName.isNotEmpty
-                          ? line.promoName
-                          : 'Giảm ${Money.format(line.discount)}',
+                      line.promoName,
                       style: const TextStyle(
                         color: AppColors.textMuted,
                         fontSize: 12,
@@ -139,6 +104,16 @@ class OrderLinesCard extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
+                  // Promotion-specific rate (ordinaryPromotion.discountPercent).
+                  if ((line.promoPct ?? 0) > 0)
+                    Text(
+                      ' · KM ${_pct(line.promoPct!)}%',
+                      style: const TextStyle(
+                        color: AppColors.success,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 12,
+                      ),
+                    ),
                 ],
               ),
             ),
@@ -148,8 +123,10 @@ class OrderLinesCard extends StatelessWidget {
     );
   }
 
-  static String _pct(double v) =>
-      v == v.roundToDouble() ? v.round().toString() : v.toString();
+  static String _pct(double v) => (v == v.roundToDouble()
+          ? v.round().toString()
+          : v.toString())
+      .replaceAll('.', ',');
 }
 
 /// "Khuyến mãi áp dụng" summary: one row per promotion.

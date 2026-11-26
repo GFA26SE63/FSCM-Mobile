@@ -30,8 +30,8 @@ class OrdersApi {
     shipmentCount totalCartons lineCount source version createdAt''';
 
   static const String _detailFields = '''
-    id orderCode retailerId retailerCode retailerName status paymentMethod
-    subtotalAmount discountAmount finalAmount finalPricePendingAllocation
+    id orderCode retailerId retailerCode retailerName createdByUserId
+    status paymentMethod subtotalAmount discountAmount finalAmount finalPricePendingAllocation
     allocationState allocationResult creditTermDays rejectionReason
     offlineEstimatedAmount hasOfflineDifference source version createdAt
     payment { method status dueDate }
@@ -39,7 +39,7 @@ class OrdersApi {
     lines {
       sku productName quantity unitPrice grossAmount discountAmount
       discountPercent discountSourceType discountSourceCode
-      ordinaryPromotion { promotionId code name discountAmount }
+      ordinaryPromotion { promotionId code name discountPercent discountAmount }
       allocationFragments {
         batchCode quantity batchExpirationDate warehouseCode listUnitPrice
         ordinaryPromotionDiscountPerUnit baseUnitPrice
@@ -372,6 +372,8 @@ class OrdersApi {
     String orderId,
     DeliveryShipment shipment, {
     required List<String> labelCodes,
+    Map<String, double>? receivedQuantities,
+    String? note,
   }) async {
     if (!shipment.canReceive) {
       throw const ApiException(
@@ -380,20 +382,27 @@ class OrdersApi {
       );
     }
     final lines = shipment.lines
-        .map((line) => <String, dynamic>{
-              'orderLineId': line.orderLineId,
-              'batchId': line.batchId,
-              'receivedQuantity': line.quantity,
-              'damagedQuantity': 0,
-            })
+        .map((line) {
+          final key = '${line.orderLineId}:${line.batchId}';
+          final received = receivedQuantities?[key] ?? line.quantity;
+          return <String, dynamic>{
+            'orderLineId': line.orderLineId,
+            'batchId': line.batchId,
+            'receivedQuantity': received,
+            'damagedQuantity': 0,
+          };
+        })
         .toList();
+    final trimmedNote = (note ?? '').trim();
     await _client.post(
       Endpoints.shipmentReceipt(shipment.id),
       body: <String, dynamic>{
         'qrCodes': labelCodes,
         'lines': lines,
         'expectedVersion': shipment.version,
-        'note': 'Retailer confirmed full receipt on mobile.',
+        'note': trimmedNote.isEmpty
+            ? 'Retailer confirmed receipt on mobile.'
+            : trimmedNote,
       },
       headers: <String, String>{'Idempotency-Key': const Uuid().v4()},
     );

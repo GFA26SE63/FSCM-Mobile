@@ -147,13 +147,24 @@ class WkStatCard extends StatelessWidget {
   Widget build(BuildContext context) => AppCard(
         margin: EdgeInsets.zero,
         padding: const EdgeInsets.all(AppSpacing.md),
+        // Cards share the row height (IntrinsicHeight + stretch); the value
+        // sits at the bottom so values line up even when a label wraps.
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: <Widget>[
             Text(label, style: AppText.mutedSmall.copyWith(fontSize: 12)),
-            const SizedBox(height: AppSpacing.xs),
-            Text(value,
-                style: AppText.display.copyWith(fontSize: 24, color: color)),
+            Padding(
+              padding: const EdgeInsets.only(top: AppSpacing.xs),
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Text(value,
+                    maxLines: 1,
+                    style:
+                        AppText.display.copyWith(fontSize: 24, color: color)),
+              ),
+            ),
           ],
         ),
       );
