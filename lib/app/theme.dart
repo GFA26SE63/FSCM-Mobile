@@ -67,7 +67,7 @@ ThemeData buildAppTheme() {
       scrolledUnderElevation: 0,
       centerTitle: false,
       toolbarHeight: AppSizes.header,
-      titleSpacing: AppSpacing.xs,
+      titleSpacing: AppSpacing.lg,
       shape: const Border(bottom: BorderSide(color: AppColors.divider)),
       titleTextStyle: AppText.pageTitle.copyWith(color: AppColors.text),
       iconTheme: const IconThemeData(color: AppColors.text, size: 24),

@@ -103,6 +103,7 @@ class OrderLine {
     this.discountPct = 0,
     this.promoId = '',
     this.promoName = '',
+    this.promoPct,
     this.campaignDiscount,
     this.shelfLifeDiscount = 0,
     this.shelfLifeSource = '',
@@ -144,6 +145,11 @@ class OrderLine {
           ordinaryPromotion['code'] ??
           j['discountSourceCode']),
       promoName: promotionName,
+      promoPct: j['promoPct'] != null
+          ? asDouble(j['promoPct'])
+          : ordinaryPromotion['discountPercent'] == null
+              ? null
+              : asDouble(ordinaryPromotion['discountPercent']),
       campaignDiscount: campaignDiscount,
       shelfLifeDiscount: hasShelfLife
           ? discount - (campaignDiscount ?? 0)
@@ -166,6 +172,10 @@ class OrderLine {
   final String promoId;
   final String promoName;
 
+  /// Rate of the promotion itself (`ordinaryPromotion.discountPercent`).
+  /// Unlike [discountPct] (whole-line discount incl. HSD), null when unknown.
+  final double? promoPct;
+
   /// Null preserves legacy/offline lines whose discount has no component breakdown.
   final int? campaignDiscount;
   final int shelfLifeDiscount;
@@ -185,6 +195,7 @@ class OrderLine {
         'discountPct': discountPct,
         'promoId': promoId,
         'promoName': promoName,
+        if (promoPct != null) 'promoPct': promoPct,
         'campaignDiscount': campaignDiscount,
         'shelfLifeDiscount': shelfLifeDiscount,
         'shelfLifeSource': shelfLifeSource,
@@ -212,6 +223,7 @@ class Order {
     required this.total,
     required this.discount,
     this.createdByName = '',
+    this.createdByUserId = '',
     this.payment = PaymentMethod.unselected,
     this.version = 0,
     this.creditTerm = 0,
@@ -257,6 +269,7 @@ class Order {
       total: asInt(j['total'] ?? j['subtotalAmount'] ?? j['finalAmount']),
       discount: asInt(j['discount'] ?? j['discountAmount']),
       createdByName: asStr(j['createdByName']),
+      createdByUserId: asStr(j['createdByUserId']),
       payment: PaymentMethod.fromCode(
           asStrOrNull(payment['method'] ?? j['paymentMethod'] ?? legacyMethod)),
       creditTerm: asInt(j['creditTerm'] ?? j['creditTermDays']),
@@ -318,6 +331,9 @@ class Order {
   final int total;
   final int discount;
   final String createdByName;
+
+  /// Backend `OrderDetailResult.CreatedByUserId` (the detail has no name).
+  final String createdByUserId;
   final PaymentMethod payment;
   final int version;
   final int creditTerm;
@@ -417,6 +433,7 @@ class Order {
         total: total,
         discount: discount,
         createdByName: createdByName,
+        createdByUserId: createdByUserId,
         payment: payment,
         version: version,
         creditTerm: creditTerm,
@@ -459,6 +476,7 @@ class Order {
         'total': total,
         'discount': discount,
         'createdByName': createdByName,
+        'createdByUserId': createdByUserId,
         'payment': payment.code,
         'version': version,
         'creditTerm': creditTerm,
