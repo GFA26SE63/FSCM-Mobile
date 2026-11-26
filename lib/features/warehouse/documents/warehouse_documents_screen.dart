@@ -1,10 +1,12 @@
 import 'package:fscm_mobile/core/utils/dates.dart';
 import 'package:fscm_mobile/core/utils/status_labels.dart';
 import 'dart:async';
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:fscm_mobile/core/utils/numbers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:fscm_mobile/core/auth/session.dart';
 import 'package:fscm_mobile/core/network/api_exception.dart';
 import 'package:fscm_mobile/data/models/json_utils.dart';
 import 'package:fscm_mobile/data/repositories/auth_repository.dart';
@@ -65,6 +67,51 @@ class WarehouseOperationsScreen extends StatelessWidget {
       );
 }
 
+/// Filters of the "Chứng từ kho" list. GET /warehouse-documents returns the
+/// keeper's complete scope (no paging), so filtering on the device is exact.
+class WarehouseDocumentFilter {
+  const WarehouseDocumentFilter(
+      {this.search = '', this.status, this.warehouseId, this.dates});
+  final String search;
+  final String? status, warehouseId;
+
+  /// Inclusive range of the document date (createdAt, device local day).
+  final DateTimeRange? dates;
+  bool get isEmpty =>
+      search.trim().isEmpty &&
+      status == null &&
+      warehouseId == null &&
+      dates == null;
+}
+
+DateTime _day(DateTime t) => DateTime(t.year, t.month, t.day);
+
+bool _inDates(Object? createdAt, DateTimeRange? dates) {
+  if (dates == null) return true;
+  final at = DateTime.tryParse(asStr(createdAt));
+  if (at == null) return false;
+  final day = _day(at.toLocal());
+  return !day.isBefore(_day(dates.start)) && !day.isAfter(_day(dates.end));
+}
+
+final warehouseDocumentFilterProvider = StateProvider.autoDispose
+    .family<WarehouseDocumentFilter, WarehouseOperation>(
+        (ref, operation) => const WarehouseDocumentFilter());
+
+List<WarehouseWork> filterWarehouseWorks(
+    List<WarehouseWork> works, WarehouseDocumentFilter f) {
+  final q = f.search.trim().toLowerCase();
+  return works
+      .where((w) =>
+          (q.isEmpty || asStr(w.document['code']).toLowerCase().contains(q)) &&
+          (f.status == null || w.document['status'] == f.status) &&
+          (f.warehouseId == null ||
+              w.document['warehouseId'] == f.warehouseId ||
+              w.document['destinationWarehouseId'] == f.warehouseId) &&
+          _inDates(w.document['createdAt'], f.dates))
+      .toList();
+}
+
 final warehouseHistoryProvider = StateProvider.autoDispose
     .family<bool, WarehouseOperation>((ref, operation) => false);
 
@@ -80,10 +127,12 @@ class WarehouseDocumentsScreen extends ConsumerWidget {
     final operationError = ref.watch(warehouseOperationErrorProvider);
     final user = ref.watch(currentUserProvider);
     final scope = user?.warehouseIds ?? <String>[];
-    String warehouseName(Object? id) =>
-        user?.warehouseLabels.where((w) => w.id == id).firstOrNull?.name ??
-        asStr(id);
+    final names = ref.watch(warehouseNamesProvider).valueOrNull;
+    String warehouseName(Object? id) => warehouseLabel(user, names, id);
     final value = ref.watch(warehouseDocumentsProvider);
+    final filter = ref.watch(warehouseDocumentFilterProvider(operation));
+    final filterNotifier =
+        ref.read(warehouseDocumentFilterProvider(operation).notifier);
     final arrivals = operation == WarehouseOperation.factoryReceipt
         ? ref.watch(factoryArrivalsProvider)
         : null;
@@ -99,6 +148,29 @@ class WarehouseDocumentsScreen extends ConsumerWidget {
               value: value,
               onRetry: () => ref.invalidate(warehouseDocumentsProvider),
               builder: (all) {
+                if (kDebugMode) {
+                  // TEMPORARY (debug only): why each document is shown or hidden.
+                  debugPrint('[WK-DOCS] ${operation.name} history=$history '
+                      'total=${all.length} scope=$scope');
+                  for (final w
+                      in all.where((w) => operation.includes(w.document))) {
+                    final d = w.document;
+                    final hasChild =
+                        all.any((c) => c.document['sourceDocumentId'] == w.id);
+                    final reason = !scope.contains(d['warehouseId'])
+                        ? 'HIDDEN: warehouse not in login scope'
+                        : (d['kind'] == 'Request' && hasChild)
+                            ? 'HIDDEN: request replaced by its child document'
+                            : (history ? !w.historic : !w.pending)
+                                ? 'HIDDEN: status/kind belongs to the other tab'
+                                : 'shown';
+                    debugPrint('[WK-DOCS]  ${d['code']} kind=${d['kind']} '
+                        'reason=${d['reason']} status=${d['status']} '
+                        'warehouse=${d['warehouseId']} '
+                        'orders=${w.lines.map((l) => l['orderCode']).toSet()} '
+                        'pickingLists=${w.lines.map((l) => l['pickingListId']).toSet()} -> $reason');
+                  }
+                }
                 final works = all
                     .where((w) =>
                         operation.includes(w.document) &&
@@ -108,6 +180,19 @@ class WarehouseDocumentsScreen extends ConsumerWidget {
                         scope.contains(w.document['warehouseId']) &&
                         (history ? w.historic : w.pending))
                     .toList();
+                final statuses = {
+                  for (final w in works) asStr(w.document['status'])
+                }.toList();
+                // Options come from the current tab, so a stale choice is dropped.
+                final activeFilter = WarehouseDocumentFilter(
+                    search: filter.search,
+                    status:
+                        statuses.contains(filter.status) ? filter.status : null,
+                    warehouseId: scope.contains(filter.warehouseId)
+                        ? filter.warehouseId
+                        : null,
+                    dates: filter.dates);
+                final shown = filterWarehouseWorks(works, activeFilter);
                 final incoming = !history &&
                         operation == WarehouseOperation.transferReceipt
                     ? all
@@ -209,12 +294,31 @@ class WarehouseDocumentsScreen extends ConsumerWidget {
                             onTap: () => context.push(
                                 '/wk/document/${issue.id}?mode=transferReceipt')),
                       const SectionTitle('Chứng từ kho'),
+                      if (works.isNotEmpty)
+                        _DocumentFilterBar(
+                            filter: activeFilter,
+                            statuses: statuses,
+                            warehouses: [
+                              for (final id in scope) (id, warehouseName(id))
+                            ],
+                            onChanged: (f) => filterNotifier.state = f),
                       if (works.isEmpty)
                         const AppCard(
                             child: Text(
                                 'Chưa có chứng từ trong phạm vi kho của bạn.',
+                                style: AppText.muted))
+                      else if (shown.isEmpty)
+                        const AppCard(
+                            child: Text('Không có chứng từ khớp bộ lọc.',
                                 style: AppText.muted)),
-                      for (final w in works)
+                      if (works.isNotEmpty && !activeFilter.isEmpty)
+                        Padding(
+                          padding:
+                              const EdgeInsets.only(bottom: AppSpacing.xs),
+                          child: Text('${shown.length}/${works.length} chứng từ',
+                              style: AppText.mutedSmall),
+                        ),
+                      for (final w in shown)
                         WkDocumentCard(
                             code: asStr(w.document['code']),
                             statusLabel: warehouseStatus(w.document['status']),
@@ -228,6 +332,148 @@ class WarehouseDocumentsScreen extends ConsumerWidget {
                     ]);
               }),
         ));
+  }
+}
+
+class _DocumentFilterBar extends StatefulWidget {
+  const _DocumentFilterBar({
+    required this.filter,
+    required this.statuses,
+    required this.warehouses,
+    required this.onChanged,
+  });
+  final WarehouseDocumentFilter filter;
+  final List<String> statuses;
+  final List<(String, String)> warehouses;
+  final ValueChanged<WarehouseDocumentFilter> onChanged;
+  @override
+  State<_DocumentFilterBar> createState() => _DocumentFilterBarState();
+}
+
+class _DocumentFilterBarState extends State<_DocumentFilterBar> {
+  late final search = TextEditingController(text: widget.filter.search);
+
+  @override
+  void dispose() {
+    search.dispose();
+    super.dispose();
+  }
+
+  void _emit({String? status, String? warehouseId, DateTimeRange? dates}) =>
+      widget.onChanged(WarehouseDocumentFilter(
+          search: search.text,
+          status: status,
+          warehouseId: warehouseId,
+          dates: dates));
+
+  Future<void> _pickDates() async {
+    final now = DateTime.now();
+    final f = widget.filter;
+    final picked = await showDateRangePicker(
+        context: context,
+        firstDate: DateTime(now.year - 5),
+        lastDate: DateTime(now.year + 1, 12, 31),
+        initialDateRange: f.dates,
+        helpText: 'Ngày lập',
+        saveText: 'Lọc');
+    if (picked != null) {
+      _emit(status: f.status, warehouseId: f.warehouseId, dates: picked);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final f = widget.filter;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+      child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          spacing: AppSpacing.sm,
+          children: [
+            TextField(
+                key: const Key('wk-doc-search'),
+                controller: search,
+                decoration: const InputDecoration(
+                    isDense: true,
+                    prefixIcon: Icon(Icons.search),
+                    hintText: 'Tìm theo mã chứng từ'),
+                onChanged: (_) => _emit(
+                    status: f.status,
+                    warehouseId: f.warehouseId,
+                    dates: f.dates)),
+            Row(spacing: AppSpacing.sm, children: [
+              Expanded(
+                child: DropdownButtonFormField<String?>(
+                    key: const Key('wk-doc-status'),
+                    isExpanded: true,
+                    value: f.status,
+                    decoration: const InputDecoration(
+                        isDense: true, labelText: 'Trạng thái'),
+                    items: [
+                      const DropdownMenuItem(
+                          value: null, child: Text('Tất cả')),
+                      for (final st in widget.statuses)
+                        DropdownMenuItem(
+                            value: st, child: Text(warehouseStatus(st))),
+                    ],
+                    onChanged: (v) => _emit(
+                        status: v,
+                        warehouseId: f.warehouseId,
+                        dates: f.dates)),
+              ),
+              if (widget.warehouses.length > 1)
+                Expanded(
+                  child: DropdownButtonFormField<String?>(
+                      key: const Key('wk-doc-warehouse'),
+                      isExpanded: true,
+                      value: f.warehouseId,
+                      decoration: const InputDecoration(
+                          isDense: true, labelText: 'Kho'),
+                      items: [
+                        const DropdownMenuItem(
+                            value: null, child: Text('Tất cả')),
+                        for (final (id, name) in widget.warehouses)
+                          DropdownMenuItem(
+                              value: id,
+                              child:
+                                  Text(name, overflow: TextOverflow.ellipsis)),
+                      ],
+                      onChanged: (v) => _emit(
+                          status: f.status, warehouseId: v, dates: f.dates)),
+                ),
+            ]),
+            Row(children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                    key: const Key('wk-doc-dates'),
+                    icon: const Icon(Icons.date_range, size: 18),
+                    label: Text(
+                        f.dates == null
+                            ? 'Ngày lập: tất cả'
+                            : 'Ngày lập: ${AppDates.date(f.dates!.start)} – ${AppDates.date(f.dates!.end)}',
+                        overflow: TextOverflow.ellipsis),
+                    onPressed: _pickDates),
+              ),
+              if (f.dates != null)
+                IconButton(
+                    tooltip: 'Bỏ lọc ngày',
+                    icon: const Icon(Icons.close),
+                    onPressed: () => _emit(
+                        status: f.status, warehouseId: f.warehouseId)),
+            ]),
+            if (!f.isEmpty)
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton.icon(
+                    icon: const Icon(Icons.filter_alt_off, size: 18),
+                    label: const Text('Xóa bộ lọc'),
+                    onPressed: () {
+                      search.clear();
+                      widget.onChanged(const WarehouseDocumentFilter());
+                    }),
+              ),
+          ]),
+    );
   }
 }
 
@@ -298,6 +544,14 @@ class _WarehouseDocumentScreenState
   Future<void> loadHistory() async {
     try {
       final api = ref.read(warehouseDocumentsApiProvider);
+      // Scan history is scoped to the document's own warehouse; a destination
+      // keeper viewing the source transfer issue would get a 403 here.
+      final work = await ref.read(warehouseDocumentProvider(widget.id).future);
+      final ids = ref.read(currentUserProvider)?.warehouseIds;
+      if (!ownsDocument(ids, work.document) ||
+          isIncomingTransfer(widget.mode, work.document, ids)) {
+        return;
+      }
       final r = asMapList(await api.client
           .get('${WarehouseDocumentsApi.base}/${widget.id}/receipt-reports'));
       final s = asMapList(await api.client
@@ -327,7 +581,9 @@ class _WarehouseDocumentScreenState
       if (mounted) setState(() => error = ApiException.describe(e));
     } finally {
       if (mounted) {
-        ref.invalidate(warehouseDocumentProvider(widget.id));
+        // Every open document screen, not only this one: posting also changes
+        // the source request still on the back stack (Fulfilled).
+        ref.invalidate(warehouseDocumentProvider);
         ref.invalidate(warehouseDocumentsProvider);
         ref.invalidate(factoryArrivalsProvider);
         await loadHistory();
@@ -340,6 +596,7 @@ class _WarehouseDocumentScreenState
   Widget build(BuildContext context) {
     final value = ref.watch(warehouseDocumentProvider(widget.id));
     final user = ref.watch(currentUserProvider);
+    final names = ref.watch(warehouseNamesProvider).valueOrNull;
     return Scaffold(
         appBar: AppBar(title: const Text('Chứng từ kho')),
         body: AsyncBody(
@@ -347,14 +604,12 @@ class _WarehouseDocumentScreenState
             onRetry: () => ref.invalidate(warehouseDocumentProvider(widget.id)),
             builder: (w) {
               final d = w.document;
-              final own =
-                  user?.warehouseIds.contains(d['warehouseId']) ?? false;
-              final incoming = widget.mode == 'transferReceipt' &&
-                  d['kind'] == 'Issue' &&
-                  d['reason'] == 'Transfer' &&
-                  d['status'] == 'Posted' &&
-                  (user?.warehouseIds.contains(d['destinationWarehouseId']) ??
-                      false);
+              final own = ownsDocument(user?.warehouseIds, d);
+              final incoming =
+                  isIncomingTransfer(widget.mode, d, user?.warehouseIds);
+              // Receiving context: the source issue's scans belong to the
+              // sending side, even when this keeper also manages that warehouse.
+              final showScanWork = own && !incoming;
               final request =
                   d['kind'] == 'Request' && d['status'] == 'Open' && own;
               final editable = own && d['status'] == 'Open';
@@ -407,11 +662,11 @@ class _WarehouseDocumentScreenState
                               KvRow('Chứng từ nguồn',
                                   asStr(d['sourceDocumentId'])),
                             KvRow('Kho phụ trách',
-                                '${user?.warehouseLabels.where((s) => s.id == d['warehouseId']).map((s) => s.name).firstOrNull ?? d['warehouseId']}'),
+                                warehouseLabel(user, names, d['warehouseId'])),
                             if (d['destinationWarehouseId'] != null &&
                                 d['destinationWarehouseId'] != d['warehouseId'])
                               KvRow('Kho đích',
-                                  '${user?.warehouseLabels.where((s) => s.id == d['destinationWarehouseId']).map((s) => s.name).firstOrNull ?? d['destinationWarehouseId']}'),
+                                  warehouseLabel(user, names, d['destinationWarehouseId'])),
                             KvRow('Ngày lập',
                                 AppDates.dateTimeText(d['createdAt'])),
                             if (d['postedAt'] != null)
@@ -446,7 +701,7 @@ class _WarehouseDocumentScreenState
                           tone: StatusTone.warning,
                           text:
                               'Đây là Lệnh xuất bán hàng do Admin phát hành từ đơn hàng của Đại lý. Nhấn "Bắt đầu xuất kho & quét QR" để mở phiếu xuất và quét từng carton.'),
-                    if (d['status'] == 'Posted')
+                    if (d['status'] == 'Posted' && !incoming)
                       const InfoBanner(
                           text:
                               'Phiếu đã ghi sổ. Đây là lịch sử xuất/nhập, không quét lại.'),
@@ -673,7 +928,8 @@ class _WarehouseDocumentScreenState
                                   }),
                           child: const Text('Hủy kiểm đếm chưa xác nhận')),
                     ],
-                    if (!w.factory)
+                    // Source-side issue progress is not this keeper's receipt progress.
+                    if (!w.factory && showScanWork)
                       AppCard(
                           child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -689,7 +945,8 @@ class _WarehouseDocumentScreenState
                                     ? (scanned / requiredQuantity).clamp(0, 1)
                                     : 0),
                           ])),
-                    for (final c in w.cartons)
+                    if (showScanWork)
+                      for (final c in w.cartons)
                       AppCard(
                           child: Row(children: [
                         Icon(
@@ -775,3 +1032,26 @@ class _WarehouseDocumentScreenState
             }));
   }
 }
+
+/// Warehouse display name: the keeper's own scope labels first, then the
+/// warehouse directory (for the other side of a transfer), else the id.
+String warehouseLabel(AppUser? user, Map<String, String>? names, Object? id) {
+  final own = user?.warehouseLabels.where((w) => w.id == id).firstOrNull?.name;
+  if (own != null && own.isNotEmpty) return own;
+  final named = names?[asStr(id)];
+  return named != null && named.isNotEmpty ? named : asStr(id);
+}
+
+/// A posted transfer issue opened from "Nhập luân chuyển" by a keeper of its
+/// destination warehouse: the receipt has not been opened yet.
+bool isIncomingTransfer(
+        String? mode, Map<String, dynamic> doc, List<String>? warehouseIds) =>
+    mode == 'transferReceipt' &&
+    doc['kind'] == 'Issue' &&
+    doc['reason'] == 'Transfer' &&
+    doc['status'] == 'Posted' &&
+    (warehouseIds?.contains(doc['destinationWarehouseId']) ?? false);
+
+/// Whether the document's operating warehouse is in the keeper's scope.
+bool ownsDocument(List<String>? warehouseIds, Map<String, dynamic> doc) =>
+    warehouseIds?.contains(doc['warehouseId']) ?? false;

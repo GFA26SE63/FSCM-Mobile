@@ -52,13 +52,14 @@ class SyncState {
 
 final syncServiceProvider =
     StateNotifierProvider<SyncService, SyncState>((ref) {
-  final user = ref.watch(currentUserProvider);
+  // Watch identity only: the post-login /me refresh emits a new AppUser for the
+  // same account, and rebuilding here disposed the in-flight first snapshot
+  // pull (MOB-01: Retailers empty until manual "Đồng bộ").
+  final ownerId = ref.watch(currentUserProvider.select((u) => u?.id ?? ''));
+  final isSales = ref
+      .watch(currentUserProvider.select((u) => u?.role == UserRole.sales));
 
-  return SyncService(
-    ref,
-    ownerId: user?.id ?? '',
-    isSales: user?.role == UserRole.sales,
-  );
+  return SyncService(ref, ownerId: ownerId, isSales: isSales);
 });
 
 class SyncService extends StateNotifier<SyncState> {

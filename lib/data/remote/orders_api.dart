@@ -30,8 +30,8 @@ class OrdersApi {
     shipmentCount totalCartons lineCount source version createdAt''';
 
   static const String _detailFields = '''
-    id orderCode retailerId retailerCode retailerName status paymentMethod
-    subtotalAmount discountAmount finalAmount finalPricePendingAllocation
+    id orderCode retailerId retailerCode retailerName createdByUserId
+    status paymentMethod subtotalAmount discountAmount finalAmount finalPricePendingAllocation
     allocationState allocationResult creditTermDays rejectionReason
     offlineEstimatedAmount hasOfflineDifference source version createdAt
     payment { method status dueDate }
@@ -39,7 +39,7 @@ class OrdersApi {
     lines {
       sku productName quantity unitPrice grossAmount discountAmount
       discountPercent discountSourceType discountSourceCode
-      ordinaryPromotion { promotionId code name discountAmount }
+      ordinaryPromotion { promotionId code name discountPercent discountAmount }
       allocationFragments {
         batchCode quantity batchExpirationDate warehouseCode listUnitPrice
         ordinaryPromotionDiscountPerUnit baseUnitPrice

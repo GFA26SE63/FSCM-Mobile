@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import 'package:fscm_mobile/core/auth/user_role.dart';
 import 'package:fscm_mobile/core/network/api_exception.dart';
 import 'package:fscm_mobile/core/utils/dates.dart';
 import 'package:fscm_mobile/core/utils/money.dart';
@@ -9,6 +10,7 @@ import 'package:fscm_mobile/core/utils/status_tone.dart';
 import 'package:fscm_mobile/data/models/enums.dart';
 import 'package:fscm_mobile/data/models/offline_order.dart';
 import 'package:fscm_mobile/data/models/order.dart';
+import 'package:fscm_mobile/data/repositories/auth_repository.dart';
 import 'package:fscm_mobile/data/repositories/data_version.dart';
 import 'package:fscm_mobile/data/repositories/order_repository.dart';
 import 'package:fscm_mobile/features/sales/orders/widgets/price_difference_card.dart';
@@ -41,7 +43,12 @@ class SalesOrderDetailScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(code),
+        // Route param may be the order GUID; show the order code once loaded.
+        title: Text(
+          (value.valueOrNull?.code.isNotEmpty ?? false)
+              ? value.valueOrNull!.code
+              : 'Chi tiết đơn hàng',
+        ),
         actions: [
           IconButton(
             tooltip: 'Tải lại',
@@ -93,6 +100,24 @@ class _Detail extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final localQueued = order.isLocalQueued;
+    // Order detail only carries createdByUserId; the name is known only when
+    // the creator is the signed-in user (or the order came from this device).
+    // Sales only reads orders it created (Backend OrderStore scope), so a
+    // creator matching the signed-in user is labelled with that user's role.
+    final me = ref.watch(currentUserProvider);
+    final mine = me != null &&
+        (order.createdByUserId == me.id || entry != null || localQueued);
+    final creatorName = order.createdByName.isNotEmpty
+        ? order.createdByName
+        : mine
+            ? me.fullName
+            : '';
+    final creator = creatorName.isEmpty
+        ? ''
+        : mine
+            ? '${me.role == UserRole.retailer ? 'Nhà bán lẻ' : 'Nhân viên bán hàng'}'
+                ' · $creatorName'
+            : creatorName;
     final hasStoredQuote = entry?.payload.localQuote != null;
 
     final localAmount = order.localFinal ??
@@ -125,7 +150,7 @@ class _Detail extends ConsumerWidget {
               const SizedBox(height: AppSpacing.xs),
               Text(
                 'Tạo lúc ${AppDates.timeDay(order.createdAt.toLocal())}'
-                '${order.createdByName.isEmpty ? '' : ' · ${order.createdByName}'}',
+                '${creator.isEmpty ? '' : ' · $creator'}',
                 style: AppText.mutedSmall,
               ),
             ],
@@ -226,7 +251,7 @@ class _Detail extends ConsumerWidget {
               if (entry != null) KvRow('Trạng thái gửi', entry!.status.label),
               KvRow(
                 'Người tạo',
-                order.createdByName.isEmpty ? '—' : order.createdByName,
+                creator.isEmpty ? '—' : creator,
               ),
               KvRow(
                 'Kênh tạo',

@@ -54,7 +54,8 @@ void main() {
       expect(AppDates.timeDay(time), '08/11/2026 18:57');
       expect(AppDates.time(time), '18:57');
     }
-    expect(AppDates.timeDay(DateTime.utc(2026, 11, 8, 19, 30)), '09/11/2026 02:30');
+    expect(AppDates.timeDay(DateTime.utc(2026, 11, 8, 19, 30)),
+        '09/11/2026 02:30');
     expect(AppDates.date(DateTime.utc(2026, 11, 8, 19, 30)), '09/11/2026');
     expect(AppDates.date(DateTime.parse('2026-11-22')), '22/11/2026');
     expect(AppDates.dayMonth(DateTime.parse('2026-11-14')), '14/11');

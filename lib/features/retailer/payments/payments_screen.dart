@@ -143,6 +143,7 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
           return RefreshIndicator(
             onRefresh: () async => ref.refresh(receivablesProvider.future),
             child: ListView(
+              cacheExtent: 10000,
               padding: const EdgeInsets.fromLTRB(
                   AppSpacing.lg, AppSpacing.lg, AppSpacing.lg, 120),
               children: <Widget>[
@@ -290,18 +291,17 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
               ),
               child: SafeArea(
                 minimum: const EdgeInsets.all(AppSpacing.md),
-                child: Row(children: <Widget>[
-                  Expanded(
-                      child: OutlinedButton(
+                child: LayoutBuilder(builder: (context, constraints) {
+                  final stack = constraints.maxWidth < 420 ||
+                      MediaQuery.textScalerOf(context).scale(1) > 1.2;
+                  final selectedAction = OutlinedButton(
                     onPressed: _busy || _selected.isEmpty
                         ? null
                         : () => _confirmAndPay(payAll: false),
                     child: const Text('Trả các khoản đã chọn',
                         textAlign: TextAlign.center),
-                  )),
-                  const SizedBox(width: AppSpacing.s10),
-                  Expanded(
-                      child: FilledButton(
+                  );
+                  final allAction = FilledButton(
                     onPressed: _busy ||
                             !(receivables.valueOrNull?.any((r) =>
                                     !r.isPaid && r.collectibleAmount > 0) ??
@@ -310,8 +310,24 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
                         : () => _confirmAndPay(payAll: true),
                     child: const Text('Trả toàn bộ công nợ',
                         textAlign: TextAlign.center),
-                  )),
-                ]),
+                  );
+                  return stack
+                      ? Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: <Widget>[
+                              SizedBox(
+                                  width: double.infinity,
+                                  child: selectedAction),
+                              const SizedBox(height: AppSpacing.s10),
+                              SizedBox(
+                                  width: double.infinity, child: allAction),
+                            ])
+                      : Row(children: <Widget>[
+                          Expanded(child: selectedAction),
+                          const SizedBox(width: AppSpacing.s10),
+                          Expanded(child: allAction),
+                        ]);
+                }),
               )),
     );
   }
@@ -486,7 +502,11 @@ class _Summary extends StatelessWidget {
         child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
-              Text(label, style: AppText.mutedSmall),
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Text(label, style: AppText.mutedSmall),
+              ),
               const SizedBox(height: AppSpacing.xs),
               FittedBox(
                   fit: BoxFit.scaleDown,
@@ -507,6 +527,7 @@ class _ReceivableTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final r = receivable;
+    const summaryValueWidth = 132.0;
     final due =
         r.dueDate == null ? 'Chưa có hạn' : 'Hạn ${AppDates.date(r.dueDate)}';
     return AppCard(
@@ -514,49 +535,107 @@ class _ReceivableTile extends StatelessWidget {
           ? () => context.push(AppRoutes.rtOrderDetail(r.orderCode))
           : () => onSelected!(!selected),
       child:
-          Row(crossAxisAlignment: CrossAxisAlignment.start, children: <Widget>[
+          Row(crossAxisAlignment: CrossAxisAlignment.center, children: <Widget>[
         if (onSelected != null)
-          Checkbox(
+          Padding(
+            padding: const EdgeInsets.only(right: AppSpacing.xs),
+            child: Checkbox(
               value: selected,
-              onChanged: (value) => onSelected!(value ?? false)),
+              visualDensity: VisualDensity.compact,
+              onChanged: (value) => onSelected!(value ?? false),
+            ),
+          ),
         Expanded(
-            child: Column(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          Text(r.orderCode,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: AppText.strong),
+                          const SizedBox(height: AppSpacing.xxs),
+                          Text(due,
+                              style: AppText.mutedSmall.copyWith(
+                                  color: r.isOverdue
+                                      ? AppColors.danger
+                                      : AppColors.textMuted)),
+                        ],
+                      ),
+                    ),
+                    SizedBox(
+                      width: summaryValueWidth,
+                      child: Align(
+                        alignment: Alignment.topRight,
+                        child: StatusChip(
+                            label: r.status.label, tone: r.status.tone),
+                      ),
+                    ),
+                  ]),
+              const SizedBox(height: AppSpacing.md),
+              Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
-              // Header: order code + status chip (prototype payment row).
-              Wrap(
-                alignment: WrapAlignment.spaceBetween,
-                crossAxisAlignment: WrapCrossAlignment.center,
-                spacing: AppSpacing.sm,
-                runSpacing: AppSpacing.xs,
-                children: <Widget>[
-                  Text(r.orderCode, style: AppText.strong),
-                  StatusChip(label: r.status.label, tone: r.status.tone),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        const Text('Phương thức thanh toán',
+                            style: AppText.mutedSmall),
+                        const SizedBox(height: AppSpacing.xxs),
+                        Text(
+                            r.method == 'Prepaid'
+                                ? 'Trả trước'
+                                : 'Công nợ ${r.term} ngày',
+                            style: AppText.bodySmall),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.md),
+                  SizedBox(
+                    width: summaryValueWidth,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: <Widget>[
+                        const Text('Tổng cần thanh toán',
+                            style: AppText.mutedSmall),
+                        const SizedBox(height: AppSpacing.xxs),
+                        FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerRight,
+                          child: Text(
+                            Money.format(r.isPaid
+                                ? r.confirmedAmount
+                                : r.method == 'Prepaid'
+                                    ? r.outstandingAmount
+                                    : r.collectibleAmount),
+                            style: AppText.strong.copyWith(
+                                fontSize: 16, color: AppColors.primary),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ],
               ),
-              Text(due,
-                  style: AppText.bodySmall.copyWith(
-                      color: r.isOverdue
-                          ? AppColors.danger
-                          : AppColors.textMuted)),
-              Text(
-                  r.method == 'Prepaid'
-                      ? 'Trả trước'
-                      : 'Công nợ ${r.term} ngày',
-                  style: AppText.mutedSmall),
               if (r.collectibleAmount != r.outstandingAmount)
-                Text(
+                Padding(
+                  padding: const EdgeInsets.only(top: AppSpacing.xxs),
+                  child: Text(
                     'Đang tranh chấp: ${Money.format(r.outstandingAmount - r.collectibleAmount)}',
-                    style: AppText.mutedSmall),
-              const SizedBox(height: AppSpacing.xs),
-              Text(
-                  Money.format(r.isPaid
-                      ? r.confirmedAmount
-                      : r.method == 'Prepaid'
-                          ? r.outstandingAmount
-                          : r.collectibleAmount),
-                  style: AppText.strong.copyWith(fontSize: 16)),
-            ])),
+                    style:
+                        AppText.mutedSmall.copyWith(color: AppColors.warning),
+                  ),
+                ),
+            ],
+          ),
+        ),
       ]),
     );
   }

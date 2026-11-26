@@ -120,6 +120,7 @@ class IdFormat {
   static final RegExp batchPattern =
       RegExp(r'^(WH-[A-Z]{2,4})-(SKU\d{3})-(\d{2})(\d{2})(\d{4})$');
   static final RegExp labelPattern = RegExp(r'^TEM-\d{6}$');
+
   /// Factory carton identity, preserved through warehouse issue and receipt.
   static final RegExp cartonPattern =
       RegExp(r'^CID-[A-Z0-9]{1,12}-\d{8}-[A-D]-\d{4}-\d{4,}$');
@@ -179,6 +180,27 @@ class IdFormat {
   static int? offlineSeq(String offlineCode) {
     if (!isOfflineOrder(offlineCode)) return null;
     return int.parse(offlineCode.substring(offlineCode.lastIndexOf('-') + 1));
+  }
+
+  /// Retailer / carton workflows: null when [code] (already trimmed and
+  /// upper-cased) is a carton code the label endpoints know (`CID-` or
+  /// `TEM-`); otherwise a Vietnamese explanation of what was scanned. A batch
+  /// code is never accepted as a carton.
+  static String? cartonScanError(String code) {
+    if (isLabelCode(code)) return null;
+    if (isBatch(code)) {
+      return 'Đây là mã lô hàng, không phải mã thùng. Hãy quét mã QR (CID) '
+          'dán trên từng thùng hàng.';
+    }
+    if (code.startsWith('PID-')) {
+      return 'Đây là mã pallet, không phải mã thùng. Hãy quét mã QR (CID) '
+          'dán trên từng thùng hàng.';
+    }
+    if (code.startsWith('UID-')) {
+      return 'Đây là mã sản phẩm lẻ, không phải mã thùng. Hãy quét mã QR (CID) '
+          'dán trên thùng hàng.';
+    }
+    return 'Không nhận diện được mã thùng. Vui lòng quét mã QR trên thùng hàng.';
   }
 
   /// Classifies a raw QR payload (labels carry only their code).
