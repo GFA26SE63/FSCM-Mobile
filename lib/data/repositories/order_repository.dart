@@ -460,6 +460,8 @@ class OrderRepository {
     String orderId,
     DeliveryShipment shipment, {
     required List<String> labelCodes,
+    Map<String, double>? receivedQuantities,
+    String? note,
   }) {
     _requireSession();
 
@@ -467,6 +469,8 @@ class OrderRepository {
       orderId,
       shipment,
       labelCodes: labelCodes,
+      receivedQuantities: receivedQuantities,
+      note: note,
     );
   }
 }
