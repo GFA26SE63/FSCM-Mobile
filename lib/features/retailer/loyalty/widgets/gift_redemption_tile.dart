@@ -27,7 +27,6 @@ class GiftRedemptionTile extends StatelessWidget {
                   label: request.status.label, tone: request.status.tone),
             ]),
         const SizedBox(height: AppSpacing.s6),
-        Text(request.code, style: AppText.mutedSmall),
         Text(AppDates.timeDay(request.requestedAt)),
         Text(request.quantity == null
             ? 'Chưa có dữ liệu số lượng'

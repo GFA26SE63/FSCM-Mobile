@@ -597,6 +597,11 @@ class _WarehouseDocumentScreenState
     final value = ref.watch(warehouseDocumentProvider(widget.id));
     final user = ref.watch(currentUserProvider);
     final names = ref.watch(warehouseNamesProvider).valueOrNull;
+    // Backend only returns sourceDocumentId (Guid); resolve its code from the scoped list.
+    final docCodes = {
+      for (final x in ref.watch(warehouseDocumentsProvider).valueOrNull ?? const <WarehouseWork>[])
+        x.id: asStr(x.document['code'])
+    };
     return Scaffold(
         appBar: AppBar(title: const Text('Chứng từ kho')),
         body: AsyncBody(
@@ -658,9 +663,11 @@ class _WarehouseDocumentScreenState
                             const SizedBox(height: AppSpacing.xs),
                             Text(documentTypeTitle(d), style: AppText.strong),
                             const SizedBox(height: AppSpacing.s10),
-                            if (d['sourceDocumentId'] != null)
+                            if (docCodes[asStr(d['sourceDocumentId'])]
+                                    ?.isNotEmpty ==
+                                true)
                               KvRow('Chứng từ nguồn',
-                                  asStr(d['sourceDocumentId'])),
+                                  docCodes[asStr(d['sourceDocumentId'])]!),
                             KvRow('Kho phụ trách',
                                 warehouseLabel(user, names, d['warehouseId'])),
                             if (d['destinationWarehouseId'] != null &&

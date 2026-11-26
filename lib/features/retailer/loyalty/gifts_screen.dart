@@ -179,7 +179,7 @@ class _GiftsScreenState extends ConsumerState<GiftsScreen> {
       return;
     }
     showAppSnack(
-        context, 'Đã xác nhận yêu cầu ${result.code}: ${result.status.label}.');
+        context, 'Đã xác nhận yêu cầu đổi ${result.giftName}: ${result.status.label}.');
   }
 
   @override
