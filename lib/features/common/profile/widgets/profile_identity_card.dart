@@ -41,7 +41,8 @@ class ProfileIdentityCard extends StatelessWidget {
                             .copyWith(fontSize: 17, color: AppColors.text)),
                     const SizedBox(height: AppSpacing.xs),
                     StatusChip(
-                        label: user.role.label, tone: StatusTone.primary),
+                        label: user.roleName ?? user.role.label,
+                        tone: StatusTone.primary),
                   ],
                 ),
               ),

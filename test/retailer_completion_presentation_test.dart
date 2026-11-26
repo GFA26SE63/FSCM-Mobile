@@ -331,6 +331,7 @@ void main() {
       ]);
       addTearDown(router.dispose);
       await tester.pumpWidget(ProviderScope(
+          overrides: [currentUserProvider.overrideWithValue(_user)],
           child: MaterialApp.router(
               theme: buildAppTheme(), routerConfig: router)));
       await tester.pumpAndSettle();

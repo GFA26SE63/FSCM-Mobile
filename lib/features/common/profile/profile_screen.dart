@@ -6,6 +6,7 @@ import 'package:fscm_mobile/data/repositories/auth_repository.dart';
 import 'package:fscm_mobile/data/repositories/order_repository.dart';
 import 'package:fscm_mobile/data/repositories/retailer_order_repository.dart';
 import 'package:fscm_mobile/core/auth/user_role.dart';
+import 'package:fscm_mobile/core/auth/screen_permissions.dart';
 import 'package:fscm_mobile/core/utils/money.dart';
 import 'package:fscm_mobile/shared/routes.dart';
 import 'package:fscm_mobile/shared/theme/app_colors.dart';
@@ -41,8 +42,11 @@ class ProfileScreen extends ConsumerWidget {
               padding: const EdgeInsets.all(AppSpacing.lg),
               children: <Widget>[
                 ProfileIdentityCard(user: user),
-                if (user.role == UserRole.retailer) _CreditProfileCard(),
-                for (final a in actions)
+                if (user.role == UserRole.retailer &&
+                    canAccessMobilePath(user, AppRoutes.rtPayments))
+                  _CreditProfileCard(),
+                for (final a
+                    in actions.where((a) => canAccessMobilePath(user, a.route)))
                   AppCard(
                     onTap: () => context.push(a.route),
                     child: Row(

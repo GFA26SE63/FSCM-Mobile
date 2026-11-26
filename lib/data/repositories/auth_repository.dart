@@ -40,6 +40,9 @@ final currentUserProvider =
 /// from [TokenStore]; a 401 anywhere logs the user out.
 class AuthController extends StateNotifier<AuthState> {
   AuthController(this._ref) : super(const AuthState.unknown()) {
+    _permissionTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+      if (state.isAuthenticated) unawaited(verifySessionOnResume());
+    });
     _unauthorizedSub = _ref.read(apiClientProvider).onUnauthorized.listen((_) {
       if (state.isAuthenticated) {
         unawaited(_handleSessionExpired());
@@ -56,6 +59,7 @@ class AuthController extends StateNotifier<AuthState> {
   }
 
   final Ref _ref;
+  Timer? _permissionTimer;
   StreamSubscription<void>? _unauthorizedSub;
   StreamSubscription<Session>? _sessionRefreshedSub;
 
@@ -252,6 +256,7 @@ class AuthController extends StateNotifier<AuthState> {
 
   @override
   void dispose() {
+    _permissionTimer?.cancel();
     unawaited(_unauthorizedSub?.cancel());
     unawaited(_sessionRefreshedSub?.cancel());
     super.dispose();

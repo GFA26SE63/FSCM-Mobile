@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:fscm_mobile/shared/widgets/permission_navigation_bar.dart';
 
 /// Warehouse Keeper navigation uses the same style as Retailer and Sales.
 class WarehouseShell extends StatelessWidget {
@@ -12,7 +13,8 @@ class WarehouseShell extends StatelessWidget {
     final branch = navigationShell.currentIndex;
     return Scaffold(
       body: navigationShell,
-      bottomNavigationBar: NavigationBar(
+      bottomNavigationBar: PermissionNavigationBar(
+        paths: const ['/wk/home', '/wk/picking', '/wk/account'],
         selectedIndex: branch,
         onDestinationSelected: (index) =>
             navigationShell.goBranch(index, initialLocation: index == branch),

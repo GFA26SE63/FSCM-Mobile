@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:fscm_mobile/data/models/offline_order.dart';
 import 'package:fscm_mobile/data/repositories/order_repository.dart';
 import 'package:fscm_mobile/sync/sync_service.dart';
+import 'package:fscm_mobile/shared/widgets/permission_navigation_bar.dart';
 
 /// Bottom navigation of the Sales role: Trang chủ, Đơn hàng,
 /// Đồng bộ (badge = orders still on the device), Tài khoản.
@@ -38,7 +39,13 @@ class _SalesShellState extends ConsumerState<SalesShell> {
     final shell = widget.navigationShell;
     return Scaffold(
       body: shell,
-      bottomNavigationBar: NavigationBar(
+      bottomNavigationBar: PermissionNavigationBar(
+        paths: const [
+          '/sales/home',
+          '/sales/orders',
+          '/sales/sync',
+          '/sales/account'
+        ],
         selectedIndex: shell.currentIndex,
         onDestinationSelected: (i) =>
             shell.goBranch(i, initialLocation: i == shell.currentIndex),
