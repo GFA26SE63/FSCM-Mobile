@@ -200,6 +200,7 @@ class WarehouseDocumentsScreen extends ConsumerWidget {
                             w.document['reason'] == 'Transfer' &&
                             w.document['kind'] == 'Issue' &&
                             w.document['status'] == 'Posted' &&
+                            w.transportStatus == 'InTransit' &&
                             scope.contains(
                                 w.document['destinationWarehouseId']) &&
                             !all.any(

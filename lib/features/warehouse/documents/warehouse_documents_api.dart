@@ -23,9 +23,11 @@ class WarehouseWork {
   WarehouseWork(Map<String, dynamic> json)
       : document = asMap(json['document']),
         lines = asMapList(json['lines']),
-        cartons = asMapList(json['cartons']);
+        cartons = asMapList(json['cartons']),
+        transportStatus = asStrOrNull(json['transportStatus']);
   final Map<String, dynamic> document;
   final List<Map<String, dynamic>> lines, cartons;
+  final String? transportStatus;
   String get id => asStr(document['id']);
   int get version => asInt(document['version']);
   bool get factory => document['reason'] == 'Factory';
