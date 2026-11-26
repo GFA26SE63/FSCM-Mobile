@@ -163,6 +163,18 @@ void main() {
     await api.post(work);
     expect(t.requests.last.path, '/warehouse-documents/inbound/post');
   });
+  test('warehouse work exposes authoritative transfer transport status', () {
+    final waiting = WarehouseWork({
+      'document': {'id': 'issue'},
+      'transportStatus': 'Approved'
+    });
+    final moving = WarehouseWork({
+      'document': {'id': 'issue'},
+      'transportStatus': 'InTransit'
+    });
+    expect(waiting.transportStatus, 'Approved');
+    expect(moving.transportStatus, 'InTransit');
+  });
   test('the four operations distinguish transfer receipts from transfer issues',
       () {
     expect(

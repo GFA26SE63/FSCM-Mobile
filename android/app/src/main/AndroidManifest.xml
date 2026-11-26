@@ -24,12 +24,19 @@
               android:name="io.flutter.embedding.android.NormalTheme"
               android:resource="@style/NormalTheme"
               />
+            <!-- PayOS only uses fscm://payos to bring the running app forward.
+                 Do not let Flutter turn that callback into a GoRouter route:
+                 the payment status is refreshed from the authoritative API when
+                 the app resumes. -->
+            <meta-data
+                android:name="flutter_deeplinking_enabled"
+                android:value="false" />
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
-            <!-- Public PayOS callback page opens this scheme only after it has
-                 rendered a browser fallback for users without the app. -->
+            <!-- Public PayOS callback page opens this scheme only to focus the
+                 app after success, failure, or cancellation. -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />

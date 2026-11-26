@@ -397,8 +397,13 @@ List<RouteBase> _retailerRoutes() => <RouteBase>[
           builder: (c, s) => const ComplaintsScreen()),
       GoRoute(
         path: AppRoutes.rtComplaintNew,
-        builder: (c, s) =>
-            ComplaintFormScreen(orderCode: s.uri.queryParameters['order']),
+        builder: (c, s) => ComplaintFormScreen(
+          orderCode: s.uri.queryParameters['order'],
+          initialShipmentId: s.uri.queryParameters['shipmentId'],
+          initialActualQty: int.tryParse(
+            s.uri.queryParameters['actualQty'] ?? '',
+          ),
+        ),
       ),
       GoRoute(
         path: AppRoutes.rtOrderDetailPattern,

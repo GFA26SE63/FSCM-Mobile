@@ -135,7 +135,7 @@ class _RetailerQuotePanelState extends ConsumerState<RetailerQuotePanel> {
                       child: Text(
                           _busy
                               ? 'Đang xử lý...'
-                              : 'Chấp nhận và chọn thanh toán',
+                              : 'Chấp nhận báo giá',
                           textAlign: TextAlign.center),
                     ),
                   ),
@@ -225,6 +225,9 @@ class _RejectQuoteDialogState extends State<_RejectQuoteDialog> {
 
   @override
   Widget build(BuildContext context) => AlertDialog(
+        // With the keyboard open on a small phone the reason and both actions
+        // scroll instead of overflowing.
+        scrollable: true,
         title: const Text('Từ chối báo giá'),
         content: Form(
             key: _form,
@@ -238,17 +241,31 @@ class _RejectQuoteDialogState extends State<_RejectQuoteDialog> {
                   ? 'Vui lòng nhập lý do.'
                   : null,
             )),
+        // Same stacked layout as confirmDialog: the theme gives FilledButton an
+        // infinite minimum width, so AlertDialog's OverflowBar always stacked
+        // the two actions with no gap ("Quay lại" sat on top of "Từ chối").
+        actionsPadding: const EdgeInsets.fromLTRB(
+            AppSpacing.xxl, 0, AppSpacing.xxl, AppSpacing.xl),
         actions: [
-          TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Quay lại')),
-          FilledButton(
-              onPressed: () {
-                if (_form.currentState!.validate()) {
-                  Navigator.of(context).pop(_reason.text.trim());
-                }
-              },
-              child: const Text('Từ chối')),
+          SizedBox(
+            width: double.infinity,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                FilledButton(
+                    onPressed: () {
+                      if (_form.currentState!.validate()) {
+                        Navigator.of(context).pop(_reason.text.trim());
+                      }
+                    },
+                    child: const Text('Từ chối')),
+                const SizedBox(height: AppSpacing.s10),
+                OutlinedButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: const Text('Quay lại')),
+              ],
+            ),
+          ),
         ],
       );
 }

@@ -24,9 +24,15 @@ class StatusChip extends StatelessWidget {
         color: c.background,
         borderRadius: AppRadius.pillAll,
       ),
-      child: Text(
-        label,
-        style: AppText.caption.copyWith(color: c.foreground),
+      // One line always: shrink a long label in a narrow slot instead of wrapping.
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        child: Text(
+          label,
+          maxLines: 1,
+          softWrap: false,
+          style: AppText.caption.copyWith(color: c.foreground),
+        ),
       ),
     );
   }

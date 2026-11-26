@@ -23,9 +23,11 @@ class WarehouseWork {
   WarehouseWork(Map<String, dynamic> json)
       : document = asMap(json['document']),
         lines = asMapList(json['lines']),
-        cartons = asMapList(json['cartons']);
+        cartons = asMapList(json['cartons']),
+        transportStatus = asStrOrNull(json['transportStatus']);
   final Map<String, dynamic> document;
   final List<Map<String, dynamic>> lines, cartons;
+  final String? transportStatus;
   String get id => asStr(document['id']);
   int get version => asInt(document['version']);
   bool get factory => document['reason'] == 'Factory';
@@ -40,6 +42,20 @@ final warehouseDocumentsApiProvider = Provider((ref) {
   ref.watch(currentUserProvider);
   return WarehouseDocumentsApi(ref.watch(apiClientProvider));
 });
+/// Names of all warehouses (GET /warehouses, any signed-in role). Documents only
+/// carry ids, and a transfer's other warehouse is outside the keeper's scope.
+/// A failure leaves names empty so screens fall back to the id.
+final warehouseNamesProvider = FutureProvider.autoDispose<Map<String, String>>(
+    (ref) async {
+  try {
+    final rows = asMapList(
+        await ref.watch(warehouseDocumentsApiProvider).client.get('/warehouses'));
+    return {for (final w in rows) asStr(w['id']): asStr(w['name'])};
+  } catch (_) {
+    return const {};
+  }
+});
+
 final warehouseDocumentsProvider = FutureProvider.autoDispose(
     (ref) => ref.watch(warehouseDocumentsApiProvider).list());
 final factoryArrivalsProvider = FutureProvider.autoDispose(

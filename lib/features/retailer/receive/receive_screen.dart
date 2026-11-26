@@ -41,6 +41,7 @@ class _RtReceiveScreenState extends ConsumerState<RtReceiveScreen> {
   Order? _result;
 
   Future<void> _confirm(Order order, DeliveryShipment shipment) async {
+    final receivedQuantities = _receivedQuantitiesFor(shipment);
     setState(() {
       _busy = true;
       _error = '';
@@ -51,17 +52,53 @@ class _RtReceiveScreenState extends ConsumerState<RtReceiveScreen> {
                 order.id,
                 shipment,
                 labelCodes: _scanned.toList(growable: false),
+                receivedQuantities: receivedQuantities,
               );
       ref.invalidate(orderDetailProvider(widget.code));
       ref.invalidate(orderDetailProvider(order.id));
       ref.invalidate(deliveryShipmentsProvider(order.id));
       ref.read(dataVersionProvider.notifier).state++;
       if (mounted) {
+        final totalReceived = receivedQuantities.values
+            .fold<double>(0, (sum, value) => sum + value);
+        final missing = (shipment.totalQuantity - totalReceived)
+            .clamp(0, shipment.totalQuantity)
+            .toDouble();
         setState(() {
           _result = result;
           _scanned.clear();
           _selectedShipmentId = null;
         });
+        if (missing > 0) {
+          final wantComplain = await showDialog<bool>(
+            context: context,
+            builder: (dialogContext) => AlertDialog(
+              title: const Text('Ghi nhận thiếu hàng'),
+              content: Text(
+                'Đã ghi nhận nhận ${_quantity(totalReceived)} / ${_quantity(shipment.totalQuantity)} thùng '
+                '(thiếu ${_quantity(missing)} thùng).\n\n'
+                'Bạn có muốn tạo phiếu khiếu nại ngay không?',
+              ),
+              actions: <Widget>[
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(false),
+                  child: const Text('Để sau'),
+                ),
+                FilledButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(true),
+                  child: const Text('Tạo khiếu nại ngay'),
+                ),
+              ],
+            ),
+          );
+          if (wantComplain == true && mounted) {
+            await context.push(AppRoutes.rtComplaintFor(
+              order.code,
+              shipmentId: shipment.id,
+              actualQty: totalReceived.round(),
+            ));
+          }
+        }
       }
     } on ApiException catch (e) {
       if (mounted) setState(() => _error = e.message);
@@ -81,19 +118,31 @@ class _RtReceiveScreenState extends ConsumerState<RtReceiveScreen> {
 
   void _onScan(String raw) {
     final code = raw.trim().toUpperCase();
-    if (!IdFormat.isCarton(code)) {
-      setState(
-          () => _error = 'Mã "$code" không phải mã thùng hàng CID hợp lệ.');
+    final problem = IdFormat.cartonScanError(code);
+    if (problem != null) {
+      setState(() => _error = problem);
       return;
     }
     if (_scanned.contains(code)) {
-      setState(() => _error = 'Tem $code đã quét rồi.');
+      setState(() => _error = 'Mã thùng $code đã được quét.');
       return;
     }
     setState(() {
       _scanned.add(code);
       _error = '';
     });
+  }
+
+  Map<String, double> _receivedQuantitiesFor(DeliveryShipment shipment) {
+    var remaining = _scanned.length.toDouble();
+    final result = <String, double>{};
+    for (final line in shipment.lines) {
+      final key = '${line.orderLineId}:${line.batchId}';
+      final assigned = remaining.clamp(0, line.quantity).toDouble();
+      result[key] = assigned;
+      remaining -= assigned;
+    }
+    return result;
   }
 
   @override
@@ -159,7 +208,7 @@ class _RtReceiveScreenState extends ConsumerState<RtReceiveScreen> {
           icon: Icons.local_shipping_outlined,
           text: shipments.length == 1
               ? 'Xác nhận riêng phần giao từ ${selected.warehouseName}.'
-              : 'Đơn có ${shipments.length} phần giao đang tới. Chọn đúng kho trên phiếu giao trước khi quét tem.',
+              : 'Đơn có ${shipments.length} phần giao đang tới. Chọn đúng kho trên phiếu giao trước khi quét thùng hàng.',
         ),
         const SectionTitle('1. Chọn phần giao'),
         for (final shipment in shipments)
@@ -193,14 +242,14 @@ class _RtReceiveScreenState extends ConsumerState<RtReceiveScreen> {
               ),
             ),
           ),
-        SectionTitle('2. Quét tem của ${selected.warehouseCode}'),
-        const InfoBanner(
+        SectionTitle('2. Quét mã thùng (CID) của ${selected.warehouseCode}'),
+        InfoBanner(
           icon: Icons.qr_code_scanner,
           text:
-              'Chỉ quét tem thuộc phần giao đã chọn. Đổi sang kho khác sẽ xóa danh sách tem đang quét.',
+              'Quét mã QR trên từng thùng hàng. Phần giao này có ${_quantity(selected.totalQuantity)} thùng (nếu thiếu thùng, hệ thống sẽ ghi nhận thực nhận và đánh dấu phần thiếu để đối soát). Đổi sang kho khác sẽ xóa danh sách mã đang quét.',
         ),
         QrScanView(
-          hint: 'Quét tem trên kiện hàng',
+          hint: 'Quét mã QR trên thùng hàng',
           onCode: _onScan,
         ),
         if (_error.isNotEmpty) ...<Widget>[
@@ -211,7 +260,7 @@ class _RtReceiveScreenState extends ConsumerState<RtReceiveScreen> {
             text: _error,
           ),
         ],
-        SectionTitle('Tem đã quét (${_scanned.length})'),
+        SectionTitle('Số thùng đã quét (${_scanned.length})'),
         for (final code in _scanned)
           AppCard(
             margin: const EdgeInsets.only(bottom: AppSpacing.s6),
@@ -222,6 +271,13 @@ class _RtReceiveScreenState extends ConsumerState<RtReceiveScreen> {
                 const Icon(Icons.check_circle, color: AppColors.success),
                 const SizedBox(width: AppSpacing.s10),
                 Expanded(child: Text(code, style: AppText.strong)),
+                IconButton(
+                  tooltip: 'Xóa mã này',
+                  onPressed: _busy
+                      ? null
+                      : () => setState(() => _scanned.remove(code)),
+                  icon: const Icon(Icons.close, size: 18),
+                ),
               ],
             ),
           ),
