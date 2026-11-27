@@ -767,13 +767,15 @@ class _WarehouseDocumentScreenState
                           hint: w.factory
                               ? 'Quét đúng QR pallet trên phiếu'
                               : 'Quét QR từng thùng',
-                          demoCodes: w.factory || d['kind'] != 'Receipt'
+                          demoCodes: w.factory
                               ? const <String>[]
-                              : [
-                                  for (final c in w.cartons)
-                                    if (c['scannedAt'] == null)
-                                      asStr(c['cartonId'])
-                                ],
+                              : d['kind'] == 'Receipt'
+                                  ? [
+                                      for (final c in w.cartons)
+                                        if (c['scannedAt'] == null)
+                                          asStr(c['cartonId'])
+                                    ]
+                                  : w.demoCartonIds,
                           // Each scan bumps the document version; chain them.
                           onDemoScan: (codes) => act(() async {
                                 final api =

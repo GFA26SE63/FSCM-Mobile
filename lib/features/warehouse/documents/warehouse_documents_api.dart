@@ -24,10 +24,16 @@ class WarehouseWork {
       : document = asMap(json['document']),
         lines = asMapList(json['lines']),
         cartons = asMapList(json['cartons']),
-        transportStatus = asStrOrNull(json['transportStatus']);
+        transportStatus = asStrOrNull(json['transportStatus']),
+        demoCartonIds = (json['demoCartonIds'] as List? ?? const <Object?>[])
+            .map(asStr)
+            .toList(growable: false);
   final Map<String, dynamic> document;
   final List<Map<String, dynamic>> lines, cartons;
   final String? transportStatus;
+
+  /// Available cartons for an open issue, sent only while the admin demo fast-scan switch is on.
+  final List<String> demoCartonIds;
   String get id => asStr(document['id']);
   int get version => asInt(document['version']);
   bool get factory => document['reason'] == 'Factory';
