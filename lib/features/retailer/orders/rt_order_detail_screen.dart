@@ -52,6 +52,15 @@ class RtOrderDetailScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
+        leading: BackButton(
+          onPressed: () {
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              context.go(AppRoutes.rtOrders);
+            }
+          },
+        ),
         title: Text(value.valueOrNull?.code ?? 'Chi tiết đơn hàng'),
         actions: [
           IconButton(
