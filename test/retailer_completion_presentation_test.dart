@@ -31,6 +31,7 @@ const _user = AppUser(
     fullName: 'Retailer',
     phone: '',
     role: UserRole.retailer,
+    permissions: ['mobile-rt-orders', 'mobile-rt-scan'],
     retailerCode: '1001');
 
 const _widths = <double>[360, 390];
@@ -267,11 +268,11 @@ void main() {
             scale));
         await tester.pumpAndSettle();
         expect(find.text('Thông tin yêu cầu'), findsOneWidget);
-        await _see(tester, find.text('Sản phẩm · lô hàng · phần giao'));
-        await tester.ensureVisible(find.text('Sản phẩm · lô hàng · phần giao'));
-        await tester.tap(find.text('Sản phẩm · lô hàng · phần giao'));
+        await _see(tester, find.text('Sản phẩm'));
+        await tester.ensureVisible(find.text('Sản phẩm'));
+        await tester.tap(find.text('Sản phẩm'));
         await tester.pumpAndSettle();
-        await tester.tap(find.textContaining('SKU001 · BATCH-1 · PH-1').last);
+        await tester.tap(find.textContaining('SKU001 · Sữa').last);
         await tester.pumpAndSettle();
         await _see(tester, find.text('Ảnh bằng chứng'));
         await _see(tester, find.text('Gửi yêu cầu'));

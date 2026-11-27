@@ -428,7 +428,11 @@ void main() {
       addTearDown(client.dispose);
       final container = ProviderContainer(overrides: [
         currentUserProvider.overrideWithValue(const AppUser(
-            id: 'me', fullName: 'S', phone: '0', role: UserRole.sales)),
+            id: 'me',
+            fullName: 'S',
+            phone: '0',
+            role: UserRole.sales,
+            permissions: ['mobile-sales-kpi'])),
         performanceApiProvider.overrideWithValue(PerformanceApi(client)),
       ]);
       addTearDown(container.dispose);

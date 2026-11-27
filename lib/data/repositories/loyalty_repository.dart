@@ -1,6 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:typed_data';
-import 'package:fscm_mobile/core/auth/user_role.dart';
 import 'package:fscm_mobile/core/network/api_exception.dart';
 import 'package:fscm_mobile/core/config/env.dart';
 import 'package:fscm_mobile/data/local/redemption_attempt_store.dart';
@@ -24,7 +23,7 @@ final loyaltyAccountProvider =
     FutureProvider.autoDispose<LoyaltyAccount>((ref) async {
   ref.watch(dataVersionProvider);
   final user = ref.watch(currentUserProvider);
-  if (user == null || user.role != UserRole.retailer) {
+  if (user == null || !user.hasPermission('api:LoyaltyCards.Me')) {
     throw const ApiException(
         kind: ApiErrorKind.forbidden,
         message: 'Cần đăng nhập điểm bán để xem thẻ tích điểm của mình.');
@@ -80,7 +79,7 @@ final complaintsProvider = FutureProvider.autoDispose<List<Complaint>>((ref) {
   // GraphQL `complaintReads` is open to any signed-in role and only a Retailer
   // is limited to own complaints, whereas REST refuses other roles. The list is
   // a Retailer screen, so anyone else is refused here, as REST would.
-  if (user?.role != UserRole.retailer) {
+  if (user?.hasPermission('api:Complaints.List') != true) {
     throw const ApiException(
         kind: ApiErrorKind.forbidden,
         message: 'Chỉ điểm bán được xem danh sách khiếu nại này.');

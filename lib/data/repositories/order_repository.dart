@@ -1,7 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
-import 'package:fscm_mobile/core/auth/user_role.dart';
 import 'package:fscm_mobile/core/config/device_identity.dart';
 import 'package:fscm_mobile/core/network/api_exception.dart';
 import 'package:fscm_mobile/core/utils/clock.dart';
@@ -43,7 +42,7 @@ final orderRepositoryProvider = Provider<OrderRepository>((ref) {
     syncState: ref.watch(syncStateDaoProvider),
     device: ref.watch(deviceIdentityProvider),
     ownerId: ownerId,
-    isSales: user?.role == UserRole.sales,
+    isSales: user?.hasPermission('mobile-sales-sync') == true,
     isCurrentUser: () => ref.read(currentUserProvider)?.id == ownerId,
   );
 });
@@ -57,7 +56,7 @@ final ordersProvider = FutureProvider.autoDispose<OrderListResult>((ref) async {
   }
 
   return ref.watch(orderRepositoryProvider).listOrders(
-        includeQueue: user.role == UserRole.sales,
+        includeQueue: user.hasPermission('mobile-sales-sync'),
       );
 });
 
@@ -82,7 +81,7 @@ final offlineQueueProvider =
   ref.watch(dataVersionProvider);
 
   final user = ref.watch(currentUserProvider);
-  if (user == null || user.role != UserRole.sales) {
+  if (user == null || !user.hasPermission('mobile-sales-sync')) {
     return const <OfflineOrder>[];
   }
 

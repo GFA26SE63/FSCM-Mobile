@@ -1,4 +1,6 @@
 import 'package:fscm_mobile/core/utils/numbers.dart';
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -6,6 +8,7 @@ import 'package:go_router/go_router.dart';
 import 'package:fscm_mobile/core/network/api_exception.dart';
 import 'package:fscm_mobile/core/utils/id_format.dart';
 import 'package:fscm_mobile/core/utils/status_tone.dart';
+import 'package:fscm_mobile/data/local/receipt_draft_store.dart';
 import 'package:fscm_mobile/data/models/delivery_shipment.dart';
 import 'package:fscm_mobile/data/models/enums.dart';
 import 'package:fscm_mobile/data/models/order.dart';
@@ -25,9 +28,13 @@ import 'package:fscm_mobile/shared/theme/app_tokens.dart';
 /// explicitly chooses the warehouse part before scanning labels, preventing
 /// labels from being submitted to the first Delivering shipment by accident.
 class RtReceiveScreen extends ConsumerStatefulWidget {
-  const RtReceiveScreen({super.key, required this.code});
+  const RtReceiveScreen(
+      {super.key, required this.code, this.initialShipmentId});
 
   final String code;
+
+  /// Warehouse part tapped on the order; falls back to the first one.
+  final String? initialShipmentId;
 
   @override
   ConsumerState<RtReceiveScreen> createState() => _RtReceiveScreenState();
@@ -35,10 +42,99 @@ class RtReceiveScreen extends ConsumerStatefulWidget {
 
 class _RtReceiveScreenState extends ConsumerState<RtReceiveScreen> {
   final Set<String> _scanned = <String>{};
-  String? _selectedShipmentId;
+  late String? _selectedShipmentId = widget.initialShipmentId;
+
+  /// Keeps one camera session while widgets above it come and go; a rebuilt
+  /// scanner starts before the old one releases the camera and fails.
+  final GlobalKey _scannerKey = GlobalKey();
   String _error = '';
   bool _busy = false;
   Order? _result;
+
+  /// Shipment currently on screen; scanned codes are saved as its draft.
+  DeliveryShipment? _current;
+  String? _draftLoadedFor;
+  int _restoredCount = 0;
+
+  /// Codes survive leaving the screen: restore this shipment's draft once.
+  void _ensureDraft(DeliveryShipment shipment) {
+    _current = shipment;
+    if (_draftLoadedFor == shipment.id) return;
+    _draftLoadedFor = shipment.id;
+    ref.read(receiptDraftStoreProvider).read(shipment).then((codes) {
+      if (!mounted || _draftLoadedFor != shipment.id || codes.isEmpty) return;
+      setState(() {
+        _scanned.addAll(codes);
+        _restoredCount = codes.length;
+      });
+    });
+  }
+
+  void _saveDraft() {
+    final shipment = _current;
+    if (shipment == null) return;
+    unawaited(ref.read(receiptDraftStoreProvider).save(shipment, _scanned));
+  }
+
+  void _restart() {
+    final shipment = _current;
+    setState(() {
+      _scanned.clear();
+      _restoredCount = 0;
+      _error = '';
+    });
+    if (shipment != null) {
+      unawaited(ref.read(receiptDraftStoreProvider).clear(shipment.id));
+    }
+  }
+
+  Future<void> _confirmLeave() async {
+    final total = _current?.totalQuantity;
+    final choice = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title:
+            const Text('Chưa xác nhận nhận hàng', textAlign: TextAlign.center),
+        content: Text(
+          total == null
+              ? 'Bạn đã quét ${_scanned.length} thùng. Lưu nháp để lần sau quét tiếp từ chỗ đang dừng.'
+              : 'Bạn đã quét ${_scanned.length}/${_quantity(total)} thùng. Lưu nháp để lần sau quét tiếp từ chỗ đang dừng.',
+          textAlign: TextAlign.center,
+          style: AppText.muted.copyWith(height: 1.5),
+        ),
+        actionsPadding: const EdgeInsets.fromLTRB(
+            AppSpacing.xxl, 0, AppSpacing.xxl, AppSpacing.xl),
+        actions: <Widget>[
+          SizedBox(
+            width: double.infinity,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                FilledButton(
+                  onPressed: () => Navigator.of(dialogContext).pop('keep'),
+                  child: const Text('Lưu nháp và thoát'),
+                ),
+                const SizedBox(height: AppSpacing.s10),
+                OutlinedButton(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.danger,
+                    side: const BorderSide(color: AppColors.dangerBorder),
+                  ),
+                  onPressed: () => Navigator.of(dialogContext).pop('discard'),
+                  child: const Text('Bỏ các thùng đã quét'),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+    if (choice == null || !mounted) return;
+    // Codes are saved after every scan, so keeping them needs no extra write.
+    if (choice == 'discard') _restart();
+    setState(() => _scanned.clear());
+    if (mounted) Navigator.of(context).pop();
+  }
 
   Future<void> _confirm(Order order, DeliveryShipment shipment) async {
     final receivedQuantities = _receivedQuantitiesFor(shipment);
@@ -54,6 +150,7 @@ class _RtReceiveScreenState extends ConsumerState<RtReceiveScreen> {
                 labelCodes: _scanned.toList(growable: false),
                 receivedQuantities: receivedQuantities,
               );
+      await ref.read(receiptDraftStoreProvider).clear(shipment.id);
       ref.invalidate(orderDetailProvider(widget.code));
       ref.invalidate(orderDetailProvider(order.id));
       ref.invalidate(deliveryShipmentsProvider(order.id));
@@ -67,7 +164,9 @@ class _RtReceiveScreenState extends ConsumerState<RtReceiveScreen> {
         setState(() {
           _result = result;
           _scanned.clear();
+          _restoredCount = 0;
           _selectedShipmentId = null;
+          _draftLoadedFor = null;
         });
         if (missing > 0) {
           final wantComplain = await showDialog<bool>(
@@ -95,7 +194,6 @@ class _RtReceiveScreenState extends ConsumerState<RtReceiveScreen> {
             await context.push(AppRoutes.rtComplaintFor(
               order.code,
               shipmentId: shipment.id,
-              actualQty: totalReceived.round(),
             ));
           }
         }
@@ -109,9 +207,12 @@ class _RtReceiveScreenState extends ConsumerState<RtReceiveScreen> {
 
   void _selectShipment(String shipmentId) {
     if (_selectedShipmentId == shipmentId) return;
+    // The previous part's codes are already saved as its draft.
     setState(() {
       _selectedShipmentId = shipmentId;
       _scanned.clear();
+      _restoredCount = 0;
+      _draftLoadedFor = null;
       _error = '';
     });
   }
@@ -131,6 +232,7 @@ class _RtReceiveScreenState extends ConsumerState<RtReceiveScreen> {
       _scanned.add(code);
       _error = '';
     });
+    _saveDraft();
   }
 
   Map<String, double> _receivedQuantitiesFor(DeliveryShipment shipment) {
@@ -148,22 +250,35 @@ class _RtReceiveScreenState extends ConsumerState<RtReceiveScreen> {
   @override
   Widget build(BuildContext context) {
     final orderValue = ref.watch(orderDetailProvider(widget.code));
-    return Scaffold(
-      appBar: AppBar(title: Text('Nhận hàng · ${widget.code}')),
-      body: AsyncBody<Order>(
-        value: orderValue,
-        onRetry: () => ref.invalidate(orderDetailProvider(widget.code)),
-        builder: (order) {
-          if (_result != null) return _done(_result!);
-          if (!order.status.canConfirmReceipt) return _notReady(order);
+    return PopScope(
+      canPop: _scanned.isEmpty || _busy || _result != null,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) unawaited(_confirmLeave());
+      },
+      child: Scaffold(
+        // Route param may be the order GUID; show the order code once loaded.
+        appBar: AppBar(
+            title: Text((orderValue.valueOrNull?.code.isNotEmpty ?? false)
+                ? 'Nhận hàng · ${orderValue.valueOrNull!.code}'
+                : 'Nhận hàng')),
+        body: AsyncBody<Order>(
+          value: orderValue,
+          onRetry: () => ref.invalidate(orderDetailProvider(widget.code)),
+          builder: (order) {
+            if (_result != null) return _done(_result!);
+            // Gate per part below: a part can be Delivering before the order is.
+            if (!order.status.mayHavePartInDelivery) return _notReady(order);
 
-          final shipmentsValue = ref.watch(deliveryShipmentsProvider(order.id));
-          return AsyncBody<List<DeliveryShipment>>(
-            value: shipmentsValue,
-            onRetry: () => ref.invalidate(deliveryShipmentsProvider(order.id)),
-            builder: (allShipments) => _receive(order, allShipments),
-          );
-        },
+            final shipmentsValue =
+                ref.watch(deliveryShipmentsProvider(order.id));
+            return AsyncBody<List<DeliveryShipment>>(
+              value: shipmentsValue,
+              onRetry: () =>
+                  ref.invalidate(deliveryShipmentsProvider(order.id)),
+              builder: (allShipments) => _receive(order, allShipments),
+            );
+          },
+        ),
       ),
     );
   }
@@ -199,6 +314,7 @@ class _RtReceiveScreenState extends ConsumerState<RtReceiveScreen> {
     for (final item in shipments) {
       if (item.id == _selectedShipmentId) selected = item;
     }
+    _ensureDraft(selected);
     final ready = _scanned.isNotEmpty;
 
     return ListView(
@@ -246,9 +362,24 @@ class _RtReceiveScreenState extends ConsumerState<RtReceiveScreen> {
         InfoBanner(
           icon: Icons.qr_code_scanner,
           text:
-              'Quét mã QR trên từng thùng hàng. Phần giao này có ${_quantity(selected.totalQuantity)} thùng (nếu thiếu thùng, hệ thống sẽ ghi nhận thực nhận và đánh dấu phần thiếu để đối soát). Đổi sang kho khác sẽ xóa danh sách mã đang quét.',
+              'Quét mã QR trên từng thùng hàng. Phần giao này có ${_quantity(selected.totalQuantity)} thùng (nếu thiếu thùng, hệ thống sẽ ghi nhận thực nhận và đánh dấu phần thiếu để đối soát). Mã đã quét được lưu tạm theo từng phần giao cho tới khi xác nhận.',
         ),
+        if (_restoredCount > 0) ...<Widget>[
+          InfoBanner(
+            icon: Icons.restore,
+            text:
+                'Đã khôi phục $_restoredCount/${_quantity(selected.totalQuantity)} thùng quét trước đó.',
+          ),
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton(
+              onPressed: _busy ? null : _restart,
+              child: const Text('Quét lại từ đầu'),
+            ),
+          ),
+        ],
         QrScanView(
+          key: _scannerKey,
           hint: 'Quét mã QR trên thùng hàng',
           onCode: _onScan,
         ),
@@ -275,7 +406,10 @@ class _RtReceiveScreenState extends ConsumerState<RtReceiveScreen> {
                   tooltip: 'Xóa mã này',
                   onPressed: _busy
                       ? null
-                      : () => setState(() => _scanned.remove(code)),
+                      : () {
+                          setState(() => _scanned.remove(code));
+                          _saveDraft();
+                        },
                   icon: const Icon(Icons.close, size: 18),
                 ),
               ],

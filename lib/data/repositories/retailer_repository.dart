@@ -1,7 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:fscm_mobile/core/auth/session.dart';
-import 'package:fscm_mobile/core/auth/user_role.dart';
 import 'package:fscm_mobile/core/network/api_exception.dart';
 import 'package:fscm_mobile/data/models/retailer_declaration.dart';
 import 'package:fscm_mobile/data/models/retailer_order_eligibility.dart';
@@ -23,7 +22,7 @@ final declarationsProvider =
   final user = ref.watch(currentUserProvider);
   // Declarations belong to Sales. The Backend also refuses `scope=mine` for any
   // other role; this keeps the request from being sent at all.
-  if (user?.role != UserRole.sales) {
+  if (user?.hasPermission('mobile-sales-declarations') != true) {
     throw const ApiException(
         kind: ApiErrorKind.forbidden,
         message: 'Chỉ nhân viên bán hàng được xem khai báo điểm bán.');
@@ -51,7 +50,7 @@ final retailerOrderEligibilityProvider = FutureProvider.autoDispose
   ref.watch(dataVersionProvider);
   final user = ref.watch(currentUserProvider);
 
-  if (user == null || user.role != UserRole.sales) {
+  if (user == null || !user.hasPermission('mobile-sales-order-create')) {
     throw const ApiException(
       kind: ApiErrorKind.forbidden,
       message: 'Chức năng kiểm tra này dành cho nhân viên bán hàng.',

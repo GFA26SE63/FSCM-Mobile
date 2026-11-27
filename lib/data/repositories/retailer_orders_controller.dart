@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:fscm_mobile/core/auth/user_role.dart';
 import 'package:fscm_mobile/core/network/api_exception.dart';
 import 'package:fscm_mobile/data/models/order.dart';
 import 'package:fscm_mobile/data/remote/orders_api.dart';
@@ -45,7 +44,7 @@ final retailerOrdersProvider = StateNotifierProvider.autoDispose
     search: search,
     isCurrentUser: () =>
         user != null &&
-        user.role == UserRole.retailer &&
+        user.hasPermission('mobile-rt-orders') &&
         ref.read(currentUserProvider)?.id == user.id,
   );
 });

@@ -535,7 +535,12 @@ void main() {
             id: '33333333-3333-4333-8333-333333333333',
             fullName: 'S',
             phone: '0',
-            role: UserRole.sales)),
+            role: UserRole.sales,
+            permissions: [
+              'mobile-sales-sync',
+              'mobile-sales-home',
+              'mobile-sales-orders'
+            ])),
         orderRepositoryProvider.overrideWithValue(repository),
         ordersApiProvider.overrideWithValue(api),
       ]);

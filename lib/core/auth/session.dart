@@ -108,6 +108,9 @@ class AppUser {
 
   /// Null is reserved for in-process legacy callers. Server/persisted sessions always use a list.
   final List<String>? permissions;
+
+  /// Runtime capabilities come from /auth/me. Missing contracts grant nothing.
+  bool hasPermission(String key) => permissions?.contains(key) == true;
   final String? roleDefinitionId;
   final String? roleCode;
   final String? roleName;

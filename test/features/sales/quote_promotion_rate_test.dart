@@ -35,7 +35,10 @@ Order _quote() => Order.fromJson({
       'createdAt': '2026-11-20T10:00:00+07:00',
       'lines': [
         // 10% promotion (100,000) then 15% HSD on 900,000 (135,000) = 23.5%.
-        _line('A', discount: 235000, totalPct: 23.5, shelfLife: true,
+        _line('A',
+            discount: 235000,
+            totalPct: 23.5,
+            shelfLife: true,
             promotion: {
               'promotionId': 'p-a',
               'code': 'KM-A',
@@ -93,11 +96,11 @@ void main() {
     await pump(tester, _quote());
 
     // Savings = persisted discountAmount, once per line (no duplicate −amount).
-    expect(find.text('Tiết kiệm 235.000đ'), findsOneWidget);
-    expect(find.text('Tiết kiệm 80.000đ'), findsOneWidget);
-    expect(find.text('Tiết kiệm 150.000đ'), findsOneWidget);
-    expect(find.text('Tiết kiệm 50.000đ'), findsOneWidget);
-    expect(find.textContaining('−235.000đ'), findsNothing);
+    expect(find.text('Tiết kiệm 235.000 VND'), findsOneWidget);
+    expect(find.text('Tiết kiệm 80.000 VND'), findsOneWidget);
+    expect(find.text('Tiết kiệm 150.000 VND'), findsOneWidget);
+    expect(find.text('Tiết kiệm 50.000 VND'), findsOneWidget);
+    expect(find.textContaining('−235.000 VND'), findsNothing);
 
     expect(find.text(' · KM 10%'), findsOneWidget);
     expect(find.text(' · KM 8%'), findsOneWidget);
@@ -110,12 +113,15 @@ void main() {
     // Name/rate pairing in the same row.
     Finder row(String name) =>
         find.ancestor(of: find.text(name), matching: find.byType(Row)).first;
-    expect(find.descendant(of: row('KM Sữa A'), matching: find.text(' · KM 10%')),
+    expect(
+        find.descendant(of: row('KM Sữa A'), matching: find.text(' · KM 10%')),
         findsOneWidget);
-    expect(find.descendant(of: row('KM Nước B'), matching: find.text(' · KM 8%')),
+    expect(
+        find.descendant(of: row('KM Nước B'), matching: find.text(' · KM 8%')),
         findsOneWidget);
     // HSD-only line keeps its HSD label without a promotion rate.
-    expect(find.descendant(
+    expect(
+        find.descendant(
             of: row('Giảm giá theo HSD'), matching: find.textContaining('KM ')),
         findsNothing);
     // Missing rate: name only.
@@ -123,7 +129,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('owner example: 280đ savings, Demo_Demo1 · KM 10%',
+  testWidgets('owner example: 280 VND savings, Demo_Demo1 · KM 10%',
       (tester) async {
     final order = Order.fromJson({
       'id': 'q-2',
@@ -153,12 +159,12 @@ void main() {
       ],
     });
     await pump(tester, order);
-    expect(find.text('Tiết kiệm 280đ'), findsOneWidget);
+    expect(find.text('Tiết kiệm 280 VND'), findsOneWidget);
     expect(find.text('Demo_Demo1'), findsOneWidget);
     expect(find.text(' · KM 10%'), findsOneWidget);
     expect(find.textContaining('23,33'), findsNothing);
     expect(find.textContaining('23.33'), findsNothing);
-    expect(find.textContaining('−280đ'), findsNothing);
+    expect(find.textContaining('−280 VND'), findsNothing);
     expect(order.lines.single.net, 920);
   });
 
@@ -202,7 +208,8 @@ void main() {
           ],
         }));
     expect(find.text(' · KM 12,5%'), findsOneWidget);
-    expect(tester.getRect(find.text(' · KM 12,5%')).right, lessThanOrEqualTo(320));
+    expect(
+        tester.getRect(find.text(' · KM 12,5%')).right, lessThanOrEqualTo(320));
     expect(tester.takeException(), isNull);
   });
 }

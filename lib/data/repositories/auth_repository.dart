@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io' show Platform;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -51,8 +52,13 @@ class AuthController extends StateNotifier<AuthState> {
     _sessionRefreshedSub =
         _ref.read(apiClientProvider).onSessionRefreshed.listen((newSession) {
       if (state.isAuthenticated) {
-        state =
-            AuthState(status: AuthStatus.authenticated, session: newSession);
+        // Only the token changed: keep the same user object so nothing watching it reloads.
+        final current = state.session!.user;
+        state = AuthState(
+            status: AuthStatus.authenticated,
+            session: _sameUser(newSession.user, current)
+                ? newSession.copyWith(user: current)
+                : newSession);
         _refreshProfile();
       }
     });
@@ -64,6 +70,9 @@ class AuthController extends StateNotifier<AuthState> {
   StreamSubscription<Session>? _sessionRefreshedSub;
 
   TokenStore get _tokens => _ref.read(tokenStoreProvider);
+
+  static bool _sameUser(AppUser a, AppUser b) =>
+      jsonEncode(a.toJson()) == jsonEncode(b.toJson());
 
   void _refreshProfile() {
     if (state.isAuthenticated) {
@@ -88,11 +97,6 @@ class AuthController extends StateNotifier<AuthState> {
       return;
     }
     final session = Session.fromJson(json);
-    if (!session.user.role.hasMobileShell) {
-      await _tokens.clear();
-      state = const AuthState(status: AuthStatus.unauthenticated);
-      return;
-    }
     if (session.isExpired) {
       if (session.refreshToken.isNotEmpty && !session.isRefreshTokenExpired) {
         final refreshed = await _ref.read(apiClientProvider).tryRefreshToken();
@@ -125,14 +129,6 @@ class AuthController extends StateNotifier<AuthState> {
       final session = await _ref
           .read(authApiProvider)
           .login(phone: phone.trim(), password: password.trim());
-      if (!session.user.role.hasMobileShell) {
-        state = const AuthState(
-          status: AuthStatus.unauthenticated,
-          error:
-              'Tài khoản này dùng Portal, không đăng nhập được trên app di động.',
-        );
-        return false;
-      }
       await _tokens.save(session.toJson());
       state = AuthState(status: AuthStatus.authenticated, session: session);
       _refreshProfile();
@@ -177,13 +173,6 @@ class AuthController extends StateNotifier<AuthState> {
       final googleIdToken = await GoogleAuthService.instance.acquireIdToken();
       final session =
           await _ref.read(authApiProvider).exchangeGoogle(googleIdToken);
-      if (!session.user.role.hasMobileShell) {
-        state = const AuthState(
-          status: AuthStatus.unauthenticated,
-          error: 'Tài khoản này không có quyền sử dụng ứng dụng.',
-        );
-        return false;
-      }
       await _tokens.save(session.toJson());
       state = AuthState(status: AuthStatus.authenticated, session: session);
       _refreshProfile();
@@ -211,11 +200,10 @@ class AuthController extends StateNotifier<AuthState> {
       // A late /me response must not replace a logout, another login or a
       // refreshed session. Refresh starts its own verification above.
       if (!mounted || !identical(state.session, expectedSession)) return;
-      if (!user.role.hasMobileShell) {
-        await logout(callServer: false);
-        return;
-      }
       if (user.id != expectedSession.user.id) return;
+      // AppUser has no ==: a fresh state every 30 s re-ran every provider watching the user, so
+      // screens reloaded on their own. Only publish when the profile/grants really changed.
+      if (_sameUser(user, expectedSession.user)) return;
       final updated = expectedSession.copyWith(user: user);
       state = AuthState(status: AuthStatus.authenticated, session: updated);
       await _tokens.save(updated.toJson());
