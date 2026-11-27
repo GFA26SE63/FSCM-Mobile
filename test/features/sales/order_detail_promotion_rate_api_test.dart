@@ -41,7 +41,7 @@ Map<String, dynamic> _serverOrder() => {
       'source': 'Online',
       'createdAt': '2026-11-20T03:00:00Z',
       'lines': [
-        // Promotion 10% (120đ) + HSD on 1.080đ (160đ) = 280đ (23,33%).
+        // Promotion 10% (120đ) + HSD on 1.080 VND (160đ) = 280 VND (23,33%).
         {
           'sku': 'X', 'productName': 'SP X', 'quantity': 5, 'unitPrice': 240,
           'grossAmount': 1200, 'discountAmount': 280, 'discountPercent': 23.33,
@@ -158,7 +158,7 @@ void main() {
     final order = await tester.runAsync(() => _fetch(_orderId));
     await _render(tester, order!);
 
-    expect(find.text('Tiết kiệm 280đ'), findsOneWidget);
+    expect(find.text('Tiết kiệm 280 VND'), findsOneWidget);
     expect(find.text('Demo_Demo1'), findsOneWidget);
     expect(find.text(' · KM 10%'), findsOneWidget);
     expect(find.text(' · KM 12,5%'), findsOneWidget);
