@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:fscm_mobile/core/auth/user_role.dart';
 import 'package:fscm_mobile/core/network/api_exception.dart';
 import 'package:fscm_mobile/data/models/enums.dart';
 import 'package:fscm_mobile/data/models/offline_order.dart';
@@ -193,7 +192,7 @@ final salesOrdersProvider = StateNotifierProvider.autoDispose.family<
     group: query.group,
     isCurrentUser: () =>
         user != null &&
-        user.role == UserRole.sales &&
+        user.hasPermission('mobile-sales-orders') &&
         ref.read(currentUserProvider)?.id == user.id,
   );
 });

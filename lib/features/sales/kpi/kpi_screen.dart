@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:fscm_mobile/core/auth/user_role.dart';
 import 'package:fscm_mobile/data/models/performance.dart';
 import 'package:fscm_mobile/data/repositories/auth_repository.dart';
 import 'package:fscm_mobile/data/repositories/performance_repository.dart';
@@ -24,7 +23,7 @@ class _KpiScreenState extends ConsumerState<KpiScreen> {
   @override
   Widget build(BuildContext context) {
     final user = ref.watch(currentUserProvider);
-    if (user == null || user.role != UserRole.sales) {
+    if (user == null || !user.hasPermission('mobile-sales-kpi')) {
       return Scaffold(
           appBar: AppBar(title: const Text('KPI của tôi')),
           body: const Center(

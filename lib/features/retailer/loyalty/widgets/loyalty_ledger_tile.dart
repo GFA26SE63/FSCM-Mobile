@@ -84,9 +84,9 @@ class LoyaltyLedgerTile extends StatelessWidget {
                       ? 'Xem đơn nguồn'
                       : 'Xem đơn ${entry.orderCode}'))),
         if (entry.redemptionId != null) ...[
-          Text('Yêu cầu đổi quà: ${entry.redemptionId}'),
           if (entry.redemptionStatus != null)
-            Text('Trạng thái: ${_redemptionStatus(entry.redemptionStatus!)}'),
+            Text(
+                'Yêu cầu đổi quà: ${_redemptionStatus(entry.redemptionStatus!)}'),
           Align(
               alignment: Alignment.centerLeft,
               child: TextButton.icon(

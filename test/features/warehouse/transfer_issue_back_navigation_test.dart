@@ -19,8 +19,13 @@ import 'package:fscm_mobile/features/warehouse/home/wk_home_screen.dart';
 class _Server implements ApiTransport {
   final docs = <String, Map<String, dynamic>>{
     'req': {
-      'id': 'req', 'code': 'LDC-1', 'kind': 'Request', 'reason': 'Transfer',
-      'status': 'Open', 'warehouseId': 'A', 'destinationWarehouseId': 'B',
+      'id': 'req',
+      'code': 'LDC-1',
+      'kind': 'Request',
+      'reason': 'Transfer',
+      'status': 'Open',
+      'warehouseId': 'A',
+      'destinationWarehouseId': 'B',
       'version': 1
     },
   };
@@ -50,9 +55,15 @@ class _Server implements ApiTransport {
     }
     if (p.endsWith('/create-document')) {
       docs['iss'] = {
-        'id': 'iss', 'code': 'PXK-1', 'kind': 'Issue', 'reason': 'Transfer',
-        'status': 'Open', 'warehouseId': 'A', 'destinationWarehouseId': 'B',
-        'sourceDocumentId': 'req', 'version': 1
+        'id': 'iss',
+        'code': 'PXK-1',
+        'kind': 'Issue',
+        'reason': 'Transfer',
+        'status': 'Open',
+        'warehouseId': 'A',
+        'destinationWarehouseId': 'B',
+        'sourceDocumentId': 'req',
+        'version': 1
       };
       cartons['iss'] = [];
       return ApiResponse(statusCode: 200, data: work('iss'));

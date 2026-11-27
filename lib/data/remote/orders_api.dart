@@ -381,18 +381,16 @@ class OrdersApi {
         message: 'Không có phần giao nào đang vận chuyển để xác nhận.',
       );
     }
-    final lines = shipment.lines
-        .map((line) {
-          final key = '${line.orderLineId}:${line.batchId}';
-          final received = receivedQuantities?[key] ?? line.quantity;
-          return <String, dynamic>{
-            'orderLineId': line.orderLineId,
-            'batchId': line.batchId,
-            'receivedQuantity': received,
-            'damagedQuantity': 0,
-          };
-        })
-        .toList();
+    final lines = shipment.lines.map((line) {
+      final key = '${line.orderLineId}:${line.batchId}';
+      final received = receivedQuantities?[key] ?? line.quantity;
+      return <String, dynamic>{
+        'orderLineId': line.orderLineId,
+        'batchId': line.batchId,
+        'receivedQuantity': received,
+        'damagedQuantity': 0,
+      };
+    }).toList();
     final trimmedNote = (note ?? '').trim();
     await _client.post(
       Endpoints.shipmentReceipt(shipment.id),

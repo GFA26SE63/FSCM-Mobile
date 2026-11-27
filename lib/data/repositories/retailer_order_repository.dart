@@ -1,6 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:fscm_mobile/core/auth/user_role.dart';
 import 'package:fscm_mobile/core/network/api_exception.dart';
 import 'package:fscm_mobile/data/models/enums.dart';
 import 'package:fscm_mobile/data/models/order.dart';
@@ -19,7 +18,9 @@ final retailerCreditProvider =
   var disposed = false;
   ref.onDispose(() => disposed = true);
   ref.watch(dataVersionProvider);
-  if (user == null || user.role != UserRole.retailer || retailerId.isEmpty) {
+  if (user == null ||
+      !user.hasPermission('mobile-rt-orders') ||
+      retailerId.isEmpty) {
     throw const ApiException(
         kind: ApiErrorKind.forbidden,
         message: 'Không xác định được cửa hàng để kiểm tra công nợ.');
@@ -48,7 +49,7 @@ final retailerCreditProvider =
 final ownRetailerCreditProvider = FutureProvider<Retailer>((ref) async {
   final user = ref.watch(currentUserProvider);
   if (user == null ||
-      user.role != UserRole.retailer ||
+      !user.hasPermission('mobile-rt-orders') ||
       user.retailerCode == null ||
       user.retailerCode!.isEmpty) {
     throw const ApiException(
@@ -72,21 +73,20 @@ bool retailerCreditAllowed(Retailer retailer) =>
 
 final retailerOrderActionsProvider = Provider<RetailerOrderActions>((ref) {
   final user = ref.watch(currentUserProvider);
-  return RetailerOrderActions(ref, user?.id ?? '', user?.role);
+  return RetailerOrderActions(ref, user?.id ?? '');
 });
 
 class RetailerOrderActions {
-  RetailerOrderActions(this._ref, this._userId, this._role) {
+  RetailerOrderActions(this._ref, this._userId) {
     _ref.onDispose(() => _disposed = true);
   }
   final Ref _ref;
   final String _userId;
-  final UserRole? _role;
   bool _disposed = false;
 
-  void _requireSession(Order order, SalesOrderQuote quote) {
+  void _requireSession(Order order, SalesOrderQuote quote, String operation) {
     if (_disposed ||
-        _role != UserRole.retailer ||
+        _ref.read(currentUserProvider)?.hasPermission(operation) != true ||
         _userId.isEmpty ||
         _ref.read(currentUserProvider)?.id != _userId) {
       throw const ApiException(
@@ -109,13 +109,13 @@ class RetailerOrderActions {
 
   Future<SalesOrderQuote> accept(
       Order order, SalesOrderQuote quote, PaymentMethod method) async {
-    _requireSession(order, quote);
+    _requireSession(order, quote, 'api:Quotes.Accept');
     if (method == PaymentMethod.credit) {
       // Recheck approved terms when the actual decision is submitted.
       _ref.invalidate(retailerCreditProvider(order.retailerId));
       final retailer =
           await _ref.read(retailerCreditProvider(order.retailerId).future);
-      _requireSession(order, quote);
+      _requireSession(order, quote, 'api:Quotes.Accept');
       if (!retailerCreditAllowed(retailer)) {
         throw const ApiException(
             kind: ApiErrorKind.validation,
@@ -133,7 +133,7 @@ class RetailerOrderActions {
 
   Future<SalesOrderQuote> reject(
       Order order, SalesOrderQuote quote, String reason) async {
-    _requireSession(order, quote);
+    _requireSession(order, quote, 'api:Quotes.Reject');
     final api = _ref.read(quotesApiProvider);
     try {
       return await api.reject(quote, reason);

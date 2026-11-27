@@ -126,8 +126,12 @@ ApiResponse _page(List<Map<String, dynamic>> items,
       'totalPages': (total / size).ceil(),
     });
 
-const _sales =
-    AppUser(id: 'u1', fullName: 'S', phone: '0', role: UserRole.sales);
+const _sales = AppUser(
+    id: 'u1',
+    fullName: 'S',
+    phone: '0',
+    role: UserRole.sales,
+    permissions: ['mobile-sales-declarations', 'mobile-sales-order-create']);
 const _retailer =
     AppUser(id: 'u2', fullName: 'R', phone: '0', role: UserRole.retailer);
 const _keeper = AppUser(
@@ -276,8 +280,7 @@ void main() {
           throwsA(isA<ApiException>().having((e) => e.isNetwork, 'net', true)));
     });
 
-    test('only Sales asks: Retailer and Warehouse Keeper send nothing',
-        () async {
+    test('declaration read requires an explicit screen grant', () async {
       for (final user in <AppUser>[_retailer, _keeper]) {
         final t = _Transport(
             onGraphQl: (_, __) => _page([_declaration(1)], page: 1, total: 1));

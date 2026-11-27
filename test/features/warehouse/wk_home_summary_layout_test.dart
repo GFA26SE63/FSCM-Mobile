@@ -21,12 +21,25 @@ WarehouseWork _doc(String id, Map<String, dynamic> extra) => WarehouseWork({
 
 final _docs = [
   // 2 pending in scope.
-  _doc('p1', {'kind': 'Issue', 'reason': 'Order', 'status': 'Open', 'warehouseId': 'A'}),
-  _doc('p2', {'kind': 'Receipt', 'reason': 'Factory', 'status': 'Open', 'warehouseId': 'A'}),
+  _doc('p1', {
+    'kind': 'Issue',
+    'reason': 'Order',
+    'status': 'Open',
+    'warehouseId': 'A'
+  }),
+  _doc('p2', {
+    'kind': 'Receipt',
+    'reason': 'Factory',
+    'status': 'Open',
+    'warehouseId': 'A'
+  }),
   // 1 incoming transfer.
   _doc('i1', {
-    'kind': 'Issue', 'reason': 'Transfer', 'status': 'Posted',
-    'warehouseId': 'X', 'destinationWarehouseId': 'A'
+    'kind': 'Issue',
+    'reason': 'Transfer',
+    'status': 'Posted',
+    'warehouseId': 'X',
+    'destinationWarehouseId': 'A'
   }),
 ];
 
@@ -44,7 +57,8 @@ Future<void> _pump(WidgetTester tester, double width, double scale) async {
             warehouseIds: ['A'])),
         warehouseDocumentsProvider.overrideWith((ref) async => _docs),
         factoryArrivalsProvider.overrideWith((ref) async => [
-              for (var i = 0; i < 128; i++) <String, dynamic>{'palletCode': 'P$i'}
+              for (var i = 0; i < 128; i++)
+                <String, dynamic>{'palletCode': 'P$i'}
             ]),
       ],
       child: MaterialApp(
@@ -57,12 +71,13 @@ Future<void> _pump(WidgetTester tester, double width, double scale) async {
   await tester.pumpAndSettle();
 }
 
-Rect _card(WidgetTester tester, String label) => tester.getRect(find.ancestor(
-    of: find.text(label), matching: find.byType(WkStatCard)));
+Rect _card(WidgetTester tester, String label) => tester.getRect(
+    find.ancestor(of: find.text(label), matching: find.byType(WkStatCard)));
 
 Rect _value(WidgetTester tester, String label, String value) =>
     tester.getRect(find.descendant(
-        of: find.ancestor(of: find.text(label), matching: find.byType(WkStatCard)),
+        of: find.ancestor(
+            of: find.text(label), matching: find.byType(WkStatCard)),
         matching: find.text(value)));
 
 void main() {

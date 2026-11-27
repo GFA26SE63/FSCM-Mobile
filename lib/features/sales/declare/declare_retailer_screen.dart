@@ -423,7 +423,7 @@ class _DeclareRetailerScreenState extends ConsumerState<DeclareRetailerScreen> {
                     controller: _forecast,
                     keyboardType: TextInputType.number,
                     decoration: const InputDecoration(
-                        labelText: 'Doanh thu dự báo / tháng (đ)'),
+                        labelText: 'Doanh thu dự báo / tháng (VND)'),
                     validator: (v) => Money.parse(v ?? '') == null
                         ? 'Nhập doanh thu dự báo'
                         : null,

@@ -42,6 +42,7 @@ void main() {
         fullName: 'Sales',
         phone: '',
         role: UserRole.sales,
+        permissions: ['mobile-sales-sync'],
       )),
       appDatabaseProvider.overrideWithValue(database),
       apiClientProvider.overrideWithValue(client),

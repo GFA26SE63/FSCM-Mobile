@@ -28,8 +28,8 @@ void main() {
     expect(find.text('Báo giá chính thức #2'), findsOneWidget);
     expect(
         tester
-            .widget<FilledButton>(find.widgetWithText(
-                FilledButton, 'Chấp nhận báo giá'))
+            .widget<FilledButton>(
+                find.widgetWithText(FilledButton, 'Chấp nhận báo giá'))
             .onPressed,
         isNull);
     expect(

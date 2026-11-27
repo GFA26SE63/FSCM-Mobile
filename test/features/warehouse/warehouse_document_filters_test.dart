@@ -23,8 +23,13 @@ WarehouseWork _doc(String id, String code, String status, String warehouse,
         [String createdAt = '2026-11-20T03:00:00Z']) =>
     WarehouseWork({
       'document': {
-        'id': id, 'code': code, 'kind': 'Issue', 'reason': 'Order',
-        'status': status, 'warehouseId': warehouse, 'version': 1,
+        'id': id,
+        'code': code,
+        'kind': 'Issue',
+        'reason': 'Order',
+        'status': status,
+        'warehouseId': warehouse,
+        'version': 1,
         'createdAt': createdAt
       },
       'lines': [
@@ -74,15 +79,16 @@ Future<void> _pick(WidgetTester tester, String key, String label) async {
 
 void main() {
   test('filters by code, status and warehouse, alone and combined', () {
-    List<String> codes(WarehouseDocumentFilter f) => filterWarehouseWorks(
-            _docs.take(3).toList(), f)
-        .map((w) => w.document['code'] as String)
-        .toList();
+    List<String> codes(WarehouseDocumentFilter f) =>
+        filterWarehouseWorks(_docs.take(3).toList(), f)
+            .map((w) => w.document['code'] as String)
+            .toList();
     expect(codes(const WarehouseDocumentFilter(search: ' a-00')),
         ['PXK-A-001', 'PXK-A-002']);
     expect(codes(const WarehouseDocumentFilter(status: 'Open')),
         ['PXK-A-001', 'PXK-B-003']);
-    expect(codes(const WarehouseDocumentFilter(warehouseId: 'B')), ['PXK-B-003']);
+    expect(
+        codes(const WarehouseDocumentFilter(warehouseId: 'B')), ['PXK-B-003']);
     expect(
         codes(const WarehouseDocumentFilter(
             search: 'pxk', status: 'Open', warehouseId: 'A')),
@@ -131,16 +137,18 @@ void main() {
   test('date range is inclusive by local day and combines with other filters',
       () {
     final docs = [
-      _doc('d1', 'PXK-1', 'Open', 'A', '2026-11-19T16:59:00Z'), // 19/11 23:59 VN
-      _doc('d2', 'PXK-2', 'Open', 'A', '2026-11-19T17:00:00Z'), // 20/11 00:00 VN
+      _doc(
+          'd1', 'PXK-1', 'Open', 'A', '2026-11-19T16:59:00Z'), // 19/11 23:59 VN
+      _doc(
+          'd2', 'PXK-2', 'Open', 'A', '2026-11-19T17:00:00Z'), // 20/11 00:00 VN
       _doc('d3', 'PXK-3', 'Posted', 'A', '2026-11-22T10:00:00Z'),
       _doc('d4', 'PXK-4', 'Open', 'B', '2026-11-25T10:00:00Z'),
       _doc('d5', 'PXK-5', 'Open', 'A', 'not-a-date'),
     ];
-    List<String> codes(WarehouseDocumentFilter f) => filterWarehouseWorks(
-            docs, f)
-        .map((w) => w.document['code'] as String)
-        .toList();
+    List<String> codes(WarehouseDocumentFilter f) =>
+        filterWarehouseWorks(docs, f)
+            .map((w) => w.document['code'] as String)
+            .toList();
     final range = DateTimeRange(
         start: DateTime(2026, 11, 20), end: DateTime(2026, 11, 22));
     // Local-day boundaries depend on the test machine time zone; compute them.
@@ -149,6 +157,7 @@ void main() {
       final day = DateTime(d.year, d.month, d.day);
       return !day.isBefore(range.start) && !day.isAfter(range.end);
     }
+
     expect(codes(WarehouseDocumentFilter(dates: range)), [
       for (final (code, iso) in [
         ('PXK-1', '2026-11-19T16:59:00Z'),
@@ -160,7 +169,8 @@ void main() {
     ]);
     expect(codes(WarehouseDocumentFilter(dates: range, status: 'Posted')),
         ['PXK-3']);
-    expect(codes(WarehouseDocumentFilter(
+    expect(
+        codes(WarehouseDocumentFilter(
             dates: DateTimeRange(
                 start: DateTime(2026, 11, 25), end: DateTime(2026, 11, 25)),
             warehouseId: 'A')),
@@ -168,8 +178,7 @@ void main() {
     expect(WarehouseDocumentFilter(dates: range).isEmpty, isFalse);
   });
 
-  testWidgets('date button opens the range picker',
-      (tester) async {
+  testWidgets('date button opens the range picker', (tester) async {
     await _pump(tester);
     expect(find.text('Ngày lập: tất cả'), findsOneWidget);
     // Flutter's own range picker overflows 22px at 400px with the wide test

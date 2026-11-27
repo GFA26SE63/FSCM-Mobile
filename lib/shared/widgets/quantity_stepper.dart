@@ -5,7 +5,7 @@ import 'package:fscm_mobile/shared/theme/app_colors.dart';
 
 /// − [value] + control; [step] cartons per tap, clamped to 0..[max].
 class QuantityStepper extends StatefulWidget {
-  static const double editableWidth = 168;
+  static const double editableWidth = 120;
   const QuantityStepper({
     super.key,
     required this.value,
@@ -98,71 +98,54 @@ class _QuantityStepperState extends State<QuantityStepper> {
     final value = widget.value;
     final step = widget.step;
     if (widget.editable) {
-      final borderColor = _error == null
-          ? AppColors.border
-          : Theme.of(context).colorScheme.error;
+      final errorColor = Theme.of(context).colorScheme.error;
       return SizedBox(
         width: QuantityStepper.editableWidth,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
-              decoration: BoxDecoration(
-                border: Border.all(color: borderColor),
-                borderRadius: BorderRadius.circular(4),
-              ),
-              child: Row(
-                children: [
-                  SizedBox(
-                      width: 40,
-                      height: 44,
-                      child: IconButton(
-                        padding: EdgeInsets.zero,
-                        onPressed: widget.enabled && value - step >= widget.min
-                            ? () => _change(value - step)
-                            : null,
-                        icon: const Icon(Icons.remove, size: 18),
-                      )),
-                  Container(width: 1, height: 44, color: AppColors.border),
-                  Expanded(
-                      child: TextField(
-                    controller: _controller,
-                    focusNode: _focus,
-                    enabled: widget.enabled,
-                    keyboardType: TextInputType.number,
-                    textInputAction: TextInputAction.done,
-                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(fontSize: 16),
-                    decoration: const InputDecoration(
-                      isDense: true,
-                      filled: false,
-                      contentPadding:
-                          EdgeInsets.symmetric(horizontal: 4, vertical: 12),
-                      border: InputBorder.none,
-                      enabledBorder: InputBorder.none,
-                      focusedBorder: InputBorder.none,
-                      disabledBorder: InputBorder.none,
-                    ),
-                    onTap: () => _controller.selection = TextSelection(
-                        baseOffset: 0, extentOffset: _controller.text.length),
-                    onChanged: _input,
-                    onSubmitted: (_) => _focus.unfocus(),
-                    onTapOutside: (_) => _focus.unfocus(),
-                  )),
-                  Container(width: 1, height: 44, color: AppColors.border),
-                  SizedBox(
-                      width: 40,
-                      height: 44,
-                      child: IconButton(
-                        padding: EdgeInsets.zero,
-                        onPressed: widget.enabled && value + step <= widget.max
-                            ? () => _change(value + step)
-                            : null,
-                        icon: const Icon(Icons.add, size: 18),
-                      )),
-                ],
-              ),
+            Row(
+              children: [
+                _btn(
+                    Icons.remove,
+                    widget.enabled && value - step >= widget.min
+                        ? () => _change(value - step)
+                        : null),
+                Expanded(
+                    child: TextField(
+                  controller: _controller,
+                  focusNode: _focus,
+                  enabled: widget.enabled,
+                  keyboardType: TextInputType.number,
+                  textInputAction: TextInputAction.done,
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: _error == null ? null : errorColor),
+                  decoration: const InputDecoration(
+                    isDense: true,
+                    filled: false,
+                    contentPadding:
+                        EdgeInsets.symmetric(horizontal: 4, vertical: 12),
+                    border: InputBorder.none,
+                    enabledBorder: InputBorder.none,
+                    focusedBorder: InputBorder.none,
+                    disabledBorder: InputBorder.none,
+                  ),
+                  onTap: () => _controller.selection = TextSelection(
+                      baseOffset: 0, extentOffset: _controller.text.length),
+                  onChanged: _input,
+                  onSubmitted: (_) => _focus.unfocus(),
+                  onTapOutside: (_) => _focus.unfocus(),
+                )),
+                _btn(
+                    Icons.add,
+                    widget.enabled && value + step <= widget.max
+                        ? () => _change(value + step)
+                        : null),
+              ],
             ),
             if (_error != null)
               Padding(
@@ -185,7 +168,7 @@ class _QuantityStepperState extends State<QuantityStepper> {
                 ? () => _change(value - step)
                 : null),
         SizedBox(
-          width: 52,
+          width: 48,
           child: Text(
             '$value',
             textAlign: TextAlign.center,
@@ -201,15 +184,20 @@ class _QuantityStepperState extends State<QuantityStepper> {
     );
   }
 
+  // Compact circular outlined − / + buttons, as in the cart reference.
   Widget _btn(IconData icon, VoidCallback? onTap) => SizedBox(
-        width: 40,
-        height: 40,
+        width: 36,
+        height: 36,
         child: IconButton.outlined(
           padding: EdgeInsets.zero,
           style: IconButton.styleFrom(
-              side: const BorderSide(color: AppColors.border)),
+            shape: const CircleBorder(),
+            foregroundColor: AppColors.text,
+            side: BorderSide(
+                color: onTap == null ? AppColors.divider : AppColors.textMuted),
+          ),
           onPressed: onTap,
-          icon: Icon(icon, size: 20),
+          icon: Icon(icon, size: 16),
         ),
       );
 }

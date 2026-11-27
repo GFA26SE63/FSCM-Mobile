@@ -199,6 +199,12 @@ class ComplaintsScreen extends ConsumerWidget {
                                   Text(
                                       'Đã chốt: cấn trừ nợ ${Money.format(c.debtOffsetAmount)}; phiếu hoàn ${Money.format(c.refundAmount)}${c.refundId.isEmpty ? '' : ' (đã tạo, đang theo dõi chi trả)'}.',
                                       style: AppText.bodySmall),
+                                if (c.refundId.isNotEmpty)
+                                  TextButton.icon(
+                                      onPressed: () =>
+                                          context.push(AppRoutes.rtRefunds),
+                                      icon: const Icon(Icons.currency_exchange),
+                                      label: const Text('Xem phiếu hoàn')),
                                 for (final doc in c.documents)
                                   Padding(
                                       padding: const EdgeInsets.only(top: 4),

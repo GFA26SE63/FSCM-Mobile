@@ -16,6 +16,7 @@ import 'package:fscm_mobile/core/utils/dates.dart';
 import 'package:fscm_mobile/core/utils/status_tone.dart';
 import 'package:fscm_mobile/data/models/json_utils.dart';
 import 'package:fscm_mobile/data/models/order.dart';
+import 'package:fscm_mobile/data/models/order_availability.dart';
 import 'package:fscm_mobile/shared/theme/app_text.dart';
 import 'package:fscm_mobile/shared/theme/app_tokens.dart';
 import 'package:fscm_mobile/data/models/price_quote.dart';
@@ -69,6 +70,29 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
   _ProductSort _sort = _ProductSort.sku;
   bool _busy = false;
   int get _step => ref.read(orderStepProvider).requireValue;
+
+  // Point-in-time eligible stock per SKU for the current retailer; online only.
+  Map<String, ProductAvailability> _stock = const {};
+  String? _stockRetailerId;
+
+  void _loadStock(Retailer retailer, List<Product> products) {
+    if (_stockRetailerId == retailer.id || products.isEmpty) return;
+    _stockRetailerId = retailer.id;
+    unawaited(() async {
+      try {
+        final stock = await ref.read(ordersApiProvider).availabilityByWarehouse(
+            retailer.id, products.map((p) => p.id).toList());
+        if (mounted && _stockRetailerId == retailer.id) {
+          setState(() => _stock = stock);
+        }
+      } catch (_) {
+        // Indicative only; checkout re-checks. Allow a retry on next build.
+        if (mounted && _stockRetailerId == retailer.id) {
+          _stockRetailerId = null;
+        }
+      }
+    }());
+  }
 
   @override
   void dispose() {
@@ -150,7 +174,7 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
             );
           }
 
-          if (user?.role == UserRole.sales &&
+          if (user?.hasPermission('mobile-sales-sync') == true &&
               !online &&
               !_cachedRetailerIsActive(data, retailer)) {
             return const EmptyState(
@@ -205,6 +229,8 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
             _ProductSort.priceHighToLow => (data.displayPrice(b) ?? -1)
                 .compareTo(data.displayPrice(a) ?? -1),
           });
+
+    if (online) _loadStock(retailer, data.products);
 
     final lines = _lines;
     final quote =
@@ -400,6 +426,10 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
     final price = data.displayPrice(product);
     final pricedLines =
         quote.lines.where((line) => line.sku == product.sku).toList();
+    final stock = online ? _stock[product.sku] : null;
+    // Online only: offline Sales orders have no server stock to check against.
+    final outOfStock =
+        stock != null && OrderLimits.maxQty(stock.quantity, step: _step) == 0;
 
     void openDetail() {
       if (_busy) {
@@ -418,7 +448,7 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
           builder: (_) => ProductDetailScreen(
             product: product,
             unitPrice: price,
-            availability: null,
+            availability: stock,
             viewerRole: viewerRole,
             promotions: promotions,
           ),
@@ -460,21 +490,25 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
                   : AppText.bodySmall.copyWith(
                       color: AppColors.primary, fontWeight: FontWeight.w600),
             ),
+            if (stock != null)
+              Text(
+                outOfStock
+                    ? 'Hết hàng có thể cấp'
+                    : 'Có thể cấp: ${stock.quantity} thùng',
+                style: AppText.bodySmall.copyWith(
+                    color: outOfStock ? AppColors.danger : AppColors.textMuted),
+              ),
             const SizedBox(height: AppSpacing.s6),
             OrderQuantityField(
-              label: online
-                  ? (_step == 1
-                      ? 'Số lượng (thùng) · kiểm tra tồn trước khi đặt'
-                      : 'Số lượng · bội $_step thùng · kiểm tra trước khi đặt')
-                  : _step == 1
-                      ? 'Số lượng (thùng)'
-                      : 'Số lượng · bội $_step thùng',
+              // Only the multiple-of-step rule needs a caption; stock state is
+              // already shown on the line above.
+              label: _step == 1 || outOfStock ? '' : 'Bội $_step thùng',
               labelColor: AppColors.textMuted,
               showRemove: quantity > 0,
               onRemove: _busy ? null : () => _removeProduct(product),
               control: QuantityStepper(
                 editable: true,
-                enabled: !_busy,
+                enabled: !_busy && !outOfStock,
                 value: quantity,
                 step: _step,
                 max: quantity > maximum ? quantity : maximum,
@@ -647,7 +681,7 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
       return;
     }
 
-    if (user.role != UserRole.sales) {
+    if (!user.hasPermission('mobile-sales-order-create')) {
       throw const ApiException(
         kind: ApiErrorKind.forbidden,
         message:
@@ -725,7 +759,7 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
     }
 
     if (!online &&
-        user.role == UserRole.sales &&
+        user.hasPermission('mobile-sales-sync') &&
         !_cachedRetailerIsActive(data, retailer)) {
       showAppSnack(
         context,
@@ -872,7 +906,7 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
 
     final online = ref.read(networkMonitorProvider).online;
 
-    if (!online && user.role != UserRole.sales) {
+    if (!online && !user.hasPermission('mobile-sales-sync')) {
       showAppSnack(
         context,
         'Tài khoản này cần kết nối mạng để gửi đơn.',
@@ -974,7 +1008,7 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
               : 'Đã tạo đơn bán hàng ${order.code}. '
                   'Hệ thống đang phân bổ và sẽ gửi báo giá cho điểm bán.';
         } on ApiException catch (error) {
-          if (!error.isNetwork || user.role != UserRole.sales) {
+          if (!error.isNetwork || !user.hasPermission('mobile-sales-sync')) {
             rethrow;
           }
 

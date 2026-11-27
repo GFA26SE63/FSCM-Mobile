@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:fscm_mobile/core/auth/user_role.dart';
 import 'package:fscm_mobile/core/network/api_exception.dart';
 import 'package:fscm_mobile/core/network/network_monitor.dart';
 import 'package:fscm_mobile/core/utils/clock.dart';
@@ -56,8 +55,8 @@ final syncServiceProvider =
   // same account, and rebuilding here disposed the in-flight first snapshot
   // pull (MOB-01: Retailers empty until manual "Đồng bộ").
   final ownerId = ref.watch(currentUserProvider.select((u) => u?.id ?? ''));
-  final isSales = ref
-      .watch(currentUserProvider.select((u) => u?.role == UserRole.sales));
+  final isSales = ref.watch(currentUserProvider
+      .select((u) => u?.hasPermission('mobile-sales-sync') == true));
 
   return SyncService(ref, ownerId: ownerId, isSales: isSales);
 });

@@ -314,9 +314,9 @@ class WarehouseDocumentsScreen extends ConsumerWidget {
                                 style: AppText.muted)),
                       if (works.isNotEmpty && !activeFilter.isEmpty)
                         Padding(
-                          padding:
-                              const EdgeInsets.only(bottom: AppSpacing.xs),
-                          child: Text('${shown.length}/${works.length} chứng từ',
+                          padding: const EdgeInsets.only(bottom: AppSpacing.xs),
+                          child: Text(
+                              '${shown.length}/${works.length} chứng từ',
                               style: AppText.mutedSmall),
                         ),
                       for (final w in shown)
@@ -418,9 +418,7 @@ class _DocumentFilterBarState extends State<_DocumentFilterBar> {
                             value: st, child: Text(warehouseStatus(st))),
                     ],
                     onChanged: (v) => _emit(
-                        status: v,
-                        warehouseId: f.warehouseId,
-                        dates: f.dates)),
+                        status: v, warehouseId: f.warehouseId, dates: f.dates)),
               ),
               if (widget.warehouses.length > 1)
                 Expanded(
@@ -459,8 +457,8 @@ class _DocumentFilterBarState extends State<_DocumentFilterBar> {
                 IconButton(
                     tooltip: 'Bỏ lọc ngày',
                     icon: const Icon(Icons.close),
-                    onPressed: () => _emit(
-                        status: f.status, warehouseId: f.warehouseId)),
+                    onPressed: () =>
+                        _emit(status: f.status, warehouseId: f.warehouseId)),
             ]),
             if (!f.isEmpty)
               Align(
@@ -598,6 +596,12 @@ class _WarehouseDocumentScreenState
     final value = ref.watch(warehouseDocumentProvider(widget.id));
     final user = ref.watch(currentUserProvider);
     final names = ref.watch(warehouseNamesProvider).valueOrNull;
+    // Backend only returns sourceDocumentId (Guid); resolve its code from the scoped list.
+    final docCodes = {
+      for (final x in ref.watch(warehouseDocumentsProvider).valueOrNull ??
+          const <WarehouseWork>[])
+        x.id: asStr(x.document['code'])
+    };
     return Scaffold(
         appBar: AppBar(title: const Text('Chứng từ kho')),
         body: AsyncBody(
@@ -659,15 +663,19 @@ class _WarehouseDocumentScreenState
                             const SizedBox(height: AppSpacing.xs),
                             Text(documentTypeTitle(d), style: AppText.strong),
                             const SizedBox(height: AppSpacing.s10),
-                            if (d['sourceDocumentId'] != null)
+                            if (docCodes[asStr(d['sourceDocumentId'])]
+                                    ?.isNotEmpty ==
+                                true)
                               KvRow('Chứng từ nguồn',
-                                  asStr(d['sourceDocumentId'])),
+                                  docCodes[asStr(d['sourceDocumentId'])]!),
                             KvRow('Kho phụ trách',
                                 warehouseLabel(user, names, d['warehouseId'])),
                             if (d['destinationWarehouseId'] != null &&
                                 d['destinationWarehouseId'] != d['warehouseId'])
-                              KvRow('Kho đích',
-                                  warehouseLabel(user, names, d['destinationWarehouseId'])),
+                              KvRow(
+                                  'Kho đích',
+                                  warehouseLabel(user, names,
+                                      d['destinationWarehouseId'])),
                             KvRow('Ngày lập',
                                 AppDates.dateTimeText(d['createdAt'])),
                             if (d['postedAt'] != null)
@@ -948,28 +956,29 @@ class _WarehouseDocumentScreenState
                           ])),
                     if (showScanWork)
                       for (final c in w.cartons)
-                      AppCard(
-                          child: Row(children: [
-                        Icon(
-                            c['scannedAt'] == null
-                                ? Icons.radio_button_unchecked
-                                : Icons.check_circle,
-                            color: c['scannedAt'] == null
-                                ? AppColors.textMuted
-                                : AppColors.success),
-                        const SizedBox(width: AppSpacing.md),
-                        Expanded(
-                            child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                              Text(asStr(c['cartonId']), style: AppText.strong),
-                              Text(
-                                  c['scannedAt'] == null
-                                      ? 'Chưa quét'
-                                      : 'Đã quét: ${AppDates.dateTimeText(c['scannedAt'])}',
-                                  style: AppText.mutedSmall),
-                            ])),
-                      ])),
+                        AppCard(
+                            child: Row(children: [
+                          Icon(
+                              c['scannedAt'] == null
+                                  ? Icons.radio_button_unchecked
+                                  : Icons.check_circle,
+                              color: c['scannedAt'] == null
+                                  ? AppColors.textMuted
+                                  : AppColors.success),
+                          const SizedBox(width: AppSpacing.md),
+                          Expanded(
+                              child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                Text(asStr(c['cartonId']),
+                                    style: AppText.strong),
+                                Text(
+                                    c['scannedAt'] == null
+                                        ? 'Chưa quét'
+                                        : 'Đã quét: ${AppDates.dateTimeText(c['scannedAt'])}',
+                                    style: AppText.mutedSmall),
+                              ])),
+                        ])),
                     if (own && w.pending && !canPost && scan == null)
                       InfoBanner(
                           tone: StatusTone.warning,

@@ -8,7 +8,8 @@ void main() {
   final issue = {'warehouseId': 'A', 'destinationWarehouseId': 'B'};
   final receipt = {'warehouseId': 'B', 'destinationWarehouseId': 'B'};
 
-  test('destination keeper does not own the source issue (no history/progress)', () {
+  test('destination keeper does not own the source issue (no history/progress)',
+      () {
     expect(ownsDocument(['B'], issue), isFalse);
   });
   test('destination keeper owns the child receipt', () {
@@ -26,8 +27,12 @@ void main() {
         fullName: 'Thủ kho',
         phone: '',
         role: UserRole.warehouseKeeper,
-        warehouseIds: ['A'],
-        warehouseLabels: [ScopeLabel(id: 'A', code: 'BC', name: 'Kho Bến Cát')]);
+        warehouseIds: [
+          'A'
+        ],
+        warehouseLabels: [
+          ScopeLabel(id: 'A', code: 'BC', name: 'Kho Bến Cát')
+        ]);
     const names = {'A': 'Kho A (danh mục)', 'B': 'Kho Thủ Đức'};
     expect(warehouseLabel(keeper, names, 'A'), 'Kho Bến Cát');
     expect(warehouseLabel(keeper, names, 'B'), 'Kho Thủ Đức');

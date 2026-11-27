@@ -29,7 +29,10 @@ class PickingDetailScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final value = ref.watch(pickingDetailProvider(code));
     return Scaffold(
-      appBar: AppBar(title: Text(code)),
+      appBar: AppBar(
+          title: Text((value.valueOrNull?.code.isNotEmpty ?? false)
+              ? value.valueOrNull!.code
+              : 'Phiếu soạn hàng')),
       body: AsyncBody<PickingList>(
         value: value,
         onRetry: () => ref.invalidate(pickingDetailProvider(code)),

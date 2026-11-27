@@ -109,8 +109,12 @@ class OrderConfirmSheet extends StatelessWidget {
                             ),
                           ),
                           const SizedBox(width: AppSpacing.sm),
-                          Text(Money.format(quote.lines[i].net),
-                              style: AppText.cardTitle.copyWith(fontSize: 14)),
+                          Flexible(
+                            child: Text(Money.format(quote.lines[i].net),
+                                textAlign: TextAlign.right,
+                                style:
+                                    AppText.cardTitle.copyWith(fontSize: 14)),
+                          ),
                         ],
                       ),
                     ),

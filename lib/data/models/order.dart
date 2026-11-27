@@ -241,6 +241,7 @@ class Order {
     this.driverPhone = '',
     this.departedAt,
     this.paid = false,
+    this.confirmedAmount = 0,
     this.paidAt,
     this.dueDate,
     this.pointsEarned = 0,
@@ -301,6 +302,8 @@ class Order {
       paid: payment.containsKey('status')
           ? asStr(payment['status']).toLowerCase() == 'paid'
           : asBool(j['paid']),
+      confirmedAmount:
+          asInt(payment['confirmedAmount'] ?? j['confirmedAmount']),
       paidAt: asDate(payment['paidDate'] ?? payment['paidAt'] ?? j['paidAt']),
       dueDate: asDate(payment['dueDate'] ?? j['dueDate']),
       pointsEarned: asInt(j['pointsEarned']),
@@ -360,6 +363,9 @@ class Order {
   final DateTime? departedAt;
 
   final bool paid;
+
+  /// Money already collected on the order; a credit order with any is closed to new requests.
+  final int confirmedAmount;
   final DateTime? paidAt;
   final DateTime? dueDate;
   final int pointsEarned;
@@ -451,6 +457,7 @@ class Order {
         driverPhone: driverPhone,
         departedAt: departedAt,
         paid: paid ?? this.paid,
+        confirmedAmount: confirmedAmount,
         paidAt: paidAt ?? this.paidAt,
         dueDate: dueDate,
         pointsEarned: pointsEarned ?? this.pointsEarned,
@@ -494,6 +501,7 @@ class Order {
         'driverPhone': driverPhone,
         'departedAt': isoOrNull(departedAt),
         'paid': paid,
+        'confirmedAmount': confirmedAmount,
         'paidAt': isoOrNull(paidAt),
         'dueDate': isoOrNull(dueDate),
         'pointsEarned': pointsEarned,

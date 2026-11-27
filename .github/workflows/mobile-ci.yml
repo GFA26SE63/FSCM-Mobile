@@ -2,9 +2,9 @@ name: Mobile CI
 
 on:
   push:
-    branches: [main, staging]
+    branches: [main, develop, staging]
   pull_request:
-    branches: [main, staging]
+    branches: [main, develop, staging]
   workflow_dispatch:
 
 permissions:
@@ -35,8 +35,7 @@ jobs:
 
       - name: Verify formatting
         run: |
-          dart format --output=none lib test
-          git diff --exit-code -- lib test
+          dart format --output=none --set-exit-if-changed lib test
 
       - name: Analyze
         run: flutter analyze
