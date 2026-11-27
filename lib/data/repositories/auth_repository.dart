@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io' show Platform;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -51,8 +52,13 @@ class AuthController extends StateNotifier<AuthState> {
     _sessionRefreshedSub =
         _ref.read(apiClientProvider).onSessionRefreshed.listen((newSession) {
       if (state.isAuthenticated) {
-        state =
-            AuthState(status: AuthStatus.authenticated, session: newSession);
+        // Only the token changed: keep the same user object so nothing watching it reloads.
+        final current = state.session!.user;
+        state = AuthState(
+            status: AuthStatus.authenticated,
+            session: _sameUser(newSession.user, current)
+                ? newSession.copyWith(user: current)
+                : newSession);
         _refreshProfile();
       }
     });
@@ -64,6 +70,9 @@ class AuthController extends StateNotifier<AuthState> {
   StreamSubscription<Session>? _sessionRefreshedSub;
 
   TokenStore get _tokens => _ref.read(tokenStoreProvider);
+
+  static bool _sameUser(AppUser a, AppUser b) =>
+      jsonEncode(a.toJson()) == jsonEncode(b.toJson());
 
   void _refreshProfile() {
     if (state.isAuthenticated) {
@@ -216,6 +225,9 @@ class AuthController extends StateNotifier<AuthState> {
         return;
       }
       if (user.id != expectedSession.user.id) return;
+      // AppUser has no ==: a fresh state every 30 s re-ran every provider watching the user, so
+      // screens reloaded on their own. Only publish when the profile/grants really changed.
+      if (_sameUser(user, expectedSession.user)) return;
       final updated = expectedSession.copyWith(user: user);
       state = AuthState(status: AuthStatus.authenticated, session: updated);
       await _tokens.save(updated.toJson());

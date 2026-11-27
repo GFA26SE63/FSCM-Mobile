@@ -6,6 +6,7 @@ import 'package:fscm_mobile/core/network/api_exception.dart';
 import 'package:fscm_mobile/core/utils/dates.dart';
 import 'package:fscm_mobile/core/utils/id_format.dart';
 import 'package:fscm_mobile/core/utils/status_tone.dart';
+import 'package:fscm_mobile/data/models/enums.dart';
 import 'package:fscm_mobile/data/models/label_info.dart';
 import 'package:fscm_mobile/data/repositories/order_repository.dart';
 import 'package:fscm_mobile/data/repositories/warehouse_repository.dart';
@@ -51,7 +52,10 @@ class _RtScanScreenState extends ConsumerState<RtScanScreen> {
         try {
           final order =
               await ref.read(orderRepositoryProvider).getOrder(label.orderCode);
-          canReceive = order.status.canConfirmReceipt;
+          // A carton in transit belongs to a dispatched part, even if other warehouses of the
+          // order have not shipped yet (baseline 3.9, 27/11).
+          canReceive = order.status.mayHavePartInDelivery &&
+              label.status == LabelStatus.inTransit;
         } on ApiException {
           canReceive = false;
         }

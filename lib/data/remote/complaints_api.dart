@@ -41,7 +41,7 @@ class ComplaintsApi {
           resolutionType reviewStatus evidenceRequestReason requestType
           settlementMethod approvedSettlementMethod requestedQuantity
           approvedQuantity handledQuantity physicalHandlingCompleted
-          debtOffsetAmount refundAmount refundId
+          debtOffsetAmount refundAmount refundId salesOrderId
           documents {
             id code kind status approvedQuantity actualQuantity completedAt
             note evidenceReference
