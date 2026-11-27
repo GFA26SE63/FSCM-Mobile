@@ -5,7 +5,6 @@ import 'package:go_router/go_router.dart';
 import 'package:fscm_mobile/data/repositories/auth_repository.dart';
 import 'package:fscm_mobile/data/repositories/order_repository.dart';
 import 'package:fscm_mobile/data/repositories/retailer_order_repository.dart';
-import 'package:fscm_mobile/core/auth/user_role.dart';
 import 'package:fscm_mobile/core/auth/screen_permissions.dart';
 import 'package:fscm_mobile/core/utils/money.dart';
 import 'package:fscm_mobile/shared/routes.dart';
@@ -34,6 +33,18 @@ class ProfileScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(currentUserProvider);
+    final visibleActions = <String, ProfileAction>{
+      for (final action in actions)
+        if (canAccessMobilePath(user, action.route)) action.route: action,
+      if (user != null)
+        for (final entry in mobileDestinations.entries)
+          if (canAccessMobilePath(user, entry.key) &&
+              !actions.any((action) => action.route == entry.key))
+            entry.key: ProfileAction(
+                label: entry.value,
+                icon: Icons.apps_outlined,
+                route: entry.key),
+    }.values;
     return Scaffold(
       appBar: AppBar(title: const Text('Tài khoản')),
       body: user == null
@@ -42,11 +53,10 @@ class ProfileScreen extends ConsumerWidget {
               padding: const EdgeInsets.all(AppSpacing.lg),
               children: <Widget>[
                 ProfileIdentityCard(user: user),
-                if (user.role == UserRole.retailer &&
+                if (user.hasPermission('mobile-rt-payments') &&
                     canAccessMobilePath(user, AppRoutes.rtPayments))
                   _CreditProfileCard(),
-                for (final a
-                    in actions.where((a) => canAccessMobilePath(user, a.route)))
+                for (final a in visibleActions)
                   AppCard(
                     onTap: () => context.push(a.route),
                     child: Row(

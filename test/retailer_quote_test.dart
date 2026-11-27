@@ -80,7 +80,8 @@ void main() {
             id: 'retailer-user',
             fullName: '',
             phone: '',
-            role: UserRole.retailer)),
+            role: UserRole.retailer,
+            permissions: ['api:Quotes.Accept', 'api:Quotes.Reject'])),
         quotesApiProvider.overrideWithValue(QuotesApi(client)),
         retailerCreditProvider('retailer-1')
             .overrideWith((ref) async => creditRetailerFixture(days)),

@@ -1,6 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:fscm_mobile/core/auth/user_role.dart';
 import 'package:fscm_mobile/core/network/api_client.dart';
 import 'package:fscm_mobile/core/network/api_exception.dart';
 import 'package:fscm_mobile/core/network/endpoints.dart';
@@ -13,12 +12,7 @@ import 'package:fscm_mobile/data/repositories/auth_repository.dart';
 final labelsApiProvider = Provider<LabelsApi>((ref) {
   final user = ref.watch(currentUserProvider);
 
-  final canLookup = user != null &&
-      <UserRole>{
-        UserRole.admin,
-        UserRole.operator,
-        UserRole.warehouseKeeper,
-      }.contains(user.role);
+  final canLookup = user?.hasPermission('api:QrLabels.Get') == true;
 
   return LabelsApi(
     ref.watch(apiClientProvider),

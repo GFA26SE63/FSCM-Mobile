@@ -88,11 +88,6 @@ class AuthController extends StateNotifier<AuthState> {
       return;
     }
     final session = Session.fromJson(json);
-    if (!session.user.role.hasMobileShell) {
-      await _tokens.clear();
-      state = const AuthState(status: AuthStatus.unauthenticated);
-      return;
-    }
     if (session.isExpired) {
       if (session.refreshToken.isNotEmpty && !session.isRefreshTokenExpired) {
         final refreshed = await _ref.read(apiClientProvider).tryRefreshToken();
@@ -125,14 +120,6 @@ class AuthController extends StateNotifier<AuthState> {
       final session = await _ref
           .read(authApiProvider)
           .login(phone: phone.trim(), password: password.trim());
-      if (!session.user.role.hasMobileShell) {
-        state = const AuthState(
-          status: AuthStatus.unauthenticated,
-          error:
-              'Tài khoản này dùng Portal, không đăng nhập được trên app di động.',
-        );
-        return false;
-      }
       await _tokens.save(session.toJson());
       state = AuthState(status: AuthStatus.authenticated, session: session);
       _refreshProfile();
@@ -177,13 +164,6 @@ class AuthController extends StateNotifier<AuthState> {
       final googleIdToken = await GoogleAuthService.instance.acquireIdToken();
       final session =
           await _ref.read(authApiProvider).exchangeGoogle(googleIdToken);
-      if (!session.user.role.hasMobileShell) {
-        state = const AuthState(
-          status: AuthStatus.unauthenticated,
-          error: 'Tài khoản này không có quyền sử dụng ứng dụng.',
-        );
-        return false;
-      }
       await _tokens.save(session.toJson());
       state = AuthState(status: AuthStatus.authenticated, session: session);
       _refreshProfile();
@@ -211,10 +191,6 @@ class AuthController extends StateNotifier<AuthState> {
       // A late /me response must not replace a logout, another login or a
       // refreshed session. Refresh starts its own verification above.
       if (!mounted || !identical(state.session, expectedSession)) return;
-      if (!user.role.hasMobileShell) {
-        await logout(callServer: false);
-        return;
-      }
       if (user.id != expectedSession.user.id) return;
       final updated = expectedSession.copyWith(user: user);
       state = AuthState(status: AuthStatus.authenticated, session: updated);

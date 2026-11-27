@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:fscm_mobile/app/theme.dart';
-import 'package:fscm_mobile/core/auth/user_role.dart';
 import 'package:fscm_mobile/data/models/order.dart';
 import 'package:fscm_mobile/data/models/sales_order_quote.dart';
 import 'package:fscm_mobile/data/remote/quotes_api.dart';
@@ -15,7 +14,7 @@ import '../../fixtures/retailer_order_fixture.dart';
 // MOB-03: the app theme gives FilledButton an infinite minimum width, so the
 // AlertDialog OverflowBar always stacked "Quay lại" directly on "Từ chối".
 class _Actions extends RetailerOrderActions {
-  _Actions(Ref ref) : super(ref, 'u', UserRole.retailer);
+  _Actions(Ref ref) : super(ref, 'u');
   final reasons = <String>[];
   @override
   Future<SalesOrderQuote> reject(

@@ -121,8 +121,12 @@ Map<String, dynamic> _redemption({String status = 'Pending'}) =>
       'clientRequestId': 'key-1',
     };
 
-const _retailer =
-    AppUser(id: 'u1', fullName: 'R', phone: '0', role: UserRole.retailer);
+const _retailer = AppUser(
+    id: 'u1',
+    fullName: 'R',
+    phone: '0',
+    role: UserRole.retailer,
+    permissions: ['api:Complaints.List']);
 const _sales =
     AppUser(id: 'u2', fullName: 'S', phone: '0', role: UserRole.sales);
 
@@ -250,8 +254,7 @@ void main() {
           throwsA(isA<ApiException>().having((e) => e.isNetwork, 'net', true)));
     });
 
-    test('only a Retailer reads the list: other roles are refused locally',
-        () async {
+    test('complaint read requires the explicit API grant', () async {
       // GraphQL complaintReads has no role gate and lists every complaint for
       // roles other than Retailer; REST refuses them. The app never asks.
       final t = _Transport(

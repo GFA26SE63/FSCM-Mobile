@@ -31,6 +31,7 @@ const _user = AppUser(
     fullName: 'Retailer',
     phone: '',
     role: UserRole.retailer,
+    permissions: ['mobile-rt-orders', 'mobile-rt-scan'],
     retailerCode: '1001');
 
 const _widths = <double>[360, 390];
