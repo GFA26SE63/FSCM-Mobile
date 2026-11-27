@@ -92,8 +92,8 @@ class _ProofThumb extends StatelessWidget {
       onTap: () => showDialog<void>(
         context: context,
         builder: (_) => Dialog(
-          child: InteractiveViewer(
-              child: Image.network(url, fit: BoxFit.contain)),
+          child:
+              InteractiveViewer(child: Image.network(url, fit: BoxFit.contain)),
         ),
       ),
       child: ClipRRect(

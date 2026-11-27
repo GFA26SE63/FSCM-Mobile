@@ -15,15 +15,16 @@ void main() {
 
   testWidgets('demo button feeds every code through onCode', (t) async {
     final got = <String>[];
-    await t.pumpWidget(
-        _host(QrScanView(onCode: got.add, demoCodes: const ['CID-1', 'CID-2'])));
+    await t.pumpWidget(_host(
+        QrScanView(onCode: got.add, demoCodes: const ['CID-1', 'CID-2'])));
     await t.pump();
     await t.tap(find.text('Quét nhanh 2 mã (demo)'));
     await t.pump();
     expect(got, ['CID-1', 'CID-2']);
   });
 
-  testWidgets('demo count shows the button before codes are fetched', (t) async {
+  testWidgets('demo count shows the button before codes are fetched',
+      (t) async {
     List<String>? sent;
     await t.pumpWidget(_host(QrScanView(
       onCode: (_) {},

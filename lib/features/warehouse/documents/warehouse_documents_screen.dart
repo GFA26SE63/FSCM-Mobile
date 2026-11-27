@@ -770,10 +770,10 @@ class _WarehouseDocumentScreenState
                           demoCodes: w.demoCartonIds ?? const <String>[],
                           // Issue: shown as soon as the switch is on, even before
                           // one-carton labels exist; they are prepared on tap.
-                          demoCount: d['kind'] != 'Receipt' &&
-                                  w.demoCartonIds != null
-                              ? (requiredQuantity - scanned).toInt()
-                              : null,
+                          demoCount:
+                              d['kind'] != 'Receipt' && w.demoCartonIds != null
+                                  ? (requiredQuantity - scanned).toInt()
+                                  : null,
                           // Each scan bumps the document version; chain them.
                           onDemoScan: (codes) => act(() async {
                                 final api =

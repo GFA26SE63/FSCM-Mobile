@@ -108,9 +108,11 @@ class WarehouseDocumentsApi {
         'expectedVersion': scan['documentVersion'],
         'cartons': cartons,
       })));
+
   /// Same relabelling as the web "Chuẩn bị nhãn một thùng cho hàng tồn" button.
   Future<WarehouseWork> prepareCartons(WarehouseWork work) async =>
-      WarehouseWork(asMap(await client.post('$base/${work.id}/prepare-cartons')));
+      WarehouseWork(
+          asMap(await client.post('$base/${work.id}/prepare-cartons')));
   Future<WarehouseWork> scanCarton(WarehouseWork work, String code) async =>
       WarehouseWork(asMap(await client.post('$base/${work.id}/scans',
           body: {'cartonId': code, 'expectedVersion': work.version})));
