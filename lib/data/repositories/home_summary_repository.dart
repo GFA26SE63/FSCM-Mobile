@@ -1,6 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:fscm_mobile/core/auth/user_role.dart';
 import 'package:fscm_mobile/core/network/api_client.dart';
 import 'package:fscm_mobile/core/network/endpoints.dart';
 import 'package:fscm_mobile/core/network/api_exception.dart';
@@ -44,7 +43,7 @@ final warehouseDashboardProvider =
     FutureProvider.autoDispose<WarehouseDashboard>((ref) async {
   ref.watch(dataVersionProvider);
   final user = ref.watch(currentUserProvider);
-  if (user?.role != UserRole.warehouseKeeper) {
+  if (user?.hasPermission('api:Dashboard.Get') != true) {
     return WarehouseDashboard(cards: const {}, loadedAt: AppClock.now());
   }
   final today = PerformancePeriod.forKey('today', AppClock.now());
@@ -122,7 +121,7 @@ final retailerTodoProvider =
     FutureProvider.autoDispose<RetailerTodo>((ref) async {
   ref.watch(dataVersionProvider);
   final user = ref.watch(currentUserProvider);
-  if (user?.role != UserRole.retailer) {
+  if (user?.hasPermission('mobile-rt-orders') != true) {
     return RetailerTodo.from(
         quotes: 0,
         payments: 0,
@@ -237,7 +236,7 @@ final salesOrderStatsProvider =
     FutureProvider.autoDispose<SalesOrderStats>((ref) async {
   ref.watch(dataVersionProvider);
   final user = ref.watch(currentUserProvider);
-  if (user == null || user.role != UserRole.sales) {
+  if (user == null || !user.hasPermission('mobile-sales-home')) {
     return const SalesOrderStats();
   }
 

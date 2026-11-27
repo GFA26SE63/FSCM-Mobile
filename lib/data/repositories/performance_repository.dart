@@ -1,5 +1,4 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:fscm_mobile/core/auth/user_role.dart';
 import 'package:fscm_mobile/core/network/api_exception.dart';
 import 'package:fscm_mobile/core/utils/clock.dart';
 import 'package:fscm_mobile/data/models/performance.dart';
@@ -10,7 +9,8 @@ import 'package:fscm_mobile/data/repositories/data_version.dart';
 final performanceRepositoryProvider = Provider<PerformanceRepository>((ref) {
   final user = ref.watch(currentUserProvider);
   return PerformanceRepository(ref.watch(performanceApiProvider),
-      userId: user?.id ?? '', isSales: user?.role == UserRole.sales);
+      userId: user?.id ?? '',
+      isSales: user?.hasPermission('mobile-sales-kpi') == true);
 });
 
 final salesKpiProvider =

@@ -43,26 +43,45 @@ Map<String, dynamic> _serverOrder() => {
       'lines': [
         // Promotion 10% (120đ) + HSD on 1.080 VND (160đ) = 280 VND (23,33%).
         {
-          'sku': 'X', 'productName': 'SP X', 'quantity': 5, 'unitPrice': 240,
-          'grossAmount': 1200, 'discountAmount': 280, 'discountPercent': 23.33,
-          'netAmount': 920, 'discountSourceType': 'ShelfLife',
+          'sku': 'X',
+          'productName': 'SP X',
+          'quantity': 5,
+          'unitPrice': 240,
+          'grossAmount': 1200,
+          'discountAmount': 280,
+          'discountPercent': 23.33,
+          'netAmount': 920,
+          'discountSourceType': 'ShelfLife',
           'discountSourceCode': 'HSD-V2',
           'ordinaryPromotion': _promotion('Demo_Demo1', 10, 120),
         },
         // Different promotion, fractional rate.
         {
-          'sku': 'Y', 'productName': 'SP Y', 'quantity': 4, 'unitPrice': 200,
-          'grossAmount': 800, 'discountAmount': 100, 'discountPercent': 12.5,
-          'netAmount': 700, 'discountSourceType': 'Campaign',
+          'sku': 'Y',
+          'productName': 'SP Y',
+          'quantity': 4,
+          'unitPrice': 200,
+          'grossAmount': 800,
+          'discountAmount': 100,
+          'discountPercent': 12.5,
+          'netAmount': 700,
+          'discountSourceType': 'Campaign',
           'discountSourceCode': 'KM-Demo_Demo2',
           'ordinaryPromotion': _promotion('Demo_Demo2', 12.5, 100),
         },
         // HSD only, no promotion.
         {
-          'sku': 'Z', 'productName': 'SP Z', 'quantity': 7, 'unitPrice': 200,
-          'grossAmount': 1400, 'discountAmount': 100, 'discountPercent': 7.14,
-          'netAmount': 1300, 'discountSourceType': 'ShelfLife',
-          'discountSourceCode': 'HSD-V2', 'ordinaryPromotion': null,
+          'sku': 'Z',
+          'productName': 'SP Z',
+          'quantity': 7,
+          'unitPrice': 200,
+          'grossAmount': 1400,
+          'discountAmount': 100,
+          'discountPercent': 7.14,
+          'netAmount': 1300,
+          'discountSourceType': 'ShelfLife',
+          'discountSourceCode': 'HSD-V2',
+          'ordinaryPromotion': null,
         },
       ],
     };
@@ -76,7 +95,8 @@ class _GraphQlServer implements ApiTransport {
   Future<ApiResponse> send(ApiRequest request) async {
     requests.add(request);
     if (request.path != Env.effectiveGraphQlEndpoint) {
-      return ApiResponse(statusCode: 200, data: _serverOrder()); // REST: full DTO
+      return ApiResponse(
+          statusCode: 200, data: _serverOrder()); // REST: full DTO
     }
     final query = (request.body! as Map<String, dynamic>)['query'] as String;
     final selection = RegExp(r'ordinaryPromotion\s*\{([^}]*)\}')
@@ -116,8 +136,8 @@ Future<void> _render(WidgetTester tester, Order order) async {
   addTearDown(tester.view.resetPhysicalSize);
   addTearDown(tester.view.resetDevicePixelRatio);
   await tester.pumpWidget(MaterialApp(
-      home: Scaffold(
-          body: SingleChildScrollView(child: OrderLinesCard(order)))));
+      home:
+          Scaffold(body: SingleChildScrollView(child: OrderLinesCard(order)))));
 }
 
 void main() {
@@ -148,8 +168,11 @@ void main() {
 
   test('missing rate in the snapshot stays null (no fabricated %)', () {
     final json = _serverOrder();
-    ((json['lines'] as List).first as Map)['ordinaryPromotion'] =
-        {'promotionId': 'p', 'name': 'Demo_Demo1', 'discountAmount': 120};
+    ((json['lines'] as List).first as Map)['ordinaryPromotion'] = {
+      'promotionId': 'p',
+      'name': 'Demo_Demo1',
+      'discountAmount': 120
+    };
     expect(Order.fromJson(json).lines.first.promoPct, isNull);
   });
 
@@ -166,10 +189,13 @@ void main() {
     expect(find.textContaining('7,14'), findsNothing);
     Finder row(String name) =>
         find.ancestor(of: find.text(name), matching: find.byType(Row)).first;
-    expect(find.descendant(of: row('Demo_Demo1'), matching: find.text(' · KM 10%')),
+    expect(
+        find.descendant(
+            of: row('Demo_Demo1'), matching: find.text(' · KM 10%')),
         findsOneWidget);
-    expect(find.descendant(of: row('Giảm giá theo HSD'),
-            matching: find.textContaining('KM ')),
+    expect(
+        find.descendant(
+            of: row('Giảm giá theo HSD'), matching: find.textContaining('KM ')),
         findsNothing);
     expect(tester.takeException(), isNull);
   });

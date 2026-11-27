@@ -68,6 +68,7 @@ class AppRoutes {
   static const String rtReceivePattern = '/retailer/receive/:code';
 
   static String rtOrderDetail(String code) => '/retailer/order/$code';
+
   /// [shipmentId] preselects the warehouse part the retailer tapped.
   static String rtReceive(String code, {String? shipmentId}) => Uri(
           path: '/retailer/receive/$code',

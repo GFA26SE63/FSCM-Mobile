@@ -9,6 +9,7 @@ import 'package:fscm_mobile/app/shell/retailer_shell.dart';
 import 'package:fscm_mobile/app/shell/sales_shell.dart';
 import 'package:fscm_mobile/app/shell/warehouse_shell.dart';
 import 'package:fscm_mobile/core/auth/user_role.dart';
+import 'package:fscm_mobile/core/auth/session.dart';
 import 'package:fscm_mobile/core/auth/screen_permissions.dart';
 import 'package:fscm_mobile/data/models/retailer_declaration.dart';
 import 'package:fscm_mobile/data/repositories/auth_repository.dart';
@@ -62,20 +63,6 @@ String homeRouteFor(UserRole role) {
   }
 }
 
-/// Path prefix a role may navigate in (roles never see each other's screens).
-String _prefixFor(UserRole role) {
-  switch (role) {
-    case UserRole.sales:
-      return '/sales';
-    case UserRole.warehouseKeeper:
-      return '/wk';
-    case UserRole.retailer:
-      return '/retailer';
-    default:
-      return '';
-  }
-}
-
 /// Pure redirect rule, kept separate so it is easy to test.
 ///
 /// * auth state unknown -> splash (restores the stored session)
@@ -85,6 +72,7 @@ String? redirectFor({
   required AuthStatus status,
   required UserRole? role,
   required String location,
+  AppUser? user,
 }) {
   switch (status) {
     case AuthStatus.unknown:
@@ -95,19 +83,22 @@ String? redirectFor({
           ? null
           : AppRoutes.login;
     case AuthStatus.authenticated:
-      if (role == null || !role.hasMobileShell) return AppRoutes.login;
+      if (user == null) {
+        return location == AppRoutes.salesAccount
+            ? null
+            : AppRoutes.salesAccount;
+      }
+      final preferred = homeRouteFor(user.role);
+      final home =
+          preferred != AppRoutes.login && canAccessMobilePath(user, preferred)
+              ? preferred
+              : firstGrantedMobilePath(user);
       if (location == '/' ||
           location == AppRoutes.splash ||
           location == AppRoutes.login) {
-        return homeRouteFor(role);
+        return home;
       }
-      final prefix = _prefixFor(role);
-      final foreign =
-          <String>['/sales', '/wk', '/retailer'].where((p) => p != prefix);
-      if (foreign.any((p) => location == p || location.startsWith('$p/'))) {
-        return homeRouteFor(role);
-      }
-      return null;
+      return canAccessMobilePath(user, location) ? null : home;
   }
 }
 
@@ -125,26 +116,10 @@ final routerProvider = Provider<GoRouter>((ref) {
     refreshListenable: refresh,
     redirect: (context, state) {
       final auth = ref.read(authControllerProvider);
-      if (auth.isAuthenticated &&
-          auth.user != null &&
-          !canAccessMobilePath(auth.user, state.uri.path) &&
-          state.uri.path != AppRoutes.login &&
-          state.uri.path != AppRoutes.splash &&
-          state.uri.path != '/') {
-        switch (auth.user!.role) {
-          case UserRole.sales:
-            return AppRoutes.salesAccount;
-          case UserRole.warehouseKeeper:
-            return AppRoutes.wkAccount;
-          case UserRole.retailer:
-            return AppRoutes.rtAccount;
-          default:
-            return AppRoutes.login;
-        }
-      }
       return redirectFor(
         status: auth.status,
         role: auth.user?.role,
+        user: auth.user,
         location: state.uri.path,
       );
     },
@@ -409,8 +384,7 @@ List<RouteBase> _retailerRoutes() => <RouteBase>[
           path: AppRoutes.rtPayments,
           builder: (c, s) => const PaymentsScreen()),
       GoRoute(
-          path: AppRoutes.rtRefunds,
-          builder: (c, s) => const RefundsScreen()),
+          path: AppRoutes.rtRefunds, builder: (c, s) => const RefundsScreen()),
       GoRoute(
           path: AppRoutes.rtLoyalty, builder: (c, s) => const LoyaltyScreen()),
       GoRoute(

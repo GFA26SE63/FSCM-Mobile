@@ -1,3 +1,5 @@
+import 'package:fscm_mobile/app/router.dart';
+import 'package:fscm_mobile/data/repositories/auth_repository.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fscm_mobile/core/auth/session.dart';
 import 'package:fscm_mobile/core/auth/screen_permissions.dart';
@@ -10,6 +12,34 @@ void main() {
         'role': 'Sales',
         'permissions': grants,
       });
+
+  test(
+      'delegated mobile screen works across profiles and revocation redirects safely',
+      () {
+    final delegated = AppUser.fromJson({
+      'id': 'operator',
+      'role': 'Operator',
+      'permissions': ['mobile-wk-picking'],
+    });
+    expect(canAccessMobilePath(delegated, '/wk/home'), isTrue);
+    expect(firstGrantedMobilePath(delegated), '/wk/home');
+    expect(
+        redirectFor(
+            status: AuthStatus.authenticated,
+            role: delegated.role,
+            user: delegated,
+            location: '/wk/home'),
+        isNull);
+    final revoked =
+        AppUser.fromJson({...delegated.toJson(), 'permissions': <String>[]});
+    expect(
+        redirectFor(
+            status: AuthStatus.authenticated,
+            role: revoked.role,
+            user: revoked,
+            location: '/wk/home'),
+        '/sales/account');
+  });
 
   test('server grants survive persistence and empty sets deny role defaults',
       () {

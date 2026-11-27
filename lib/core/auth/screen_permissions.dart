@@ -56,15 +56,42 @@ bool canAccessMobilePath(AppUser? user, String path) {
   // Shared details are reached from picking, operations and shipped history.
   // The server checks the actual document reason, status and warehouse scope.
   if (Uri.parse(path).path.startsWith('/wk/document/')) {
-    return user.permissions == null ||
-        const [
-          'mobile-wk-picking',
-          'mobile-wk-operations',
-          'mobile-wk-shipped',
-        ].any(user.permissions!.contains);
+    return const [
+      'mobile-wk-picking',
+      'mobile-wk-operations',
+      'mobile-wk-shipped',
+    ].any(user.hasPermission);
   }
   final permission = screenPermissionFor(path);
-  return permission == null ||
-      user.permissions == null ||
-      user.permissions!.contains(permission);
+  return permission == null || user.hasPermission(permission);
 }
+
+/// Entry points are a registry of screens, not a role-to-permission matrix.
+const mobileDestinations = <String, String>{
+  '/sales/home': 'Tổng quan bán hàng',
+  '/sales/orders': 'Đơn bán hàng',
+  '/sales/products': 'Sản phẩm',
+  '/sales/retailers': 'Điểm bán',
+  '/sales/declare': 'Khai báo điểm bán',
+  '/sales/declarations': 'Danh sách khai báo',
+  '/sales/promotions': 'Khuyến mãi',
+  '/sales/debts': 'Công nợ bán hàng',
+  '/sales/kpi': 'KPI bán hàng',
+  '/sales/sync': 'Đồng bộ đơn hàng',
+  '/sales/scan': 'Quét mã hàng',
+  '/wk/home': 'Soạn hàng',
+  '/wk/operations': 'Nhập · Xuất kho',
+  '/wk/shipped': 'Lịch sử xuất hàng',
+  '/wk/label-lookup': 'Tra cứu thùng hàng',
+  '/retailer/orders': 'Đơn đặt hàng',
+  '/retailer/order/new': 'Tạo đơn đặt hàng',
+  '/retailer/scan': 'Quét nhận hàng',
+  '/retailer/payments': 'Thanh toán',
+  '/retailer/loyalty': 'Tích điểm',
+  '/retailer/gifts': 'Đổi quà',
+  '/retailer/complaints': 'Khiếu nại',
+};
+
+String firstGrantedMobilePath(AppUser user) => mobileDestinations.keys
+    .firstWhere((path) => canAccessMobilePath(user, path),
+        orElse: () => '/sales/account');

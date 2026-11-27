@@ -174,7 +174,7 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
             );
           }
 
-          if (user?.role == UserRole.sales &&
+          if (user?.hasPermission('mobile-sales-sync') == true &&
               !online &&
               !_cachedRetailerIsActive(data, retailer)) {
             return const EmptyState(
@@ -681,7 +681,7 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
       return;
     }
 
-    if (user.role != UserRole.sales) {
+    if (!user.hasPermission('mobile-sales-order-create')) {
       throw const ApiException(
         kind: ApiErrorKind.forbidden,
         message:
@@ -759,7 +759,7 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
     }
 
     if (!online &&
-        user.role == UserRole.sales &&
+        user.hasPermission('mobile-sales-sync') &&
         !_cachedRetailerIsActive(data, retailer)) {
       showAppSnack(
         context,
@@ -906,7 +906,7 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
 
     final online = ref.read(networkMonitorProvider).online;
 
-    if (!online && user.role != UserRole.sales) {
+    if (!online && !user.hasPermission('mobile-sales-sync')) {
       showAppSnack(
         context,
         'Tài khoản này cần kết nối mạng để gửi đơn.',
@@ -1008,7 +1008,7 @@ class _OrderCreateScreenState extends ConsumerState<OrderCreateScreen> {
               : 'Đã tạo đơn bán hàng ${order.code}. '
                   'Hệ thống đang phân bổ và sẽ gửi báo giá cho điểm bán.';
         } on ApiException catch (error) {
-          if (!error.isNetwork || user.role != UserRole.sales) {
+          if (!error.isNetwork || !user.hasPermission('mobile-sales-sync')) {
             rethrow;
           }
 

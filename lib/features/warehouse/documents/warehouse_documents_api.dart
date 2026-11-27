@@ -42,14 +42,17 @@ final warehouseDocumentsApiProvider = Provider((ref) {
   ref.watch(currentUserProvider);
   return WarehouseDocumentsApi(ref.watch(apiClientProvider));
 });
+
 /// Names of all warehouses (GET /warehouses, any signed-in role). Documents only
 /// carry ids, and a transfer's other warehouse is outside the keeper's scope.
 /// A failure leaves names empty so screens fall back to the id.
-final warehouseNamesProvider = FutureProvider.autoDispose<Map<String, String>>(
-    (ref) async {
+final warehouseNamesProvider =
+    FutureProvider.autoDispose<Map<String, String>>((ref) async {
   try {
-    final rows = asMapList(
-        await ref.watch(warehouseDocumentsApiProvider).client.get('/warehouses'));
+    final rows = asMapList(await ref
+        .watch(warehouseDocumentsApiProvider)
+        .client
+        .get('/warehouses'));
     return {for (final w in rows) asStr(w['id']): asStr(w['name'])};
   } catch (_) {
     return const {};

@@ -35,7 +35,10 @@ Order _quote() => Order.fromJson({
       'createdAt': '2026-11-20T10:00:00+07:00',
       'lines': [
         // 10% promotion (100,000) then 15% HSD on 900,000 (135,000) = 23.5%.
-        _line('A', discount: 235000, totalPct: 23.5, shelfLife: true,
+        _line('A',
+            discount: 235000,
+            totalPct: 23.5,
+            shelfLife: true,
             promotion: {
               'promotionId': 'p-a',
               'code': 'KM-A',
@@ -110,12 +113,15 @@ void main() {
     // Name/rate pairing in the same row.
     Finder row(String name) =>
         find.ancestor(of: find.text(name), matching: find.byType(Row)).first;
-    expect(find.descendant(of: row('KM Sữa A'), matching: find.text(' · KM 10%')),
+    expect(
+        find.descendant(of: row('KM Sữa A'), matching: find.text(' · KM 10%')),
         findsOneWidget);
-    expect(find.descendant(of: row('KM Nước B'), matching: find.text(' · KM 8%')),
+    expect(
+        find.descendant(of: row('KM Nước B'), matching: find.text(' · KM 8%')),
         findsOneWidget);
     // HSD-only line keeps its HSD label without a promotion rate.
-    expect(find.descendant(
+    expect(
+        find.descendant(
             of: row('Giảm giá theo HSD'), matching: find.textContaining('KM ')),
         findsNothing);
     // Missing rate: name only.
@@ -202,7 +208,8 @@ void main() {
           ],
         }));
     expect(find.text(' · KM 12,5%'), findsOneWidget);
-    expect(tester.getRect(find.text(' · KM 12,5%')).right, lessThanOrEqualTo(320));
+    expect(
+        tester.getRect(find.text(' · KM 12,5%')).right, lessThanOrEqualTo(320));
     expect(tester.takeException(), isNull);
   });
 }

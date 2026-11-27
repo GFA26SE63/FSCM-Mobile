@@ -302,7 +302,8 @@ class Order {
       paid: payment.containsKey('status')
           ? asStr(payment['status']).toLowerCase() == 'paid'
           : asBool(j['paid']),
-      confirmedAmount: asInt(payment['confirmedAmount'] ?? j['confirmedAmount']),
+      confirmedAmount:
+          asInt(payment['confirmedAmount'] ?? j['confirmedAmount']),
       paidAt: asDate(payment['paidDate'] ?? payment['paidAt'] ?? j['paidAt']),
       dueDate: asDate(payment['dueDate'] ?? j['dueDate']),
       pointsEarned: asInt(j['pointsEarned']),

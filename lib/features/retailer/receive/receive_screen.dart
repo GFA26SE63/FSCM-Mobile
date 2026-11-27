@@ -93,7 +93,8 @@ class _RtReceiveScreenState extends ConsumerState<RtReceiveScreen> {
     final choice = await showDialog<String>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Chưa xác nhận nhận hàng', textAlign: TextAlign.center),
+        title:
+            const Text('Chưa xác nhận nhận hàng', textAlign: TextAlign.center),
         content: Text(
           total == null
               ? 'Bạn đã quét ${_scanned.length} thùng. Lưu nháp để lần sau quét tiếp từ chỗ đang dừng.'
@@ -255,28 +256,30 @@ class _RtReceiveScreenState extends ConsumerState<RtReceiveScreen> {
         if (!didPop) unawaited(_confirmLeave());
       },
       child: Scaffold(
-      // Route param may be the order GUID; show the order code once loaded.
-      appBar: AppBar(
-          title: Text((orderValue.valueOrNull?.code.isNotEmpty ?? false)
-              ? 'Nhận hàng · ${orderValue.valueOrNull!.code}'
-              : 'Nhận hàng')),
-      body: AsyncBody<Order>(
-        value: orderValue,
-        onRetry: () => ref.invalidate(orderDetailProvider(widget.code)),
-        builder: (order) {
-          if (_result != null) return _done(_result!);
-          // Gate per part below: a part can be Delivering before the order is.
-          if (!order.status.mayHavePartInDelivery) return _notReady(order);
+        // Route param may be the order GUID; show the order code once loaded.
+        appBar: AppBar(
+            title: Text((orderValue.valueOrNull?.code.isNotEmpty ?? false)
+                ? 'Nhận hàng · ${orderValue.valueOrNull!.code}'
+                : 'Nhận hàng')),
+        body: AsyncBody<Order>(
+          value: orderValue,
+          onRetry: () => ref.invalidate(orderDetailProvider(widget.code)),
+          builder: (order) {
+            if (_result != null) return _done(_result!);
+            // Gate per part below: a part can be Delivering before the order is.
+            if (!order.status.mayHavePartInDelivery) return _notReady(order);
 
-          final shipmentsValue = ref.watch(deliveryShipmentsProvider(order.id));
-          return AsyncBody<List<DeliveryShipment>>(
-            value: shipmentsValue,
-            onRetry: () => ref.invalidate(deliveryShipmentsProvider(order.id)),
-            builder: (allShipments) => _receive(order, allShipments),
-          );
-        },
+            final shipmentsValue =
+                ref.watch(deliveryShipmentsProvider(order.id));
+            return AsyncBody<List<DeliveryShipment>>(
+              value: shipmentsValue,
+              onRetry: () =>
+                  ref.invalidate(deliveryShipmentsProvider(order.id)),
+              builder: (allShipments) => _receive(order, allShipments),
+            );
+          },
+        ),
       ),
-    ),
     );
   }
 

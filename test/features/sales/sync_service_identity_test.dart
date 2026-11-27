@@ -33,8 +33,8 @@ void main() {
 
     final first = container.read(syncServiceProvider.notifier);
     container.read(user.notifier).state = _user('sales-a', name: 'Renamed');
-    expect(identical(container.read(syncServiceProvider.notifier), first),
-        isTrue);
+    expect(
+        identical(container.read(syncServiceProvider.notifier), first), isTrue);
 
     container.read(user.notifier).state = _user('sales-b');
     final second = container.read(syncServiceProvider.notifier);

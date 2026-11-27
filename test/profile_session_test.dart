@@ -123,8 +123,8 @@ void main() {
     final client =
         ApiClient(transport: _UnusedTransport(), tokenReader: () => 'access');
     addTearDown(client.dispose);
-    final api = _ProfileApi(
-        client, AppUser.fromJson(<String, dynamic>{...cachedUser}));
+    final api =
+        _ProfileApi(client, AppUser.fromJson(<String, dynamic>{...cachedUser}));
     final container = ProviderContainer(overrides: [
       tokenStoreProvider.overrideWithValue(tokens),
       apiClientProvider.overrideWithValue(client),
@@ -160,8 +160,8 @@ void main() {
     });
     final client = _RefreshingClient();
     addTearDown(client.dispose);
-    final api = _ProfileApi(
-        client, AppUser.fromJson(<String, dynamic>{...cachedUser}));
+    final api =
+        _ProfileApi(client, AppUser.fromJson(<String, dynamic>{...cachedUser}));
     final container = ProviderContainer(overrides: [
       tokenStoreProvider.overrideWithValue(tokens),
       apiClientProvider.overrideWithValue(client),

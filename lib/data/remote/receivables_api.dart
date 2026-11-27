@@ -60,8 +60,7 @@ class ReceivablesApi {
       return asMapList(data['receivables']).map(Receivable.fromJson).toList();
     }
 
-    return (await _retailerPages(
-            _retailerQuery, 'RetailerReceivables', status))
+    return (await _retailerPages(_retailerQuery, 'RetailerReceivables', status))
         .map(Receivable.fromJson)
         .toList();
   }
@@ -123,9 +122,8 @@ class ReceivablesApi {
 
   /// Retailer: refund records on own Credit orders (the receivable list
   /// holds Credit payments only).
-  Future<List<RetailerRefund>> retailerCreditRefunds() async =>
-      _refunds(await _retailerPages(
-          _retailerRefundsQuery, 'RetailerRefunds', null));
+  Future<List<RetailerRefund>> retailerCreditRefunds() async => _refunds(
+      await _retailerPages(_retailerRefundsQuery, 'RetailerRefunds', null));
 
   /// Retailer: refund records of one own order of any payment method.
   Future<List<RetailerRefund>> retailerOrderRefunds(String orderId) async {

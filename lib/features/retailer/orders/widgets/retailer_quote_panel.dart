@@ -132,10 +132,7 @@ class _RetailerQuotePanelState extends ConsumerState<RetailerQuotePanel> {
                     child: FilledButton(
                       onPressed:
                           !canDecide || _busy ? null : () => _accept(quote),
-                      child: Text(
-                          _busy
-                              ? 'Đang xử lý...'
-                              : 'Chấp nhận báo giá',
+                      child: Text(_busy ? 'Đang xử lý...' : 'Chấp nhận báo giá',
                           textAlign: TextAlign.center),
                     ),
                   ),
