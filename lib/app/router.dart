@@ -25,6 +25,7 @@ import 'package:fscm_mobile/features/retailer/orders/rt_order_detail_screen.dart
 import 'package:fscm_mobile/features/retailer/orders/rt_orders_screen.dart';
 import 'package:fscm_mobile/features/retailer/payments/payments_screen.dart';
 import 'package:fscm_mobile/features/retailer/receive/receive_screen.dart';
+import 'package:fscm_mobile/features/retailer/refunds/refunds_screen.dart';
 import 'package:fscm_mobile/features/retailer/scan/rt_scan_screen.dart';
 import 'package:fscm_mobile/features/sales/debts/debts_screen.dart';
 import 'package:fscm_mobile/features/sales/declare/declarations_screen.dart';
@@ -384,6 +385,10 @@ List<RouteBase> _retailerRoutes() => <RouteBase>[
                     icon: Icons.payments_outlined,
                     route: AppRoutes.rtPayments),
                 ProfileAction(
+                    label: 'Hoàn tiền',
+                    icon: Icons.currency_exchange,
+                    route: AppRoutes.rtRefunds),
+                ProfileAction(
                     label: 'Thẻ tích điểm',
                     icon: Icons.stars_outlined,
                     route: AppRoutes.rtLoyalty),
@@ -403,6 +408,9 @@ List<RouteBase> _retailerRoutes() => <RouteBase>[
       GoRoute(
           path: AppRoutes.rtPayments,
           builder: (c, s) => const PaymentsScreen()),
+      GoRoute(
+          path: AppRoutes.rtRefunds,
+          builder: (c, s) => const RefundsScreen()),
       GoRoute(
           path: AppRoutes.rtLoyalty, builder: (c, s) => const LoyaltyScreen()),
       GoRoute(

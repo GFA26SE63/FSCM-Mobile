@@ -22,6 +22,7 @@ class Complaint {
     this.debtOffsetAmount = 0,
     this.refundAmount = 0,
     this.refundId = '',
+    this.salesOrderId = '',
     this.documents = const [],
     required this.code,
     required this.orderCode,
@@ -59,6 +60,7 @@ class Complaint {
         debtOffsetAmount: asDouble(j['debtOffsetAmount']),
         refundAmount: asDouble(j['refundAmount']),
         refundId: asStr(j['refundId']),
+        salesOrderId: asStr(j['salesOrderId']),
         documents: asMapList(j['documents']),
         code: asStr(j['code']),
         orderCode: asStr(j['orderCode']),
@@ -87,7 +89,8 @@ class Complaint {
   final String requestType,
       settlementMethod,
       approvedSettlementMethod,
-      refundId;
+      refundId,
+      salesOrderId;
   final int requestedQuantity;
   final int? approvedQuantity, handledQuantity;
   final bool physicalHandlingCompleted, financialAdjustmentApplied;

@@ -59,6 +59,7 @@ class AppRoutes {
   static const String rtScan = '/retailer/scan';
   static const String rtAccount = '/retailer/account';
   static const String rtPayments = '/retailer/payments';
+  static const String rtRefunds = '/retailer/refunds';
   static const String rtLoyalty = '/retailer/loyalty';
   static const String rtGifts = '/retailer/gifts';
   static const String rtComplaints = '/retailer/complaints';
