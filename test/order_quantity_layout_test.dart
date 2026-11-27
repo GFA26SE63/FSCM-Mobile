@@ -31,27 +31,25 @@ void main() {
     await tester.pump();
   }
 
-  testWidgets(
-      'quantity is flush right, removal has its own line and no reserved X slot',
+  testWidgets('caption above; stepper left and trash right on one row below',
       (tester) async {
     var removed = false;
     await showFooter(tester, 340, onRemove: () => removed = true);
     final footer = tester.getRect(find.byType(OrderQuantityField));
     final control = tester.getRect(find.byType(QuantityStepper));
     final label = tester.getRect(find.text('Số lượng (thùng)'));
-    final remove =
-        tester.getRect(find.widgetWithText(TextButton, 'Bỏ khỏi giỏ'));
-    expect(control.right, closeTo(footer.right, 0.1));
-    expect(label.right, lessThan(control.left));
-    expect(remove.top, greaterThanOrEqualTo(control.bottom));
-    expect(remove.right, closeTo(footer.right, 0.1));
-    await tester.tap(find.text('Bỏ khỏi giỏ'));
+    final removeFinder = find.byTooltip('Bỏ khỏi giỏ');
+    final remove = tester.getRect(removeFinder);
+    expect(label.bottom, lessThan(control.top));
+    expect(control.left, closeTo(footer.left, 0.1));
+    expect(remove.left, greaterThan(control.right));
+    expect(remove.right, closeTo(footer.right, 4));
+    expect(remove.center.dy, closeTo(control.center.dy, 1));
+    await tester.tap(removeFinder);
     expect(removed, isTrue);
     expect(tester.takeException(), isNull);
     await showFooter(tester, 340, selected: false);
-    expect(find.text('Bỏ khỏi giỏ'), findsNothing);
-    expect(tester.getRect(find.byType(QuantityStepper)).right,
-        closeTo(footer.right, 0.1));
+    expect(find.byTooltip('Bỏ khỏi giỏ'), findsNothing);
   });
 
   testWidgets(
@@ -62,7 +60,7 @@ void main() {
       final label = tester.getRect(find.text('Số lượng (thùng)'));
       final control = tester.getRect(find.byType(QuantityStepper));
       expect(label.bottom, lessThan(control.top));
-      expect(control.right, closeTo(250, 0.1));
+      expect(control.right, lessThan(250));
       expect(tester.takeException(), isNull);
     }
   });

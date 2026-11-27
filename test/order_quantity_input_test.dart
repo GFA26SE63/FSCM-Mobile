@@ -97,7 +97,7 @@ void main() {
     final plus = tester.getRect(find.widgetWithIcon(IconButton, Icons.add));
     expect(minus.right, lessThanOrEqualTo(input.left));
     expect(input.right, lessThanOrEqualTo(plus.left));
-    expect(tester.getSize(find.byType(QuantityStepper)).width, 168);
+    expect(tester.getSize(find.byType(QuantityStepper)).width, QuantityStepper.editableWidth);
     expect(tester.takeException(), isNull);
   });
 }
