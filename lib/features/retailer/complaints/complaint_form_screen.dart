@@ -12,6 +12,7 @@ import 'package:fscm_mobile/data/models/enums.dart';
 import 'package:fscm_mobile/data/models/order.dart';
 import 'package:fscm_mobile/data/repositories/loyalty_repository.dart';
 import 'package:fscm_mobile/data/repositories/order_repository.dart';
+import 'package:fscm_mobile/features/retailer/complaints/complaint_split.dart';
 import 'package:fscm_mobile/shared/theme/app_text.dart';
 import 'package:fscm_mobile/shared/theme/app_tokens.dart';
 import 'package:fscm_mobile/shared/widgets/async_body.dart';
@@ -34,7 +35,7 @@ class ComplaintFormScreen extends ConsumerStatefulWidget {
 }
 
 class _ComplaintFormScreenState extends ConsumerState<ComplaintFormScreen> {
-  String? _orderCode, _allocationId;
+  String? _orderCode, _sku;
   String _issueType = 'Shortage';
   String _requestType = 'Complaint', _settlement = 'DebtOffset';
   bool _collect = false;
@@ -76,30 +77,39 @@ class _ComplaintFormScreenState extends ConsumerState<ComplaintFormScreen> {
     setState(() => _images.addAll(added));
   }
 
+  bool get _shortage => _requestType == 'Complaint' && _issueType == 'Shortage';
+  bool get _returnsGoods => _requestType != 'Complaint' || _collect;
+
+  /// Most cartons one submission may carry for this SKU across its batches.
+  int _capacityOf(List<ComplaintTarget> parts) => parts.fold(
+      0,
+      (sum, t) =>
+          sum +
+          complaintCapacity(t,
+              shortage: _shortage, returnsGoods: _returnsGoods));
+
+  void _refreshAfterSend(Order order) {
+    ref.invalidate(complaintsProvider);
+    ref.invalidate(complaintTargetsProvider(order.id));
+  }
+
   Future<void> _submit(
-      Order order, ComplaintTarget target, String settlementMethod) async {
+      Order order, List<ComplaintTarget> parts, String settlementMethod) async {
     if (_busy) return;
-    // The field is the affected carton count (damaged/missing, or to return);
-    // a Complaint still sends the usable count the Backend expects as actualQty.
-    final entered = int.tryParse(_actual.text.trim());
-    final affected = entered ?? 0;
-    final actual = entered == null
-        ? null
-        : _requestType == 'Complaint'
-            ? target.expectedQuantity - entered
-            : entered;
-    final claimLimit =
-        target.remainingClaimableQuantity ?? target.expectedQuantity;
-    final returnLimit = target.remainingReturnableQuantity ??
-        target.receivedQuantity ??
-        target.expectedQuantity;
-    if (actual == null ||
-        actual < 0 ||
-        affected <= 0 ||
-        affected > claimLimit ||
-        ((_requestType != 'Complaint' || _collect) && affected > returnLimit)) {
-      showAppSnack(context,
-          'Số thùng không hợp lệ. Còn $claimLimit thùng được yêu cầu bồi hoàn, $returnLimit thùng được trả/thu hồi.',
+    final entered = int.tryParse(_actual.text.trim()) ?? 0;
+    // The retailer picks only the SKU; batches are attached here, one request
+    // per batch part because the server binds each request to one allocation.
+    final split = splitComplaint(parts, entered,
+        shortage: _shortage, returnsGoods: _returnsGoods);
+    if (split == null) {
+      final capacity = _capacityOf(parts);
+      showAppSnack(
+          context,
+          capacity == 0
+              ? (_shortage
+                  ? 'Sản phẩm này không có thùng thiếu theo ghi nhận nhận hàng.'
+                  : 'Sản phẩm này không còn thùng được yêu cầu.')
+              : 'Số thùng không hợp lệ. Tối đa $capacity thùng cho sản phẩm này.',
           error: true);
       return;
     }
@@ -109,45 +119,66 @@ class _ComplaintFormScreenState extends ConsumerState<ComplaintFormScreen> {
       return;
     }
     setState(() => _busy = true);
+    final codes = <String>[];
+    var sent = 0, failedImages = 0;
     try {
-      final result = await ref.read(loyaltyRepositoryProvider).complain(
-          NewComplaint(
-              orderCode: order.code,
-              sku: target.sku,
-              labelCode: target.labelCode,
-              actualQty: actual,
-              issueType: _issueType,
-              note: _note.text.trim(),
-              requestType: _requestType,
-              settlementMethod: settlementMethod,
-              affectedQuantity: _requestType == 'Complaint' ? null : affected,
-              requiresCollection:
-                  _requestType == 'DamagedCollection' || _collect,
-              shipmentId: target.shipmentId,
-              allocationId: target.allocationId));
-      // The claim exists once created; images are attached to it afterwards.
-      var failed = 0;
-      for (final image in _images) {
-        try {
-          await ref.read(loyaltyRepositoryProvider).addComplaintEvidence(
-              result.id, image.file.path,
-              bytes: image.bytes, fileName: image.file.name);
-        } on ApiException {
-          failed++;
+      for (final part in split) {
+        final target = part.target;
+        // A Complaint sends the usable count the Backend expects as actualQty.
+        final result = await ref.read(loyaltyRepositoryProvider).complain(
+            NewComplaint(
+                orderCode: order.code,
+                sku: target.sku,
+                labelCode: target.labelCode,
+                actualQty: _requestType == 'Complaint'
+                    ? target.expectedQuantity - part.quantity
+                    : part.quantity,
+                issueType: _issueType,
+                note: _note.text.trim(),
+                requestType: _requestType,
+                settlementMethod: settlementMethod,
+                affectedQuantity:
+                    _requestType == 'Complaint' ? null : part.quantity,
+                requiresCollection:
+                    _requestType == 'DamagedCollection' || _collect,
+                shipmentId: target.shipmentId,
+                allocationId: target.allocationId));
+        codes.add(result.code);
+        sent += part.quantity;
+        // The claim exists once created; images are attached to each request.
+        for (final image in _images) {
+          try {
+            await ref.read(loyaltyRepositoryProvider).addComplaintEvidence(
+                result.id, image.file.path,
+                bytes: image.bytes, fileName: image.file.name);
+          } on ApiException {
+            failedImages++;
+          }
         }
       }
-      ref.invalidate(complaintsProvider);
-      ref.invalidate(complaintTargetsProvider(order.id));
+      _refreshAfterSend(order);
       if (!mounted) return;
       showAppSnack(
           context,
-          failed == 0
-              ? 'Đã gửi yêu cầu ${result.code}.'
-              : 'Đã gửi yêu cầu ${result.code} nhưng $failed ảnh chưa tải lên được. Hãy bổ sung ảnh trong danh sách yêu cầu.',
-          error: failed > 0);
+          failedImages == 0
+              ? 'Đã gửi yêu cầu ${codes.join(', ')}.'
+              : 'Đã gửi yêu cầu ${codes.join(', ')} nhưng $failedImages ảnh chưa tải lên được. Hãy bổ sung ảnh trong danh sách yêu cầu.',
+          error: failedImages > 0);
       context.pop();
     } on ApiException catch (e) {
-      if (mounted) showAppSnack(context, e.message, error: true);
+      if (codes.isNotEmpty) _refreshAfterSend(order);
+      if (!mounted) return;
+      if (codes.isEmpty) {
+        showAppSnack(context, e.message, error: true);
+      } else {
+        // Earlier requests already exist; leave only the unsent cartons to retry.
+        _actual.text = '${entered - sent}';
+        showAppSnack(
+            context,
+            'Đã gửi ${codes.join(', ')} ($sent thùng). '
+            'Chưa gửi ${entered - sent} thùng: ${e.message}',
+            error: true);
+      }
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -240,7 +271,7 @@ class _ComplaintFormScreenState extends ConsumerState<ComplaintFormScreen> {
                                 ? null
                                 : (v) => setState(() {
                                       _orderCode = v;
-                                      _allocationId = null;
+                                      _sku = null;
                                       _actual.clear();
                                     })),
                         if (eligible.isEmpty)
@@ -268,17 +299,29 @@ class _ComplaintFormScreenState extends ConsumerState<ComplaintFormScreen> {
                                           'Đơn công nợ đã phát sinh thanh toán nên không thể tạo yêu cầu.',
                                     );
                                   }
-                                  var chosen = targets.where(
-                                      (t) => t.allocationId == _allocationId);
-                                  if (chosen.isEmpty &&
-                                      _allocationId == null &&
+                                  // One choice per SKU; its batch parts are
+                                  // attached on submit (see complaint_split).
+                                  final skus =
+                                      <String, List<ComplaintTarget>>{};
+                                  for (final t in targets) {
+                                    (skus[t.sku] ??= []).add(t);
+                                  }
+                                  var sku = _sku;
+                                  if (sku == null &&
                                       widget.initialShipmentId != null) {
-                                    chosen = targets.where((t) =>
+                                    final fromShipment = targets.where((t) =>
                                         t.shipmentId ==
                                         widget.initialShipmentId);
+                                    if (fromShipment.isNotEmpty) {
+                                      sku = fromShipment.first.sku;
+                                    }
                                   }
-                                  final target =
-                                      chosen.isEmpty ? null : chosen.first;
+                                  final parts = skus[sku];
+                                  final deadlines = parts
+                                      ?.map((t) => t.claimDeadline)
+                                      .whereType<DateTime>()
+                                      .toList()
+                                    ?..sort();
                                   return Column(
                                       crossAxisAlignment:
                                           CrossAxisAlignment.stretch,
@@ -291,32 +334,36 @@ class _ComplaintFormScreenState extends ConsumerState<ComplaintFormScreen> {
                                               child: Text(
                                                   'Không còn phần hàng trong hạn gửi yêu cầu.')),
                                         DropdownButtonFormField<String>(
-                                            key: ValueKey(
-                                                '${order.id}:$_allocationId'),
-                                            initialValue: target?.allocationId,
+                                            key: ValueKey('${order.id}:$_sku'),
+                                            initialValue:
+                                                parts == null ? null : sku,
                                             isExpanded: true,
                                             decoration: const InputDecoration(
-                                                labelText:
-                                                    'Sản phẩm · lô hàng · phần giao'),
-                                            items: targets
-                                                .map((t) => DropdownMenuItem(
-                                                    value: t.allocationId,
+                                                labelText: 'Sản phẩm'),
+                                            items: skus.entries
+                                                .map((e) => DropdownMenuItem(
+                                                    value: e.key,
                                                     child: Text(
-                                                        '${t.sku} · ${t.batchCode} · ${t.shipmentCode}',
+                                                        '${e.key} · ${e.value.first.productName}',
                                                         overflow: TextOverflow
                                                             .ellipsis)))
                                                 .toList(),
                                             onChanged: _busy
                                                 ? null
                                                 : (v) => setState(() {
-                                                      _allocationId = v;
+                                                      _sku = v;
                                                       _actual.clear();
                                                     })),
-                                        if (target != null) ...[
+                                        if (parts != null) ...[
                                           InfoBanner(
                                               icon: Icons.inventory_2_outlined,
-                                              text:
-                                                  '${target.productName}\nTem ${target.labelCode} · giao ${target.expectedQuantity} thùng\nHạn gửi: ${AppDates.timeDay(target.claimDeadline)}'),
+                                              text: [
+                                                parts.first.productName,
+                                                'Giao ${parts.fold<int>(0, (n, t) => n + t.expectedQuantity)} thùng'
+                                                    '${_shortage ? ' · thiếu ${parts.fold<int>(0, (n, t) => n + shortfallOf(t))} thùng theo ghi nhận nhận hàng' : ''}',
+                                                'Tối đa ${_capacityOf(parts)} thùng cho yêu cầu này',
+                                                'Hạn gửi: ${AppDates.timeDay(deadlines == null || deadlines.isEmpty ? null : deadlines.first)}',
+                                              ].join('\n')),
                                           if (_requestType == 'Complaint')
                                             const SectionTitle('Lý do'),
                                           if (_requestType == 'Complaint')
@@ -362,7 +409,8 @@ class _ComplaintFormScreenState extends ConsumerState<ComplaintFormScreen> {
                                                     value: 'CashRefund',
                                                     child: Text('Hoàn tiền')),
                                               ],
-                                              onChanged: _busy || lockedSettlement != null
+                                              onChanged: _busy ||
+                                                      lockedSettlement != null
                                                   ? null
                                                   : (v) => setState(
                                                       () => _settlement = v!)),
@@ -439,7 +487,7 @@ class _ComplaintFormScreenState extends ConsumerState<ComplaintFormScreen> {
                                           FilledButton(
                                               onPressed: _busy
                                                   ? null
-                                                  : () => _submit(order, target,
+                                                  : () => _submit(order, parts,
                                                       effectiveSettlement),
                                               child: Text(_busy
                                                   ? 'Đang gửi...'
