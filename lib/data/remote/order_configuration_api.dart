@@ -8,10 +8,6 @@ import 'package:fscm_mobile/data/pricing/order_limits.dart';
 final orderConfigurationApiProvider = Provider<OrderConfigurationApi>(
     (ref) => OrderConfigurationApi(ref.watch(apiClientProvider)));
 
-/// Admin switch for the demo "Quét nhanh" button; re-read each time a scanner opens.
-final demoFastScanProvider = FutureProvider.autoDispose<bool>(
-    (ref) => ref.watch(orderConfigurationApiProvider).demoFastScanEnabled());
-
 class OrderConfigurationApi {
   OrderConfigurationApi(this._client);
   final ApiClient _client;
@@ -42,14 +38,5 @@ class OrderConfigurationApi {
           message: 'Bước số lượng đặt hàng trên máy chủ không hợp lệ.');
     }
     return step;
-  }
-
-  Future<bool> demoFastScanEnabled() async {
-    final data = await _client.get('/configurations');
-    if (data is! List) return false;
-    return asMapList(data).any((row) =>
-        row['key'] == 'demo.fast_scan_enabled' &&
-        row['isActive'] == true &&
-        row['value'] == true);
   }
 }

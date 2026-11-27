@@ -1,12 +1,10 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:fscm_mobile/data/remote/order_configuration_api.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
 /// Camera QR scanner with a manual-entry field.
-class QrScanView extends ConsumerStatefulWidget {
+class QrScanView extends StatefulWidget {
   const QrScanView({
     super.key,
     required this.onCode,
@@ -16,6 +14,7 @@ class QrScanView extends ConsumerStatefulWidget {
     this.allowManual = true,
     this.demoCodes = const <String>[],
     this.onDemoScan,
+    this.demoCount,
   });
 
   /// Called with the raw text of each (de-duplicated) scan.
@@ -25,18 +24,21 @@ class QrScanView extends ConsumerStatefulWidget {
   final double height;
   final bool allowManual;
 
-  /// Real codes still expected by the screen. The "Quét nhanh" button shows
-  /// only while the admin demo switch is on and this list is not empty.
+  /// Real codes still expected by the screen. The server sends them only while
+  /// the admin demo switch is on; the "Quét nhanh" button shows when non-empty.
   final List<String> demoCodes;
 
   /// Async handler for all [demoCodes] at once; defaults to [onCode] per code.
   final Future<void> Function(List<String> codes)? onDemoScan;
 
+  /// Overrides the shown count when [onDemoScan] can still fetch codes itself.
+  final int? demoCount;
+
   @override
-  ConsumerState<QrScanView> createState() => _QrScanViewState();
+  State<QrScanView> createState() => _QrScanViewState();
 }
 
-class _QrScanViewState extends ConsumerState<QrScanView> {
+class _QrScanViewState extends State<QrScanView> {
   bool _demoBusy = false;
 
   Future<void> _demoScan() async {
@@ -131,15 +133,14 @@ class _QrScanViewState extends ConsumerState<QrScanView> {
             ),
           ),
         ),
-        if (widget.demoCodes.isNotEmpty &&
-            (ref.watch(demoFastScanProvider).valueOrNull ?? false)) ...<Widget>[
+        if ((widget.demoCount ?? widget.demoCodes.length) > 0) ...<Widget>[
           const SizedBox(height: 12),
           OutlinedButton.icon(
             onPressed: _demoBusy ? null : _demoScan,
             icon: const Icon(Icons.bolt),
             label: Text(_demoBusy
                 ? 'Đang quét nhanh...'
-                : 'Quét nhanh ${widget.demoCodes.length} mã (demo)'),
+                : 'Quét nhanh ${widget.demoCount ?? widget.demoCodes.length} mã (demo)'),
           ),
         ],
         if (widget.allowManual) const SizedBox(height: 12),

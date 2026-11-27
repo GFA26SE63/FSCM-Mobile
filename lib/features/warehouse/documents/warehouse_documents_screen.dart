@@ -767,20 +767,29 @@ class _WarehouseDocumentScreenState
                           hint: w.factory
                               ? 'Quét đúng QR pallet trên phiếu'
                               : 'Quét QR từng thùng',
-                          demoCodes: w.factory
-                              ? const <String>[]
-                              : d['kind'] == 'Receipt'
-                                  ? [
-                                      for (final c in w.cartons)
-                                        if (c['scannedAt'] == null)
-                                          asStr(c['cartonId'])
-                                    ]
-                                  : w.demoCartonIds,
+                          demoCodes: w.demoCartonIds ?? const <String>[],
+                          // Issue: shown as soon as the switch is on, even before
+                          // one-carton labels exist; they are prepared on tap.
+                          demoCount: d['kind'] != 'Receipt' &&
+                                  w.demoCartonIds != null
+                              ? (requiredQuantity - scanned).toInt()
+                              : null,
                           // Each scan bumps the document version; chain them.
                           onDemoScan: (codes) => act(() async {
                                 final api =
                                     ref.read(warehouseDocumentsApiProvider);
                                 var current = w;
+                                if (d['kind'] != 'Receipt' &&
+                                    codes.length < requiredQuantity - scanned) {
+                                  current = await api.prepareCartons(current);
+                                  codes = current.demoCartonIds ?? const [];
+                                }
+                                if (codes.isEmpty) {
+                                  throw const ApiException(
+                                      kind: ApiErrorKind.conflict,
+                                      message:
+                                          'Kho không còn thùng khả dụng đúng lô của phiếu để quét nhanh.');
+                                }
                                 for (final code in codes) {
                                   current = await api.scanCarton(current, code);
                                 }

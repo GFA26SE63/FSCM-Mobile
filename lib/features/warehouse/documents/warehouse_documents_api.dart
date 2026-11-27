@@ -25,15 +25,16 @@ class WarehouseWork {
         lines = asMapList(json['lines']),
         cartons = asMapList(json['cartons']),
         transportStatus = asStrOrNull(json['transportStatus']),
-        demoCartonIds = (json['demoCartonIds'] as List? ?? const <Object?>[])
-            .map(asStr)
+        demoCartonIds = (json['demoCartonIds'] as List?)
+            ?.map(asStr)
             .toList(growable: false);
   final Map<String, dynamic> document;
   final List<Map<String, dynamic>> lines, cartons;
   final String? transportStatus;
 
-  /// Available cartons for an open issue, sent only while the admin demo fast-scan switch is on.
-  final List<String> demoCartonIds;
+  /// Demo fast-scan codes (receipt: unscanned cartons; issue: available
+  /// cartons); null unless the admin demo fast-scan switch is on.
+  final List<String>? demoCartonIds;
   String get id => asStr(document['id']);
   int get version => asInt(document['version']);
   bool get factory => document['reason'] == 'Factory';
@@ -107,6 +108,9 @@ class WarehouseDocumentsApi {
         'expectedVersion': scan['documentVersion'],
         'cartons': cartons,
       })));
+  /// Same relabelling as the web "Chuẩn bị nhãn một thùng cho hàng tồn" button.
+  Future<WarehouseWork> prepareCartons(WarehouseWork work) async =>
+      WarehouseWork(asMap(await client.post('$base/${work.id}/prepare-cartons')));
   Future<WarehouseWork> scanCarton(WarehouseWork work, String code) async =>
       WarehouseWork(asMap(await client.post('$base/${work.id}/scans',
           body: {'cartonId': code, 'expectedVersion': work.version})));
