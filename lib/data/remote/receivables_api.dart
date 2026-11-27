@@ -102,6 +102,7 @@ class ReceivablesApi {
     orderId orderCode paymentMethod
     refunds {
       id amount status transferredAt transactionReference verifiedAt reason
+      evidenceUrl
     }''';
 
   static const String _retailerRefundsQuery = '''

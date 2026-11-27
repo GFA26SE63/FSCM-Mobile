@@ -16,6 +16,7 @@ class RetailerRefund {
     this.transactionReference = '',
     this.verifiedAt,
     this.reason = '',
+    this.evidenceUrl = '',
   });
 
   /// [order] is the receivable row that holds this refund in its `refunds`.
@@ -32,12 +33,16 @@ class RetailerRefund {
         transactionReference: asStr(j['transactionReference']),
         verifiedAt: asDate(j['verifiedAt']),
         reason: asStr(j['reason']),
+        evidenceUrl: asStr(j['evidenceUrl']),
       );
 
   final String id, orderId, orderCode, paymentMethod, status;
   final double amount;
   final DateTime? transferredAt, verifiedAt;
   final String transactionReference, reason;
+
+  /// Short-lived read URL of the transfer-proof image; empty when none.
+  final String evidenceUrl;
 
   /// `PendingRefund → AwaitingVerification → Refunded`, `EvidenceRejected` branch.
   bool get isOpen => status != 'Refunded';

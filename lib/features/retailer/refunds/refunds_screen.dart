@@ -8,6 +8,7 @@ import 'package:fscm_mobile/core/utils/status_tone.dart';
 import 'package:fscm_mobile/data/models/refund.dart';
 import 'package:fscm_mobile/data/repositories/finance_repository.dart';
 import 'package:fscm_mobile/shared/routes.dart';
+import 'package:fscm_mobile/shared/theme/app_colors.dart';
 import 'package:fscm_mobile/shared/theme/app_text.dart';
 import 'package:fscm_mobile/shared/theme/app_tokens.dart';
 import 'package:fscm_mobile/shared/widgets/app_card.dart';
@@ -79,6 +80,38 @@ class RefundsScreen extends ConsumerWidget {
   }
 }
 
+/// Transfer-proof thumbnail; tap for full size (same pattern as claim evidence).
+class _ProofThumb extends StatelessWidget {
+  const _ProofThumb(this.url);
+
+  final String url;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () => showDialog<void>(
+        context: context,
+        builder: (_) => Dialog(
+          child: InteractiveViewer(
+              child: Image.network(url, fit: BoxFit.contain)),
+        ),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(8),
+        child: Image.network(url,
+            width: 72,
+            height: 72,
+            fit: BoxFit.cover,
+            errorBuilder: (_, __, ___) => Container(
+                width: 72,
+                height: 72,
+                color: AppColors.border,
+                child: const Icon(Icons.broken_image_outlined))),
+      ),
+    );
+  }
+}
+
 class _RefundCard extends StatelessWidget {
   const _RefundCard(this.r);
 
@@ -117,6 +150,13 @@ class _RefundCard extends StatelessWidget {
           if (r.verifiedAt != null)
             Text('Xác minh: ${AppDates.timeDay(r.verifiedAt)}',
                 style: AppText.bodySmall),
+          if (r.evidenceUrl.isNotEmpty) ...<Widget>[
+            const SizedBox(height: AppSpacing.s6),
+            const Text('Bằng chứng chuyển tiền (chạm để phóng to)',
+                style: AppText.mutedSmall),
+            const SizedBox(height: AppSpacing.xs),
+            _ProofThumb(r.evidenceUrl),
+          ],
           if (r.status == 'EvidenceRejected') ...<Widget>[
             const SizedBox(height: AppSpacing.s6),
             const InfoBanner(

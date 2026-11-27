@@ -51,6 +51,8 @@ Map<String, dynamic> _refund(String id, String status) => <String, dynamic>{
       'transactionReference': status == 'Refunded' ? 'FT123' : null,
       'verifiedAt': null,
       'reason': 'Claim KN-1',
+      'evidenceUrl':
+          status == 'Refunded' ? 'https://blob.test/claim/$id.jpg?sig=x' : null,
     };
 
 Map<String, dynamic> _order(String orderId, String code, String method,
@@ -139,6 +141,8 @@ void main() {
     expect(refunds.first.paymentText, 'Trả trước');
     expect(refunds.first.statusText, 'Bằng chứng bị trả lại');
     expect(refunds.last.transactionReference, 'FT123');
+    expect(refunds.last.evidenceUrl, 'https://blob.test/claim/r1.jpg?sig=x');
+    expect(refunds.first.evidenceUrl, isEmpty);
   });
 
   test('lists Credit refunds when the claims screen is not granted', () async {

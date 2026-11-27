@@ -332,6 +332,8 @@ void main() {
     await tester
         .tap(find.widgetWithText(FilledButton, 'Xác nhận phần giao WH-A'));
     await tester.pumpAndSettle();
+    await tester.tap(find.text('Xác nhận nhận thiếu'));
+    await tester.pumpAndSettle();
 
     expect(find.textContaining('Có thùng không thuộc phần giao này'),
         findsOneWidget);
@@ -351,6 +353,16 @@ void main() {
     await _enter(tester, _cid1);
     await tester
         .tap(find.widgetWithText(FilledButton, 'Xác nhận phần giao WH-A'));
+    await tester.pumpAndSettle();
+    // 1 of 2 cartons: the shortage popup comes first; "Quét tiếp" sends nothing.
+    expect(find.textContaining('1/2 thùng (thiếu 1 thùng)'), findsOneWidget);
+    await tester.tap(find.text('Quét tiếp'));
+    await tester.pumpAndSettle();
+    expect(t.receipts, isEmpty);
+    await tester
+        .tap(find.widgetWithText(FilledButton, 'Xác nhận phần giao WH-A'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Xác nhận nhận thiếu'));
     await tester.pumpAndSettle();
 
     expect(t.receipts, hasLength(1)); // no automatic retry
