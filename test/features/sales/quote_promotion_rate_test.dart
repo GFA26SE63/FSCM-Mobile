@@ -93,11 +93,11 @@ void main() {
     await pump(tester, _quote());
 
     // Savings = persisted discountAmount, once per line (no duplicate −amount).
-    expect(find.text('Tiết kiệm 235.000đ'), findsOneWidget);
-    expect(find.text('Tiết kiệm 80.000đ'), findsOneWidget);
-    expect(find.text('Tiết kiệm 150.000đ'), findsOneWidget);
-    expect(find.text('Tiết kiệm 50.000đ'), findsOneWidget);
-    expect(find.textContaining('−235.000đ'), findsNothing);
+    expect(find.text('Tiết kiệm 235.000 VND'), findsOneWidget);
+    expect(find.text('Tiết kiệm 80.000 VND'), findsOneWidget);
+    expect(find.text('Tiết kiệm 150.000 VND'), findsOneWidget);
+    expect(find.text('Tiết kiệm 50.000 VND'), findsOneWidget);
+    expect(find.textContaining('−235.000 VND'), findsNothing);
 
     expect(find.text(' · KM 10%'), findsOneWidget);
     expect(find.text(' · KM 8%'), findsOneWidget);
@@ -123,7 +123,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('owner example: 280đ savings, Demo_Demo1 · KM 10%',
+  testWidgets('owner example: 280 VND savings, Demo_Demo1 · KM 10%',
       (tester) async {
     final order = Order.fromJson({
       'id': 'q-2',
@@ -153,12 +153,12 @@ void main() {
       ],
     });
     await pump(tester, order);
-    expect(find.text('Tiết kiệm 280đ'), findsOneWidget);
+    expect(find.text('Tiết kiệm 280 VND'), findsOneWidget);
     expect(find.text('Demo_Demo1'), findsOneWidget);
     expect(find.text(' · KM 10%'), findsOneWidget);
     expect(find.textContaining('23,33'), findsNothing);
     expect(find.textContaining('23.33'), findsNothing);
-    expect(find.textContaining('−280đ'), findsNothing);
+    expect(find.textContaining('−280 VND'), findsNothing);
     expect(order.lines.single.net, 920);
   });
 
