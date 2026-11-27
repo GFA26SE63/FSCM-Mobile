@@ -384,8 +384,7 @@ List<RouteBase> _retailerRoutes() => <RouteBase>[
           path: AppRoutes.rtPayments,
           builder: (c, s) => const PaymentsScreen()),
       GoRoute(
-          path: AppRoutes.rtRefunds,
-          builder: (c, s) => const RefundsScreen()),
+          path: AppRoutes.rtRefunds, builder: (c, s) => const RefundsScreen()),
       GoRoute(
           path: AppRoutes.rtLoyalty, builder: (c, s) => const LoyaltyScreen()),
       GoRoute(

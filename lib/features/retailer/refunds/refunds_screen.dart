@@ -39,8 +39,9 @@ class RefundsScreen extends ConsumerWidget {
                 title: 'Chưa có phiếu hoàn tiền nào.');
           }
           final open = ref.watch(_refundFilterProvider);
-          final shown =
-              open == null ? list : list.where((r) => r.isOpen == open).toList();
+          final shown = open == null
+              ? list
+              : list.where((r) => r.isOpen == open).toList();
           return Column(children: <Widget>[
             Padding(
               padding: const EdgeInsets.only(top: AppSpacing.sm),

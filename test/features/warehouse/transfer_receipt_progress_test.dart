@@ -26,7 +26,8 @@ class _Transport implements ApiTransport {
     requests.add(r);
     if (forbidHistoryFor != null && r.path.contains('/$forbidHistoryFor/')) {
       return const ApiResponse(
-          statusCode: 403, data: {'detail': 'Kho không thuộc phạm vi quản lý.'});
+          statusCode: 403,
+          data: {'detail': 'Kho không thuộc phạm vi quản lý.'});
     }
     return const ApiResponse(statusCode: 200, data: <Object>[]);
   }
@@ -44,8 +45,13 @@ AppUser _keeper(List<String> warehouses) => AppUser(
 /// Source transfer issue: WH-A → WH-B, 1 carton already scanned and posted by A.
 WarehouseWork _sourceIssue() => WarehouseWork({
       'document': {
-        'id': 'issue', 'code': 'PXK-1', 'kind': 'Issue', 'reason': 'Transfer',
-        'status': 'Posted', 'warehouseId': 'A', 'destinationWarehouseId': 'B',
+        'id': 'issue',
+        'code': 'PXK-1',
+        'kind': 'Issue',
+        'reason': 'Transfer',
+        'status': 'Posted',
+        'warehouseId': 'A',
+        'destinationWarehouseId': 'B',
         'version': 5
       },
       'lines': [
@@ -60,9 +66,14 @@ WarehouseWork _receipt(
         {String status = 'Open', List<String> scanned = const []}) =>
     WarehouseWork({
       'document': {
-        'id': 'receipt', 'code': 'PNK-1', 'kind': 'Receipt',
-        'reason': 'Transfer', 'status': status, 'warehouseId': 'B',
-        'destinationWarehouseId': 'B', 'sourceDocumentId': 'issue',
+        'id': 'receipt',
+        'code': 'PNK-1',
+        'kind': 'Receipt',
+        'reason': 'Transfer',
+        'status': status,
+        'warehouseId': 'B',
+        'destinationWarehouseId': 'B',
+        'sourceDocumentId': 'issue',
         'version': 1
       },
       'lines': [
@@ -87,15 +98,12 @@ Future<_Transport> _open(WidgetTester tester,
   tester.view.physicalSize = const Size(800, 2400);
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
-  await tester.pumpWidget(ProviderScope(
-      overrides: [
-        currentUserProvider.overrideWith((ref) => user),
-        warehouseDocumentProvider(id).overrideWith((ref) => doc()),
-        warehouseDocumentsApiProvider.overrideWith((ref) => WarehouseDocumentsApi(
-            ApiClient(transport: t, tokenReader: () => null))),
-      ],
-      child: MaterialApp(
-          home: WarehouseDocumentScreen(id: id, mode: mode))));
+  await tester.pumpWidget(ProviderScope(overrides: [
+    currentUserProvider.overrideWith((ref) => user),
+    warehouseDocumentProvider(id).overrideWith((ref) => doc()),
+    warehouseDocumentsApiProvider.overrideWith((ref) => WarehouseDocumentsApi(
+        ApiClient(transport: t, tokenReader: () => null))),
+  ], child: MaterialApp(home: WarehouseDocumentScreen(id: id, mode: mode))));
   await tester.pumpAndSettle();
   return t;
 }
@@ -131,7 +139,9 @@ void main() {
   testWidgets('keeper of both warehouses does not see the issue 1/1 as receipt',
       (tester) async {
     final t = await _open(tester,
-        user: _keeper(['A', 'B']), id: 'issue', doc: () async => _sourceIssue());
+        user: _keeper(['A', 'B']),
+        id: 'issue',
+        doc: () async => _sourceIssue());
     expect(find.text('Tiến độ quét'), findsNothing);
     expect(find.textContaining('Đã quét 1 / 1'), findsNothing);
     expect(find.text('CID-1'), findsNothing);
@@ -165,8 +175,8 @@ void main() {
         user: _keeper(['B']), id: 'receipt', doc: () async => _receipt());
     expect(find.text('Đã quét 0 / 2 thùng'), findsOneWidget);
     expect(find.textContaining('hoàn tất'), findsNothing);
-    final post = tester.widget<FilledButton>(find.widgetWithText(
-        FilledButton, 'Xác nhận nhập kho & ghi sổ PNK'));
+    final post = tester.widget<FilledButton>(
+        find.widgetWithText(FilledButton, 'Xác nhận nhập kho & ghi sổ PNK'));
     expect(post.onPressed, isNull);
     expect(t.requests.where((r) => r.method == 'POST'), isEmpty);
   });
@@ -177,8 +187,8 @@ void main() {
         id: 'receipt',
         doc: () async => _receipt(scanned: ['CID-1']));
     expect(find.text('Đã quét 1 / 2 thùng'), findsOneWidget);
-    final post = tester.widget<FilledButton>(find.widgetWithText(
-        FilledButton, 'Xác nhận nhập kho & ghi sổ PNK'));
+    final post = tester.widget<FilledButton>(
+        find.widgetWithText(FilledButton, 'Xác nhận nhập kho & ghi sổ PNK'));
     expect(post.onPressed, isNull);
   });
 
@@ -190,8 +200,8 @@ void main() {
         doc: () async => _receipt(scanned: ['CID-1', 'CID-2']));
     expect(find.text('Đã quét 2 / 2 thùng'), findsOneWidget);
     expect(find.textContaining('Phiếu đã ghi sổ'), findsNothing);
-    final post = tester.widget<FilledButton>(find.widgetWithText(
-        FilledButton, 'Xác nhận nhập kho & ghi sổ PNK'));
+    final post = tester.widget<FilledButton>(
+        find.widgetWithText(FilledButton, 'Xác nhận nhập kho & ghi sổ PNK'));
     expect(post.onPressed, isNotNull);
     expect(t.requests.where((r) => r.method == 'POST'), isEmpty);
   });

@@ -123,10 +123,9 @@ class OrderLinesCard extends StatelessWidget {
     );
   }
 
-  static String _pct(double v) => (v == v.roundToDouble()
-          ? v.round().toString()
-          : v.toString())
-      .replaceAll('.', ',');
+  static String _pct(double v) =>
+      (v == v.roundToDouble() ? v.round().toString() : v.toString())
+          .replaceAll('.', ',');
 }
 
 /// "Khuyến mãi áp dụng" summary: one row per promotion.

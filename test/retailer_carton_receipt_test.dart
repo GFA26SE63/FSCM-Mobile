@@ -55,8 +55,7 @@ const _user = AppUser(
     role: UserRole.retailer,
     retailerCode: '1001');
 
-DeliveryShipment _shipment(
-        {String id = 's1', String warehouseCode = 'WH-A'}) =>
+DeliveryShipment _shipment({String id = 's1', String warehouseCode = 'WH-A'}) =>
     DeliveryShipment.fromJson(<String, dynamic>{
       'id': id,
       'shipmentCode': 'GH-$id',
@@ -232,7 +231,8 @@ void main() {
     expect(AppRoutes.rtReceive('o1'), '/retailer/receive/o1');
   });
 
-  testWidgets('leaving mid-scan asks: keep draft above discard', (tester) async {
+  testWidgets('leaving mid-scan asks: keep draft above discard',
+      (tester) async {
     await _pump(tester);
     await _enter(tester, _cid1);
 

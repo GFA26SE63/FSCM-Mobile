@@ -32,7 +32,8 @@ class _Transport implements ApiTransport {
 ApiResponse _data(Map<String, dynamic> data) =>
     ApiResponse(statusCode: 200, data: <String, dynamic>{'data': data});
 
-ApiResponse _forbidden() => const ApiResponse(statusCode: 200, data: <String, dynamic>{
+ApiResponse _forbidden() =>
+    const ApiResponse(statusCode: 200, data: <String, dynamic>{
       'data': null,
       'errors': <Map<String, dynamic>>[
         <String, dynamic>{
@@ -98,10 +99,26 @@ void main() {
               'entities': <String, dynamic>{
                 'complaintReads': <Map<String, dynamic>>[
                   // Credit order already loaded: no extra call.
-                  <String, dynamic>{'id': 'c1', 'refundId': 'r1', 'salesOrderId': 'o1'},
-                  <String, dynamic>{'id': 'c2', 'refundId': 'r2', 'salesOrderId': 'o3'},
-                  <String, dynamic>{'id': 'c3', 'refundId': 'r2', 'salesOrderId': 'o3'},
-                  <String, dynamic>{'id': 'c4', 'refundId': '', 'salesOrderId': 'o4'},
+                  <String, dynamic>{
+                    'id': 'c1',
+                    'refundId': 'r1',
+                    'salesOrderId': 'o1'
+                  },
+                  <String, dynamic>{
+                    'id': 'c2',
+                    'refundId': 'r2',
+                    'salesOrderId': 'o3'
+                  },
+                  <String, dynamic>{
+                    'id': 'c3',
+                    'refundId': 'r2',
+                    'salesOrderId': 'o3'
+                  },
+                  <String, dynamic>{
+                    'id': 'c4',
+                    'refundId': '',
+                    'salesOrderId': 'o4'
+                  },
                 ],
               },
             }),
