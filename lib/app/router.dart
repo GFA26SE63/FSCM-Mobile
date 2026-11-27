@@ -9,6 +9,7 @@ import 'package:fscm_mobile/app/shell/retailer_shell.dart';
 import 'package:fscm_mobile/app/shell/sales_shell.dart';
 import 'package:fscm_mobile/app/shell/warehouse_shell.dart';
 import 'package:fscm_mobile/core/auth/user_role.dart';
+import 'package:fscm_mobile/core/auth/screen_permissions.dart';
 import 'package:fscm_mobile/data/models/retailer_declaration.dart';
 import 'package:fscm_mobile/data/repositories/auth_repository.dart';
 import 'package:fscm_mobile/features/common/auth/login_screen.dart';
@@ -112,8 +113,7 @@ String? redirectFor({
 final routerProvider = Provider<GoRouter>((ref) {
   final refresh = ValueNotifier<int>(0);
   ref.listen<AuthState>(authControllerProvider, (previous, next) {
-    if (previous?.status != next.status ||
-        previous?.user?.role != next.user?.role) {
+    if (previous?.status != next.status || previous?.user != next.user) {
       refresh.value++;
     }
   });
@@ -124,6 +124,23 @@ final routerProvider = Provider<GoRouter>((ref) {
     refreshListenable: refresh,
     redirect: (context, state) {
       final auth = ref.read(authControllerProvider);
+      if (auth.isAuthenticated &&
+          auth.user != null &&
+          !canAccessMobilePath(auth.user, state.uri.path) &&
+          state.uri.path != AppRoutes.login &&
+          state.uri.path != AppRoutes.splash &&
+          state.uri.path != '/') {
+        switch (auth.user!.role) {
+          case UserRole.sales:
+            return AppRoutes.salesAccount;
+          case UserRole.warehouseKeeper:
+            return AppRoutes.wkAccount;
+          case UserRole.retailer:
+            return AppRoutes.rtAccount;
+          default:
+            return AppRoutes.login;
+        }
+      }
       return redirectFor(
         status: auth.status,
         role: auth.user?.role,

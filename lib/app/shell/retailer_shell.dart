@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:fscm_mobile/shared/widgets/permission_navigation_bar.dart';
 
 import 'package:fscm_mobile/shared/theme/app_colors.dart';
 
@@ -17,7 +18,12 @@ class RetailerShell extends StatelessWidget {
         decoration: const BoxDecoration(
           border: Border(top: BorderSide(color: AppColors.divider)),
         ),
-        child: NavigationBar(
+        child: PermissionNavigationBar(
+          paths: const [
+            '/retailer/orders',
+            '/retailer/scan',
+            '/retailer/account'
+          ],
           selectedIndex: navigationShell.currentIndex,
           onDestinationSelected: (i) => navigationShell.goBranch(i,
               initialLocation: i == navigationShell.currentIndex),
