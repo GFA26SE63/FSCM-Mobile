@@ -43,6 +43,7 @@ class DeliveryShipment {
     this.dispatchedAt,
     this.receivedAt,
     this.exceptionReason = '',
+    this.demoQrCodes = const <String>[],
   });
 
   factory DeliveryShipment.fromJson(Map<String, dynamic> json) =>
@@ -64,6 +65,9 @@ class DeliveryShipment {
         lines: asMapList(json['lines'])
             .map(DeliveryShipmentLine.fromJson)
             .toList(growable: false),
+        demoQrCodes: (json['demoQrCodes'] as List? ?? const <Object?>[])
+            .map(asStr)
+            .toList(growable: false),
       );
 
   final String id;
@@ -77,6 +81,9 @@ class DeliveryShipment {
   final DateTime? dispatchedAt;
   final DateTime? receivedAt;
   final String exceptionReason;
+
+  /// Expected carton QR codes, sent only while the admin demo fast-scan switch is on.
+  final List<String> demoQrCodes;
 
   String get statusLabel => switch (status) {
         'WaitingToPick' => 'Chờ soạn hàng',

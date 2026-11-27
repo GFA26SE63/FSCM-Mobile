@@ -1,10 +1,12 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:fscm_mobile/data/remote/order_configuration_api.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
 /// Camera QR scanner with a manual-entry field.
-class QrScanView extends StatefulWidget {
+class QrScanView extends ConsumerStatefulWidget {
   const QrScanView({
     super.key,
     required this.onCode,
@@ -12,6 +14,8 @@ class QrScanView extends StatefulWidget {
     this.manualLabel = 'Hoặc nhập mã thủ công',
     this.height = 260,
     this.allowManual = true,
+    this.demoCodes = const <String>[],
+    this.onDemoScan,
   });
 
   /// Called with the raw text of each (de-duplicated) scan.
@@ -21,11 +25,35 @@ class QrScanView extends StatefulWidget {
   final double height;
   final bool allowManual;
 
+  /// Real codes still expected by the screen. The "Quét nhanh" button shows
+  /// only while the admin demo switch is on and this list is not empty.
+  final List<String> demoCodes;
+
+  /// Async handler for all [demoCodes] at once; defaults to [onCode] per code.
+  final Future<void> Function(List<String> codes)? onDemoScan;
+
   @override
-  State<QrScanView> createState() => _QrScanViewState();
+  ConsumerState<QrScanView> createState() => _QrScanViewState();
 }
 
-class _QrScanViewState extends State<QrScanView> {
+class _QrScanViewState extends ConsumerState<QrScanView> {
+  bool _demoBusy = false;
+
+  Future<void> _demoScan() async {
+    final codes = List<String>.of(widget.demoCodes);
+    setState(() => _demoBusy = true);
+    try {
+      if (widget.onDemoScan != null) {
+        await widget.onDemoScan!(codes);
+      } else {
+        // Same path as a camera scan, so every screen check still runs.
+        codes.forEach(widget.onCode);
+      }
+    } finally {
+      if (mounted) setState(() => _demoBusy = false);
+    }
+  }
+
   final TextEditingController _manual = TextEditingController();
   String? _lastCode;
   Timer? _debounce;
@@ -103,6 +131,17 @@ class _QrScanViewState extends State<QrScanView> {
             ),
           ),
         ),
+        if (widget.demoCodes.isNotEmpty &&
+            (ref.watch(demoFastScanProvider).valueOrNull ?? false)) ...<Widget>[
+          const SizedBox(height: 12),
+          OutlinedButton.icon(
+            onPressed: _demoBusy ? null : _demoScan,
+            icon: const Icon(Icons.bolt),
+            label: Text(_demoBusy
+                ? 'Đang quét nhanh...'
+                : 'Quét nhanh ${widget.demoCodes.length} mã (demo)'),
+          ),
+        ],
         if (widget.allowManual) const SizedBox(height: 12),
         if (widget.allowManual)
           Row(

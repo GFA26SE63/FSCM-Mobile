@@ -18,6 +18,7 @@ import 'package:fscm_mobile/shared/routes.dart';
 import 'package:fscm_mobile/shared/theme/app_colors.dart';
 import 'package:fscm_mobile/shared/widgets/app_card.dart';
 import 'package:fscm_mobile/shared/widgets/async_body.dart';
+import 'package:fscm_mobile/shared/widgets/dialogs.dart';
 import 'package:fscm_mobile/shared/widgets/info_banner.dart';
 import 'package:fscm_mobile/shared/widgets/qr_scan_view.dart';
 import 'package:fscm_mobile/shared/widgets/section_title.dart';
@@ -137,6 +138,21 @@ class _RtReceiveScreenState extends ConsumerState<RtReceiveScreen> {
   }
 
   Future<void> _confirm(Order order, DeliveryShipment shipment) async {
+    final scannedCount = _scanned.length;
+    if (scannedCount < shipment.totalQuantity) {
+      final shortBy = shipment.totalQuantity - scannedCount;
+      final ok = await confirmDialog(
+        context,
+        title: 'Phần giao đang thiếu thùng',
+        message:
+            'Bạn mới quét $scannedCount/${_quantity(shipment.totalQuantity)} thùng '
+            '(thiếu ${_quantity(shortBy)} thùng). Hệ thống sẽ ghi nhận số thực nhận '
+            'và đánh dấu phần thiếu để đối soát. Tiếp tục xác nhận?',
+        confirmLabel: 'Xác nhận nhận thiếu',
+        cancelLabel: 'Quét tiếp',
+      );
+      if (!ok || !mounted) return;
+    }
     final receivedQuantities = _receivedQuantitiesFor(shipment);
     setState(() {
       _busy = true;
@@ -382,6 +398,9 @@ class _RtReceiveScreenState extends ConsumerState<RtReceiveScreen> {
           key: _scannerKey,
           hint: 'Quét mã QR trên thùng hàng',
           onCode: _onScan,
+          demoCodes: selected.demoQrCodes
+              .where((c) => !_scanned.contains(c.trim().toUpperCase()))
+              .toList(growable: false),
         ),
         if (_error.isNotEmpty) ...<Widget>[
           const SizedBox(height: AppSpacing.md),

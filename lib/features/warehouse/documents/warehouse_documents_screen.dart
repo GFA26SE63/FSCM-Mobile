@@ -767,6 +767,26 @@ class _WarehouseDocumentScreenState
                           hint: w.factory
                               ? 'Quét đúng QR pallet trên phiếu'
                               : 'Quét QR từng thùng',
+                          demoCodes: w.factory || d['kind'] != 'Receipt'
+                              ? const <String>[]
+                              : [
+                                  for (final c in w.cartons)
+                                    if (c['scannedAt'] == null)
+                                      asStr(c['cartonId'])
+                                ],
+                          // Each scan bumps the document version; chain them.
+                          onDemoScan: (codes) => act(() async {
+                                final api =
+                                    ref.read(warehouseDocumentsApiProvider);
+                                var current = w;
+                                for (final code in codes) {
+                                  current = await api.scanCarton(current, code);
+                                }
+                                if (mounted) {
+                                  setState(() => notice =
+                                      'Đã ghi nhận ${codes.length} thùng. Chờ xác nhận ghi sổ.');
+                                }
+                              }),
                           onCode: (code) => act(() async {
                                 final api =
                                     ref.read(warehouseDocumentsApiProvider);
