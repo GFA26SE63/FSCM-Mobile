@@ -417,9 +417,6 @@ List<RouteBase> _retailerRoutes() => <RouteBase>[
         builder: (c, s) => ComplaintFormScreen(
           orderCode: s.uri.queryParameters['order'],
           initialShipmentId: s.uri.queryParameters['shipmentId'],
-          initialActualQty: int.tryParse(
-            s.uri.queryParameters['actualQty'] ?? '',
-          ),
         ),
       ),
       GoRoute(
@@ -429,7 +426,8 @@ List<RouteBase> _retailerRoutes() => <RouteBase>[
       ),
       GoRoute(
         path: AppRoutes.rtReceivePattern,
-        builder: (c, s) =>
-            RtReceiveScreen(code: s.pathParameters['code'] ?? ''),
+        builder: (c, s) => RtReceiveScreen(
+            code: s.pathParameters['code'] ?? '',
+            initialShipmentId: s.uri.queryParameters['shipmentId']),
       ),
     ];

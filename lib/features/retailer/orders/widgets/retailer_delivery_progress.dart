@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:fscm_mobile/core/network/api_exception.dart';
 import 'package:fscm_mobile/core/utils/dates.dart';
 import 'package:fscm_mobile/core/utils/status_tone.dart';
+import 'package:fscm_mobile/data/local/receipt_draft_store.dart';
 import 'package:fscm_mobile/data/models/enums.dart';
 import 'package:fscm_mobile/data/models/order.dart';
 import 'package:fscm_mobile/data/repositories/order_repository.dart';
@@ -105,12 +106,23 @@ class RetailerDeliveryProgress extends ConsumerWidget {
                           tone: StatusTone.warning,
                           text: shipment.exceptionReason),
                     if (shipment.canReceive)
-                      OutlinedButton.icon(
-                        onPressed: () =>
-                            context.push(AppRoutes.rtReceive(order.id)),
-                        icon: const Icon(Icons.qr_code_scanner),
-                        label: const Text('Chọn phần giao và quét nhận hàng'),
-                      ),
+                      Builder(builder: (context) {
+                        final drafted = ref
+                                .watch(receiptDraftCountProvider(shipment))
+                                .valueOrNull ??
+                            0;
+                        return OutlinedButton.icon(
+                          onPressed: () async {
+                            await context.push(AppRoutes.rtReceive(order.id,
+                                shipmentId: shipment.id));
+                            ref.invalidate(receiptDraftCountProvider);
+                          },
+                          icon: const Icon(Icons.qr_code_scanner),
+                          label: Text(drafted > 0
+                              ? 'Đang nhận: $drafted/${formatQuantity(shipment.totalQuantity)} thùng · Tiếp tục quét'
+                              : 'Chọn phần giao và quét nhận hàng'),
+                        );
+                      }),
                   ],
                 )),
             ]),

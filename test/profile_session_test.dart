@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -105,4 +107,92 @@ void main() {
       }
     });
   }
+
+  test('periodic /me with an unchanged profile does not republish the user',
+      () async {
+    final cachedUser = <String, dynamic>{
+      'id': 'user',
+      'role': 'Retailer',
+      'fullName': 'Same name',
+    };
+    final tokens = _MemoryTokens(<String, dynamic>{
+      'accessToken': 'access',
+      'refreshToken': 'refresh',
+      'user': cachedUser,
+    });
+    final client =
+        ApiClient(transport: _UnusedTransport(), tokenReader: () => 'access');
+    addTearDown(client.dispose);
+    final api = _ProfileApi(
+        client, AppUser.fromJson(<String, dynamic>{...cachedUser}));
+    final container = ProviderContainer(overrides: [
+      tokenStoreProvider.overrideWithValue(tokens),
+      apiClientProvider.overrideWithValue(client),
+      authApiProvider.overrideWithValue(api),
+    ]);
+    addTearDown(container.dispose);
+    final controller = container.read(authControllerProvider.notifier);
+    await controller.restore();
+    await Future<void>.delayed(Duration.zero);
+    final before = container.read(currentUserProvider);
+    var emissions = 0;
+    container.listen(currentUserProvider, (_, __) => emissions++);
+
+    await controller.verifySessionOnResume();
+
+    // A new user instance would rebuild every provider watching it (screens reload).
+    expect(api.meCalls, 2);
+    expect(emissions, 0);
+    expect(identical(container.read(currentUserProvider), before), isTrue);
+  });
+
+  test('token refresh with the same profile keeps the same user object',
+      () async {
+    final cachedUser = <String, dynamic>{
+      'id': 'user',
+      'role': 'Retailer',
+      'fullName': 'Same name',
+    };
+    final tokens = _MemoryTokens(<String, dynamic>{
+      'accessToken': 'access',
+      'refreshToken': 'refresh',
+      'user': cachedUser,
+    });
+    final client = _RefreshingClient();
+    addTearDown(client.dispose);
+    final api = _ProfileApi(
+        client, AppUser.fromJson(<String, dynamic>{...cachedUser}));
+    final container = ProviderContainer(overrides: [
+      tokenStoreProvider.overrideWithValue(tokens),
+      apiClientProvider.overrideWithValue(client),
+      authApiProvider.overrideWithValue(api),
+    ]);
+    addTearDown(container.dispose);
+    await container.read(authControllerProvider.notifier).restore();
+    await Future<void>.delayed(Duration.zero);
+    final before = container.read(currentUserProvider);
+    var emissions = 0;
+    container.listen(currentUserProvider, (_, __) => emissions++);
+
+    client.refreshed.add(Session.fromJson(<String, dynamic>{
+      'accessToken': 'access-2',
+      'refreshToken': 'refresh-2',
+      'user': cachedUser,
+    }));
+    await Future<void>.delayed(Duration.zero);
+
+    expect(container.read(authControllerProvider).session!.accessToken,
+        'access-2');
+    expect(emissions, 0);
+    expect(identical(container.read(currentUserProvider), before), isTrue);
+  });
+}
+
+class _RefreshingClient extends ApiClient {
+  _RefreshingClient()
+      : super(transport: _UnusedTransport(), tokenReader: () => 'access');
+  final refreshed = StreamController<Session>.broadcast();
+
+  @override
+  Stream<Session> get onSessionRefreshed => refreshed.stream;
 }

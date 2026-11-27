@@ -67,20 +67,22 @@ class AppRoutes {
   static const String rtReceivePattern = '/retailer/receive/:code';
 
   static String rtOrderDetail(String code) => '/retailer/order/$code';
-  static String rtReceive(String code) => '/retailer/receive/$code';
+  /// [shipmentId] preselects the warehouse part the retailer tapped.
+  static String rtReceive(String code, {String? shipmentId}) => Uri(
+          path: '/retailer/receive/$code',
+          queryParameters: shipmentId == null || shipmentId.isEmpty
+              ? null
+              : <String, String>{'shipmentId': shipmentId})
+      .toString();
 
   /// `/retailer/complaint-new?order=DH-001021`
   static String rtComplaintFor(
     String orderCode, {
     String? shipmentId,
-    int? actualQty,
   }) {
     final params = <String, String>{'order': orderCode};
     if (shipmentId != null && shipmentId.isNotEmpty) {
       params['shipmentId'] = shipmentId;
-    }
-    if (actualQty != null) {
-      params['actualQty'] = '$actualQty';
     }
     return Uri(path: rtComplaintNew, queryParameters: params).toString();
   }

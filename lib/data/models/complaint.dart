@@ -210,7 +210,8 @@ class ComplaintTarget {
       required this.expectedQuantity,
       this.receivedQuantity,
       this.remainingClaimableQuantity,
-      this.remainingReturnableQuantity});
+      this.remainingReturnableQuantity,
+      this.claimDeadline});
   factory ComplaintTarget.fromJson(Map<String, dynamic> j) => ComplaintTarget(
       shipmentId: asStr(j['shipmentId']),
       shipmentCode: asStr(j['shipmentCode']),
@@ -227,7 +228,8 @@ class ComplaintTarget {
           : asInt(j['remainingClaimableQuantity']),
       remainingReturnableQuantity: j['remainingReturnableQuantity'] == null
           ? null
-          : asInt(j['remainingReturnableQuantity']));
+          : asInt(j['remainingReturnableQuantity']),
+      claimDeadline: asDate(j['claimDeadline']));
   final String shipmentId,
       shipmentCode,
       allocationId,
@@ -239,6 +241,9 @@ class ComplaintTarget {
   final int? receivedQuantity,
       remainingClaimableQuantity,
       remainingReturnableQuantity;
+
+  /// Last moment a request can be sent for this delivered part.
+  final DateTime? claimDeadline;
 }
 
 /// One evidence image of a claim; [url] is a short-lived read URL.

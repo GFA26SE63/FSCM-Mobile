@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:fscm_mobile/core/network/api_exception.dart';
+import 'package:fscm_mobile/core/utils/dates.dart';
 import 'package:fscm_mobile/core/utils/status_tone.dart';
 import 'package:fscm_mobile/data/models/complaint.dart';
 import 'package:fscm_mobile/data/models/enums.dart';
@@ -24,11 +25,9 @@ class ComplaintFormScreen extends ConsumerStatefulWidget {
     super.key,
     this.orderCode,
     this.initialShipmentId,
-    this.initialActualQty,
   });
   final String? orderCode;
   final String? initialShipmentId;
-  final int? initialActualQty;
   @override
   ConsumerState<ComplaintFormScreen> createState() =>
       _ComplaintFormScreenState();
@@ -49,9 +48,6 @@ class _ComplaintFormScreenState extends ConsumerState<ComplaintFormScreen> {
   void initState() {
     super.initState();
     _orderCode = widget.orderCode;
-    if (widget.initialActualQty != null) {
-      _actual.text = '${widget.initialActualQty}';
-    }
   }
 
   @override
@@ -83,12 +79,15 @@ class _ComplaintFormScreenState extends ConsumerState<ComplaintFormScreen> {
   Future<void> _submit(
       Order order, ComplaintTarget target, String settlementMethod) async {
     if (_busy) return;
-    final actual = int.tryParse(_actual.text.trim());
-    final affected = actual == null
-        ? 0
+    // The field is the affected carton count (damaged/missing, or to return);
+    // a Complaint still sends the usable count the Backend expects as actualQty.
+    final entered = int.tryParse(_actual.text.trim());
+    final affected = entered ?? 0;
+    final actual = entered == null
+        ? null
         : _requestType == 'Complaint'
-            ? target.expectedQuantity - actual
-            : actual;
+            ? target.expectedQuantity - entered
+            : entered;
     final claimLimit =
         target.remainingClaimableQuantity ?? target.expectedQuantity;
     final returnLimit = target.remainingReturnableQuantity ??
@@ -97,7 +96,7 @@ class _ComplaintFormScreenState extends ConsumerState<ComplaintFormScreen> {
     if (actual == null ||
         actual < 0 ||
         affected <= 0 ||
-        (settlementMethod != 'None' && affected > claimLimit) ||
+        affected > claimLimit ||
         ((_requestType != 'Complaint' || _collect) && affected > returnLimit)) {
       showAppSnack(context,
           'Số thùng không hợp lệ. Còn $claimLimit thùng được yêu cầu bồi hoàn, $returnLimit thùng được trả/thu hồi.',
@@ -173,10 +172,15 @@ class _ComplaintFormScreenState extends ConsumerState<ComplaintFormScreen> {
                 .toList();
             final matches = eligible.where((o) => o.code == _orderCode);
             final order = matches.isEmpty ? null : matches.first;
-            final isCreditPaid = order != null &&
+            // The order list has no payment amounts; the detail carries what was collected.
+            final detail = order == null
+                ? null
+                : ref.watch(orderDetailProvider(order.code)).valueOrNull;
+            final isCreditCollected = order != null &&
                 order.payment == PaymentMethod.credit &&
-                order.paid;
-            final lockedSettlement = order == null || _requestType == 'DamagedCollection'
+                (detail?.confirmedAmount ?? order.confirmedAmount) > 0;
+            // The server enforces the same mapping: prepaid is refunded, credit reduces debt.
+            final lockedSettlement = order == null
                 ? null
                 : order.payment == PaymentMethod.prepaid
                     ? 'CashRefund'
@@ -256,12 +260,12 @@ class _ComplaintFormScreenState extends ConsumerState<ComplaintFormScreen> {
                                     child: const Text(
                                         'Không tải được phần hàng. Thử lại')),
                                 data: (targets) {
-                                  if (isCreditPaid) {
+                                  if (isCreditCollected) {
                                     return const InfoBanner(
                                       tone: StatusTone.warning,
                                       icon: Icons.lock_outline,
                                       text:
-                                          'Đơn hàng công nợ đã thanh toán đủ nên đã khóa tạo khiếu nại mới.',
+                                          'Đơn công nợ đã phát sinh thanh toán nên không thể tạo yêu cầu.',
                                     );
                                   }
                                   var chosen = targets.where(
@@ -285,7 +289,7 @@ class _ComplaintFormScreenState extends ConsumerState<ComplaintFormScreen> {
                                               padding:
                                                   EdgeInsets.all(AppSpacing.md),
                                               child: Text(
-                                                  'Không còn phần hàng đã nhận đủ điều kiện khiếu nại.')),
+                                                  'Không còn phần hàng trong hạn gửi yêu cầu.')),
                                         DropdownButtonFormField<String>(
                                             key: ValueKey(
                                                 '${order.id}:$_allocationId'),
@@ -312,7 +316,7 @@ class _ComplaintFormScreenState extends ConsumerState<ComplaintFormScreen> {
                                           InfoBanner(
                                               icon: Icons.inventory_2_outlined,
                                               text:
-                                                  '${target.productName}\nTem ${target.labelCode} · giao ${target.expectedQuantity} thùng'),
+                                                  '${target.productName}\nTem ${target.labelCode} · giao ${target.expectedQuantity} thùng\nHạn gửi: ${AppDates.timeDay(target.claimDeadline)}'),
                                           if (_requestType == 'Complaint')
                                             const SectionTitle('Lý do'),
                                           if (_requestType == 'Complaint')
@@ -357,12 +361,6 @@ class _ComplaintFormScreenState extends ConsumerState<ComplaintFormScreen> {
                                                 const DropdownMenuItem(
                                                     value: 'CashRefund',
                                                     child: Text('Hoàn tiền')),
-                                                if (_requestType ==
-                                                    'DamagedCollection')
-                                                  const DropdownMenuItem(
-                                                      value: 'None',
-                                                      child: Text(
-                                                          'Chỉ thu hồi, không bồi hoàn'))
                                               ],
                                               onChanged: _busy || lockedSettlement != null
                                                   ? null
@@ -381,7 +379,7 @@ class _ComplaintFormScreenState extends ConsumerState<ComplaintFormScreen> {
                                                         _collect = v ?? false)),
                                           const InfoBanner(
                                               text:
-                                                  'Giảm nợ trong đơn gốc trước; phần tiền đã thu thừa được lập phiếu hoàn. quản trị viên xác nhận phương án; yêu cầu xử lý hàng chờ đối soát thực tế.'),
+                                                  'Đơn trả trước được hoàn tiền; đơn công nợ được cấn trừ vào công nợ của đơn. Quản trị viên xác nhận kết quả; yêu cầu xử lý hàng chờ đối soát thực tế.'),
                                           const SectionTitle(
                                               'Số lượng và mô tả'),
                                           TextField(
@@ -391,10 +389,12 @@ class _ComplaintFormScreenState extends ConsumerState<ComplaintFormScreen> {
                                               keyboardType:
                                                   TextInputType.number,
                                               decoration: InputDecoration(
-                                                  labelText: _requestType ==
+                                                  labelText: _requestType !=
                                                           'Complaint'
-                                                      ? 'Số thùng dùng được trong phần giao này'
-                                                      : 'Số thùng yêu cầu trả / thu hồi')),
+                                                      ? 'Số thùng yêu cầu trả / thu hồi'
+                                                      : _issueType == 'Damaged'
+                                                          ? 'Số thùng bị hỏng'
+                                                          : 'Số thùng bị thiếu')),
                                           TextField(
                                               controller: _note,
                                               maxLines: 3,
