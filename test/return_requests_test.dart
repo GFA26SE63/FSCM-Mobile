@@ -64,9 +64,9 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Trả hàng').last);
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Sản phẩm · lô hàng · phần giao'));
+    await tester.tap(find.text('Sản phẩm'));
     await tester.pumpAndSettle();
-    await tester.tap(find.textContaining('SKU001 · BATCH-1 · PH-1').last);
+    await tester.tap(find.textContaining('SKU001 · Sữa').last);
     await tester.pumpAndSettle();
     expect(find.text('Số thùng yêu cầu trả / thu hồi'), findsOneWidget);
     expect(find.text('Số thùng dùng được trong phần giao này'), findsNothing);

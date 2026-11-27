@@ -28,47 +28,31 @@ class OrderQuantityField extends StatelessWidget {
         .style
         .copyWith(color: labelColor, fontSize: 13);
     final caption = Text(label, style: style);
+    // Trash icon sits right of the stepper, like a shopping-cart row.
+    final remove = IconButton(
+      tooltip: removeLabel,
+      color: AppColors.textMuted,
+      onPressed: onRemove,
+      icon: const Icon(Icons.delete_outline, size: 26),
+    );
+    if (control == null) {
+      return showRemove
+          ? Row(children: [Expanded(child: caption), remove])
+          : caption;
+    }
+    // Caption on its own line; stepper left, trash right on the row below.
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
       children: [
-        if (control == null)
-          caption
-        else
-          LayoutBuilder(builder: (context, constraints) {
-            // Preserve the compact one-line footer on normal phone cards;
-            // the Expanded caption clips gracefully before it can overlap the
-            // fixed-width quantity control. Narrow cards stack the controls.
-            final inline = constraints.maxWidth >= 300;
-            if (inline) {
-              return Row(children: [
-                Expanded(child: caption),
-                const SizedBox(width: 8),
-                control!,
-              ]);
-            }
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                caption,
-                const SizedBox(height: 8),
-                Align(alignment: Alignment.centerRight, child: control!),
-              ],
-            );
-          }),
-        if (showRemove)
-          Align(
-            alignment: Alignment.centerRight,
-            child: TextButton(
-              style: TextButton.styleFrom(
-                foregroundColor: AppColors.textMuted,
-                padding: const EdgeInsets.symmetric(vertical: 4),
-                minimumSize: const Size(0, 40),
-              ),
-              onPressed: onRemove,
-              child: Text(removeLabel),
-            ),
-          ),
+        if (label.isNotEmpty) caption,
+        // Separates product info and caption above from the quantity controls.
+        const Divider(height: 17, thickness: 1, color: AppColors.divider),
+        Row(children: [
+          control!,
+          const Spacer(),
+          if (showRemove) remove,
+        ]),
       ],
     );
   }

@@ -101,7 +101,7 @@ class LoyaltyProgramCard extends StatelessWidget {
             style: AppText.strong),
         if (program != null) ...[
           KvRow('Quy đổi hiện tại',
-              '${program.amountPerPoint.toString().replaceAll('.', ',')} đồng = 1 điểm'),
+              '${program.amountPerPoint.toString().replaceAll('.', ',')} VND = 1 điểm'),
           KvRow('Trạng thái', program.isActive ? 'Đã bật' : 'Đang tạm dừng'),
           KvRow('Hiệu lực từ', AppDates.timeDay(program.startAt)),
           KvRow('Hiệu lực đến', AppDates.timeDay(program.endAt)),

@@ -6,6 +6,7 @@ import 'package:fscm_mobile/core/network/endpoints.dart';
 import 'package:fscm_mobile/core/network/graphql_client.dart';
 import 'package:fscm_mobile/data/models/json_utils.dart';
 import 'package:fscm_mobile/data/models/receivable.dart';
+import 'package:fscm_mobile/data/models/refund.dart';
 import 'package:fscm_mobile/data/models/debt_checkout.dart';
 
 final receivablesApiProvider = Provider<ReceivablesApi>(
@@ -59,11 +60,19 @@ class ReceivablesApi {
       return asMapList(data['receivables']).map(Receivable.fromJson).toList();
     }
 
-    // Offset pages until totalCount is reached; ids dedupe overlapping pages.
+    return (await _retailerPages(
+            _retailerQuery, 'RetailerReceivables', status))
+        .map(Receivable.fromJson)
+        .toList();
+  }
+
+  // Offset pages until totalCount is reached; ids dedupe overlapping pages.
+  Future<List<Map<String, dynamic>>> _retailerPages(
+      String query, String operationName, String? status) async {
     final rows = <String, Map<String, dynamic>>{};
     for (var page = 1; page <= _maxPages; page++) {
-      final data = await _graphQl.query(_retailerQuery,
-          operationName: 'RetailerReceivables',
+      final data = await _graphQl.query(query,
+          operationName: operationName,
           variables: <String, dynamic>{
             'status': status,
             'page': page,
@@ -82,13 +91,56 @@ class ReceivablesApi {
           rows.length == before ||
           (totalCount > 0 && rows.length >= totalCount) ||
           (totalPages > 0 && page >= totalPages)) {
-        return rows.values.map(Receivable.fromJson).toList();
+        return rows.values.toList();
       }
     }
     throw const ApiException(
         kind: ApiErrorKind.server,
         message: 'Danh sách công nợ quá dài, không thể tải đầy đủ.');
   }
+
+  static const String _refundFields = '''
+    orderId orderCode paymentMethod
+    refunds {
+      id amount status transferredAt transactionReference verifiedAt reason
+    }''';
+
+  static const String _retailerRefundsQuery = '''
+    query RetailerRefunds(\$status: String, \$page: Int!, \$pageSize: Int!) {
+      retailerReceivables(
+          filter: { status: \$status, page: \$page, pageSize: \$pageSize }) {
+        items { id $_refundFields }
+        page pageSize totalCount totalPages
+      }
+    }
+  ''';
+
+  static const String _orderRefundsQuery = '''
+    query RetailerOrderRefunds(\$orderId: UUID!) {
+      retailerReceivable(orderId: \$orderId) { $_refundFields }
+    }
+  ''';
+
+  /// Retailer: refund records on own Credit orders (the receivable list
+  /// holds Credit payments only).
+  Future<List<RetailerRefund>> retailerCreditRefunds() async =>
+      _refunds(await _retailerPages(
+          _retailerRefundsQuery, 'RetailerRefunds', null));
+
+  /// Retailer: refund records of one own order of any payment method.
+  Future<List<RetailerRefund>> retailerOrderRefunds(String orderId) async {
+    final data = await _graphQl.query(_orderRefundsQuery,
+        operationName: 'RetailerOrderRefunds',
+        variables: <String, dynamic>{'orderId': orderId});
+    return _refunds(<Map<String, dynamic>>[asMap(data['retailerReceivable'])]);
+  }
+
+  static List<RetailerRefund> _refunds(List<Map<String, dynamic>> orders) =>
+      <RetailerRefund>[
+        for (final order in orders)
+          for (final refund in asMapList(order['refunds']))
+            RetailerRefund.fromJson(refund, order),
+      ];
 
   Future<DebtCheckout> createDebtCheckout({
     required bool payAll,

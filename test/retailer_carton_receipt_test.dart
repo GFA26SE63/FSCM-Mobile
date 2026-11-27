@@ -17,6 +17,8 @@ import 'package:fscm_mobile/data/remote/orders_api.dart';
 import 'package:fscm_mobile/data/repositories/auth_repository.dart';
 import 'package:fscm_mobile/data/repositories/order_repository.dart';
 import 'package:fscm_mobile/features/retailer/receive/receive_screen.dart';
+import 'package:fscm_mobile/shared/routes.dart';
+import 'package:fscm_mobile/shared/widgets/qr_scan_view.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// M-28: Retailer shipment receipt is by CARTON QR code (CID; TEM where the
@@ -53,11 +55,13 @@ const _user = AppUser(
     role: UserRole.retailer,
     retailerCode: '1001');
 
-DeliveryShipment _shipment() => DeliveryShipment.fromJson(<String, dynamic>{
-      'id': 's1',
-      'shipmentCode': 'GH-1',
-      'warehouseCode': 'WH-A',
-      'warehouseName': 'Kho A',
+DeliveryShipment _shipment(
+        {String id = 's1', String warehouseCode = 'WH-A'}) =>
+    DeliveryShipment.fromJson(<String, dynamic>{
+      'id': id,
+      'shipmentCode': 'GH-$id',
+      'warehouseCode': warehouseCode,
+      'warehouseName': 'Kho $warehouseCode',
       'status': 'Delivering',
       'version': 5,
       'totalQuantity': 2.0,
@@ -76,12 +80,18 @@ DeliveryShipment _shipment() => DeliveryShipment.fromJson(<String, dynamic>{
 Future<_Recorder> _pump(WidgetTester tester,
     {double width = 390,
     double scale = 1.0,
+    String orderStatus = 'Delivering',
+    bool resetPreferences = true,
+    List<DeliveryShipment>? shipments,
+    String? initialShipmentId,
     ApiResponse Function()? receiptReply}) async {
   tester.view.devicePixelRatio = 1;
   tester.view.physicalSize = Size(width, 2400);
   addTearDown(tester.view.resetPhysicalSize);
   addTearDown(tester.view.resetDevicePixelRatio);
-  SharedPreferences.setMockInitialValues({'device_code': 'TEST'});
+  if (resetPreferences) {
+    SharedPreferences.setMockInitialValues({'device_code': 'TEST'});
+  }
   final name = 'carton_receipt_${DateTime.now().microsecondsSinceEpoch}.db';
   final database = AppDatabase(databaseName: name);
   final transport = _Recorder(receiptReply ??
@@ -101,7 +111,7 @@ Future<_Recorder> _pump(WidgetTester tester,
   final order = Order.fromJson(<String, dynamic>{
     'id': 'order-1',
     'orderCode': 'DH-001057',
-    'status': 'Delivering',
+    'status': orderStatus,
   });
   await tester.pumpWidget(ProviderScope(
     overrides: [
@@ -109,7 +119,7 @@ Future<_Recorder> _pump(WidgetTester tester,
       orderRepositoryProvider.overrideWithValue(repository),
       orderDetailProvider('DH-001057').overrideWith((ref) async => order),
       deliveryShipmentsProvider('order-1')
-          .overrideWith((ref) async => [_shipment()]),
+          .overrideWith((ref) async => shipments ?? [_shipment()]),
     ],
     child: MaterialApp(
       theme: buildAppTheme(),
@@ -117,7 +127,8 @@ Future<_Recorder> _pump(WidgetTester tester,
           data: MediaQuery.of(context)
               .copyWith(textScaler: TextScaler.linear(scale)),
           child: child!),
-      home: const RtReceiveScreen(code: 'DH-001057'),
+      home: RtReceiveScreen(
+          code: 'DH-001057', initialShipmentId: initialShipmentId),
     ),
   ));
   await tester.pumpAndSettle();
@@ -163,6 +174,85 @@ void main() {
       });
     }
   }
+
+  testWidgets(
+      'a part in delivery is receivable while another warehouse still picks',
+      (tester) async {
+    // Baseline 3.9 (27/11): parts ship per warehouse, so the order can stay
+    // Picking while this part is already Delivering.
+    await _pump(tester, orderStatus: 'Picking');
+    expect(find.textContaining('chưa thể xác nhận nhận hàng'), findsNothing);
+    expect(find.textContaining('Phần giao này có 2 thùng'), findsOneWidget);
+  });
+
+  testWidgets('scanned cartons survive leaving and reopening the screen',
+      (tester) async {
+    await _pump(tester);
+    await _enter(tester, _cid1);
+    await _enter(tester, _cid2);
+    await tester.pumpWidget(const SizedBox());
+
+    await _pump(tester, resetPreferences: false);
+
+    expect(find.text('Số thùng đã quét (2)'), findsOneWidget);
+    expect(find.textContaining('Đã khôi phục 2/2 thùng'), findsOneWidget);
+    await tester.tap(find.text('Quét lại từ đầu'));
+    await tester.pumpAndSettle();
+    expect(find.text('Số thùng đã quét (0)'), findsOneWidget);
+  });
+
+  testWidgets('opens on the tapped part; switching keeps the camera session',
+      (tester) async {
+    final parts = [
+      _shipment(),
+      _shipment(id: 's2', warehouseCode: 'WH-B'),
+    ];
+    await _pump(tester, shipments: parts, initialShipmentId: 's2');
+    expect(find.text('Xác nhận phần giao WH-B'), findsOneWidget);
+
+    // A draft on WH-B puts the restore banner above the scanner.
+    await _enter(tester, _cid1);
+    await tester.pumpWidget(const SizedBox());
+    await _pump(tester,
+        shipments: parts, initialShipmentId: 's2', resetPreferences: false);
+    expect(find.textContaining('Đã khôi phục'), findsOneWidget);
+    final scanner = tester.state(find.byType(QrScanView));
+
+    await tester.tap(find.textContaining('Kho WH-A'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Xác nhận phần giao WH-A'), findsOneWidget);
+    expect(find.textContaining('Đã khôi phục'), findsNothing);
+    expect(identical(tester.state(find.byType(QrScanView)), scanner), isTrue);
+  });
+
+  test('receive route carries the tapped shipment', () {
+    expect(AppRoutes.rtReceive('o1', shipmentId: 's2'),
+        '/retailer/receive/o1?shipmentId=s2');
+    expect(AppRoutes.rtReceive('o1'), '/retailer/receive/o1');
+  });
+
+  testWidgets('leaving mid-scan asks: keep draft above discard', (tester) async {
+    await _pump(tester);
+    await _enter(tester, _cid1);
+
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+
+    final keep = find.text('Lưu nháp và thoát');
+    final discard = find.text('Bỏ các thùng đã quét');
+    expect(keep, findsOneWidget);
+    expect(discard, findsOneWidget);
+    expect(tester.getTopLeft(keep).dy, lessThan(tester.getTopLeft(discard).dy));
+    expect(find.textContaining('đã quét 1/2 thùng'), findsOneWidget);
+
+    // Tapping outside stays on the screen with the scans intact.
+    await tester.tapAt(const Offset(5, 5));
+    await tester.pumpAndSettle();
+    expect(keep, findsNothing);
+    expect(find.text('Số thùng đã quét (1)'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 
   testWidgets('batch / pallet / garbage codes are rejected with a reason',
       (tester) async {
@@ -225,6 +315,27 @@ void main() {
     // A scan is never a batch id.
     expect(
         (body['qrCodes'] as List).any((c) => IdFormat.isBatch('$c')), isFalse);
+  });
+
+  testWidgets('a carton from another shipment is explained in Vietnamese',
+      (tester) async {
+    // Exact body returned by the dev API for a foreign carton.
+    await _pump(tester,
+        receiptReply: () =>
+            const ApiResponse(statusCode: 400, data: <String, dynamic>{
+              'type': 'https://fscm.dev/problems/validation_error',
+              'title': 'Every scanned QR label must belong to this shipment.',
+              'status': 400,
+              'code': 'validation_error',
+            }));
+    await _enter(tester, _cid1);
+    await tester
+        .tap(find.widgetWithText(FilledButton, 'Xác nhận phần giao WH-A'));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('Có thùng không thuộc phần giao này'),
+        findsOneWidget);
+    expect(find.text('Số thùng đã quét (1)'), findsOneWidget);
   });
 
   testWidgets(

@@ -24,6 +24,8 @@ String? screenPermissionFor(String location) {
     '/retailer/scan': 'mobile-rt-scan',
     '/retailer/receive/': 'mobile-rt-scan',
     '/retailer/payments': 'mobile-rt-payments',
+    // Refunds are read from the receivable views of the payments screen.
+    '/retailer/refunds': 'mobile-rt-payments',
     '/retailer/loyalty': 'mobile-rt-loyalty',
     '/retailer/gifts': 'mobile-rt-gifts',
     '/retailer/complaints': 'mobile-rt-complaints',

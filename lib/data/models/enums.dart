@@ -41,6 +41,14 @@ enum OrderStatus {
   /// Retailer may still scan the QR to confirm receipt.
   bool get canConfirmReceipt => this == delivering;
 
+  /// A warehouse part may already be Delivering here: parts ship one warehouse at a time
+  /// (baseline 3.9, 27/11), so the order can still be ConvertedToPo/Picking/Issued.
+  bool get mayHavePartInDelivery =>
+      this == convertedToPo ||
+      this == picking ||
+      this == issued ||
+      this == delivering;
+
   bool get isRejectedOrCancelled =>
       this == quoteRejected ||
       this == quoteExpired ||
