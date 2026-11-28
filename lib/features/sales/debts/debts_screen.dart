@@ -1,12 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:fscm_mobile/core/network/api_exception.dart';
 import 'package:fscm_mobile/core/utils/clock.dart';
 import 'package:fscm_mobile/core/utils/dates.dart';
 import 'package:fscm_mobile/core/utils/money.dart';
 import 'package:fscm_mobile/data/models/receivable.dart';
-import 'package:fscm_mobile/data/repositories/data_version.dart';
 import 'package:fscm_mobile/data/repositories/finance_repository.dart';
 import 'package:fscm_mobile/shared/theme/app_colors.dart';
 import 'package:fscm_mobile/shared/theme/app_text.dart';
@@ -14,14 +12,13 @@ import 'package:fscm_mobile/shared/theme/app_tokens.dart';
 import 'package:fscm_mobile/shared/widgets/app_card.dart';
 import 'package:fscm_mobile/shared/widgets/async_body.dart';
 import 'package:fscm_mobile/shared/widgets/chip_filter_bar.dart';
-import 'package:fscm_mobile/shared/widgets/dialogs.dart';
 import 'package:fscm_mobile/shared/widgets/empty_state.dart';
 import 'package:fscm_mobile/shared/widgets/info_banner.dart';
 import 'package:fscm_mobile/shared/widgets/status_chip.dart';
 
 enum _DebtFilter { all, overdue, unpaid, paid }
 
-/// "Công nợ cần thu": my retailers' credit orders with an overdue filter.
+/// "Công nợ điểm bán": my retailers' credit orders with an overdue filter.
 class DebtsScreen extends ConsumerStatefulWidget {
   const DebtsScreen({super.key});
 
@@ -49,7 +46,7 @@ class _DebtsScreenState extends ConsumerState<DebtsScreen> {
   Widget build(BuildContext context) {
     final value = ref.watch(receivablesProvider);
     return Scaffold(
-      appBar: AppBar(title: const Text('Công nợ cần thu')),
+      appBar: AppBar(title: const Text('Công nợ điểm bán')),
       body: Column(
         children: <Widget>[
           Container(
@@ -100,7 +97,7 @@ class _DebtsScreenState extends ConsumerState<DebtsScreen> {
                       ),
                       const InfoBanner(
                         text:
-                            'Hạn trả = ngày giao + kỳ hạn của điểm bán (7 / 14 / 30 ngày). Không quản lý hạn mức; khoản quá hạn được nhắc để bạn đi truy thu. Chuyển khoản do nhân viên vận hành xác nhận trên Portal.',
+                            'Hạn trả = ngày giao + kỳ hạn của điểm bán (7 / 14 / 30 ngày). Sales theo dõi và nhắc điểm bán thanh toán qua PayOS hoặc chuyển khoản; nhân viên vận hành xác nhận chuyển khoản trên Portal.',
                       ),
                       if (list.isEmpty) const SizedBox(height: 40),
                       if (list.isEmpty)
@@ -152,37 +149,8 @@ class _DebtsScreenState extends ConsumerState<DebtsScreen> {
           if (r.isOverdue)
             Text('Quá hạn $daysLate ngày',
                 style: AppText.cardTitle.copyWith(color: AppColors.danger)),
-          if (!r.isPaid) ...<Widget>[
-            const SizedBox(height: AppSpacing.sm),
-            OutlinedButton.icon(
-              onPressed: () => _collect(context, r),
-              icon: const Icon(Icons.payments_outlined),
-              label: const Text('Ghi nhận đã thu tiền mặt'),
-            ),
-          ],
         ],
       ),
     );
-  }
-
-  Future<void> _collect(BuildContext context, Receivable r) async {
-    final ok = await confirmDialog(
-      context,
-      title: 'Ghi nhận đã thu?',
-      message:
-          'Xác nhận đã thu đủ ${Money.format(r.outstandingAmount)} tiền mặt của ${r.retailerName} cho đơn ${r.orderCode}. Không thu từng phần.',
-      confirmLabel: 'Đã thu đủ',
-    );
-    if (!ok) return;
-    try {
-      await ref.read(financeRepositoryProvider).collect(r);
-      ref.read(dataVersionProvider.notifier).state++;
-      if (mounted) {
-        showAppSnack(this.context,
-            'Đã ghi nhận thu ${Money.format(r.outstandingAmount)} cho ${r.orderCode}.');
-      }
-    } on ApiException catch (e) {
-      if (mounted) showAppSnack(this.context, e.message, error: true);
-    }
   }
 }

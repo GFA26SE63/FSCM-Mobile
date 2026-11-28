@@ -108,7 +108,7 @@ class SalesHomeScreen extends ConsumerWidget {
                   icon: Icons.warning_amber_rounded,
                   title: 'Có ${overdue.length} khoản công nợ quá hạn',
                   text:
-                      'Cần thu ${Money.format(overdue.fold<int>(0, (s, d) => s + d.amount))} - mở danh sách để đi thu.',
+                      'Quá hạn ${Money.format(overdue.fold<int>(0, (s, d) => s + d.amount))} - mở danh sách để theo dõi và nhắc nợ.',
                 ),
               ),
             FilledButton.icon(
@@ -159,7 +159,7 @@ class SalesHomeScreen extends ConsumerWidget {
                   route: AppRoutes.salesKpi),
               _ShortcutData(
                   icon: Icons.account_balance_wallet_outlined,
-                  label: 'Công nợ cần thu',
+                  label: 'Công nợ điểm bán',
                   note: overdue.isEmpty ? null : '${overdue.length} quá hạn',
                   noteTone: StatusTone.danger,
                   route: AppRoutes.salesDebts),
