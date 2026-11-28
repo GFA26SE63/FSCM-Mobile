@@ -67,8 +67,6 @@ class FinanceRepository {
           {required bool retailer, String? status}) =>
       _api.list(retailer: retailer, status: status);
 
-  Future<Receivable> collect(Receivable receivable) => _api.collect(receivable);
-
   Future<DebtCheckout> createDebtCheckout({
     required bool payAll,
     required List<String> paymentIds,

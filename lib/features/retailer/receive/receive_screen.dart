@@ -305,7 +305,7 @@ class _RtReceiveScreenState extends ConsumerState<RtReceiveScreen> {
           InfoBanner(
             icon: Icons.info_outline,
             text:
-                'Đơn ${order.code} đang ở trạng thái "${order.status.label}" nên chưa thể xác nhận nhận hàng.',
+                'Đơn ${order.code} đang ở trạng thái "${order.status.retailerLabel}" nên chưa thể xác nhận nhận hàng.',
           ),
           OutlinedButton(
               onPressed: () => context.pop(), child: const Text('Quay lại')),

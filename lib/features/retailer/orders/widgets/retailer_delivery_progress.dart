@@ -35,9 +35,9 @@ class RetailerDeliveryProgress extends ConsumerWidget {
     ].contains(order.status)) {
       return InfoBanner(
           text: order.status == OrderStatus.allocating
-              ? 'Hệ thống đang phân bổ. Báo giá chính thức sẽ có sau khi chọn hàng.'
+              ? 'Đơn đã đặt. Hệ thống đang chọn hàng và sẽ gửi báo giá để bạn xác nhận.'
               : order.status == OrderStatus.paymentPending
-                  ? 'Đơn đang chờ thanh toán trước khi phát hành đơn thực hiện và tạo phần giao.'
+                  ? 'Đơn chờ xác nhận báo giá: hoàn tất thanh toán trước để xác nhận báo giá và bắt đầu giao hàng.'
                   : 'Chưa có phần giao hàng cho trạng thái hiện tại.');
     }
     final value = ref.watch(deliveryShipmentsProvider(order.id));

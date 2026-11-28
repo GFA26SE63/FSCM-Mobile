@@ -15,9 +15,12 @@ import 'package:fscm_mobile/shared/widgets/status_chip.dart';
 /// Chip for an order: sync state while the order is only on the device,
 /// otherwise the order status.
 class OrderStatusChip extends StatelessWidget {
-  const OrderStatusChip(this.order, {super.key});
+  const OrderStatusChip(this.order, {super.key, this.retailerView = false});
 
   final Order order;
+
+  /// Retailer screens show the simplified stages ([OrderStatus.retailerLabel]).
+  final bool retailerView;
 
   @override
   Widget build(BuildContext context) {
@@ -38,8 +41,8 @@ class OrderStatusChip extends StatelessWidget {
     }
 
     return StatusChip(
-      label: order.status.label,
-      tone: order.status.tone,
+      label: retailerView ? order.status.retailerLabel : order.status.label,
+      tone: retailerView ? order.status.retailerTone : order.status.tone,
     );
   }
 }
