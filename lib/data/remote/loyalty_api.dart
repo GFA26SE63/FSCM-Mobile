@@ -23,6 +23,8 @@ class LoyaltyApi {
       invalidLoyaltyResponse();
     }
     final card = LoyaltyAccount.fromJson(data);
+    // New cards contain the complete, server-scoped program catalogue.
+    if (card.eligiblePrograms != null) return card;
     if (card.programId == null) {
       return card;
     }

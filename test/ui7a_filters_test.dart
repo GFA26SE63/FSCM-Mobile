@@ -128,16 +128,17 @@ void main() {
         expect(find.byType(LoyaltyLedgerTile), findsNWidgets(15));
 
         // Type filter reads the real kind; selecting resets the visible step.
-        await _chip(tester, 'Chờ cộng');
-        expect(find.byType(LoyaltyLedgerTile), findsOneWidget);
+        // The pending transaction remains in the ledger, without its own filter.
+        expect(find.text('Chờ cộng'), findsOneWidget);
+        await _chip(tester, 'Khác');
+        expect(find.byType(LoyaltyLedgerTile), findsNWidgets(2));
         expect(find.text('Giao dịch số 101'), findsOneWidget);
 
         // Period filter excludes the 60-day-old expiry.
-        await _chip(tester, 'Khác');
-        expect(find.byType(LoyaltyLedgerTile), findsOneWidget);
         await _chip(tester, '30 ngày');
-        expect(find.byType(LoyaltyLedgerTile), findsNothing);
-        expect(find.text('Không có giao dịch phù hợp bộ lọc.'), findsOneWidget);
+        expect(find.byType(LoyaltyLedgerTile), findsOneWidget);
+        expect(find.text('Giao dịch số 101'), findsOneWidget);
+        expect(find.text('Giao dịch số 102'), findsNothing);
         expect(tester.takeException(), isNull);
       });
 

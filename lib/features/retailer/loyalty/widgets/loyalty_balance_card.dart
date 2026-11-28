@@ -17,8 +17,7 @@ class LoyaltyBalanceCard extends StatelessWidget {
   Widget build(BuildContext context) => Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Gold hero card (prototype LOYALTY): balance, then the held /
-          // pending / expired breakdown in two columns.
+          // Balance, followed by points held for rewards and expired points.
           Container(
             padding: const EdgeInsets.all(AppSpacing.xl),
             decoration: BoxDecoration(
@@ -47,7 +46,6 @@ class LoyaltyBalanceCard extends StatelessWidget {
                   spacing: AppSpacing.xxl,
                   runSpacing: AppSpacing.md,
                   children: [
-                    _Points('Chờ cộng', account.pending),
                     _Points('Đang giữ đổi quà', account.held),
                     _Points('Đã hết hạn', account.expired),
                   ]),
@@ -89,17 +87,20 @@ class LoyaltyProgramCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final program = account.program;
+    final programs = account.eligiblePrograms ??
+        (account.program == null ? <LoyaltyProgram>[] : [account.program!]);
     return AppCard(
         child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-            program == null
+            programs.isEmpty
                 ? 'Chưa có chương trình trong kỳ hiện tại'
-                : '${program.code} · ${program.name}',
+                : 'Chương trình tích điểm áp dụng',
             style: AppText.strong),
-        if (program != null) ...[
+        for (final program in programs) ...[
+          const SizedBox(height: AppSpacing.sm),
+          Text('${program.code} · ${program.name}', style: AppText.strong),
           KvRow('Quy đổi hiện tại',
               '${program.amountPerPoint.toString().replaceAll('.', ',')} VND = 1 điểm'),
           KvRow('Trạng thái', program.isActive ? 'Đã bật' : 'Đang tạm dừng'),
@@ -115,13 +116,17 @@ class LoyaltyProgramCard extends StatelessWidget {
         const Text('Điểm chỉ được cộng khi đơn Hoàn tất: nhận đủ hàng, '
             'thanh toán đủ và không còn khiếu nại đang xử lý. '
             'Số điểm làm tròn xuống theo máy chủ.'),
-        if (program != null)
+        const SizedBox(height: AppSpacing.sm),
+        const Text('Quyền tích điểm được ghi nhận khi hệ thống nhận đơn. '
+            'Chương trình hết hạn sau thời điểm đó không làm mất quyền lợi. '
+            'Với đơn ngoại tuyến, thời điểm này là lúc gửi đồng bộ thành công.'),
+        if (programs.isNotEmpty)
           const Text(
-              'Tỷ lệ trên là cấu hình hiện tại. Điểm của đơn cũ theo tỷ lệ '
-              'đã ghi nhận, không tính lại theo cấu hình mới.'),
+              'Mỗi đơn chỉ hưởng chương trình đủ điều kiện cho nhiều điểm nhất; '
+              'bằng điểm thì ưu tiên mã chương trình tăng dần. Điểm vào ví chung. '
+              'Điểm của đơn cũ theo tỷ lệ đã ghi nhận, không tính lại theo cấu hình mới.'),
         const SizedBox(height: AppSpacing.s6),
-        const Text(
-            'Điểm chờ cộng và điểm đang giữ đổi quà chưa thể dùng để đổi thêm quà.'),
+        const Text('Điểm đang giữ đổi quà chưa thể dùng để đổi thêm quà.'),
       ],
     ));
   }

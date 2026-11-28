@@ -11,11 +11,13 @@ class GiftCatalogTile extends StatelessWidget {
       required this.gift,
       required this.account,
       required this.busy,
-      required this.onRedeem});
+      required this.onRedeem,
+      this.programLabel});
   final Gift gift;
   final LoyaltyAccount? account;
   final bool busy;
   final VoidCallback? onRedeem;
+  final String? programLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -53,6 +55,8 @@ class GiftCatalogTile extends StatelessWidget {
                 Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(gift.name, style: AppText.cardTitle),
           Text(gift.code, style: AppText.mutedSmall),
+          if (programLabel != null)
+            Text(programLabel!, style: AppText.mutedSmall),
           if (gift.description?.isNotEmpty == true) ...[
             const SizedBox(height: AppSpacing.xs),
             Text(gift.description!, style: AppText.bodySmall),
