@@ -154,7 +154,7 @@ void main() {
   });
 
   testWidgets(
-      'small screen shows negative balance, all totals and preserves ledger access',
+      'small screen hides pending summary and preserves balance and ledger access',
       (tester) async {
     tester.view.physicalSize = const Size(320, 800);
     tester.view.devicePixelRatio = 1;
@@ -171,6 +171,8 @@ void main() {
     expect(find.text('-50'), findsOneWidget);
     expect(find.text('Số dư điểm đang âm'), findsOneWidget);
     expect(find.text('Đã hết hạn'), findsOneWidget);
+    expect(find.text('Chờ cộng'), findsNothing);
+    expect(find.text('Đang giữ đổi quà'), findsOneWidget);
     await tester.scrollUntilVisible(find.text('Xem quà & yêu cầu đã gửi'), 180,
         scrollable: find.byType(Scrollable).first);
     expect(find.text('Xem quà & yêu cầu đã gửi'), findsOneWidget);
@@ -216,13 +218,15 @@ void main() {
         child: const MaterialApp(
             home: GiftsScreen(redemptionId: 'redemption-1'))));
     await tester.pumpAndSettle();
-    expect(find.text('Quà đã yêu cầu'), findsOneWidget);
     expect(
         tester
             .widget<FilledButton>(
                 find.widgetWithText(FilledButton, 'Thiếu điểm'))
             .onPressed,
         isNull);
+    await tester.scrollUntilVisible(find.text('Quà đã yêu cầu'), 180,
+        scrollable: find.byType(Scrollable).first);
+    expect(find.text('Quà đã yêu cầu'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 

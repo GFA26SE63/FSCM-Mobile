@@ -14,7 +14,7 @@ void main() {
       'Issued': 'Đã xác nhận báo giá',
       'Delivering': 'Đang giao',
       'Delivered': 'Đã nhận',
-      'Completed': 'Hoàn thành',
+      'Completed': 'Hoàn tất',
     };
     expected.forEach((code, label) {
       final status = OrderStatus.fromCode(code);
@@ -55,7 +55,7 @@ void main() {
       'Đã xác nhận báo giá',
       'Đang giao',
       'Đã nhận',
-      'Hoàn thành',
+      'Hoàn tất',
       'Ghi chú khác',
     ]);
     expect(shown[2].time, DateTime(2026, 11, 25, 8, 3),

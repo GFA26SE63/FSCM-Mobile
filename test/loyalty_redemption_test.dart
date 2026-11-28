@@ -14,6 +14,7 @@ import 'package:fscm_mobile/data/local/redemption_attempt_store.dart';
 import 'package:fscm_mobile/data/models/enums.dart';
 import 'package:fscm_mobile/data/models/loyalty.dart';
 import 'package:fscm_mobile/data/remote/loyalty_api.dart';
+import 'package:fscm_mobile/data/remote/complaints_api.dart';
 import 'package:fscm_mobile/data/repositories/auth_repository.dart';
 import 'package:fscm_mobile/data/repositories/loyalty_repository.dart';
 import 'package:fscm_mobile/features/retailer/loyalty/gifts_screen.dart';
@@ -57,6 +58,69 @@ LoyaltyAccount _card() => LoyaltyAccount.fromJson(loyaltyCardFixture(),
 
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
+
+  test(
+      'shared wallet loads rewards from all eligible programs and propagates a partial catalogue failure',
+      () async {
+    final programs = [
+      {...loyaltyProgramFixture(), 'isActive': true},
+      {
+        ...loyaltyProgramFixture(),
+        'id': 'program-2',
+        'code': 'LP-002',
+        'isActive': true
+      },
+    ];
+    final card = LoyaltyAccount.fromJson(
+        {...loyaltyCardFixture(), 'eligiblePrograms': programs});
+    expect(card.canRedeemProgram('program-1'), isTrue);
+    expect(card.canRedeemProgram('program-2'), isTrue);
+    expect(card.canRedeemProgram('outside'), isFalse);
+    expect(LoyaltyAccount.fromJson(card.toJson()).programs, hasLength(2));
+    var fail = false;
+    final transport = _Transport((request) {
+      final id = request.query!['programId'];
+      if (fail && id == 'program-2') {
+        return const ApiResponse(
+            statusCode: 503, data: {'message': 'unavailable'});
+      }
+      return ApiResponse(statusCode: 200, data: [
+        {..._gift(), 'id': 'gift-$id', 'loyaltyProgramId': id}
+      ]);
+    });
+    final client = ApiClient(transport: transport, tokenReader: () => null);
+    addTearDown(client.dispose);
+    ProviderContainer container() => ProviderContainer(overrides: [
+          loyaltyAccountProvider.overrideWith((ref) async => card),
+          loyaltyRepositoryProvider.overrideWithValue(LoyaltyRepository(
+              loyalty: LoyaltyApi(client), complaints: ComplaintsApi(client))),
+        ]);
+    final first = container();
+    addTearDown(first.dispose);
+    final gifts = await first.read(giftsProvider.future);
+    expect(gifts.map((g) => g.programId), ['program-1', 'program-2']);
+    fail = true;
+    final second = container();
+    addTearDown(second.dispose);
+    await expectLater(
+        second.read(giftsProvider.future), throwsA(isA<ApiException>()));
+  });
+
+  test(
+      'explicit empty eligible programs overrides legacy reference without hiding ledger',
+      () {
+    final card = LoyaltyAccount.fromJson(
+        {...loyaltyCardFixture(), 'eligiblePrograms': []},
+        program: _card().program);
+    expect(card.programs, isEmpty);
+    expect(card.canRedeemProgram('program-1'), isFalse);
+    expect(card.balance, 500);
+    expect(card.ledger, isNotEmpty);
+    expect(
+        () => LoyaltyAccount.fromJson(
+            {...loyaltyCardFixture(), 'eligiblePrograms': null}),
+        throwsA(isA<ApiException>()));
+  });
 
   test(
       'stock null stays unlimited; missing stock is an error and image/description survive',
