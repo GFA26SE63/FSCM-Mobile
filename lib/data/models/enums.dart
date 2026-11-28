@@ -36,7 +36,7 @@ enum OrderStatus {
   ///   succeeds (PaymentPending).
   /// - Đã xác nhận báo giá: payment method chosen (prepaid: paid) until every
   ///   warehouse part has been handed to a driver and vehicle.
-  /// - Đang giao → Đã nhận (every part scanned and confirmed) → Hoàn thành
+  /// - Đang giao → Đã nhận (every part scanned and confirmed) → Hoàn tất
   ///   (paid in full, no open complaint, complaint window elapsed).
   /// Exits (out of stock, rejected, expired…) keep their own wording.
   String get retailerLabel => switch (this) {
@@ -45,7 +45,7 @@ enum OrderStatus {
         convertedToPo || picking || issued => 'Đã xác nhận báo giá',
         delivering => 'Đang giao',
         delivered => 'Đã nhận',
-        completed => 'Hoàn thành',
+        completed => 'Hoàn tất',
         _ => label,
       };
 
