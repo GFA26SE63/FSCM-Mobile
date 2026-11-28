@@ -162,4 +162,17 @@ class ReceivablesApi {
         await _client.get(Endpoints.retailerDebtPayOsCheckout(checkoutId));
     return DebtCheckout.fromJson(asMap(data));
   }
+
+  /// Own open (pending, unexpired) debt checkouts, reconciled with PayOS.
+  Future<List<DebtCheckout>> pendingDebtCheckouts() async {
+    final data = await _client.get(Endpoints.retailerPendingDebtPayOsCheckouts);
+    return asMapList(data).map(DebtCheckout.fromJson).toList();
+  }
+
+  /// Returns the final state: `Paid` when the link was paid before the cancel.
+  Future<DebtCheckout> cancelDebtCheckout(String checkoutId) async {
+    final data = await _client
+        .post(Endpoints.cancelRetailerDebtPayOsCheckout(checkoutId));
+    return DebtCheckout.fromJson(asMap(data));
+  }
 }

@@ -410,13 +410,29 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
     );
     if (confirmed != true || !mounted) return;
     setState(() => _busy = true);
+    final paymentIds = rows.map((r) => r.paymentId).toList();
+    final repo = ref.read(financeRepositoryProvider);
     try {
-      final checkout =
-          await ref.read(financeRepositoryProvider).createDebtCheckout(
-                payAll: payAll,
-                paymentIds: rows.map((r) => r.paymentId).toList(),
-                operationKey: const Uuid().v4(),
-              );
+      DebtCheckout checkout;
+      try {
+        checkout = await repo.createDebtCheckout(
+            payAll: payAll,
+            paymentIds: paymentIds,
+            operationKey: const Uuid().v4());
+      } on ApiException catch (error) {
+        if (error.kind != ApiErrorKind.conflict) rethrow;
+        // An earlier PayOS link left open still holds some of these debts.
+        final blocking = (await repo.pendingDebtCheckouts())
+            .where((c) =>
+                payAll ||
+                c.allocations.any((a) => paymentIds.contains(a.paymentId)))
+            .toList();
+        if (blocking.isEmpty || !mounted) rethrow;
+        final resolved = await _resolvePendingCheckouts(
+            blocking: blocking, payAll: payAll, paymentIds: paymentIds);
+        if (resolved == null) return;
+        checkout = resolved;
+      }
       if (!mounted) {
         return;
       }
@@ -433,6 +449,99 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
     } finally {
       if (mounted) setState(() => _busy = false);
     }
+  }
+
+  /// Lets the retailer resume the open PayOS link, or cancel it and pay the
+  /// current selection. Returns the checkout to open, or null when nothing
+  /// should be opened (dismissed, or the old link turned out to be paid).
+  Future<DebtCheckout?> _resolvePendingCheckouts({
+    required List<DebtCheckout> blocking,
+    required bool payAll,
+    required List<String> paymentIds,
+  }) async {
+    final choice = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Có giao dịch thanh toán chưa hoàn tất'),
+        content: SizedBox(
+            width: 420,
+            child: SingleChildScrollView(
+                child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                const Text(
+                    'Một số khoản bạn chọn đang nằm trong giao dịch PayOS trước đó chưa thanh toán:'),
+                const SizedBox(height: AppSpacing.md),
+                ...blocking.map((c) => Padding(
+                      padding:
+                          const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+                      child: Row(children: <Widget>[
+                        Expanded(
+                            child: Text(c.allocations
+                                .map((a) => a.orderCode)
+                                .join(', '))),
+                        const SizedBox(width: AppSpacing.sm),
+                        Text(Money.format(c.amount), style: AppText.strong),
+                      ]),
+                    )),
+                const SizedBox(height: AppSpacing.md),
+                const Text(
+                    'Bạn có thể tiếp tục thanh toán giao dịch cũ, hoặc hủy giao dịch cũ để thanh toán theo lựa chọn hiện tại.'),
+              ],
+            ))),
+        actionsPadding: const EdgeInsets.fromLTRB(
+            AppSpacing.xxl, 0, AppSpacing.xxl, AppSpacing.xl),
+        actions: <Widget>[
+          SizedBox(
+            width: double.infinity,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                if (blocking.length == 1) ...<Widget>[
+                  FilledButton(
+                    onPressed: () => Navigator.pop(dialogContext, 'resume'),
+                    child: const Text('Tiếp tục giao dịch cũ'),
+                  ),
+                  const SizedBox(height: AppSpacing.s10),
+                ],
+                OutlinedButton(
+                  onPressed: () => Navigator.pop(dialogContext, 'replace'),
+                  child: const Text('Hủy giao dịch cũ và tạo mới'),
+                ),
+                const SizedBox(height: AppSpacing.s10),
+                TextButton(
+                  onPressed: () => Navigator.pop(dialogContext),
+                  child: const Text('Quay lại'),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+    if (choice == 'resume') return blocking.single;
+    if (choice != 'replace') return null;
+
+    final repo = ref.read(financeRepositoryProvider);
+    var anyPaid = false;
+    for (final checkout in blocking) {
+      final result = await repo.cancelDebtCheckout(checkout.id);
+      anyPaid = anyPaid || result.status == 'Paid';
+    }
+    if (anyPaid) {
+      // Never open a second link for debts that were just paid.
+      ref.invalidate(receivablesProvider);
+      if (mounted) {
+        showAppSnack(context,
+            'Giao dịch cũ vừa được thanh toán thành công. Vui lòng kiểm tra lại công nợ trước khi thanh toán tiếp.');
+      }
+      return null;
+    }
+    return repo.createDebtCheckout(
+        payAll: payAll,
+        paymentIds: paymentIds,
+        operationKey: const Uuid().v4());
   }
 }
 

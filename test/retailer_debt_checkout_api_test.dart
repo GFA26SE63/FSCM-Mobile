@@ -79,6 +79,21 @@ void main() {
     expect((request.body as Map).containsKey('amount'), isFalse);
   });
 
+  test('open debt checkouts are listed and cancelled by id', () async {
+    final transport = _FinanceTransport();
+    final client = ApiClient(transport: transport, tokenReader: () => 'token');
+    addTearDown(client.dispose);
+    final api = ReceivablesApi(client);
+
+    final pending = await api.pendingDebtCheckouts();
+    await api.cancelDebtCheckout(pending.single.id);
+
+    expect(pending.single.allocations.single.paymentId, 'payment-1');
+    expect(transport.requests.last.method, 'POST');
+    expect(transport.requests.last.path,
+        '/retailer/receivables/payos-checkouts/checkout-old/cancel');
+  });
+
   testWidgets('debt screen exposes selected and full PayOS actions',
       (tester) async {
     final receivable = Receivable.fromJson(<String, dynamic>{
@@ -290,6 +305,24 @@ class _FinanceTransport implements ApiTransport {
   @override
   Future<ApiResponse> send(ApiRequest request) async {
     requests.add(request);
+    if (request.path == '/retailer/receivables/payos-checkouts/pending') {
+      return const ApiResponse(statusCode: 200, data: <Map<String, dynamic>>[
+        <String, dynamic>{
+          'id': 'checkout-old',
+          'status': 'Pending',
+          'amount': 800000,
+          'checkoutUrl': 'https://pay.payos.vn/checkout-old',
+          'allocations': <Map<String, dynamic>>[
+            <String, dynamic>{
+              'paymentId': 'payment-1',
+              'orderId': 'order-1',
+              'orderCode': 'DH-000001',
+              'amount': 800000,
+            },
+          ],
+        },
+      ]);
+    }
     if (request.path == 'http://10.0.2.2:5080/graphql') {
       return const ApiResponse(statusCode: 200, data: <String, dynamic>{
         'data': <String, dynamic>{
