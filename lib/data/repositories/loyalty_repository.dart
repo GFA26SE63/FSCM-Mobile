@@ -49,10 +49,15 @@ final giftsProvider = FutureProvider.autoDispose<List<Gift>>((ref) async {
   final card = ref.watch(loyaltyAccountProvider.future);
   final repository = ref.watch(loyaltyRepositoryProvider);
   final account = await card;
-  if (account.programId == null) {
-    return <Gift>[];
+  final result = <Gift>[];
+  // Bounded, sequential reads: a failed program read is not a successful partial catalogue.
+  for (final program in account.programs) {
+    result.addAll(await repository.gifts(programId: program.id));
   }
-  return repository.gifts(programId: account.programId!);
+  if (result.map((gift) => gift.id).toSet().length != result.length) {
+    invalidLoyaltyResponse();
+  }
+  return result;
 });
 
 final redemptionAttemptStoreProvider = Provider<RedemptionAttemptStore>(

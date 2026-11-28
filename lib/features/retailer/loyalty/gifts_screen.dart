@@ -102,7 +102,7 @@ class _GiftsScreenState extends ConsumerState<GiftsScreen> {
         if (card == null ||
             card.balance < gift.points ||
             card.hasNegativeBalance ||
-            card.program?.isActive != true) {
+            !card.canRedeemProgram(gift.programId)) {
           return;
         }
         final quantity = await showModalBottomSheet<int>(
@@ -118,9 +118,9 @@ class _GiftsScreenState extends ConsumerState<GiftsScreen> {
             latest.hasError ||
             latest.valueOrNull == null ||
             latest.requireValue.retailerId != card.retailerId ||
-            latest.requireValue.programId != gift.programId ||
+            !latest.requireValue.canRedeemProgram(gift.programId) ||
             latest.requireValue.balance < gift.points * quantity ||
-            latest.requireValue.program?.isActive != true) {
+            latest.requireValue.hasNegativeBalance) {
           throw const ApiException(
               kind: ApiErrorKind.conflict,
               message:
@@ -196,7 +196,8 @@ class _GiftsScreenState extends ConsumerState<GiftsScreen> {
         pending.isLoading ||
         pending.hasError ||
         pending.valueOrNull != null ||
-        account?.program?.isActive != true;
+        account == null ||
+        account.programs.isEmpty;
     return Scaffold(
       appBar: AppBar(title: const Text('Đổi quà'), actions: [
         IconButton(
@@ -223,10 +224,10 @@ class _GiftsScreenState extends ConsumerState<GiftsScreen> {
                       tone: StatusTone.danger,
                       icon: Icons.error_outline,
                       text: ApiException.describe(accountState.error!)),
-                if (account?.program?.isActive == false)
+                if (account != null && account.programs.isEmpty)
                   const InfoBanner(
                       text:
-                          'Chương trình đang tạm dừng. Chưa thể gửi yêu cầu đổi quà mới; bạn vẫn xem được các yêu cầu đã gửi.'),
+                          'Chưa có chương trình đủ điều kiện đổi quà. Điểm vẫn được giữ; bạn vẫn xem được các yêu cầu đã gửi.'),
                 if (account?.hasNegativeBalance == true)
                   const InfoBanner(
                       text:
@@ -282,13 +283,18 @@ class _GiftsScreenState extends ConsumerState<GiftsScreen> {
                                 if (list.isEmpty)
                                   AppCard(
                                       child: Text(
-                                          account?.programId == null
+                                          account == null ||
+                                                  account.programs.isEmpty
                                               ? 'Chưa có chương trình áp dụng để đổi quà.'
-                                              : 'Chưa có quà đang hoạt động trong chương trình này.',
+                                              : 'Chưa có quà đang hoạt động trong các chương trình áp dụng.',
                                           style: AppText.muted)),
                                 for (final gift in list)
                                   GiftCatalogTile(
                                       gift: gift,
+                                      programLabel: account?.programs
+                                          .where((p) => p.id == gift.programId)
+                                          .map((p) => '${p.code} · ${p.name}')
+                                          .firstOrNull,
                                       account: account,
                                       busy: blocked,
                                       onRedeem: () => unawaited(_redeem(gift))),

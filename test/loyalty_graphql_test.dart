@@ -73,6 +73,30 @@ Map<String, dynamic> _reward() => <String, dynamic>{
     };
 
 void main() {
+  test(
+      'new card supplies all eligible programs without reading a single reference program',
+      () async {
+    final t = _Transport(
+      onGraphQl: (_) =>
+          throw StateError('eligible program details are already on the card'),
+      onRest: (_) => ApiResponse(statusCode: 200, data: {
+        ...loyaltyCardFixture(),
+        'eligiblePrograms': [
+          {...loyaltyProgramFixture(), 'isActive': true},
+          {
+            ...loyaltyProgramFixture(),
+            'id': 'program-2',
+            'code': 'LP-002',
+            'isActive': true
+          },
+        ],
+      }),
+    );
+    final account = await _api(t).account();
+    expect(account.programs, hasLength(2));
+    expect(t.graphQl, isEmpty);
+    expect(t.restCalls, 'GET /loyalty/cards/me');
+  });
   group('Loyalty program (read by id)', () {
     test('card is REST, the program on it is read through GraphQL', () async {
       final t = _Transport(

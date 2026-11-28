@@ -154,6 +154,7 @@ class LoyaltyAccount {
     required this.programName,
     required this.pointsExpireAt,
     this.program,
+    this.eligiblePrograms,
   });
 
   factory LoyaltyAccount.fromJson(Map<String, dynamic> j,
@@ -169,6 +170,21 @@ class LoyaltyAccount {
       }
     }
     final programId = asStrOrNull(j['programId']);
+    List<LoyaltyProgram>? eligiblePrograms;
+    if (j.containsKey('eligiblePrograms')) {
+      final raw = j['eligiblePrograms'];
+      if (raw is! List) invalidLoyaltyResponse();
+      eligiblePrograms = raw.map((row) {
+        if (row is! Map<String, dynamic>) invalidLoyaltyResponse();
+        final item = LoyaltyProgram.fromJson(row);
+        if (!item.isActive) invalidLoyaltyResponse();
+        return item;
+      }).toList(growable: false);
+      if (eligiblePrograms.map((p) => p.id).toSet().length !=
+          eligiblePrograms.length) {
+        invalidLoyaltyResponse();
+      }
+    }
     if (program != null && program.id != programId) {
       invalidLoyaltyResponse();
     }
@@ -192,6 +208,7 @@ class LoyaltyAccount {
       expired: _requiredInt(j, 'expiredPoints'),
       ledger: ledger,
       program: program,
+      eligiblePrograms: eligiblePrograms,
       programId: programId,
       programCode: asStrOrNull(j['programCode']),
       programName: asStrOrNull(j['programName']),
@@ -205,6 +222,14 @@ class LoyaltyAccount {
   final String? programId, programCode, programName;
   final DateTime? pointsExpireAt;
   final LoyaltyProgram? program;
+
+  /// Null means the older card contract; preserve its known single-program scope.
+  final List<LoyaltyProgram>? eligiblePrograms;
+  List<LoyaltyProgram> get programs =>
+      eligiblePrograms ??
+      (program?.isActive == true ? [program!] : const <LoyaltyProgram>[]);
+  bool canRedeemProgram(String? id) =>
+      id != null && programs.any((p) => p.id == id);
 
   /// Negative balance from the server blocks new redemption, not ledger access.
   bool get hasNegativeBalance => balance < 0;
@@ -222,6 +247,8 @@ class LoyaltyAccount {
         'programName': programName,
         'pointsExpireAt': pointsExpireAt?.toIso8601String(),
         'ledger': ledger.map((entry) => entry.toJson()).toList(),
+        if (eligiblePrograms != null)
+          'eligiblePrograms': eligiblePrograms!.map((p) => p.toJson()).toList(),
       };
 }
 

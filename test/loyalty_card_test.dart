@@ -216,13 +216,15 @@ void main() {
         child: const MaterialApp(
             home: GiftsScreen(redemptionId: 'redemption-1'))));
     await tester.pumpAndSettle();
-    expect(find.text('Quà đã yêu cầu'), findsOneWidget);
     expect(
         tester
             .widget<FilledButton>(
                 find.widgetWithText(FilledButton, 'Thiếu điểm'))
             .onPressed,
         isNull);
+    await tester.scrollUntilVisible(find.text('Quà đã yêu cầu'), 180,
+        scrollable: find.byType(Scrollable).first);
+    expect(find.text('Quà đã yêu cầu'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
