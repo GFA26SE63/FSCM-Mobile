@@ -70,7 +70,7 @@ class LoyaltyScreen extends ConsumerWidget {
   }
 }
 
-enum _LedgerGroup { all, credit, redeem, pending, other }
+enum _LedgerGroup { all, credit, redeem, other }
 
 enum _LedgerSpan { all, week, month }
 
@@ -96,9 +96,9 @@ class _LoyaltyLedgerSectionState extends State<LoyaltyLedgerSection> {
         _LedgerGroup.all => true,
         _LedgerGroup.credit => k == PointKind.earned || k == PointKind.refunded,
         _LedgerGroup.redeem => k == PointKind.redeemed || k == PointKind.held,
-        _LedgerGroup.pending =>
-          k == PointKind.pending || k == PointKind.pendingCancelled,
-        _LedgerGroup.other => k == PointKind.adjusted ||
+        _LedgerGroup.other => k == PointKind.pending ||
+            k == PointKind.pendingCancelled ||
+            k == PointKind.adjusted ||
             k == PointKind.expired ||
             k == PointKind.unknown,
       };
@@ -130,7 +130,6 @@ class _LoyaltyLedgerSectionState extends State<LoyaltyLedgerSection> {
             ChipOption(_LedgerGroup.all, 'Tất cả'),
             ChipOption(_LedgerGroup.credit, 'Cộng / hoàn'),
             ChipOption(_LedgerGroup.redeem, 'Đã đổi quà'),
-            ChipOption(_LedgerGroup.pending, 'Chờ cộng'),
             ChipOption(_LedgerGroup.other, 'Khác'),
           ],
         ),

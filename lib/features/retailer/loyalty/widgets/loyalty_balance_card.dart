@@ -17,8 +17,7 @@ class LoyaltyBalanceCard extends StatelessWidget {
   Widget build(BuildContext context) => Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Gold hero card (prototype LOYALTY): balance, then the held /
-          // pending / expired breakdown in two columns.
+          // Balance, followed by points held for rewards and expired points.
           Container(
             padding: const EdgeInsets.all(AppSpacing.xl),
             decoration: BoxDecoration(
@@ -47,7 +46,6 @@ class LoyaltyBalanceCard extends StatelessWidget {
                   spacing: AppSpacing.xxl,
                   runSpacing: AppSpacing.md,
                   children: [
-                    _Points('Chờ cộng', account.pending),
                     _Points('Đang giữ đổi quà', account.held),
                     _Points('Đã hết hạn', account.expired),
                   ]),
@@ -128,8 +126,7 @@ class LoyaltyProgramCard extends StatelessWidget {
               'bằng điểm thì ưu tiên mã chương trình tăng dần. Điểm vào ví chung. '
               'Điểm của đơn cũ theo tỷ lệ đã ghi nhận, không tính lại theo cấu hình mới.'),
         const SizedBox(height: AppSpacing.s6),
-        const Text(
-            'Điểm chờ cộng và điểm đang giữ đổi quà chưa thể dùng để đổi thêm quà.'),
+        const Text('Điểm đang giữ đổi quà chưa thể dùng để đổi thêm quà.'),
       ],
     ));
   }
