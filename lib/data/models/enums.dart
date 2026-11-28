@@ -28,6 +28,36 @@ enum OrderStatus {
   final String label;
   final StatusTone tone;
 
+  /// Status shown to the RETAILER (Sales keeps [label]). Backend codes are
+  /// unchanged; several internal steps collapse into one stage the retailer
+  /// understands:
+  /// - Đã đặt: created (online or offline), allocation not finished yet.
+  /// - Chờ xác nhận báo giá: quote issued; for prepaid also until the payment
+  ///   succeeds (PaymentPending).
+  /// - Đã xác nhận báo giá: payment method chosen (prepaid: paid) until every
+  ///   warehouse part has been handed to a driver and vehicle.
+  /// - Đang giao → Đã nhận (every part scanned and confirmed) → Hoàn thành
+  ///   (paid in full, no open complaint, complaint window elapsed).
+  /// Exits (out of stock, rejected, expired…) keep their own wording.
+  String get retailerLabel => switch (this) {
+        allocating => 'Đã đặt',
+        quoted || paymentPending => 'Chờ xác nhận báo giá',
+        convertedToPo || picking || issued => 'Đã xác nhận báo giá',
+        delivering => 'Đang giao',
+        delivered => 'Đã nhận',
+        completed => 'Hoàn thành',
+        _ => label,
+      };
+
+  StatusTone get retailerTone => switch (this) {
+        allocating => StatusTone.info,
+        quoted || paymentPending => StatusTone.warning,
+        convertedToPo || picking || issued => StatusTone.primary,
+        delivering => StatusTone.purple,
+        delivered || completed => StatusTone.success,
+        _ => tone,
+      };
+
   /// Not yet delivered / closed (retailer "đang xử lý" tab).
   bool get isActive =>
       this == allocating ||
