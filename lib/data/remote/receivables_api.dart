@@ -161,22 +161,4 @@ class ReceivablesApi {
         await _client.get(Endpoints.retailerDebtPayOsCheckout(checkoutId));
     return DebtCheckout.fromJson(asMap(data));
   }
-
-  /// Single full collection (no partial payments, SPEC section 4).
-  Future<Receivable> collect(Receivable receivable) async {
-    if (receivable.isPaid) return receivable;
-    final data = await _client.post(
-      Endpoints.receivableCollect(receivable.orderId),
-      body: <String, dynamic>{
-        'collectionMethod': 'Cash',
-        'expectedVersion': receivable.version,
-        'note': 'Sales confirmed full cash collection on mobile.',
-      },
-      headers: <String, String>{
-        // Reuse the operation after a lost response for this payment version.
-        'Idempotency-Key': 'cash:${receivable.orderId}:${receivable.version}'
-      },
-    );
-    return Receivable.fromJson(asMap(data));
-  }
 }

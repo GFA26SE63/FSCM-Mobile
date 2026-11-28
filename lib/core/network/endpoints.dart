@@ -90,8 +90,6 @@ class Endpoints {
   static String paymentForOrder(String orderId) => '/payments/orders/$orderId';
   static String payOsCheckout(String orderId) =>
       '/payments/orders/$orderId/payos-checkout';
-  static String receivableCollect(String orderId) =>
-      '/receivables/orders/$orderId/collect';
 
   // ------------------------------------------------------------- loyalty
   static const String loyaltyPrograms = '/loyalty/programs';
