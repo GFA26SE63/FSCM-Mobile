@@ -429,7 +429,7 @@ class RtOrderTile extends StatelessWidget {
                 width: summaryValueWidth,
                 child: Align(
                   alignment: Alignment.centerRight,
-                  child: OrderStatusChip(o),
+                  child: OrderStatusChip(o, retailerView: true),
                 ),
               ),
             ],

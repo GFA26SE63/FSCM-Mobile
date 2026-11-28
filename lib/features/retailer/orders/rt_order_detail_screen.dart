@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:fscm_mobile/core/utils/dates.dart';
 import 'package:fscm_mobile/core/utils/status_tone.dart';
 import 'package:fscm_mobile/data/models/enums.dart';
+import 'package:fscm_mobile/data/models/timeline_entry.dart';
 import 'package:fscm_mobile/data/models/order.dart';
 import 'package:fscm_mobile/data/remote/quotes_api.dart';
 import 'package:fscm_mobile/data/repositories/order_repository.dart';
@@ -52,6 +53,15 @@ class RtOrderDetailScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
+        leading: BackButton(
+          onPressed: () {
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              context.go(AppRoutes.rtOrders);
+            }
+          },
+        ),
         title: Text(value.valueOrNull?.code ?? 'Chi tiết đơn hàng'),
         actions: [
           IconButton(
@@ -91,7 +101,7 @@ class RtOrderDetailScreen extends ConsumerWidget {
                         Text(order.code,
                             style: AppText.display
                                 .copyWith(color: AppColors.text)),
-                        OrderStatusChip(order),
+                        OrderStatusChip(order, retailerView: true),
                       ],
                     ),
                     const SizedBox(height: AppSpacing.xs),
@@ -107,7 +117,7 @@ class RtOrderDetailScreen extends ConsumerWidget {
                 InfoBanner(
                     tone: StatusTone.danger,
                     icon: Icons.block,
-                    title: order.status.label,
+                    title: order.status.retailerLabel,
                     text: order.rejectReason.isEmpty
                         ? 'Đơn đã kết thúc với trạng thái trên.'
                         : order.rejectReason),
@@ -171,7 +181,8 @@ class RtOrderDetailScreen extends ConsumerWidget {
                 const InfoBanner(
                     text: 'Chưa có sự kiện tiến trình được trả về.')
               else
-                AppCard(child: TimelineList(order.timeline)),
+                AppCard(
+                    child: TimelineList(retailerOrderTimeline(order.timeline))),
               if (order.status == OrderStatus.delivered ||
                   order.status == OrderStatus.completed)
                 OutlinedButton.icon(
