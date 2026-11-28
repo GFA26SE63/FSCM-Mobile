@@ -12,6 +12,9 @@ class QrScanView extends StatefulWidget {
     this.manualLabel = 'Hoặc nhập mã thủ công',
     this.height = 260,
     this.allowManual = true,
+    this.demoCodes = const <String>[],
+    this.onDemoScan,
+    this.demoCount,
   });
 
   /// Called with the raw text of each (de-duplicated) scan.
@@ -21,11 +24,38 @@ class QrScanView extends StatefulWidget {
   final double height;
   final bool allowManual;
 
+  /// Real codes still expected by the screen. The server sends them only while
+  /// the admin demo switch is on; the "Quét nhanh" button shows when non-empty.
+  final List<String> demoCodes;
+
+  /// Async handler for all [demoCodes] at once; defaults to [onCode] per code.
+  final Future<void> Function(List<String> codes)? onDemoScan;
+
+  /// Overrides the shown count when [onDemoScan] can still fetch codes itself.
+  final int? demoCount;
+
   @override
   State<QrScanView> createState() => _QrScanViewState();
 }
 
 class _QrScanViewState extends State<QrScanView> {
+  bool _demoBusy = false;
+
+  Future<void> _demoScan() async {
+    final codes = List<String>.of(widget.demoCodes);
+    setState(() => _demoBusy = true);
+    try {
+      if (widget.onDemoScan != null) {
+        await widget.onDemoScan!(codes);
+      } else {
+        // Same path as a camera scan, so every screen check still runs.
+        codes.forEach(widget.onCode);
+      }
+    } finally {
+      if (mounted) setState(() => _demoBusy = false);
+    }
+  }
+
   final TextEditingController _manual = TextEditingController();
   String? _lastCode;
   Timer? _debounce;
@@ -103,6 +133,16 @@ class _QrScanViewState extends State<QrScanView> {
             ),
           ),
         ),
+        if ((widget.demoCount ?? widget.demoCodes.length) > 0) ...<Widget>[
+          const SizedBox(height: 12),
+          OutlinedButton.icon(
+            onPressed: _demoBusy ? null : _demoScan,
+            icon: const Icon(Icons.bolt),
+            label: Text(_demoBusy
+                ? 'Đang quét nhanh...'
+                : 'Quét nhanh ${widget.demoCount ?? widget.demoCodes.length} mã (demo)'),
+          ),
+        ],
         if (widget.allowManual) const SizedBox(height: 12),
         if (widget.allowManual)
           Row(
