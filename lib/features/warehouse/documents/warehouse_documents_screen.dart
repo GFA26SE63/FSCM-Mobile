@@ -775,14 +775,17 @@ class _WarehouseDocumentScreenState
                                   ? (requiredQuantity - scanned).toInt()
                                   : null,
                           // Each scan bumps the document version; chain them.
-                          onDemoScan: (codes) => act(() async {
+                          onDemoScan: (codes, count) => act(() async {
                                 final api =
                                     ref.read(warehouseDocumentsApiProvider);
                                 var current = w;
                                 if (d['kind'] != 'Receipt' &&
-                                    codes.length < requiredQuantity - scanned) {
+                                    codes.length < count) {
                                   current = await api.prepareCartons(current);
-                                  codes = current.demoCartonIds ?? const [];
+                                  codes = (current.demoCartonIds ??
+                                          const <String>[])
+                                      .take(count)
+                                      .toList();
                                 }
                                 if (codes.isEmpty) {
                                   throw const ApiException(

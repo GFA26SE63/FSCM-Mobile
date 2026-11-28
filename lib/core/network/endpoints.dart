@@ -87,6 +87,10 @@ class Endpoints {
       '/retailer/receivables/payos-checkouts';
   static String retailerDebtPayOsCheckout(String checkoutId) =>
       '/retailer/receivables/payos-checkouts/$checkoutId';
+  static const String retailerPendingDebtPayOsCheckouts =
+      '/retailer/receivables/payos-checkouts/pending';
+  static String cancelRetailerDebtPayOsCheckout(String checkoutId) =>
+      '/retailer/receivables/payos-checkouts/$checkoutId/cancel';
   static String paymentForOrder(String orderId) => '/payments/orders/$orderId';
   static String payOsCheckout(String orderId) =>
       '/payments/orders/$orderId/payos-checkout';

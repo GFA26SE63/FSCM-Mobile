@@ -77,4 +77,10 @@ class FinanceRepository {
 
   Future<DebtCheckout> debtCheckout(String checkoutId) =>
       _api.debtCheckout(checkoutId);
+
+  Future<List<DebtCheckout>> pendingDebtCheckouts() =>
+      _api.pendingDebtCheckouts();
+
+  Future<DebtCheckout> cancelDebtCheckout(String checkoutId) =>
+      _api.cancelDebtCheckout(checkoutId);
 }

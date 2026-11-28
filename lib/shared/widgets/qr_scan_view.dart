@@ -28,8 +28,9 @@ class QrScanView extends StatefulWidget {
   /// the admin demo switch is on; the "Quét nhanh" button shows when non-empty.
   final List<String> demoCodes;
 
-  /// Async handler for all [demoCodes] at once; defaults to [onCode] per code.
-  final Future<void> Function(List<String> codes)? onDemoScan;
+  /// Async handler for the first [count] of [demoCodes] (fewer when the
+  /// screen still has to fetch codes); defaults to [onCode] per code.
+  final Future<void> Function(List<String> codes, int count)? onDemoScan;
 
   /// Overrides the shown count when [onDemoScan] can still fetch codes itself.
   final int? demoCount;
@@ -40,17 +41,31 @@ class QrScanView extends StatefulWidget {
 
 class _QrScanViewState extends State<QrScanView> {
   bool _demoBusy = false;
+  final TextEditingController _demoQty = TextEditingController();
+  String _demoError = '';
+
+  int get _demoMax => widget.demoCount ?? widget.demoCodes.length;
 
   Future<void> _demoScan() async {
-    final codes = List<String>.of(widget.demoCodes);
-    setState(() => _demoBusy = true);
+    final text = _demoQty.text.trim();
+    final count = text.isEmpty ? _demoMax : int.tryParse(text);
+    if (count == null || count < 1 || count > _demoMax) {
+      setState(() => _demoError = 'Nhập số thùng từ 1 đến $_demoMax.');
+      return;
+    }
+    final codes = widget.demoCodes.take(count).toList(growable: false);
+    setState(() {
+      _demoBusy = true;
+      _demoError = '';
+    });
     try {
       if (widget.onDemoScan != null) {
-        await widget.onDemoScan!(codes);
+        await widget.onDemoScan!(codes, count);
       } else {
         // Same path as a camera scan, so every screen check still runs.
         codes.forEach(widget.onCode);
       }
+      _demoQty.clear();
     } finally {
       if (mounted) setState(() => _demoBusy = false);
     }
@@ -64,6 +79,7 @@ class _QrScanViewState extends State<QrScanView> {
   void dispose() {
     _debounce?.cancel();
     _manual.dispose();
+    _demoQty.dispose();
     super.dispose();
   }
 
@@ -133,15 +149,46 @@ class _QrScanViewState extends State<QrScanView> {
             ),
           ),
         ),
-        if ((widget.demoCount ?? widget.demoCodes.length) > 0) ...<Widget>[
+        if (_demoMax > 0) ...<Widget>[
           const SizedBox(height: 12),
-          OutlinedButton.icon(
-            onPressed: _demoBusy ? null : _demoScan,
-            icon: const Icon(Icons.bolt),
-            label: Text(_demoBusy
-                ? 'Đang quét nhanh...'
-                : 'Quét nhanh ${widget.demoCount ?? widget.demoCodes.length} mã (demo)'),
+          Row(
+            children: <Widget>[
+              SizedBox(
+                width: 120,
+                child: TextField(
+                  controller: _demoQty,
+                  enabled: !_demoBusy,
+                  keyboardType: TextInputType.number,
+                  decoration: InputDecoration(
+                    labelText: 'Số thùng',
+                    hintText: 'Tối đa $_demoMax',
+                  ),
+                  onSubmitted: (_) => _demoScan(),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size(0, 48),
+                  ),
+                  onPressed: _demoBusy ? null : _demoScan,
+                  icon: const Icon(Icons.bolt),
+                  label: Text(_demoBusy
+                      ? 'Đang quét nhanh...'
+                      : 'Quét nhanh (demo) · còn $_demoMax'),
+                ),
+              ),
+            ],
           ),
+          if (_demoError.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text(
+                _demoError,
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
+            ),
         ],
         if (widget.allowManual) const SizedBox(height: 12),
         if (widget.allowManual)
