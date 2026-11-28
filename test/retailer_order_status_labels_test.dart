@@ -25,7 +25,8 @@ void main() {
 
   test('exit statuses keep their wording and Sales labels are untouched', () {
     expect(OrderStatus.outOfStock.retailerLabel, OrderStatus.outOfStock.label);
-    expect(OrderStatus.quoteExpired.retailerLabel, OrderStatus.quoteExpired.label);
+    expect(
+        OrderStatus.quoteExpired.retailerLabel, OrderStatus.quoteExpired.label);
     expect(OrderStatus.allocating.label, 'Đang phân bổ');
     expect(OrderStatus.convertedToPo.label, 'Đã phát hành đơn thực hiện');
   });
@@ -69,7 +70,8 @@ void main() {
       'changedAt': '2026-11-25T01:00:00Z',
     });
     expect(entry.statusCode, 'Allocating');
-    expect(retailerOrderTimeline(<TimelineEntry>[entry]).single.label, 'Đã đặt');
+    expect(
+        retailerOrderTimeline(<TimelineEntry>[entry]).single.label, 'Đã đặt');
     final cached = TimelineEntry.fromJson(entry.toJson());
     expect(cached.statusCode, 'Allocating');
   });

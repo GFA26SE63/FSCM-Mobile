@@ -181,7 +181,8 @@ class RtOrderDetailScreen extends ConsumerWidget {
                 const InfoBanner(
                     text: 'Chưa có sự kiện tiến trình được trả về.')
               else
-                AppCard(child: TimelineList(retailerOrderTimeline(order.timeline))),
+                AppCard(
+                    child: TimelineList(retailerOrderTimeline(order.timeline))),
               if (order.status == OrderStatus.delivered ||
                   order.status == OrderStatus.completed)
                 OutlinedButton.icon(
